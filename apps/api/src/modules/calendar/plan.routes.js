@@ -135,6 +135,19 @@ router.post(
   planController.submitRow
 );
 
+// Phase 13: apply the lead's suggested values to a row sent back; read a row's history.
+router.post(
+  '/:id/rows/:rowId/apply-suggestion',
+  requirePermission('calendar.plan'),
+  planController.applyRowSuggestion
+);
+
+router.get(
+  '/:id/rows/:rowId/history',
+  requireAnyPermission('calendar.plan', 'calendar.approve', 'portal.view'),
+  planController.getRowHistory
+);
+
 router.post(
   '/:id/rows/autofill',
   requirePermission('calendar.plan'),

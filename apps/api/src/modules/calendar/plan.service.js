@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
+import { logRowHistory } from './rowHistory.js';
+import { buildChangeRequest, currentRowValues, normalizeSuggestions } from './rowChanges.js';
+import { assertDecidesOn, calendarOf, decidersFor } from '../workItems/deciders.js';
 import { CalendarPlan } from './plan.model.js';
-import { parsePriorityInput, APPROVER_ROLES, isApprover, isWorker } from '@mmp/shared';
+import { parsePriorityInput, APPROVER_ROLES, isApprover, isWorker,
+  deciderRoleFor,
+} from '@mmp/shared';
 import { ContentPiece } from './contentPiece.model.js';
 import { WorkItem } from '../workItems/model.js';
 import { Person } from '../people/model.js';
@@ -823,16 +828,19 @@ export async function submitRow(planId, rowId, user) {
       (piece.topic ? `Brief for ${piece.topic}` : 'Deliverable brief');
   }
 
+  const wasSentBack = piece.rowStatus === 'changes_requested';
   piece.rowStatus = 'submitted';
   piece.reviewComment = null;
+  piece.changeRequest = null;
   await piece.save();
+  if (wasSentBack) await logRowHistory(piece._id, user, 'row.resubmitted', { planId: plan._id, topic: piece.topic });
 
   plan.submittedAt = new Date();
   plan.rejectionConcern = '';
   await plan.save();
 
-  // Notify Creative Leads
-  const creativeHeads = await Person.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
+  // Notify the lead of the plan's calendar (Phase 13: Growth Lead for Ads, Creative Lead otherwise)
+  const creativeHeads = await decidersFor(calendarOf(plan));
   for (const ch of creativeHeads) {
     await createNotification({
       recipient: ch._id,
@@ -962,17 +970,22 @@ export async function submitPlan(id, user) {
 
   plan.submissionWarnings = validation.warnings || [];
 
+  // Rows sent back and now resubmitted with the plan: each one is logged in its history.
+  const resubmitting = await ContentPiece.find({ planId: plan._id, rowStatus: 'changes_requested' }).select('_id topic').lean();
   const updatedRows = await ContentPiece.updateMany(
     { planId: plan._id, rowStatus: { $in: ['draft', 'changes_requested'] } },
-    { $set: { rowStatus: 'submitted', reviewComment: null } }
+    { $set: { rowStatus: 'submitted', reviewComment: null, changeRequest: null } }
   );
+  for (const row of resubmitting) {
+    await logRowHistory(row._id, user, 'row.resubmitted', { planId: plan._id, topic: row.topic, withPlan: true });
+  }
 
   plan.submittedAt = new Date();
   plan.rejectionConcern = '';
   await plan.save();
 
-  // Notify every creative_lead/growth_lead
-  const creativeHeads = await Person.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
+  // One combined notification to the lead of the plan's calendar (Phase 13)
+  const creativeHeads = await decidersFor(calendarOf(plan));
   for (const ch of creativeHeads) {
     await createNotification({
       recipient: ch._id,
@@ -1156,6 +1169,8 @@ export async function reviewPlan(id, reviewData, user) {
   }
 
   const plan = await CalendarPlan.findById(id);
+  // Phase 13: the lead of the plan's calendar (Growth Lead for Ads) or admin.
+  if (plan) assertDecidesOn(user, calendarOf(plan), { roleCode: 'FORBIDDEN_APPROVAL' });
   if (!plan) {
     const error = new Error('Calendar plan not found');
     error.statusCode = 404;
@@ -1163,6 +1178,19 @@ export async function reviewPlan(id, reviewData, user) {
   }
 
   let { action, approvedRowIds = [], selectedRowIds = [], changes = [], comments = {} } = reviewData;
+  if (action === 'reject') {
+    // Phase 13: retired. The whole-plan send-back is request_changes_all.
+    const error = new Error('"reject" is retired. Use request_changes_all with a message.');
+    error.statusCode = 400;
+    error.code = 'ACTION_RETIRED';
+    throw error;
+  }
+  if (!['approve_all', 'approve_selected', 'request_changes', 'request_changes_all'].includes(action)) {
+    const error = new Error('Unknown review action.');
+    error.statusCode = 400;
+    error.code = 'INVALID_ACTION';
+    throw error;
+  }
   if ((!approvedRowIds || approvedRowIds.length === 0) && Array.isArray(selectedRowIds) && selectedRowIds.length > 0) {
     approvedRowIds = selectedRowIds;
   }
@@ -1172,14 +1200,19 @@ export async function reviewPlan(id, reviewData, user) {
   const rowsToApprove = [];
   const changesRequestedRows = [];
 
+  const approveRow = async (row) => {
+    const wasApproved = row.rowStatus === 'approved';
+    row.rowStatus = 'approved';
+    row.reviewComment = null;
+    row.changeRequest = null;
+    await row.save();
+    rowsToApprove.push(row);
+    if (!wasApproved) await logRowHistory(row._id, user, 'row.approved', { planId: plan._id, topic: row.topic });
+  };
+
   if (action === 'approve_all') {
     const allRows = await ContentPiece.find({ planId: plan._id });
-    for (const row of allRows) {
-      row.rowStatus = 'approved';
-      row.reviewComment = null;
-      await row.save();
-      rowsToApprove.push(row);
-    }
+    for (const row of allRows) await approveRow(row);
   } else if (action === 'approve_selected') {
     if (!Array.isArray(approvedRowIds) || approvedRowIds.length === 0) {
       const error = new Error('approvedRowIds array is required for approve_selected action');
@@ -1187,44 +1220,67 @@ export async function reviewPlan(id, reviewData, user) {
       throw error;
     }
     const rows = await ContentPiece.find({ _id: { $in: approvedRowIds }, planId: plan._id });
-    for (const row of rows) {
-      row.rowStatus = 'approved';
-      row.reviewComment = null;
-      await row.save();
-      rowsToApprove.push(row);
-    }
+    for (const row of rows) await approveRow(row);
   } else if (action === 'request_changes') {
     if (!Array.isArray(changes) || changes.length === 0) {
       const error = new Error('changes array with rowId and comment is required');
       error.statusCode = 400;
       throw error;
     }
+    // Check every row first (message, status, suggestions), then write: all or nothing.
+    const planned = [];
     for (const ch of changes) {
-      const row = await ContentPiece.findOne({ _id: ch.rowId, planId: plan._id });
-      if (row) {
-        row.rowStatus = 'changes_requested';
-        row.reviewComment = ch.comment;
-        await row.save();
-        changesRequestedRows.push(row);
+      const message = String(ch.comment || ch.message || '').trim();
+      if (!message) {
+        const error = new Error('Write what should change.');
+        error.statusCode = 400;
+        error.code = 'MESSAGE_REQUIRED';
+        throw error;
       }
+      const row = await ContentPiece.findOne({ _id: ch.rowId, planId: plan._id });
+      if (!row) continue;
+      if (row.rowStatus !== 'submitted') {
+        const error = new Error(`"${row.topic}" is not waiting for review, so changes cannot be requested on it.`);
+        error.statusCode = 400;
+        error.code = 'ROW_NOT_SUBMITTED';
+        throw error;
+      }
+      const suggestions = normalizeSuggestions(row.toObject(), plan, ch.suggestions);
+      planned.push({ row, message, suggestions });
     }
-  } else if (action === 'reject') {
-    const concern = reviewData.rejectionConcern || reviewData.concern || reviewData.comment;
-    if (!concern || !concern.trim()) {
-      const error = new Error('Rejection concern is required when rejecting the whole plan.');
+    for (const { row, message, suggestions } of planned) {
+      const before = suggestions ? currentRowValues(row) : null;
+      row.rowStatus = 'changes_requested';
+      row.reviewComment = message;
+      row.changeRequest = buildChangeRequest(message, suggestions, user);
+      await row.save();
+      changesRequestedRows.push(row);
+      await logRowHistory(row._id, user, 'row.changes_requested', {
+        planId: plan._id,
+        topic: row.topic,
+        message,
+        suggestions,
+        before,
+      });
+    }
+  } else if (action === 'request_changes_all') {
+    // Every submitted row goes back with one message; approved (and draft) rows are untouched.
+    const message = String(reviewData.message || '').trim();
+    if (!message) {
+      const error = new Error('Write what should change in this plan.');
       error.statusCode = 400;
-      error.code = 'REJECTION_CONCERN_REQUIRED';
+      error.code = 'MESSAGE_REQUIRED';
       throw error;
     }
-    plan.rejectionConcern = concern.trim();
     const rows = await ContentPiece.find({ planId: plan._id, rowStatus: 'submitted' });
     for (const row of rows) {
       row.rowStatus = 'changes_requested';
-      row.reviewComment = concern.trim();
+      row.reviewComment = message;
+      row.changeRequest = buildChangeRequest(message, null, user);
       await row.save();
       changesRequestedRows.push(row);
+      await logRowHistory(row._id, user, 'row.changes_requested', { planId: plan._id, topic: row.topic, message, withPlan: true });
     }
-    await plan.save();
   }
 
   // Generate Stage WorkItems ONLY for newly approved rows
@@ -1239,17 +1295,22 @@ export async function reviewPlan(id, reviewData, user) {
     await plan.save();
   }
 
-  // Notify SM Manager who created the plan
-  if (plan.createdById) {
+  // Notify the SM Manager who created the plan (each change request is one notification).
+  const sendsBack = action === 'request_changes' || action === 'request_changes_all';
+  if (plan.createdById && (rowsToApprove.length > 0 || changesRequestedRows.length > 0)) {
     let notifTitle = 'Calendar Plan Approved';
     let notifMsg = `Your calendar plan ${plan.title} (${plan.code}) was approved.`;
+    const by = user.name || 'The lead';
 
-    if (action === 'reject') {
-      notifTitle = 'Calendar Plan Rejected';
-      notifMsg = `Entire plan rejected by Creative Lead: ${plan.rejectionConcern || 'Strategic concern'}.`;
+    if (action === 'request_changes_all') {
+      notifTitle = 'Changes Requested on Calendar Plan';
+      notifMsg = `${by} sent ${changesRequestedRows.length} row(s) of ${plan.title} back: ${String(reviewData.message).trim()}`;
     } else if (action === 'request_changes') {
       notifTitle = 'Changes Requested on Calendar Plan';
-      notifMsg = `Creative Lead requested changes on ${changesRequestedRows.length} row(s) in ${plan.title}.`;
+      notifMsg =
+        changesRequestedRows.length === 1
+          ? `${by} requested changes on "${changesRequestedRows[0].topic}" in ${plan.title}: ${changesRequestedRows[0].reviewComment}`
+          : `${by} requested changes on ${changesRequestedRows.length} row(s) in ${plan.title}.`;
     } else if (action === 'approve_selected') {
       notifTitle = 'Calendar Plan Partially Approved';
       notifMsg = `${rowsToApprove.length} row(s) approved in ${plan.title}.`;
@@ -1257,11 +1318,11 @@ export async function reviewPlan(id, reviewData, user) {
 
     await createNotification({
       recipient: plan.createdById,
-      type: action === 'request_changes' || action === 'reject' ? 'plan_changes_requested' : 'plan_approved',
+      type: sendsBack ? 'plan_changes_requested' : 'plan_approved',
       title: notifTitle,
       message: notifMsg,
       link: `/calendar?tab=plans&planId=${plan._id}`,
-      metadata: { planId: plan._id, action },
+      metadata: { planId: plan._id, action, rowIds: changesRequestedRows.map((r) => r._id) },
     });
   }
 
@@ -1481,7 +1542,9 @@ export async function movePlanCalendar(id, newCalendar, user) {
   });
 
   // Create notification
-  const notifyRoles = [...APPROVER_ROLES];
+  // Phase 13: pending decisions follow the plan to its new calendar's lead. Tell both leads
+  // (old and new; the same person when both calendars have the same lead) and the SM manager.
+  const notifyRoles = [...new Set([deciderRoleFor(oldCalendar), deciderRoleFor(newCalendar)])];
   if (userRole !== 'sm_manager') notifyRoles.push('sm_manager');
   const notifyUsers = await Person.find({ role: { $in: notifyRoles }, status: 'active' }).lean();
   for (const recipient of notifyUsers) {

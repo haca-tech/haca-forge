@@ -1,4 +1,5 @@
 import { WorkItem } from './model.js';
+import { assertDecidesOn, calendarOf, decidersFor } from './deciders.js';
 import { logActivity } from '../activity/service.js';
 import { BLOCKER_REASONS, LIVE_URL_ERROR, normalizeRole, getAvailableActions, getWorkspaceMode, isLivePostUrl, APPROVER_ROLES, isApprover, isReadOnlyViewer, isWorker } from '@mmp/shared';
 import { workspacesLocked } from '../../lib/workspaceLock.js';
@@ -109,14 +110,10 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
       error.code = 'FORBIDDEN_SELF_APPROVAL';
       throw error;
     }
-    if (!isApprover(userRole) && userRole !== 'admin') {
-      const error = new Error(
-        'Review stages can be approved only by Creative Lead and Admin. SM Manager and the owner cannot approve.'
-      );
-      error.statusCode = 403;
-      error.code = 'FORBIDDEN_APPROVAL';
-      throw error;
-    }
+    assertDecidesOn(user, calendarOf(workItem), {
+      roleCode: 'FORBIDDEN_APPROVAL',
+      roleMessage: 'Review stages can be approved only by Creative Lead and Admin. SM Manager and the owner cannot approve.',
+    });
   }
 
   const isFinishedStep = fromStatus === 'Approved' || fromStatus === 'Published';
@@ -130,6 +127,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
     error.code = 'FORBIDDEN_REOPEN';
     throw error;
   }
+  if (isReopen) assertDecidesOn(user, calendarOf(workItem), { roleCode: 'FORBIDDEN_REOPEN' });
   // Only a finished review step, and never once the deliverable is posted or handed over.
   if (isReopen) await assertCanReopen(workItem);
   // A paused step is not decided until every earlier step it waits on is approved again.
@@ -139,12 +137,10 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
 
   // Requesting a revision follows the same reviewer rule as every other decision path.
   if (isReviewerRevision && !options.reviewDecision) {
-    if (!isApprover(userRole) && userRole !== 'admin') {
-      const error = new Error('Only Creative Lead or Admin can request revisions');
-      error.statusCode = 403;
-      error.code = 'FORBIDDEN_ACTION';
-      throw error;
-    }
+    assertDecidesOn(user, calendarOf(workItem), {
+      roleCode: 'FORBIDDEN_ACTION',
+      roleMessage: 'Only Creative Lead or Admin can request revisions',
+    });
     if (ownerIdStr === userId) {
       const error = new Error('You cannot review your own work');
       error.statusCode = 403;
@@ -189,7 +185,9 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
   // Worker actions guard: A user never gets worker actions on a task they do not own
   // Note: On legacy standalone work items (no stageKey), sm_manager can publish and head can request rework.
   let isWorkerAction = ['start', 'submit_for_approval', 'mark_as_posted', 'mark_blocked'].includes(requiredAction);
-  if (fromStatus === 'Feedback' && toStatus === 'In Progress' && (isApprover(userRole) || userRole === 'admin')) {
+  if (fromStatus === 'Feedback' && toStatus === 'In Progress' && (isApprover(userRole) || userRole === 'admin') && !isOwner) {
+    // A reviewer moving a step back is a decision: their calendar only.
+    assertDecidesOn(user, calendarOf(workItem), { roleCode: 'FORBIDDEN_ACTION' });
     isWorkerAction = false;
   }
   if (toStatus === 'Published' && !workItem.stageKey && (userRole === 'sm_manager' || userRole === 'admin')) {
@@ -575,7 +573,8 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
 
     // If review requested (moved to Feedback or Pending), notify Creative Leads
     if (isNewSubmission) {
-      const creativeHeads = await Person.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
+      // Phase 13: the lead of the step's calendar.
+      const creativeHeads = await decidersFor(calendarOf(workItem));
       for (const ch of creativeHeads) {
         await createNotification({
           recipient: ch._id,

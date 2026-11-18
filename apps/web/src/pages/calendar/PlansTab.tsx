@@ -31,6 +31,7 @@ import {
   normalizeWorkType,
   planMonthKey,
   isApprover,
+  canDecide,
   isReadOnlyViewer,
 } from '@mmp/shared';
 import { Avatar } from '../../components/Avatar';
@@ -175,8 +176,6 @@ export const PlansTab: React.FC<PlansTabProps> = ({
   const isExecutive = isReadOnlyViewer(user?.role);
   // Plan row review is the Creative Lead's alone (PG-3); admin keeps planning and every other permission.
   const isCreativeHead = isApprover(user?.role);
-  // Reviews plan rows: the leads, and admin as a backup.
-  const isRowReviewer = isCreativeHead || user?.role === 'admin';
   const isSMManager = user?.role === 'sm_manager' || user?.role === 'admin';
   const isAdmin = user?.role === 'admin';
 
@@ -184,6 +183,9 @@ export const PlansTab: React.FC<PlansTabProps> = ({
   const [plans, setPlans] = useState<CalendarPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<CalendarPlan | null>(null);
+  // Reviews the open plan's rows (Phase 13): the lead of its calendar (Growth Lead for Ads,
+  // Creative Lead otherwise), and admin as a backup.
+  const isRowReviewer = canDecide(user?.role, selectedPlan?.calendar || 'sm');
 
   // The plan grid is a full-screen route (/calendar/plan-grid). One entry point per role, below.
   const navigate = useNavigate();

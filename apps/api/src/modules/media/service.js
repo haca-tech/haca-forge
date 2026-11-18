@@ -1,11 +1,12 @@
 import fs from 'fs';
+import { assertDecidesOn, calendarOf, decidersFor } from '../workItems/deciders.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { MediaItem, MediaMessage } from './model.js';
 import { WorkItem } from '../workItems/model.js';
 import { User } from '../people/model.js';
 import { resolveScope } from '../../lib/scope.js';
-import { getWorkspaceMode, APPROVER_ROLES, isApprover } from '@mmp/shared';
+import { getWorkspaceMode, APPROVER_ROLES, isApprover, canDecide } from '@mmp/shared';
 import { createNotification } from '../notifications/service.js';
 import { logActivity } from '../activity/service.js';
 import { canSeePrivateReview, canSeeStepOutput, getParticipation, isTeamMember } from '../workItems/access.js';
@@ -501,8 +502,8 @@ export async function postMessage(clipId, messageData, user) {
 
   // Notification: new message to "the other side"
   if (isOwner) {
-    // Shooter posted -> notify creative_lead/growth_lead
-    const creativeHeads = await User.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
+    // Shooter posted -> notify the lead of the step's calendar
+    const creativeHeads = await decidersFor(calendarOf(workItem));
     for (const ch of creativeHeads) {
       await createNotification({
         recipient: ch._id,
@@ -624,7 +625,7 @@ export async function toggleMessageDone(clipId, messageId, done, user) {
   const userIdStr = (user.userId || user._id || user.id)?.toString();
   const ownerIdStr = (workItem.ownerId?._id || workItem.ownerId)?.toString();
   const isOwner = Boolean(userIdStr && ownerIdStr && userIdStr === ownerIdStr);
-  const isReviewer = isApprover(user.role) || user.role === 'admin';
+  const isReviewer = canDecide(user.role, calendarOf(workItem));
 
   if (done === false) {
     // Reopening is restricted to reviewers
@@ -677,6 +678,8 @@ export async function reviewClip(clipId, { action, message }, user) {
     error.statusCode = 404;
     throw error;
   }
+  // Phase 13: the lead of the step's calendar (or admin) reviews its clips.
+  assertDecidesOn(user, calendarOf(workItem), { roleCode: 'FORBIDDEN_ACTION' });
 
   const userIdStr = (user.userId || user._id || user.id)?.toString();
 
@@ -868,8 +871,8 @@ export async function submitClipsForApproval(stageItemId, user) {
     { ownerSubmission: true }
   );
 
-  // Notify Creative Lead
-  const creativeHeads = await User.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
+  // Notify the lead of the step's calendar (Phase 13)
+  const creativeHeads = await decidersFor(calendarOf(workItem));
   for (const ch of creativeHeads) {
     await createNotification({
       recipient: ch._id,

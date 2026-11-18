@@ -8,7 +8,7 @@ import { ActivityEvent } from '../activity/model.js';
 import { enqueueEmail } from '../../lib/queue.js';
 import { isRetiredJob, runRetiredJob } from '../jobs/retired.js';
 import { logger } from '../../lib/logger.js';
-import { hasTimeLabel, istDateKey, overdueDays, stepTimeLabels, APPROVER_ROLES } from '@mmp/shared';
+import { hasTimeLabel, istDateKey, overdueDays, stepTimeLabels, APPROVER_ROLES, deciderRoleFor } from '@mmp/shared';
 
 // Default reminder rules (Phase 7: the two report-email rules were retired)
 export const DEFAULT_AUTOMATION_RULES = [
@@ -415,18 +415,20 @@ async function runRevisionPatternFlagRule(rule, user) {
     $or: [{ rootCause: null }, { rootCause: '' }, { rootCauseStatus: 'Unclassified' }],
     isEscalated: { $ne: true },
     flaggedAt: { $lt: fortyEightHoursAgo },
-  }).populate('workItemId', 'title');
+  }).populate('workItemId', 'title calendar');
 
   let escalatedCount = 0;
-  const leaders = await Person.find({
-    role: { $in: [...APPROVER_ROLES, 'admin'] },
-    status: { $ne: 'suspended' },
-  }).lean();
+  // Phase 13: each flag goes to the lead of its step's calendar, plus admin.
+  const leadersByRole = new Map();
+  for (const role of ['creative_lead', 'growth_lead', 'admin']) {
+    leadersByRole.set(role, await Person.find({ role, status: { $ne: 'suspended' } }).lean());
+  }
 
   for (const flag of unclassifiedFlags) {
     flag.isEscalated = true;
     await flag.save();
 
+    const leaders = [...leadersByRole.get(deciderRoleFor(flag.workItemId?.calendar || 'sm')), ...leadersByRole.get('admin')];
     for (const leader of leaders) {
       await Notification.create({
         recipient: leader._id,

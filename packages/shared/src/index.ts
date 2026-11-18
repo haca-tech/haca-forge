@@ -67,6 +67,50 @@ export const canManageOperationalFields = (role: RoleInput): boolean => roleOf(r
 /** View and download a person's profile report. */
 export const canViewProfileReport = (role: RoleInput): boolean =>
   roleOf(role) === "admin" || isApprover(role) || isReadOnlyViewer(role);
+// ==========================================
+// Phase 13: approval routing by calendar
+// ==========================================
+/** The calendar Ads work belongs to; the Growth Lead decides it. */
+export const ADS_CALENDAR = "ads";
+const ALL_CALENDARS = ["sm", "sales", "ads", "academics_management", "other"] as const;
+
+/**
+ * The calendars a role decides on (approve, review, rate, reopen, request changes, classify):
+ * growth_lead the Ads calendar only, creative_lead every other calendar, admin all of them
+ * (as a backup). Everyone else none.
+ */
+export function decisionCalendarsFor(role: RoleInput): string[] {
+  const r = roleOf(role);
+  if (r === "admin") return [...ALL_CALENDARS];
+  if (r === "growth_lead") return [ADS_CALENDAR];
+  if (r === "creative_lead") return ALL_CALENDARS.filter((c) => c !== ADS_CALENDAR);
+  return [];
+}
+
+/** The lead role that decides on a calendar (admin covers every calendar too). */
+export function deciderRoleFor(calendarKey: string | null | undefined): "creative_lead" | "growth_lead" {
+  return (calendarKey || "sm") === ADS_CALENDAR ? "growth_lead" : "creative_lead";
+}
+
+/**
+ * May this user decide on work in this calendar? The work's current calendar counts (a
+ * missing calendar is SM), and nobody decides on their own work (pass ownerId).
+ */
+export function canDecide(
+  user: { _id?: unknown; id?: unknown; userId?: unknown; role?: string | null } | string | null | undefined,
+  calendarKey: string | null | undefined,
+  { ownerId }: { ownerId?: unknown } = {},
+): boolean {
+  const role = typeof user === "string" ? user : user?.role;
+  if (!decisionCalendarsFor(role).includes(calendarKey || "sm")) return false;
+  if (ownerId && user && typeof user === "object") {
+    const me = String((user as any).userId || (user as any)._id || (user as any).id || "");
+    const owner = String((ownerId as any)?._id || ownerId);
+    if (me && owner && me === owner) return false;
+  }
+  return true;
+}
+
 /** Only admin grants these roles. */
 export const ADMIN_GRANTED_ROLES = ["admin", ...READ_ONLY_VIEWER_ROLES, ...APPROVER_ROLES] as const;
 
@@ -1785,17 +1829,37 @@ export const calendarPlanCreateSchema = z.object({
 });
 export type CalendarPlanCreateInput = z.infer<typeof calendarPlanCreateSchema>;
 
+/** Phase 13: values a lead may suggest when sending a plan row back. All optional. */
+export const PLAN_ROW_SUGGESTION_FIELDS = ["postingDate", "topic", "type", "workflow", "brief"] as const;
+export type PlanRowSuggestionField = (typeof PLAN_ROW_SUGGESTION_FIELDS)[number];
+export const planRowSuggestionsSchema = z
+  .object({
+    postingDate: z.string().optional(),
+    topic: z.string().optional(),
+    type: z.string().optional(),
+    workflow: z.string().optional(),
+    brief: z.string().optional(),
+  })
+  .strict();
+export type PlanRowSuggestions = z.infer<typeof planRowSuggestionsSchema>;
+
+/**
+ * Plan review (Phase 13): approve rows, request changes on rows (message required, optional
+ * suggested values) or on the whole plan (request_changes_all: every submitted row, one
+ * message). The old "reject" action is retired and fails validation (400).
+ */
 export const calendarPlanReviewSchema = z.object({
-  action: z.enum(["approve_all", "approve_selected", "request_changes", "reject"]),
+  action: z.enum(["approve_all", "approve_selected", "request_changes", "request_changes_all"]),
   approvedRowIds: z.array(z.string()).optional().default([]),
   selectedRowIds: z.array(z.string()).optional(),
   comments: z.record(z.string()).optional(),
-  rejectionConcern: z.string().optional(),
+  message: z.string().optional(),
   changes: z
     .array(
       z.object({
         rowId: z.string().min(1, "Row ID is required"),
-        comment: z.string().trim().min(1, "Change request comment is required"),
+        comment: z.string().trim().min(1, "Write what should change."),
+        suggestions: planRowSuggestionsSchema.optional(),
       })
     )
     .optional()

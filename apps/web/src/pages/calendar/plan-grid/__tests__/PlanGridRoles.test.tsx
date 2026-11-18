@@ -166,7 +166,7 @@ describe('Executive read-only grid', () => {
   it('hides editing, paste, delete, submit and review actions', async () => {
     role = 'creative_head';
     await show({ permissions: { canEdit: false, canReview: false, readOnly: true } });
-    expect(screen.getByText('Read-only view. Contact details are not shown.')).toBeInTheDocument();
+    expect(screen.getByText("Read-only view: the Creative Lead reviews this calendar's plans.")).toBeInTheDocument();
     for (const name of [/Download Template/, /^Upload$/, /Submit for review/, /Approve selected/, /Approve whole plan/]) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
     }

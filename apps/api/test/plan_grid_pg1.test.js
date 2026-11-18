@@ -344,9 +344,12 @@ describe('PG-1 plan grid', () => {
       expect(sm.body.data.people.length).toBeGreaterThan(0);
       expect(JSON.stringify(sm.body.data.people)).not.toMatch(/@/);
 
+      // Phase 13: the Creative Lead reviews every calendar except Ads (the Growth Lead's).
       const head = await get('head', q);
       expect(head.status).toBe(200);
-      expect(head.body.data.permissions).toEqual({ canEdit: false, canReview: true, readOnly: false });
+      expect(head.body.data.permissions).toEqual({ canEdit: false, canReview: false, readOnly: true });
+      const headSm = await get('head', { ...q, calendar: 'sm' });
+      expect(headSm.body.data.permissions).toEqual({ canEdit: false, canReview: true, readOnly: false });
 
       const exec = await get('exec', q);
       expect(exec.status).toBe(200);

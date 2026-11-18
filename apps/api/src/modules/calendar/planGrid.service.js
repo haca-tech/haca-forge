@@ -39,6 +39,7 @@ import {
   isApprover,
   isWorker,
   effectiveStepsFor,
+  canDecide,
 } from '@mmp/shared';
 import { markAwaitingReview } from '../workItems/reviewState.js';
 import { CalendarPlan } from './plan.model.js';
@@ -78,7 +79,7 @@ function httpError(status, code, message, extra = {}) {
   return error;
 }
 
-function ymdInAppTz(value) {
+export function ymdInAppTz(value) {
   if (!value) return '';
   const d = new Date(value);
   if (isNaN(d.getTime())) return '';
@@ -221,6 +222,16 @@ export function toGridRow(piece, workItems = []) {
     publishTime: piece.postingTime || '',
     contentLink: piece.contentLink || '',
     reviewFeedback: piece.reviewComment || '',
+    // Phase 13: the lead's open change request (message and suggested values), or null.
+    changeRequest: piece.changeRequest?.message
+      ? {
+          message: piece.changeRequest.message,
+          suggestions: Object.fromEntries(
+            Object.entries(piece.changeRequest.suggestions || {}).filter(([, v]) => v !== undefined && v !== null && v !== '')
+          ),
+          requestedAt: piece.changeRequest.requestedAt || null,
+        }
+      : null,
     stepDeadlines,
     ownerSources,
     ownerIds: Object.fromEntries(stages.map((s) => [s, ownerId(s)])),
@@ -267,11 +278,11 @@ async function loadGridRows(planId) {
   return pieces.map((p) => toGridRow(p, byPiece.get(String(p._id)) || []));
 }
 
-function gridPermissions(user) {
+function gridPermissions(user, calendar = 'sm') {
   const role = normalizeRole(user.role);
   const canEdit = PLAN_EDIT_ROLES.includes(role);
-  // Phase 12b: the leads review rows, with admin as a backup (same rule as the review endpoint).
-  const canReview = isApprover(role) || role === 'admin';
+  // Phase 13: the lead of this calendar (Growth Lead for Ads) reviews rows; admin is a backup.
+  const canReview = canDecide(role, calendar);
   return { role, canEdit, canReview, readOnly: !canEdit && !canReview };
 }
 
@@ -289,7 +300,7 @@ async function activeOwnerCandidates() {
  * what the viewer may do. Never creates a plan.
  */
 export async function loadGrid({ calendar = 'sm', month, planId } = {}, user) {
-  const perms = gridPermissions(user);
+  const perms = gridPermissions(user, calendar);
   if (isWorker(perms.role)) {
     throw httpError(403, 'FORBIDDEN_SCOPE', 'Team members cannot access calendar plans.');
   }

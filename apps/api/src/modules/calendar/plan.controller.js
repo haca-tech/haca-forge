@@ -1,4 +1,5 @@
 import * as planService from './plan.service.js';
+import * as rowChanges from './rowChanges.js';
 import * as planGridService from './planGrid.service.js';
 
 export async function getGrid(req, res, next) {
@@ -141,6 +142,24 @@ export async function submitRow(req, res, next) {
       req.user
     );
     res.json({ data: plan, message: 'Row submitted for review' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function applyRowSuggestion(req, res, next) {
+  try {
+    const result = await rowChanges.applyRowSuggestion(req.params.id, req.params.rowId, req.user);
+    res.json({ data: result, message: 'Suggestion applied. Resubmit the row when it is ready.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getRowHistory(req, res, next) {
+  try {
+    const history = await rowChanges.getRowHistory(req.params.id, req.params.rowId);
+    res.json({ data: history });
   } catch (err) {
     next(err);
   }

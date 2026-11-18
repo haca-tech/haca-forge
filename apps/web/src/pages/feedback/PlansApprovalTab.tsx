@@ -11,7 +11,7 @@ import {
   ChevronUp,
   FileSpreadsheet,
 } from 'lucide-react';
-import { planMonthKey, type CalendarPlanStatus, type RowStatus, isApprover } from '@mmp/shared';
+import { planMonthKey, type CalendarPlanStatus, type RowStatus, isApprover, canDecide, decisionCalendarsFor } from '@mmp/shared';
 
 interface PlanRow {
   _id: string;
@@ -49,9 +49,10 @@ export const PlansApprovalTab: React.FC = () => {
   const navigate = useNavigate();
   // Plan row review is the Creative Lead's alone (PG-3); others see the queue read-only.
   // The leads review plan rows; admin is a backup reviewer.
-  const canReview = isApprover(user?.role) || user?.role === 'admin';
+  // Phase 13: the lead of the plan's calendar decides (Growth Lead: Ads; Creative Lead: the rest).
+  const canReviewPlan = (plan: { calendar?: string }) => canDecide(user?.role, plan.calendar || 'sm');
   // Review controls on this page are for individual plans; monthly plans are reviewed in the plan grid.
-  const canReviewHere = (plan: { kind: string }) => canReview && plan.kind !== 'monthly';
+  const canReviewHere = (plan: { kind: string; calendar?: string }) => canReviewPlan(plan) && plan.kind !== 'monthly';
   const [plans, setPlans] = useState<CalendarPlanWaiting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
@@ -69,6 +70,8 @@ export const PlansApprovalTab: React.FC = () => {
       // Filter for plans waiting for approval and sort oldest first
       const waiting = (res.data || [])
         .filter((p) => p.status === 'Submitted' || p.submittedRowCount > 0)
+        // A lead sees the plans of their own calendars (admin and the others see every plan).
+        .filter((p) => !isApprover(user?.role) || decisionCalendarsFor(user?.role).includes(p.calendar || 'sm'))
         .sort((a, b) => {
           const dateA = new Date(a.submittedAt || a.createdAt).getTime();
           const dateB = new Date(b.submittedAt || b.createdAt).getTime();
@@ -169,7 +172,7 @@ export const PlansApprovalTab: React.FC = () => {
   if (isLoading) {
     return (
       <div className="glass-card p-8 text-center text-xs text-ui-muted">
-        Loading plans waiting for Creative Lead approval...
+        Loading plans waiting for approval...
       </div>
     );
   }
@@ -182,7 +185,7 @@ export const PlansApprovalTab: React.FC = () => {
         </div>
         <h3 className="text-base font-bold text-ui-ink">All Plans Approved!</h3>
         <p className="text-xs text-ui-muted max-w-sm mx-auto">
-          There are currently no submitted monthly or project calendar plans waiting for Creative Lead review.
+          There are currently no submitted monthly or project calendar plans waiting for your review.
         </p>
       </div>
     );
@@ -275,17 +278,17 @@ export const PlansApprovalTab: React.FC = () => {
                           className="ui-btn ui-btn-secondary h-11"
                         >
                           <FileSpreadsheet className="w-4 h-4" aria-hidden="true" />
-                          {canReview ? 'Review in plan grid' : 'View in plan grid'}
+                          {canReviewPlan(plan) ? 'Review in plan grid' : 'View in plan grid'}
                         </button>
                       )}
-                      {!canReview && plan.kind !== 'monthly' && (
+                      {!canReviewPlan(plan) && plan.kind !== 'monthly' && (
                         <p className="text-xs text-ui-muted">Only a Creative Lead, a Growth Lead or an Admin can approve or return plan rows.</p>
                       )}
                       {plan.kind === 'monthly' && (
                         <p className="text-xs text-ui-muted">Monthly plans are reviewed row by row in the plan grid.</p>
                       )}
                       {/* Individual plans are not in the grid, so their review stays here. */}
-                      {canReview && plan.kind !== 'monthly' && (<>
+                      {canReviewPlan(plan) && plan.kind !== 'monthly' && (<>
                       <button
                         type="button"
                         onClick={() => handleReview(plan._id, 'approve_all')}

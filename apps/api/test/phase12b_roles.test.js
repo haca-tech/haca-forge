@@ -247,14 +247,16 @@ describe('Phase 12b: the 7-role model', () => {
   describe('Reviewing: both leads and admin, never on their own work', () => {
     for (const lead of ['creativeLead', 'growthLead']) {
       it(`${lead} approves others' work and cannot approve or send back their own`, async () => {
-        const own = await step(lead);
+        // Phase 13: each lead decides on their own calendars (Growth Lead: Ads).
+        const cal = lead === 'growthLead' ? { calendar: 'ads' } : {};
+        const own = await step(lead, cal);
         const ownV = await version(own);
         const a = await as(lead).post(`/api/submissions/${ownV._id}/approve`, { score: 5 });
         expect(a.status).toBe(403);
         expect(a.body.error.code).toBe('FORBIDDEN_SELF_APPROVAL');
         const r = await as(lead).post(`/api/submissions/${ownV._id}/request-revision`, { comment: 'self' });
         expect(r.status).toBe(403);
-        const other = await step('editor');
+        const other = await step('editor', cal);
         const otherV = await version(other);
         expect((await as(lead).post(`/api/submissions/${otherV._id}/approve`, { score: 4 })).status).toBe(200);
       });

@@ -99,7 +99,7 @@ describe('PG-3 plan grid review and roles', () => {
       { action: 'approve_selected', approvedRowIds: [rowB] },
       { action: 'approve_all' },
       { action: 'request_changes', changes: [{ rowId: rowB, comment: 'x' }] },
-      { action: 'reject', rejectionConcern: 'x' },
+      { action: 'request_changes_all', message: 'x' },
     ]) {
       const res = await request(app).post(`/api/calendar-plans/${planId}/review`).set(as('exec')).send(body);
       expect(res.status).toBe(403);

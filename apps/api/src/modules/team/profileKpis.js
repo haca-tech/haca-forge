@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { calendarQueryFor } from '../workItems/deciders.js';
 import { markAwaitingReview } from '../workItems/reviewState.js';
 import {
   CANONICAL_REVISION_ROOT_CAUSES,
@@ -25,6 +26,7 @@ import {
   isApprover,
   isReadOnlyViewer,
   isWorker,
+  decisionCalendarsFor,
 } from '@mmp/shared';
 import { Person } from '../people/model.js';
 import { WorkItem } from '../workItems/model.js';
@@ -207,7 +209,7 @@ async function workerFigures(allSteps, period, now) {
   };
 }
 
-async function reviewerFigures(personId, period, now) {
+async function reviewerFigures(personId, period, now, role = null) {
   const pid = new mongoose.Types.ObjectId(String(personId));
   const decisionsAll = await Submission.find({ reviewedById: pid, status: { $in: ['approved', 'changes_requested'] }, version: { $gt: 0 } })
     .select('status submittedAt reviewedAt workItemId')
@@ -226,7 +228,8 @@ async function reviewerFigures(personId, period, now) {
   // The team review queue: review steps waiting for a decision, by their latest submission.
   const waitingSteps = (
     await markAwaitingReview(
-      await WorkItem.find({ status: { $in: ['Feedback', 'Pending'] }, stageKey: { $ne: 'Post' }, isSkipped: { $ne: true } })
+      // Phase 13: the queue of this lead's calendars (no role: every calendar).
+      await WorkItem.find({ status: { $in: ['Feedback', 'Pending'] }, stageKey: { $ne: 'Post' }, isSkipped: { $ne: true }, ...calendarQueryFor(role ? decisionCalendarsFor(role) : null) })
         .select('status revisions submittedAt resubmittedAt')
         .lean()
     )
@@ -293,7 +296,7 @@ export async function getProfileKpis(targetId, actor, query = {}, { withSteps = 
   const worker = await workerFigures(steps, period, now);
   if (worker && !withSteps) delete worker.steps;
   const isCreativeHead = isApprover(normalizeRole(person.role));
-  const creativeHead = isCreativeHead && canSeeReviewSection(actor, person) ? await reviewerFigures(person._id, period, now) : null;
+  const creativeHead = isCreativeHead && canSeeReviewSection(actor, person) ? await reviewerFigures(person._id, period, now, normalizeRole(person.role)) : null;
 
   return {
     person: {

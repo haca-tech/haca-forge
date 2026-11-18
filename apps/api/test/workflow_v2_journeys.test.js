@@ -763,12 +763,12 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
         .post(`/api/calendar-plans/${rejectablePlan._id}/review`)
         .set('Authorization', `Bearer ${creativeHeadToken}`)
         .send({
-          action: 'reject',
-          rejectionConcern: 'Focus on Admissions campaign topics first before generic branding.',
+          // Phase 13: the whole-plan send-back is request_changes_all ("reject" is retired).
+          action: 'request_changes_all',
+          message: 'Focus on Admissions campaign topics first before generic branding.',
         });
       expect(rejectRes.status).toBe(200);
       expect(rejectRes.body.data.status).toBe('Changes requested');
-      expect(rejectRes.body.data.rejectionConcern).toContain('Focus on Admissions campaign topics');
 
       // Verify all submitted rows received the concern
       const rows = await ContentPiece.find({ planId: rejectablePlan._id });

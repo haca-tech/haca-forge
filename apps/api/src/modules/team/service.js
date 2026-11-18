@@ -1,4 +1,5 @@
 import { eligiblePreferencesForUpdate } from '../people/eligibility.js';
+import { calendarQueryFor } from '../workItems/deciders.js';
 import mongoose from 'mongoose';
 import { countAwaitingReview, markAwaitingReview } from '../workItems/reviewState.js';
 import bcrypt from 'bcryptjs';
@@ -14,7 +15,9 @@ import { Session } from '../auth/session.model.js';
 import { logActivity } from '../activity/service.js';
 import { getRatingsSummary } from '../submissions/service.js';
 import { disconnectUserSockets } from '../../lib/socketHub.js';
-import { calculateIndividualWorkMeasures, formatDuration, normalizeRole, ROLE_LABELS, submittedWorkTimeMs, hasTimeLabel, workerOnTime, ratingAverage, isFirstPassApproval, isFirstPassCandidate, ROLE_KEYS, APPROVER_ROLES, isApprover, isReadOnlyViewer, isWorker, canSeeContactDetails } from '@mmp/shared';
+import { calculateIndividualWorkMeasures, formatDuration, normalizeRole, ROLE_LABELS, submittedWorkTimeMs, hasTimeLabel, workerOnTime, ratingAverage, isFirstPassApproval, isFirstPassCandidate, ROLE_KEYS, APPROVER_ROLES, isApprover, isReadOnlyViewer, isWorker, canSeeContactDetails,
+  decisionCalendarsFor,
+} from '@mmp/shared';
 
 /**
  * Worker isolation guard: A executive (worker) accessing someone else's profile gets HTTP 404 (strictly anti-harvesting).
@@ -447,13 +450,14 @@ export async function getPersonOverview(targetPersonId, actor, query = {}) {
   const personRole = normalizeRole(person.role);
 
   if (isApprover(personRole)) {
-    const pendingReviewsCount = await countAwaitingReview();
+    // Phase 13: the reviews waiting in this lead's calendars.
+    const pendingReviewsCount = await countAwaitingReview(calendarQueryFor(decisionCalendarsFor(personRole)));
     const approvedPast30Days = await WorkItem.countDocuments({
       status: { $in: ['Approved', 'Published'] },
       approvedAt: { $gte: new Date(Date.now() - 30 * 86400000) },
     });
     operationalSummary = {
-      role: { $in: [...APPROVER_ROLES] },
+      role: personRole,
       pendingReviewsCount,
       approvedPast30Days,
     };

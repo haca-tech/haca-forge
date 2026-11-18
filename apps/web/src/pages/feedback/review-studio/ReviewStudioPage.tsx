@@ -15,7 +15,7 @@ import {
   CheckCircle,
   Share2,
 } from 'lucide-react';
-import { ROLE_LABELS, type UserRole, isApprover, isReadOnlyViewer, canSeeAllReviewText } from '@mmp/shared';
+import { ROLE_LABELS, type UserRole, isApprover, isReadOnlyViewer, canSeeAllReviewText, canDecide as canDecideOn } from '@mmp/shared';
 
 import { DocumentViewer, DocumentCommentAnchor } from './DocumentViewer';
 import { VideoPlayerViewer } from './VideoPlayerViewer';
@@ -702,9 +702,11 @@ export const ReviewStudioPage: React.FC = () => {
     activeSubmission?.workItemId?.ownerId
   )?.toString();
   const isOwner = Boolean(ownerId && ownerId === currentUserId);
-  // Same reviewer rule as the API: creative_lead/growth_lead and admin decide, never on their own work.
+  // Same reviewer rule as the API: the lead of the step's calendar (Growth Lead for Ads,
+  // Creative Lead otherwise) and admin decide, never on their own work (Phase 13).
   const isDecisionRole = isApprover(user?.role) || user?.role === 'admin';
-  const canDecide = isDecisionRole && !isOwner;
+  const stepCalendar = activeSubmission?.calendar || activeSubmission?.workItemId?.calendar || 'sm';
+  const canDecide = canDecideOn(user?.role, stepCalendar) && !isOwner;
   const canComment = isDecisionRole || isOwner;
   const isPrivileged = user?.role === 'admin' || isApprover(user?.role) || user?.role === 'sm_manager';
   const canShare = Boolean(isApproved && (isPrivileged || isOwner) && !isReadOnlyViewer(user?.role));

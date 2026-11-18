@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, CheckCircle2, ClipboardPaste, Download, HelpCircle, ListChecks, PanelRightOpen, Plus, Send, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ClipboardPaste, Download, HelpCircle, ListChecks, MessageSquare, PanelRightOpen, Plus, Send, Trash2, Upload } from 'lucide-react';
 import {
   CALENDAR_LIST,
   formatGridDate,
@@ -17,12 +17,15 @@ import {
   ROW_WORKFLOW_LABELS,
   type PlanGridColumnKey,
   type StageKey,
+  type PlanRowSuggestions,
+  deciderRoleFor,
 } from '@mmp/shared';
 import { apiFetch, ApiError } from '../../../lib/api';
 import { statusClass, statusTone } from '../../../lib/statusTone';
 import { PlanGridPreviewDialog } from './PlanGridPreviewDialog';
 import { PlanGridRowPanel } from './PlanGridRowPanel';
 import { PlanGridConfirmDialog } from './PlanGridConfirmDialog';
+import { PlanChangesDialog } from './PlanRowChangeRequest';
 import { PlanGridPasteDialog } from './PlanGridPasteDialog';
 import { useMediaQuery } from './useMediaQuery';
 import { OWNER_FIELD_BY_STAGE, PLANNING_COLUMNS, PROGRESS_COLUMNS, STAGE_LABEL, stageForColumn, type PlanCol, type PlanColGroup } from './columns';
@@ -222,7 +225,9 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
   const [onlyWaiting, setOnlyWaiting] = useState<boolean | null>(null);
   const showOnlyWaiting = onlyWaiting ?? canReview;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [confirm, setConfirm] = useState<null | { kind: 'approveAll' } | { kind: 'deleteRow'; key: string }>(null);
+  const [confirm, setConfirm] = useState<null | { kind: 'approveAll' } | { kind: 'planChanges' } | { kind: 'deleteRow'; key: string }>(null);
+  // Bumped after a suggestion is applied, so the open row panel re-reads the saved row.
+  const [panelVersion, setPanelVersion] = useState(0);
   const [reviewBusy, setReviewBusy] = useState(false);
 
   // Progress columns are only useful once rows are approved (their steps exist).
@@ -547,15 +552,34 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
       setPanelSaving(false);
     }
   };
-  const reviewPanelRow = async (action: 'approve' | 'changes', comment?: string) => {
+  const reviewPanelRow = async (action: 'approve' | 'changes', comment?: string, suggestions?: PlanRowSuggestions) => {
     if (!panelLine?.rowId) return;
     setPanelSaving(true);
     const ok =
       action === 'approve'
         ? await review({ action: 'approve_selected', approvedRowIds: [panelLine.rowId] }, `Approved "${panelLine.saved?.topic}". Its steps are now created.`)
-        : await review({ action: 'request_changes', changes: [{ rowId: panelLine.rowId, comment }] }, `Sent "${panelLine.saved?.topic}" back with your note.`);
+        : await review(
+            { action: 'request_changes', changes: [{ rowId: panelLine.rowId, comment, ...(suggestions ? { suggestions } : {}) }] },
+            `Sent "${panelLine.saved?.topic}" back with your note${suggestions ? ' and suggested values' : ''}.`
+          );
     setPanelSaving(false);
     if (ok) setPanelKey(null);
+  };
+  /** SM Manager: apply the lead's suggested values; the panel stays open to resubmit. */
+  const applyPanelSuggestion = async () => {
+    if (!panelLine?.rowId || !plan) return;
+    setPanelSaving(true);
+    try {
+      await apiFetch(`/api/calendar-plans/${plan._id}/rows/${panelLine.rowId}/apply-suggestion`, { method: 'POST' });
+      setNotice({ tone: 'ok', text: `Suggestion applied to "${panelLine.saved?.topic}". Resubmit the row when it is ready.` });
+      await load(keepUnsaved());
+      setPanelVersion((v) => v + 1);
+      onChanged?.();
+    } catch (err) {
+      reportError(err);
+    } finally {
+      setPanelSaving(false);
+    }
   };
   const deleteRowConfirmed = async (key: string) => {
     const target = lines.find((l) => l.key === key);
@@ -923,6 +947,15 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
                 <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
                 Approve whole plan
               </button>
+              <button
+                type="button"
+                className="ui-btn ui-btn-secondary h-11"
+                disabled={submittedLines.length === 0 || reviewBusy}
+                onClick={() => setConfirm({ kind: 'planChanges' })}
+              >
+                <MessageSquare className="w-4 h-4" aria-hidden="true" />
+                Request changes on plan
+              </button>
             </>
           )}
           {hasProgress && !isPhone && (
@@ -994,7 +1027,11 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
           </p>
         </div>
 
-        {readOnly && data && <p className="text-sm text-ui-muted">Read-only view. Contact details are not shown.</p>}
+        {readOnly && data && (
+          <p className="text-sm text-ui-muted">
+            {`Read-only view: the ${deciderRoleFor(calendar) === 'growth_lead' ? 'Growth Lead' : 'Creative Lead'} reviews this calendar's plans.`}
+          </p>
+        )}
         {isPhone && canEdit && <p className="text-sm text-ui-muted">Paste from Excel works on a tablet or computer. Here, add or edit one row at a time.</p>}
         {data?.selectionRequired && (
           <p className="status-tint status-waiting rounded-ui-control px-3 py-2 text-sm">
@@ -1260,7 +1297,7 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
 
       {panelLine && (
         <PlanGridRowPanel
-          key={panelLine.key}
+          key={`${panelLine.key}:${panelVersion}`}
           line={panelLine}
           planId={plan?._id}
           month={month}
@@ -1274,6 +1311,7 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
           onDelete={() => panelLine && setConfirm({ kind: 'deleteRow', key: panelLine.key })}
           onSubmitRow={submitPanelRow}
           onReview={reviewPanelRow}
+          onApplySuggestion={applyPanelSuggestion}
           onClose={() => setPanelKey(null)}
         />
       )}
@@ -1287,6 +1325,18 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
           onCancel={() => setConfirm(null)}
           onConfirm={async () => {
             const ok = await review({ action: 'approve_all' }, 'Plan approved.');
+            if (ok) setConfirm(null);
+          }}
+        />
+      )}
+      {confirm?.kind === 'planChanges' && (
+        <PlanChangesDialog
+          submittedCount={submittedLines.length}
+          isBusy={reviewBusy}
+          onCancel={() => setConfirm(null)}
+          onSend={async (message) => {
+            const n = submittedLines.length;
+            const ok = await review({ action: 'request_changes_all', message }, `Sent ${n} ${n === 1 ? 'row' : 'rows'} back with your message. Approved rows stay approved.`);
             if (ok) setConfirm(null);
           }}
         />

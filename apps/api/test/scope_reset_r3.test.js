@@ -1117,7 +1117,8 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
         type: 'plan_changes_requested',
       });
       expect(notif).toBeDefined();
-      expect(notif.message).toContain('Creative Lead requested changes');
+      // Phase 13: the message names the lead who asked.
+      expect(notif.message).toContain('requested changes');
     });
 
     it('enforces approval and revision guards on review stages: sm_manager and owner cannot approve or request revisions', async () => {

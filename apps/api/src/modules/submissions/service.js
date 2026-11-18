@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { calendarOf, decidersFor, decisionCalendarFilter } from '../workItems/deciders.js';
 import mongoose from 'mongoose';
 import { Submission, SubmissionComment, Rating, EditorLock } from './model.js';
 import { WorkItem } from '../workItems/model.js';
@@ -364,7 +365,8 @@ export async function saveSubmittedVersion({ workItem, user, fields, toStatus = 
 
   // Notify the reviewers
   await afterDecision('the submission notification', async () => {
-    const creativeHeads = await Person.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
+    // Phase 13: the lead of the step's calendar.
+    const creativeHeads = await decidersFor(calendarOf(workItem));
     for (const ch of creativeHeads) {
       await createNotification({
         recipient: ch._id,
@@ -613,7 +615,8 @@ export async function addComment(submissionId, commentData, user) {
       metadata: { submissionId: submission._id, commentId: comment._id },
     });
   } else if (isStepOwner) {
-    const creativeHeads = await Person.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
+    // Phase 13: the lead of the step's calendar.
+    const creativeHeads = await decidersFor(calendarOf(workItem));
     for (const ch of creativeHeads) {
       await createNotification({
         recipient: ch._id,
@@ -1006,7 +1009,7 @@ export async function getReviewQueue(user) {
     .populate('submittedById', 'name email role jobRole')
     .populate({
       path: 'workItemId',
-      select: 'title stageKey status priority deadline ownerId blockerReason blockerNote decisionAt approvedAt changesRequestedAt',
+      select: 'title stageKey status priority deadline ownerId blockerReason blockerNote decisionAt approvedAt changesRequestedAt calendar',
       populate: [
         { path: 'ownerId', select: 'name email role jobRole' },
       ],
@@ -1022,11 +1025,15 @@ export async function getReviewQueue(user) {
   ]);
   const latestVersionOf = new Map(latestVersions.map((row) => [String(row._id), row.version]));
 
+  // Phase 13: a lead sees the versions of their own calendars; admin, the SM manager and the
+  // read-only heads see every calendar.
+  const myCalendars = decisionCalendarFilter(user);
   const submissions = submitted.filter(
     (sub) =>
       sub.workItemId &&
       latestVersionOf.get(String(sub.workItemId._id)) === sub.version &&
-      isAwaitingDecision(sub.workItemId, sub)
+      isAwaitingDecision(sub.workItemId, sub) &&
+      (!myCalendars || myCalendars.includes(calendarOf(sub.workItemId)))
   );
 
   const now = Date.now();
@@ -1049,6 +1056,7 @@ export async function getReviewQueue(user) {
         title: workItemObj?.title || '',
         stageKey: sub.stageKey || workItemObj?.stageKey,
         step: sub.stageKey || workItemObj?.stageKey,
+        calendar: calendarOf(workItemObj),
         ownerId: workItemObj?.ownerId
           ? {
               _id: (workItemObj.ownerId._id || workItemObj.ownerId.id || workItemObj.ownerId)?.toString(),

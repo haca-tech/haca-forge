@@ -1,4 +1,4 @@
-import { REVIEW_STAGES, normalizeRole, isApprover } from '@mmp/shared';
+import { REVIEW_STAGES, normalizeRole, isApprover, canDecide } from '@mmp/shared';
 import { WorkItem } from './model.js';
 import { isFinished } from './access.js';
 import { isHandoverStep } from './handoff.js';
@@ -45,6 +45,8 @@ export async function assertCanReopen(workItem) {
 export function canReopen(user, item, siblingStages) {
   const role = normalizeRole(user?.role);
   if (!isApprover(role) && role !== 'admin') return false;
+  // Phase 13: only the lead of the step's calendar (or admin).
+  if (!canDecide(role, item.calendar || 'sm')) return false;
   const userId = String(user?._id || user?.id || user?.userId || '');
   const ownerId = String(item.ownerId?._id || item.ownerId || '');
   if (userId && userId === ownerId) return false;

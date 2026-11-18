@@ -11,6 +11,7 @@ import {
   workflowFlags,
   workflowFromFlags,
   workflowOptionsFor,
+  type PlanRowSuggestions,
   type RowWorkflow,
   type StageKey,
 } from '@mmp/shared';
@@ -29,6 +30,7 @@ import {
   type StepLineState,
 } from '../planRowSteps';
 import { OWNER_FIELD_BY_STAGE, STAGE_LABEL } from './columns';
+import { ChangeRequestBanner, RowHistory, SuggestFields, cleanSuggestions } from './PlanRowChangeRequest';
 import { rowCanBeDeleted, type GridCellInput, type GridLine, type GridPerson } from './types';
 
 const ROW_STATUS: Record<string, { tone: string; label: string }> = {
@@ -43,7 +45,7 @@ interface Props {
   planId?: string;
   month: string;
   canEdit: boolean;
-  /** Creative Lead: approve or return a submitted row. */
+  /** The lead of this calendar (or admin): approve or return a submitted row. */
   canReview?: boolean;
   people?: GridPerson[];
   types?: string[];
@@ -53,7 +55,9 @@ interface Props {
   onSave: (cells: GridCellInput) => void;
   onDelete: () => void;
   onSubmitRow?: () => void;
-  onReview?: (action: 'approve' | 'changes', comment?: string) => void;
+  onReview?: (action: 'approve' | 'changes', comment?: string, suggestions?: PlanRowSuggestions) => void;
+  /** SM Manager: apply the lead's suggested values to a row sent back (Phase 13). */
+  onApplySuggestion?: () => void;
   onClose: () => void;
 }
 
@@ -113,6 +117,7 @@ export const PlanGridRowPanel: React.FC<Props> = ({
   onDelete,
   onSubmitRow,
   onReview,
+  onApplySuggestion,
   onClose,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -154,6 +159,7 @@ export const PlanGridRowPanel: React.FC<Props> = ({
   const [showErrors, setShowErrors] = useState(false);
   const [changesComment, setChangesComment] = useState('');
   const [changesError, setChangesError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<PlanRowSuggestions>({});
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
   const flags = flagsOf(form.workflow);
   const workflowChoices = workflowOptionsFor(form.type);
@@ -290,7 +296,17 @@ export const PlanGridRowPanel: React.FC<Props> = ({
             </div>
           )}
 
-          {row?.reviewFeedback && (
+          {row?.changeRequest && (
+            <ChangeRequestBanner
+              row={row}
+              request={row.changeRequest}
+              canApply={editable && row.rowStatus === 'changes_requested'}
+              isBusy={isSaving}
+              onApply={onApplySuggestion}
+            />
+          )}
+
+          {row?.reviewFeedback && !row.changeRequest && (
             <section aria-labelledby="row-feedback-title" className="status-tint status-changes rounded-ui-card p-3">
               <h3 id="row-feedback-title" className="text-xs font-semibold text-ui-ink">Review feedback</h3>
               <p className="text-sm text-ui-text mt-1 whitespace-pre-wrap">{row.reviewFeedback}</p>
@@ -319,6 +335,14 @@ export const PlanGridRowPanel: React.FC<Props> = ({
                 />
                 {changesError && <p id="row-changes-error" className="text-xs text-ui-ink status-tint status-changes rounded-ui-control px-2 py-1">{changesError}</p>}
               </div>
+              {row && (
+                <details className="rounded-ui-card border border-ui-line p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-ui-ink min-h-[44px] flex items-center">Suggest new values</summary>
+                  <div className="pt-2">
+                    <SuggestFields row={row} month={month} types={types} value={suggestions} onChange={setSuggestions} />
+                  </div>
+                </details>
+              )}
               <button
                 type="button"
                 className="ui-btn ui-btn-secondary h-11 w-full"
@@ -328,13 +352,17 @@ export const PlanGridRowPanel: React.FC<Props> = ({
                     setChangesError('Say what needs to change before sending the row back.');
                     return;
                   }
-                  onReview('changes', changesComment.trim());
+                  onReview('changes', changesComment.trim(), row ? cleanSuggestions(row, suggestions) : undefined);
                 }}
               >
                 <MessageSquare className="w-4 h-4" aria-hidden="true" />
                 Request changes
               </button>
             </section>
+          )}
+
+          {planId && row && row.rowStatus !== 'draft' && (
+            <RowHistory planId={planId} row={row} refreshKey={`${row.rowStatus}:${row.changeRequest?.requestedAt || ''}:${row.postingDate}:${row.workflow || ''}`} />
           )}
 
           <fieldset className="space-y-3">

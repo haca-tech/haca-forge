@@ -1,4 +1,11 @@
-import type { PlanGridColumn, PlanGridColumnKey, RowWorkflow, StageKey } from '@mmp/shared';
+import type { PlanGridColumn, PlanGridColumnKey, PlanRowSuggestions, RowWorkflow, StageKey } from '@mmp/shared';
+
+/** Phase 13: the lead's open change request on a row (null when none). */
+export interface RowChangeRequest {
+  message: string;
+  suggestions: PlanRowSuggestions;
+  requestedAt: string | null;
+}
 
 /** One row as returned by GET /api/calendar-plans/grid (see planGrid.service.js toGridRow). */
 export interface GridRow {
@@ -34,6 +41,7 @@ export interface GridRow {
   publishTime: string;
   contentLink: string;
   reviewFeedback: string;
+  changeRequest?: RowChangeRequest | null;
   stepDeadlines: Partial<Record<StageKey, string>>;
   ownerSources: Partial<Record<StageKey, { owner: 'manual' | 'suggested'; deadline: 'manual' | 'auto' }>>;
   ownerIds: Partial<Record<StageKey, string | null>>;

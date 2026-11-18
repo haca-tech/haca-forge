@@ -3,7 +3,7 @@ import { useDialogFocus } from '../../lib/useDialogFocus';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
 import { TimeLabelChips, type TimeLabel } from '../../components/TimeLabelChips';
-import { hasTimeLabel, formatDuration, reworkTimeMs, stepReviewState, isApprover } from '@mmp/shared';
+import { hasTimeLabel, formatDuration, reworkTimeMs, stepReviewState, isApprover, canDecide } from '@mmp/shared';
 import { workspacesLocked } from '../../lib/workspaceLock';
 import { StepSubmitDialog } from '../../components/StepSubmitDialog';
 import { statusClass, statusTone } from '../../lib/statusTone';
@@ -63,6 +63,8 @@ const NO_SUBMISSION_TO_REVIEW =
   'This step has no submission to review yet. It can be approved or sent back once the owner submits their work.';
 
 interface WorkItemDetail {
+  /** Phase 13: the calendar the step belongs to now (decides who reviews it). */
+  calendar?: string;
   /** The row's type and workflow, e.g. "Reel · Edit only". */
   workflowLabel?: string | null;
   /** A step with no earlier step: the row's brief (and Edit only source video). */
@@ -654,7 +656,8 @@ export const WorkDetailPage: React.FC = () => {
   const isOwner = Boolean(
     user && (user.userId || user.id || user._id) === (item.ownerId?._id || item.ownerId?.id || item.ownerId)
   );
-  const isReviewer = isApprover(user?.role) || user?.role === 'admin';
+  // Phase 13: the lead of this step's calendar (Growth Lead for Ads, Creative Lead otherwise) or admin.
+  const isReviewer = canDecide(user?.role, item.calendar || 'sm');
   const hasOutput = Boolean(
     item.deliverableUrl ||
     item.latestSubmission?.fileUrl ||

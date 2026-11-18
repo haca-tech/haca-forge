@@ -1,4 +1,4 @@
-import { getStepStatusLabel, isApprover } from '@mmp/shared';
+import { getStepStatusLabel, isApprover, canDecide } from '@mmp/shared';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import { displayStatus, statusClass, statusTone } from '../../lib/statusTone';
@@ -38,6 +38,7 @@ interface FeedbackThreadItem {
     ownerId?: { _id: string; name: string; email: string; role: string; jobRole?: string };
     reviewRequired?: boolean;
     stageKey?: string;
+    calendar?: string;
   };
   latestEntry?: {
     _id: string;
@@ -302,8 +303,9 @@ export const FeedbackPage: React.FC = () => {
     activeThread?.workItem.ownerId?._id === (user as any)?.userId;
 
   // Same reviewer rule as the API: creative_lead/growth_lead and admin, never on their own work.
-  const canRequestRevision =
-    (user?.role === 'admin' || isApprover(user?.role)) && !isAssignedOwner;
+  // Phase 13: the lead of the step's calendar (Growth Lead for Ads, Creative Lead otherwise).
+  const canDecideThread = canDecide(user?.role, activeThread?.workItem.calendar || 'sm');
+  const canRequestRevision = canDecideThread && !isAssignedOwner;
 
   const isReviewerOrAdmin = user?.role === 'admin' || isApprover(user?.role) || user?.role === 'sm_manager';
 
@@ -657,13 +659,13 @@ export const FeedbackPage: React.FC = () => {
                           </div>
                         ) : (
                           <p className="text-[11px] mt-1">
-                            Awaiting root cause classification by SM Manager or Creative Lead.
+                            Awaiting root cause classification by the step's lead (Growth Lead for Ads, Creative Lead otherwise).
                           </p>
                         )}
                       </div>
                     </div>
 
-                    {!activeThread.flag.rootCause && isReviewerOrAdmin && (
+                    {!activeThread.flag.rootCause && canDecideThread && (
                       <button
                         type="button"
                         onClick={() => setIsClassifyModalOpen(true)}

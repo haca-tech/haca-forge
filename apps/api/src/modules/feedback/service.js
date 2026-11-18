@@ -1,4 +1,5 @@
 import { FeedbackEntry, RevisionFlag } from './model.js';
+import { assertDecidesOn, calendarOf, calendarQueryFor, decisionCalendarFilter } from '../workItems/deciders.js';
 import { WorkItem } from '../workItems/model.js';
 import { Person } from '../people/model.js';
 import { logActivity } from '../activity/service.js';
@@ -6,7 +7,7 @@ import { createNotification } from '../notifications/service.js';
 /** A step is flagged when it reaches this review round (Phase 7 close-out). */
 export const REVISION_FLAG_ROUND = 4;
 import { resolveScope } from '../../lib/scope.js';
-import { CANONICAL_REVISION_ROOT_CAUSES, normalizeRole, APPROVER_ROLES, isApprover, isReadOnlyViewer, isWorker } from '@mmp/shared';
+import { CANONICAL_REVISION_ROOT_CAUSES, normalizeRole, APPROVER_ROLES, isApprover, isReadOnlyViewer, isWorker, deciderRoleFor } from '@mmp/shared';
 import { isTeamMember, requireParticipant } from '../workItems/access.js';
 import {
   assertDecisionAllowed,
@@ -305,7 +306,7 @@ export async function checkAndCreateRevisionFlag(workItem, actor = null) {
     // Alert Creative Leads and SM Managers
     const alertPersons = await Person.find({
       $or: [
-        { role: { $in: [...APPROVER_ROLES] }, status: 'active' },
+        { role: deciderRoleFor(calendarOf(workItem)), status: 'active' },
         { role: 'sm_manager', departmentId: workItem.departmentId, status: 'active' },
       ],
     });
@@ -347,7 +348,7 @@ export async function classifyRevisionFlag(flagId, { rootCause, rootCauseNotes }
   }
 
   const flag = await RevisionFlag.findById(flagId)
-    .populate('workItemId', 'title departmentId')
+    .populate('workItemId', 'title departmentId calendar')
     .populate('ownerId', 'name email role');
 
   if (!flag) {
@@ -355,6 +356,8 @@ export async function classifyRevisionFlag(flagId, { rootCause, rootCauseNotes }
     error.statusCode = 404;
     throw error;
   }
+  // Phase 13: the lead of the step's calendar (or admin) classifies its root cause.
+  assertDecidesOn(user, calendarOf(flag.workItemId), { roleCode: 'FORBIDDEN_ACTION' });
 
   const userId = (user._id || user.id || user.userId)?.toString();
   const classifierPerson = await Person.findOne({
@@ -444,6 +447,9 @@ export async function listFeedbackThreads(filters = {}, user) {
     ...scope,
     $or: [{ status: 'Feedback' }, { status: 'Pending' }, { revisions: { $gt: 0 } }],
   };
+  // Phase 13: a lead sees the threads of their own calendars.
+  const myCalendars = decisionCalendarFilter(user);
+  if (myCalendars) workItemsQuery.$and = [...(workItemsQuery.$and || []), calendarQueryFor(myCalendars)];
 
   if (filters.departmentId) {
     workItemsQuery.departmentId = filters.departmentId;

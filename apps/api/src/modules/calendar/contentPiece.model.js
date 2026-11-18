@@ -100,6 +100,27 @@ const contentPieceSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    // Phase 13: the lead's open change request on this row (message plus optional suggested
+    // values). Cleared when a suggestion is applied or the row is resubmitted; the row history
+    // (activity events) keeps every request.
+    changeRequest: {
+      type: new mongoose.Schema(
+        {
+          message: { type: String, trim: true, required: true },
+          suggestions: {
+            postingDate: { type: String, default: undefined },
+            topic: { type: String, default: undefined },
+            type: { type: String, default: undefined },
+            workflow: { type: String, default: undefined },
+            brief: { type: String, default: undefined },
+          },
+          requestedById: { type: mongoose.Schema.Types.ObjectId, ref: 'Person', default: null },
+          requestedAt: { type: Date, default: Date.now },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
     stagePlan: [
       {
         stageKey: {

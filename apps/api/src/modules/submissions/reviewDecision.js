@@ -1,4 +1,5 @@
 import { normalizeRole, isApprover } from '@mmp/shared';
+import { assertDecidesOn, calendarOf } from '../workItems/deciders.js';
 import { Submission, Rating } from './model.js';
 import { MediaItem } from '../media/model.js';
 import { logActivity } from '../activity/service.js';
@@ -90,16 +91,15 @@ export function assertReworkStarted(workItem, latestSubmission) {
   }
 }
 
-/** creative_lead/growth_lead and admin decide; nobody decides on their own work. */
+/**
+ * The lead of the step's calendar (Growth Lead for Ads, Creative Lead otherwise) and admin
+ * decide (Phase 13); the other lead gets 403 WRONG_CALENDAR; nobody decides on their own work.
+ */
 export function assertReviewer(user, workItem, decision = 'approve') {
-  const role = normalizeRole(user.role);
-  if (!isApprover(role) && role !== 'admin') {
-    throw decisionError(
-      403,
-      decision === 'approve' ? 'FORBIDDEN_APPROVAL' : 'FORBIDDEN_ACTION',
-      decision === 'approve' ? 'Only Creative Lead or Admin can approve deliverables' : 'Only Creative Lead or Admin can request revisions'
-    );
-  }
+  assertDecidesOn(user, calendarOf(workItem), {
+    roleCode: decision === 'approve' ? 'FORBIDDEN_APPROVAL' : 'FORBIDDEN_ACTION',
+    roleMessage: decision === 'approve' ? 'Only Creative Lead or Admin can approve deliverables' : 'Only Creative Lead or Admin can request revisions',
+  });
   const userId = (user._id || user.id || user.userId)?.toString();
   if (userId && idOf(workItem.ownerId) === userId) {
     throw decisionError(403, 'FORBIDDEN_SELF_APPROVAL', 'You cannot review your own work');
