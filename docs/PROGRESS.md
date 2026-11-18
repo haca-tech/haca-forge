@@ -1,6 +1,36 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Phase 12b):** 1879 passing, 0 failing: API 1499 (73 files), web 380 (49 files). Typecheck 0 errors; web build clean.
+**Current test count (after Phase 13):** 1914 passing, 0 failing: API 1523 (74 files), web 391 (50 files). Typecheck 0 errors; web build clean.
+
+## Phase 13: Approval routing by calendar and plan row Request changes (Status: COMPLETE; committed locally, not pushed)
+
+Gate in the working tree before the commit: typecheck 0 errors, web build clean, API 1523/1523 (74 files), web 391/391 (50 files).
+
+- `b3ab683` Phase 13: approval routing by calendar; plan row Request changes.
+
+### Routing
+- `@mmp/shared`: `decisionCalendarsFor(role)`, `deciderRoleFor(calendar)`, `canDecide(user, calendar, { ownerId })`. Growth Lead: Ads only. Creative Lead: every calendar except Ads. Admin: all. Nobody decides their own work. Missing calendar = SM.
+- API (`workItems/deciders.js`, `assertDecidesOn`): approve, request revision (Review Studio, Work Detail, Feedback page), reopen, a reviewer moving Feedback to In Progress, clip review, root-cause classify and plan review all check the work's current calendar. The other lead gets 403 `WRONG_CALENDAR`; other roles keep their old codes.
+- Standalone work uses its own calendar (default SM, so the Creative Lead; set to Ads, the Growth Lead) (decision 1).
+- Lists: the review queue, feedback threads, the plan approval list and KPI "reviews waiting" show a lead only their calendars; admin, the SM Manager and the read-only heads see all. Queue items carry `calendar`. Fixed on the way: the team overview stored a Mongo query as the person's role (left from the Phase 12b rename).
+- Notifications: new and resubmitted versions, clip messages, plan and row submissions, and the 48-hour unclassified-flag alert go to the lead of the calendar only (the alert also to admin, as before). A plan's calendar move moves its rows and steps, so pending decisions follow; both leads and the SM Manager are told.
+- Web: Review Studio, Work Detail, Feedback page, plans list and plan grid use `canDecide` with the work's calendar. The other lead sees the grid read-only, with a note naming who reviews it.
+
+### Plan row Request changes
+- Row field `changeRequest` (message, suggested values, who, when). `request_changes` needs a message; suggested values (posting date, topic, type and workflow, brief) are optional. They are checked with the grid parser: the date must be in the plan month, and the type and workflow must be a valid pair. Only values that differ from the row are kept. Only submitted rows can be sent back (400 `ROW_NOT_SUBMITTED`).
+- `request_changes_all`: one message to every submitted row; approved and draft rows are untouched. `reject` is retired (400) (decision 3).
+- SM Manager: `POST /api/calendar-plans/:id/rows/:rowId/apply-suggestion` applies the values through the grid save (same checks), clears the change request and keeps the row "Changes requested" until resubmitted. They can also edit by hand. Resubmit (row, or Submit plan in bulk, decision 2) goes back to the same lead, with one combined notification per Submit plan.
+- History: `GET /api/calendar-plans/:id/rows/:rowId/history` (activity events): changes requested (with the values before), suggestion applied, resubmitted (each row, also in bulk), approved.
+- Grid: "Request changes on plan" dialog; row panel "Suggest new values" with the current value under each field; SM banner "Changes requested" with "16 Nov 2033 → 18 Nov 2033" lines and Apply suggestion; Row history. An Excel re-upload adds rows only and leaves a change request in place (tested).
+
+### Tests
+- New `apps/api/test/phase13_routing.test.js` (24): the shared rule; approve, request revision, reopen, clip review and classify per calendar (right lead allowed, wrong lead 403, admin allowed, self-review blocked, workers and heads refused); queue and threads per lead; submission and 48-hour alert recipients; plan grid permissions; message required; suggestion checks (date outside the month, unreadable date, Poster with a workflow, Static Post with a reel workflow, unknown field); request, Excel re-upload, apply, resubmit, approve and history on an SM plan; a calendar move giving a waiting step to the Growth Lead; whole-plan request on an Ads plan leaving the approved row, `reject` 400, bulk resubmit history and one notification, approval.
+- New `apps/web/.../Phase13RequestChanges.test.tsx` (11): suggestions sent (only the changed values), date limited to the month, whole-plan dialog, SM banner with current → suggested and Apply, no Apply for leads, read-only note for the other lead, plans listed per lead.
+- Updated to the decided rules: Phase 12b reviewing test (each lead on their own calendar), PG-1 (Creative Lead on Ads is read-only), PG-3 and the workflow journey (`request_changes_all` instead of `reject`), scope R3 (the notification names the lead).
+
+### Browser check
+Disposable `marketing_portal_uicheck` (8 test-only users; 4 plans seeded through the grid service and submitted; departments seeded with the app's reference-data seeder), API on :8093 and web on :5301 proxied only to it, at 1440 and 390 px: **67 of 67 checks passed**. SM plan: the Growth Lead has no review controls; the Creative Lead sends the reel back with a new date and workflow; the SM Manager sees the message and "16 → 18" values, applies them, sees the history and resubmits; the Creative Lead sees the history and approves. Ads plan: the Creative Lead has no review controls; the Growth Lead approves one row, then sends the plan back; the SM Manager sees the message (nothing to apply), edits the brief and resubmits with Submit plan; the history shows "on the whole plan" and "with the plan"; the Growth Lead approves. Waiting steps: each lead sees only their calendar's step in Review Studio, has no Approve on the other one, and approves and rates their own. No page scroll on the grid, panel, dialog or Work Detail; no page errors, 5xx or alert dialogs. Disposable DB dropped, servers stopped; real DB unchanged (15 users, 48 steps, 16 rows, 3 plans, 28 versions).
+
 
 ## Phase 12b: Roles (Status: COMPLETE in code; migration NOT run, waiting for confirmation; committed locally, not pushed)
 
