@@ -31,7 +31,7 @@ test.describe('Workflow V2 Role Journeys Suite', () => {
     await page.fill('input[name="email"], input#email', 'alex.writer@demo.haca.local');
     await page.fill('input[name="phone"], input#phone', '9876543210');
     await page.selectOption('select[name="department"], select#department', { label: 'SEO & Content' });
-    await page.selectOption('select[name="requestedRole"], select#requestedRole', 'team_member');
+    await page.selectOption('select[name="requestedRole"], select#requestedRole', 'executive');
     await page.fill('textarea[name="reason"], textarea#reason', 'Joining the copy team for academic programs content.');
     await page.click('button[type="submit"]');
     await expect(page.locator('text=Request sent').or(page.locator('text=submitted'))).toBeVisible();

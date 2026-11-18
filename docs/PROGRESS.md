@@ -1,6 +1,38 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Phase 12):** 1839 passing, 0 failing: API 1466 (72 files), web 373 (48 files). Typecheck 0 errors; web build clean.
+**Current test count (after Phase 12b):** 1879 passing, 0 failing: API 1499 (73 files), web 380 (49 files). Typecheck 0 errors; web build clean.
+
+## Phase 12b: Roles (Status: COMPLETE in code; migration NOT run, waiting for confirmation; committed locally, not pushed)
+
+Gate in the working tree before the commit: typecheck 0 errors, web build clean, API 1499/1499 (73 files), web 380/380 (49 files).
+
+- `34b4139` Phase 12b: 7 roles, permission matrix, read-only heads, job-role eligibility, migration script.
+
+### The model
+- 7 roles in `@mmp/shared` (`ROLE_KEYS`, `ROLE_LABELS`, `ROLE_PERMISSIONS`): `admin`, `creative_head` (read-only, was the approver), `production_head` (read-only, new), `creative_lead` (approver, was `creative_head`), `growth_lead` (approver, new), `sm_manager`, `executive` (workers, was `team_member`). `team_member` is gone.
+- Helpers used by the API and web instead of the reused keys: `isApprover`, `isReadOnlyViewer`, `isWorker`, `canReview`, `canSeeContactDetails`, `canSeeAllReviewText`, `canManageOperationalFields`, `canViewProfileReport`, `effectiveStepsFor`. A guard test fails on any `team_member`, or any `creative_head` / `executive` literal, in app code, the root scripts or shared (the role definitions, seed users and the migration excepted).
+- Both leads approve, review, rate, reopen and classify root causes on every calendar (Phase 13 splits them). Admin is a backup reviewer, now including plan rows. Nobody reviews their own work.
+- `creative_head`, `production_head`: 403 `READ_ONLY_ROLE` on every write (in `authenticate`), except their own account: `/api/auth/*`, `/api/me*`, notification read markers, chat read/mute markers. They see contact details and review text (revision notes, rating feedback, clip threads); their My Work route goes to the dashboard.
+- `executive` (workers): exactly the old `team_member` access, including the 404s.
+- `report.configure`, `automation.manage`, `user.*`: admin only. Only admin grants the five leadership roles; public requests: `executive` or `sm_manager`.
+- Job roles: Writer, Cinematographer, Graphic Designer, Video Editor, All Rounder, plus "Creative Manager (TL)" and "Social Media Manager"; the rest removed. Eligibility: Writer Script/Content, Cinematographer Shoot, Graphic Designer Design, Video Editor Edit, All Rounder all five creation steps; Post SM Managers only. Preferences can only narrow it (job role ∩ preferences; no preferences = not suggested, as before). Used by autofill, assignment suggestions, plan validation, Excel import and the grid owner lists. Preferences outside the job role: 400 `PREFERENCE_NOT_ELIGIBLE`; a job role change drops the ones the new job role does not allow (and is logged).
+- Both leads and admin edit workers' operational fields and view/download the profile report (with admin and the read-only heads).
+- Sockets: rooms are `role:<key>`; live review comments go to `role:creative_lead`, `role:growth_lead` and `role:admin`. A role change disconnects the person's sockets (existing save hook); the web app now reloads `/auth/me` before reconnecting, so nav and permissions update without signing out.
+- Accounts still on `team_member` get 403 `ROLE_MIGRATION_PENDING` on sign-in, refresh and every request until the migration runs (they cannot sign in in between).
+- Wording: "Creative Head" meaning the approver now reads "Creative Lead" in the UI, errors and notifications (Phase 13 can refine per calendar).
+
+### Migration (`apps/api/scripts/migrate-roles.js`)
+Dry run by default. `--confirm --db-name=<db>`: local database only, not production or test, API stopped, mongodump to `D:\haca-backups\<timestamp>\` before the first write; refuses to run twice (marker in `migrations`). Maps roles (executive→creative_head, creative_head→creative_lead, team_member→executive) and job roles (Videographer→Cinematographer, Designer→Graphic Designer, Social Specialist→All Rounder or "to be assigned"), keeps only eligible preferences, moves open Post steps (and their plan row's Post owner) to the one active SM Manager (stops if there is not exactly one), remaps access requests, revokes the changed users' sessions.
+
+Dry run on the real `marketing_portal` (18 November 2026), nothing written: 11 users to change, 10 open Post steps to the SM Manager, 3 posted steps unchanged, 0 access requests, no problems. **Not confirmed; waiting for the owner.**
+
+### Tests
+- New `apps/api/test/phase12b_roles.test.js`: the shared model and helpers; GET access for every role on dashboard, people, team, reports, review queue, tracker, My Work, chat, access requests; writes; the read-only heads (403 on every write, own account allowed, contact details and review text visible); workers' 404s; self-review blocked for both leads; admin backup; operational fields and preference eligibility; autofill (Post only to SM Managers); `team_member` refused everywhere; public request roles; role change: socket disconnect, new room, `/auth/me`; live comments to the lead rooms only; migration safety, dry-run mapping with no writes, one-SM-Manager stop, apply once and refuse twice; the guard.
+- New `apps/web/src/__tests__/Phase12bRoles.test.tsx`: reload after a server disconnect, role tones and labels, quick sign-in order, no actions for the read-only heads, review actions for both leads and admin.
+- About 100 older test files moved to the new keys; tests that encoded the old rules (executive hidden from review text and contact details, admin refused on plan rows, Post owned by a worker, job titles) updated to the decided ones. Two fixes unrelated to roles: `plan_fixes` used a posting date that is now in the past; `scope_reset_r4` keeps its 30 s limit.
+
+### Browser check
+Disposable `marketing_portal_uicheck` (8 test-only users, one per role plus a second worker, and one unmigrated `team_member` account; throwaway password), API on :8093 and web on :5301 proxied only to it, at 1440 and 390 px: **101 of 101 checks passed**. For each of the 7 roles: sign-in and landing page, nav items shown and hidden, the step waiting for review (approve/rework controls only for both leads and admin; no write controls for the read-only heads; the worker sees "Waiting for approval" with no actions), a worker's email visible to every role but workers, no plan create controls for the read-only heads, no page scroll; the unmigrated account is refused with the "moved to the new roles" message. No page errors, 5xx or alert dialogs. Disposable DB dropped, servers stopped; real DB unchanged (still the old roles, 48 steps, no migration marker).
 
 ## Phase 12: Locked workspaces, Drive-link submission, Start rework (Status: COMPLETE; committed locally, not pushed)
 

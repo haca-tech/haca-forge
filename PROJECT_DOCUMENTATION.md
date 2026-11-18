@@ -38,8 +38,8 @@ It replaces fragmented Google Sheets, manual spreadsheets, and ad-hoc chat appro
 ### 1.2 The Scope Reset (R1 – R4)
 During system hardening, all unneeded commercial CRM baggage, multi-tenant brand switching overhead, and legacy ticketing features were permanently stripped from the platform:
 * **Scope Reset R1:** Removed all commercial lead management, LeadSquared (LSQ) integrations, campaigns, and monthly revenue targets. Refocused the system on **Work and Team Management** under a single unified HACA profile (`profileId: 'haca'`).
-* **Scope Reset R2:** Retired legacy role names (`marketing_head`, `team_lead`) in favor of **5 clean Canonical Roles**: `admin`, `creative_head`, `sm_manager`, `team_member`, and `executive`.
-* **Scope Reset R3:** Built the complete spreadsheet-to-pipeline content lifecycle: `CalendarPlan` generation, Excel template/validation preview, row-by-row Creative Head review, automated backward stage scheduling, sequential locking/unlocking, and intelligent workload-aware assignment.
+* **Scope Reset R2:** Retired legacy role names (`marketing_head`, `team_lead`) in favor of **5 clean Canonical Roles**: `admin`, `creative_lead`, `sm_manager`, `executive`, and `creative_head`.
+* **Scope Reset R3:** Built the complete spreadsheet-to-pipeline content lifecycle: `CalendarPlan` generation, Excel template/validation preview, row-by-row Creative Lead review, automated backward stage scheduling, sequential locking/unlocking, and intelligent workload-aware assignment.
 * **Scope Reset R4:** Completed the 8-section operational dashboard, 4 saved reports, 6 worker-scheduled automation rules, real uncapped workload analytics, silent session refresh-and-retry, socket authentication security, and end-to-end role journeys.
 
 ---
@@ -102,17 +102,17 @@ The platform enforces strict role-based access control (RBAC) via `@casl/ability
 | Role Key | Display Name | Landing Route | Description & Primary Capabilities |
 |---|---|---|---|
 | **`admin`** | Administrator | `/dashboard` | System administrator with full technical authority. Dynamically holds all permissions. Manages access requests, users, departments, and system configuration. |
-| **`creative_head`** | Creative Head | `/dashboard` | Operational creative authority. Reviews and approves calendar plan rows, reviews deliverable submissions, triggers report generation, and oversees automation rules. |
+| **`creative_lead`** | Creative Lead | `/dashboard` | Operational creative authority. Reviews and approves calendar plan rows, reviews deliverable submissions, triggers report generation, and oversees automation rules. |
 | **`sm_manager`** | SM Manager | `/dashboard` | Social media planner and distributor. Authorizes and uploads calendar plans, submits plans for review, confirms stage assignments, and publishes live URLs. |
-| **`team_member`** | Team Member | `/my-work` | Creative execution worker (writers, designers, editors, cinematographers). Self-scoped access to assigned stage deliverables on My Work. Submits deliverables for review. |
-| **`executive`** | Executive | `/dashboard` | C-Suite, Business Head, and Stakeholders. Complete read-only visibility into dashboard, calendar plans, tracker, and reports across all departments. Zero mutation rights. |
+| **`executive`** | Executive | `/my-work` | Creative execution worker (writers, designers, editors, cinematographers). Self-scoped access to assigned stage deliverables on My Work. Submits deliverables for review. |
+| **`creative_head`** | Creative Head | `/dashboard` | C-Suite, Business Head, and Stakeholders. Complete read-only visibility into dashboard, calendar plans, tracker, and reports across all departments. Zero mutation rights. |
 
 ### 4.2 Canonical Permissions Matrix (`ROLE_PERMISSIONS`)
 
 ```ts
 export const ROLE_PERMISSIONS: Record<RoleKey, PermissionKey[]> = {
   admin: [...PERMISSION_KEYS], // Dynamically holds all system permissions
-  creative_head: [
+  creative_lead: [
     'portal.view',
     'people.view',
     'people.assign',
@@ -138,13 +138,13 @@ export const ROLE_PERMISSIONS: Record<RoleKey, PermissionKey[]> = {
     'analytics.team',
     'report.view',
   ],
-  executive: [
+  creative_head: [
     'portal.view',
     'people.view',
     'analytics.team',
     'report.view',
   ],
-  team_member: [
+  executive: [
     'work.update.own',
     'work.request',
     'feedback.respond',
@@ -166,8 +166,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, PermissionKey[]> = {
    - Verifies unknown or unsupported content types.
 4. **Grid Row Authoring:** Rows are committed as `ContentPiece` documents in `Draft` status.
 5. **Plan Submission:** The planner submits rows for review (`POST /api/calendar-plans/:id/submit`). Row status becomes `submitted`.
-6. **Creative Head Review (`POST /api/calendar-plans/:id/review`):**
-   - Creative Head can `approve_all`, `approve_selected`, or `request_changes` with per-row feedback comments.
+6. **Creative Lead Review (`POST /api/calendar-plans/:id/review`):**
+   - Creative Lead can `approve_all`, `approve_selected`, or `request_changes` with per-row feedback comments.
    - **Critical Rule:** Stages are generated **only upon row approval**. Unapproved or rejected rows never spawn work items.
    - Approved rows cannot be edited or tampered with directly.
 
@@ -205,14 +205,14 @@ The transition service (`transition.service.js`) governs deliverable lifecycles:
 
 * **Starting Work:** A worker must transition from `Not Started` to `In Progress` before submitting.
 * **Review Submission:** Transition to `Pending` / `Feedback` requires a valid deliverable URL (`deliverableUrl`).
-* **Creative Head Approval:** Only `creative_head` and `admin` hold authority to approve review stages. Workers cannot approve their own work.
+* **Creative Lead Approval:** Only `creative_lead` and `admin` hold authority to approve review stages. Workers cannot approve their own work.
 * **Publishing:** The posting owner completes the final stage by transitioning to `Published` with a live URL (`publishedUrl`), automatically calculating total `turnaroundDays`.
 
 ---
 
 # 7. The 8-Section Operational Dashboard
 
-Designed exclusively for operational control (visible to `admin`, `creative_head`, `sm_manager`, and `executive`; `team_member` is redirected immediately to `/my-work`):
+Designed exclusively for operational control (visible to `admin`, `creative_lead`, `sm_manager`, and `creative_head`; `executive` is redirected immediately to `/my-work`):
 
 1. **Month Plan Status:** Displays plan code, title, derived status, and planned vs completed deliverables for the selected month.
 2. **KPI Strip:** 7 clickable operational counters linking directly to filtered views:
@@ -221,7 +221,7 @@ Designed exclusively for operational control (visible to `admin`, `creative_head
 4. **Production Stats & Trend:** Throughput velocity, completed stages count, and 4-week historical trend.
 5. **Team Workload:** Departmental and member capacity utilization showing real uncapped percentage with capacity band coloring ($<65\%$, $65-85\%$, $>85\%$).
 6. **Issues & Blockers:** Live summary of flagged dependencies, external blockers, and unresolved items.
-7. **Waiting for Approval:** Dedicated review queue for the Creative Head showing submitted calendar plans and deliverables pending sign-off.
+7. **Waiting for Approval:** Dedicated review queue for the Creative Lead showing submitted calendar plans and deliverables pending sign-off.
 8. **Recent Activity:** Real-time audit log of transitions, approvals, submissions, and publications.
 
 > **Strict Boundary:** The dashboard contains **zero** sales targets, lead funnels, campaign budgets, or sync run panels.
@@ -230,7 +230,7 @@ Designed exclusively for operational control (visible to `admin`, `creative_head
 
 # 8. The 4 Canonical Reports
 
-Accessible via `/reports` (`Generate Now` restricted to `creative_head` and `admin`; `executive` and `sm_manager` have read-only visibility):
+Accessible via `/reports` (`Generate Now` restricted to `creative_lead` and `admin`; `creative_head` and `sm_manager` have read-only visibility):
 
 | Report Key | Report Title | Dimensions & Metrics Included |
 |---|---|---|
@@ -253,7 +253,7 @@ The background automation runner (`runner.js`) and worker (`worker.js`) schedule
 | **`overdue_escalation`** | Hourly | Notifies deliverable owner immediately upon due date breach. Escalates to SM Manager if overdue $>4\text{ hours}$. |
 | **`todo_escalation`** | Daily (08:30) | Audits unstarted high-priority tasks and notifies assignees. |
 | **`blocker_dependency_alert`** | Every 2 hours | Checks unresolved blockers and alerts dependency owners. |
-| **`revision_pattern_flag`** | Every 4 hours | Flags deliverables with $\ge 4$ revisions or abnormal rework to Creative Head. Escalates if unclassified $>48\text{ hours}$. |
+| **`revision_pattern_flag`** | Every 4 hours | Flags deliverables with $\ge 4$ revisions or abnormal rework to Creative Lead. Escalates if unclassified $>48\text{ hours}$. |
 | **`weekly_report`** | Weekly (Friday 18:00) | Aggregates weekly production stats and delivers digest. |
 
 * **Execution Tracking:** Each rule records `lastRunAt` and `lastRunStatus` (`success` / `failed`), rendered in the automation UI with one-click manual execution support.
@@ -275,7 +275,7 @@ The background automation runner (`runner.js`) and worker (`worker.js`) schedule
 
 * **Two-Entry Review Model:** Formalizes reviews into structured rounds (`Revision Required` vs `Approved`).
 * **Mandatory Blocker Classification:** When a deliverable is blocked, reporters must specify category (`Asset Missing`, `Brief Ambiguous`, `Technical Issue`, `External Dependency`) and assign a dependency owner.
-* **Revision Flags:** Deliverables reaching $\ge 4$ revisions or exceeding baseline average by $>1.5\sigma$ are flagged for Creative Head root-cause classification (`Scope Creep`, `Ambiguous Brief`, `Skill Gap`, `Client Preference Change`).
+* **Revision Flags:** Deliverables reaching $\ge 4$ revisions or exceeding baseline average by $>1.5\sigma$ are flagged for Creative Lead root-cause classification (`Scope Creep`, `Ambiguous Brief`, `Skill Gap`, `Client Preference Change`).
 
 ---
 
@@ -290,7 +290,7 @@ The background automation runner (`runner.js`) and worker (`worker.js`) schedule
 # 13. Inventory: What Remains vs What Was Removed
 
 ### What Remains (The Lean Core)
-* **5 Canonical Roles:** `admin`, `creative_head`, `sm_manager`, `team_member`, `executive`.
+* **5 Canonical Roles:** `admin`, `creative_lead`, `sm_manager`, `executive`, `creative_head`.
 * **Single-Brand HACA Focus:** Organization and profile scoped strictly to HACA (`profileId: 'haca'`).
 * **Content Planning & Pipelines:** `CalendarPlan`, `ContentPiece`, 4 pipelines, backward stage offsets, sequential stage locking.
 * **Deliverable Execution:** `WorkItem`, central state machine, My Work execution portal.
@@ -322,8 +322,8 @@ The background automation runner (`runner.js`) and worker (`worker.js`) schedule
 2. `scope_reset_r3.test.js`: Calendar plan authoring, Excel template & preview, row approvals, stage generation, backward offsets, stage locking/unlocking, owner recommendations.
 3. `scope_reset_r2.test.js`: Canonical 5-role permissions matrix, role migration dry-run and rollback, access requests.
 4. `scope_reset_r1.test.js`: Clean deletion of leads, campaigns, and monthly targets.
-5. `DashboardRoleViews.test.tsx`: Role-specific dashboard rendering, 8 operational sections, real workload percentages, absence of sales widgets, executive read-only controls.
-6. `CalendarTabs.test.tsx`: 3-tab navigation, SM Manager plan authoring, Creative Head review, worker My Work notices.
+5. `DashboardRoleViews.test.tsx`: Role-specific dashboard rendering, 8 operational sections, real workload percentages, absence of sales widgets, creative_head read-only controls.
+6. `CalendarTabs.test.tsx`: 3-tab navigation, SM Manager plan authoring, Creative Lead review, worker My Work notices.
 
 ---
 
