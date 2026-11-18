@@ -26,7 +26,7 @@ describe('Phase 6d: piece outputs and the approved output on Work Detail', () =>
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    for (const [k, r] of [['writer', 'team_member'], ['shooter', 'team_member'], ['editor', 'team_member'], ['outsider', 'team_member'], ['head', 'creative_head'], ['exec', 'executive']]) await make(k, r);
+    for (const [k, r] of [['writer', 'executive'], ['shooter', 'executive'], ['editor', 'executive'], ['outsider', 'executive'], ['head', 'creative_lead'], ['exec', 'creative_head']]) await make(k, r);
     piece = await ContentPiece.create({ planId: new mongoose.Types.ObjectId(), topic: `P6d ${salt}`, contentType: 'Reel', pipeline: 'reel_a', postingDate: new Date(Date.now() + 9 * 86400000), status: 'In Progress' });
     let order = 1;
     for (const [stageKey, status, owner] of [['Script', 'Approved', 'writer'], ['Shoot', 'Approved', 'shooter'], ['Edit', 'Feedback', 'editor']]) {

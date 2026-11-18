@@ -16,10 +16,10 @@ All commercial lead tracking, external CRM synchronization, revenue targeting, a
 ```mermaid
 graph TD
     subgraph Core System Boundary [HACA Marketing OS - Work & Team Only]
-        CP[Calendar Plan: Monthly / Individual] -->|Submit for Approval| CH_Appr[Creative Head Verification & Row Approval]
+        CP[Calendar Plan: Monthly / Individual] -->|Submit for Approval| CH_Appr[Creative Lead Verification & Row Approval]
         CH_Appr -->|Auto-Generate on Approval| Stages[ContentPiece & Stage WorkItems]
-        Stages -->|Stage 1 Unlocked| Worker[Team Member: My Work & Stage Deliverables]
-        Worker -->|Review Stages| Rev[Creative Head Review & Feedback Loop]
+        Stages -->|Stage 1 Unlocked| Worker[Executive: My Work & Stage Deliverables]
+        Worker -->|Review Stages| Rev[Creative Lead Review & Feedback Loop]
         Worker -->|Non-Review Stages| Done[Done and Forward / Publish]
         Rev -->|Approved| Live[Publish & Turnaround Tracking]
         Live -->|Tracked by All| Tracker[Content Tracker Table & Dashboard]
@@ -59,18 +59,18 @@ The following domains, models, routes, jobs, UI pages, and configuration are **p
 
 ## 4. Roles & Permissions Architecture (Exact 5 Keys)
 
-The system is governed by exactly **five role keys**: `admin`, `creative_head`, `executive`, `sm_manager`, and `team_member`.
+The system is governed by exactly **five role keys**: `admin`, `creative_lead`, `creative_head`, `sm_manager`, and `executive`.
 
 ```
 admin ─── System & User Owner (Outside Creative Hierarchy)
   │
-creative_head ─── Creative Authority (Approves Plans & Review Stages, Edits People Ops)
+creative_lead ─── Creative Authority (Approves Plans & Review Stages, Edits People Ops)
   │
 sm_manager ─── Operational Planner (Builds Plans, Sets Deadlines, Assigns Stages, Resolves Blockers)
   │
-team_member ─── Creative Contributor (Executes Stages, Submits for Review, Flags Blockers)
+executive ─── Creative Contributor (Executes Stages, Submits for Review, Flags Blockers)
 
-executive ─── Leadership Viewer (Company Management, Zero Mutation Privileges, Read-Only Across System)
+creative_head ─── Leadership Viewer (Company Management, Zero Mutation Privileges, Read-Only Across System)
 ```
 
 ### 4.1 Detailed Role Responsibilities & Boundaries
@@ -78,19 +78,19 @@ executive ─── Leadership Viewer (Company Management, Zero Mutation Privile
 #### 1. `admin` (System Owner)
 * **Identity:** IT System Administrator, outside the creative hierarchy.
 * **Capabilities:** Every permission key in the system (derived dynamically from `PERMISSION_KEYS`).
-* **Exclusive Powers:** ONLY `admin` can create users directly, approve/reject public access requests, assign or change user roles, grant elevated roles (`admin`, `creative_head`, `executive`), suspend or reactivate users, trigger password resets, and force session logout.
+* **Exclusive Powers:** ONLY `admin` can create users directly, approve/reject public access requests, assign or change user roles, grant elevated roles (`admin`, `creative_lead`, `creative_head`), suspend or reactivate users, trigger password resets, and force session logout.
 * **System Boundaries:** Admin needs no department, job role, or capacity hours; is strictly excluded from workload calculations and auto-assignment recommendation pools; and is omitted from team performance reports. Any work mutations performed by admin are logged in `ActivityEvent` with `actingAs: 'admin'`.
 * **Landing Page:** `/dashboard`.
 
-#### 2. `creative_head` (Creative Leadership — formerly `marketing_head`)
+#### 2. `creative_lead` (Creative Leadership — formerly `marketing_head`)
 * **Identity:** Creative Director / Head of Creative Production.
 * **Capabilities:**
   * **Calendar Plan Approvals:** Verifies and approves Calendar Plans submitted by the SM Manager. Actions: approve all rows at once, approve selected rows, request changes with mandatory row comments, or reject the entire plan with an overall strategic concern.
   * **Stage Review Approvals:** Authoritative approver for all creative review stages (`Script`, `Content`, `Design`, `Edit`). Approves deliverable links or sends back with `Revision Required` and specific feedback.
   * **Revision Root Cause Classification:** Classifies root causes on revision flags (7 canonical causes: Brief unclear, Creative direction unclear, Skill gap, Feedback inconsistency, Excessive scope change, Approval delay, Client/business requirement changed).
-  * **Team Operations Management:** Manages operational assignments for `sm_manager` and `team_member` (`departmentId`, `jobRole`, `workPreferences[]`, `reportsToIds[]`, `weeklyCapacityHours`).
+  * **Team Operations Management:** Manages operational assignments for `sm_manager` and `executive` (`departmentId`, `jobRole`, `workPreferences[]`, `reportsToIds[]`, `weeklyCapacityHours`).
   * **System Oversight:** Sees all work, all team members, and overall team workload. Runs and controls report definitions and automation rules. Can reassign work owners.
-* **Strict Boundaries:** Cannot create or suspend user accounts; cannot change user roles; cannot grant elevated roles; cannot upload or type calendar plans; cannot modify `admin`, `executive`, or other `creative_head` accounts.
+* **Strict Boundaries:** Cannot create or suspend user accounts; cannot change user roles; cannot grant elevated roles; cannot upload or type calendar plans; cannot modify `admin`, `creative_head`, or other `creative_lead` accounts.
 * **Landing Page:** `/dashboard`.
 
 #### 3. `sm_manager` (Social Media Manager / Operational Planner — formerly `team_lead`)
@@ -98,32 +98,32 @@ executive ─── Leadership Viewer (Company Management, Zero Mutation Privile
 * **Capabilities:**
   * **Plan Creation & Upload:** Builds and creates Calendar Plans (`monthly` and `individual`). Uploads plans via structured 24-column Excel/CSV templates with auto-fill preview, or enters rows directly in an interactive grid. Title carries school name (e.g. 'Tech School November 2026').
   * **Instant Stage Auto-Fill:** Selecting deliverable type and reel toggles immediately suggests stage list, owners (<85% workload), and calendar-day deadline offsets. Overrides are tagged 'set by SM Manager'.
-  * **Plan Submission:** Submits draft plans to the Creative Head for verification (errors block submit).
+  * **Plan Submission:** Submits draft plans to the Creative Lead for verification (errors block submit).
   * **Post-Approval Adjustments:** Can reassign an owner, modify a deadline, reschedule $F$, or skip an unstarted stage with audit logging and notifications.
   * **Workflow Orchestration:** Tracks every stage across all content pieces in the Content Tracker, resolves blockers, and monitors live team workload.
   * **Visibility:** Full visibility into all work items, all people, and all calendar entries.
 * **Strict Boundaries:** **Cannot approve calendar plans and cannot approve review stages.** Does not classify revision root causes. Cannot manage user accounts or elevate permissions.
 * **Landing Page:** `/dashboard`.
 
-#### 4. `executive` (Company Leadership Viewer)
+#### 4. `creative_head` (Company Leadership Viewer)
 * **Identity:** CEO, Business Head, Board Directors.
 * **Capabilities:** Universal read-only visibility into the complete portal (Dashboard, Calendar, Content Tracker, Work Detail, Feedback history, Workload, Reports).
 * **Strict Boundaries:** **Strictly zero mutation/write privileges (HTTP 403 Forbidden on all POST, PUT, PATCH, DELETE endpoints).** In the People directory, contact information (email and phone) is omitted/masked. Excluded from auto-assignment candidate pools, capacity calculations, and team performance digests. My Work is hidden from navigation.
 * **Landing Page:** `/dashboard`.
 
-#### 5. `team_member` (Creative Contributor / Worker)
+#### 5. `executive` (Creative Contributor / Worker)
 * **Identity:** Writers, Graphic Designers, Video Editors, Animators, Specialists.
 * **Capabilities:**
   * **Personal Portal:** Access restricted to own personal dashboard (`/my-work`), personal Todo, personal Calendar entries, Work Detail (`/work/:id`), Notifications, and My Account. Downstream locked stages appear greyed out with due dates.
   * **Stage Execution:** Starts own assigned stages, updates status (`In Progress`, `Pending`, `Blocked`), pastes output URLs (Zoho Writer, Google Docs, Figma, Drive, YouTube links).
-  * **Handoffs:** Submits review stages (`Script`, `Content`, `Design`, `Edit`) to the Creative Head for approval; marks non-review stages (`Shoot`, `Post`) as **Done and forward** (or Publish) to complete the stage.
+  * **Handoffs:** Submits review stages (`Script`, `Content`, `Design`, `Edit`) to the Creative Lead for approval; marks non-review stages (`Shoot`, `Post`) as **Done and forward** (or Publish) to complete the stage.
   * **Collaboration:** Replies to revision feedback threads, flags blockers with mandatory dependency owner attribution (9 canonical reasons), and submits work requests to the SM Manager.
 * **Strict Boundaries:** Sees only own work items and own calendar items. Cannot see other members' work unless assigned. Cannot create calendar plans, cannot assign work, cannot approve deliverables, and cannot access team-wide reports or workload analytics.
 * **Landing Page:** `/my-work`.
 
 #### 4.2 Department & Approver Simplification Rule
 * **No Other Department or Team Lead Roles:** All legacy department lead distinctions (Design Lead, SEO Lead, etc.) and departmental silos are retired.
-* **Direct Creative Head Approval:** The legacy rule requiring a separate "Creative Manager (TL) job-role approver" is completely replaced by the dedicated `creative_head` role.
+* **Direct Creative Lead Approval:** The legacy rule requiring a separate "Creative Manager (TL) job-role approver" is completely replaced by the dedicated `creative_lead` role.
 
 ---
 
@@ -133,8 +133,8 @@ executive ─── Leadership Viewer (Company Management, Zero Mutation Privile
 sequenceDiagram
     autonumber
     actor SMM as SM Manager
-    actor CH as Creative Head
-    actor Worker as Team Member
+    actor CH as Creative Lead
+    actor Worker as Executive
     actor Publisher as Posting Owner
     
     Note over SMM: Step 1: Create Plan & Auto-Fill
@@ -150,7 +150,7 @@ sequenceDiagram
     Worker->>Worker: Executes stage in My Work & pastes output link
     alt Review Stage (Script, Content, Design, Edit)
         Worker->>CH: Submit for approval
-        Note over CH: Step 6: Creative Head Review
+        Note over CH: Step 6: Creative Lead Review
         CH->>Worker: Approve (unlocks next stage) OR Revision Required (note attached)
     else Non-Review Stage (Shoot, Post)
         Worker->>Worker: Done and forward (footage link unlocks Edit)
@@ -170,7 +170,7 @@ sequenceDiagram
    * Postable types require `postingOwner`. Reels require `needsScript`, `needsShoot`, and `sourceVideoLink` when needsShoot is no.
 2. **Auto-Fill Suggestion Engine (at Row Creation):**
    * Selecting `type` and reel toggles immediately generates stages, suggested owners, and suggested deadlines:
-     * Owners: active `team_member`, matching `workPreferences[]`, capacity strictly $<85\%$ (including draft plan stage hours), ranked by lowest workload, fewest 90-day revisions, earliest availability. Admin, Creative Head, SM Manager, Executive excluded.
+     * Owners: active `executive`, matching `workPreferences[]`, capacity strictly $<85\%$ (including draft plan stage hours), ranked by lowest workload, fewest 90-day revisions, earliest availability. Admin, Creative Lead, SM Manager, Creative Head excluded.
      * Deadlines (calendar days from $F$, 2-day buffer after last creation stage):
        * Postable design: Content $F-5$, Design $F-2$, Post $F$.
        * Non-postable design: Content $F-5$, Design $F-2$, Handover $F$.
@@ -181,8 +181,8 @@ sequenceDiagram
 3. **Plan Submission & Validation:**
    * Errors block submit: missing required fields, unknown type, past dates, stage deadline after $F$, out-of-order deadlines, needsShoot=no without sourceVideoLink, postable type without posting owner, invalid owner, duplicate row, individual plan != 1 row.
    * Warnings (allowed): creation stage > $F-1$, owner > 85%, date outside plan month.
-4. **Creative Head Verification:**
-   * Creative Head inspects the plan in **Feedback & Revisions $\rightarrow$ Plan Approvals**:
+4. **Creative Lead Verification:**
+   * Creative Lead inspects the plan in **Feedback & Revisions $\rightarrow$ Plan Approvals**:
      * **Approve All:** Approves all rows in the plan.
      * **Approve Selected:** Approves valid rows while leaving others.
      * **Request Changes:** Attaches specific row comment (`changes_requested`).
@@ -191,17 +191,17 @@ sequenceDiagram
 5. **ContentPiece & Stage Generation (Post-Approval):**
    * Approved rows auto-generate a **ContentPiece** record and sequential stage **WorkItems** with row owners and deadlines.
    * Stage 1 is unlocked immediately (`unlockedAt: new Date()`); downstream stages remain locked (`unlockedAt: null`, greyed out with due date).
-   * SM Manager and Admin can adjust owner, deadline, reschedule $F$, or skip unstarted stage (logged in ActivityEvent; worker & Creative Head notified). Topic and type cannot change after approval.
+   * SM Manager and Admin can adjust owner, deadline, reschedule $F$, or skip unstarted stage (logged in ActivityEvent; worker & Creative Lead notified). Topic and type cannot change after approval.
 6. **Work Execution & Submission:**
    * Workers see assigned stages in `/my-work`.
    * Worker clicks **Start Work** (`In Progress`), executes work, and pastes output deliverable URL.
    * **Review Stages (`Script`, `Content`, `Design`, `Edit`):** Worker clicks **Submit for approval**.
    * **Non-Review Stages (`Shoot`, `Post`):** Worker clicks **Done and forward** (footage URL), unlocking edit.
-7. **Creative Head Review & Revision Guardrails:**
+7. **Creative Lead Review & Revision Guardrails:**
    * Decisions:
      * **Approved:** Marks stage approved and unlocks the next stage.
      * **Revision Required:** Attaches clear feedback text; returns to worker (`In Progress`), incrementing revisions.
-   * **Revision Flag:** When revisions reach 4 or exceed owner baseline by $>1$, a `RevisionFlag` is raised and pinned to the top of the Creative Head dashboard until classified (no 48-hour escalation).
+   * **Revision Flag:** When revisions reach 4 or exceed owner baseline by $>1$, a `RevisionFlag` is raised and pinned to the top of the Creative Lead dashboard until classified (no 48-hour escalation).
 8. **Publishing & Turnaround Tracking:**
    * The posting owner publishes live, sets status to `Published`, and enters live public URL and timestamp. Non-postable items are handed over on date $F$.
    * System audits live in the **Content Tracker** (`who holds it now`, `at risk` if due in 2 days and not started/pending/blocked, late by days, lag days, wait days).
@@ -254,13 +254,13 @@ The `/dashboard` screen is structured into 8 operational sections designed for r
    * **In Progress:** Stages actively being worked on.
    * **At Risk:** Active stages due within **2 calendar days** that are currently `Not Started`, `Pending`, or `Blocked`.
    * **Blocked:** Items currently held up with an active blocker ('blocked since <date>').
-   * **Pending Approval:** Items awaiting Creative Head review ('waiting for X days').
+   * **Pending Approval:** Items awaiting Creative Lead review ('waiting for X days').
    * **Overdue:** Items where deadline has passed without completion (late by days).
 3. **Today's Priorities:** High-urgency deliverables due today or overdue.
 4. **Production Stats & Trend:** Output velocity by content type (Reels, Static Posts, Carousels, Stories, Design assets) and weekly completion trends.
 5. **Team Workload:** Live capacity breakdown showing healthy ($<65\%$), high ($65\%-85\%$), and overloaded ($>85\%$) team members.
 6. **Issues & Blockers:** Unresolved blocker items (9 canonical reasons) with dependency owners, plus active revision flags pinned at top for classification.
-7. **Waiting for Approval:** Urgent deliverables submitted by team members awaiting Creative Head action.
+7. **Waiting for Approval:** Urgent deliverables submitted by team members awaiting Creative Lead action.
 8. **Recent Activity:** Audit feed of status transitions, approvals, handoffs, and assignments.
 
 ---
@@ -288,7 +288,7 @@ Six background automation jobs run via BullMQ:
 2. **`overdue_daily_notification`:** Checks at the end of each day in `REPORT_TIMEZONE`; notifies the deliverable owner and SM Manager once when a due date passes. Tracker displays 'late by days'. (No 4-hour alert).
 3. **`todo_inactivity_reminder`:** Flags open items that have had no status change for 3 consecutive days (owner notified on Day 3; SM Manager notified on Day 4).
 4. **`blocker_dependency_alert`:** Instantly dispatches a notification to the named dependency owner and SM Manager when an item is marked Blocked. Tracker displays 'blocked since <date>'. (No 4-hour alert).
-5. **`revision_pattern_flag`:** Automatically raises a `RevisionFlag` when an item reaches 4 revisions or exceeds owner average by $>1$. Stays pinned at top of Creative Head dashboard until classified. (No 48-hour alert).
+5. **`revision_pattern_flag`:** Automatically raises a `RevisionFlag` when an item reaches 4 revisions or exceeds owner average by $>1$. Stays pinned at top of Creative Lead dashboard until classified. (No 48-hour alert).
 6. **`weekly_report`:** Compiles and dispatches the Weekly Work Report every Monday morning at 08:00.
 
 *(Removed: `lsq_live_sync`, 4-hour overdue escalation, 4-hour blocker escalation, 48-hour flag escalation).*
@@ -318,13 +318,13 @@ Performance evaluation is strictly creative and operational, calculated across *
 
 ### Added Permission Keys:
 * **`calendar.plan`:** Create, upload, edit, and submit calendar plans. Granted to: `sm_manager`, `admin`.
-* **`calendar.approve`:** Approve or request changes on calendar plans and approve review stages. Granted to: `creative_head`, `admin`.
+* **`calendar.approve`:** Approve or request changes on calendar plans and approve review stages. Granted to: `creative_lead`, `admin`.
 
 ### Complete Canonical Permission Map:
 ```javascript
 export const ROLE_PERMISSIONS = {
   admin: ['*'], // Derived dynamically from all PERMISSION_KEYS
-  creative_head: [
+  creative_lead: [
     'portal.view',
     'people.view',
     'people.assign',
@@ -354,7 +354,7 @@ export const ROLE_PERMISSIONS = {
     'analytics.team',
     'report.view'
   ],
-  executive: [
+  creative_head: [
     'portal.view',
     'people.view', // Email & phone masked
     'calendar.view',
@@ -363,7 +363,7 @@ export const ROLE_PERMISSIONS = {
     'analytics.team',
     'report.view'
   ],
-  team_member: [
+  executive: [
     'portal.view',
     'calendar.view',
     'work.view.own',

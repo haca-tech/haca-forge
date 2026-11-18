@@ -11,6 +11,7 @@ import {
   type WorkType,
   type Priority,
   type WorkItemStatus,
+  isWorker,
 } from '@mmp/shared';
 import { statusClass, statusTone, withDisplayStatus } from '../../lib/statusTone';
 import { useDialogFocus } from '../../lib/useDialogFocus';
@@ -344,7 +345,7 @@ export const CalendarPage: React.FC = () => {
   const previewCloseRef = useRef<HTMLButtonElement>(null);
   useDialogFocus(previewRef, Boolean(selectedItem), () => setSelectedItem(null), { initialFocusRef: previewCloseRef });
 
-  // Plan creation is SM Manager / Admin only (the API refuses the Creative Head), so only they see Add individual work.
+  // Plan creation is SM Manager / Admin only (the API refuses the Creative Lead), so only they see Add individual work.
   const canCreatePlans = user?.role === 'sm_manager' || user?.role === 'admin';
 
   // Shared text styles for this screen
@@ -402,7 +403,7 @@ export const CalendarPage: React.FC = () => {
         )}
       </div>
 
-      {user?.role === 'team_member' && (
+      {isWorker(user?.role) && (
         <div className="p-4 rounded-2xl status-tint status-waiting text-[13px] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />

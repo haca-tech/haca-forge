@@ -1,33 +1,74 @@
 import { z } from "zod";
 
 // ==========================================
-// 1. Roles & Permissions (5-Role Marketing OS Model)
+// 1. Roles & Permissions (Phase 12b: 7-role model)
 // ==========================================
+// Two keys were reused with a new meaning in Phase 12b:
+// - "executive" now means a production worker (it was read-only leadership);
+// - "creative_head" now means read-only leadership (it was the approver).
+// Code outside this file uses the helpers below (isApprover, isReadOnlyViewer, isWorker)
+// or the role-group constants, never these two keys as literals, so no check can keep the
+// old meaning. A guard test enforces it.
 
 export const ROLE_KEYS = [
   "admin",
   "creative_head",
-  "executive",
+  "production_head",
+  "creative_lead",
+  "growth_lead",
   "sm_manager",
-  "team_member",
+  "executive",
 ] as const;
 
 export type UserRole = (typeof ROLE_KEYS)[number];
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  admin: "Administrator",
+  admin: "Admin",
   creative_head: "Creative Head",
-  executive: "Executive",
+  production_head: "Production Head",
+  creative_lead: "Creative Lead",
+  growth_lead: "Growth Lead",
   sm_manager: "SM Manager",
-  team_member: "Team Member",
+  executive: "Executive",
 };
 
-export function normalizeRole(
-  role: string | null | undefined,
-): UserRole | string {
+/** Approve plan rows, review, rate, reopen and classify root causes (both leads, every calendar in Phase 12b). */
+export const APPROVER_ROLES = ["creative_lead", "growth_lead"] as const;
+/** See everything, read-only: every write is refused (403). Contact details and review text visible. */
+export const READ_ONLY_VIEWER_ROLES = ["creative_head", "production_head"] as const;
+/** Production workers: own their steps, see only what they take part in. */
+export const WORKER_ROLE = "executive" as const;
+/** Every role that sees the whole team (not a worker). */
+export const LEADERSHIP_ROLES = ["admin", ...READ_ONLY_VIEWER_ROLES, ...APPROVER_ROLES, "sm_manager"] as const;
+
+type RoleInput = string | null | undefined | { role?: string | null };
+const roleOf = (input: RoleInput): string => (typeof input === "object" && input !== null ? input.role || "" : input || "");
+
+export function normalizeRole(role: string | null | undefined): UserRole | string {
   if (!role) return role as string;
   return role;
 }
+
+export const isKnownRole = (role: RoleInput): boolean => (ROLE_KEYS as readonly string[]).includes(roleOf(role));
+/** creative_lead or growth_lead. Admin reviews as a backup: use canReview for decisions. */
+export const isApprover = (role: RoleInput): boolean => (APPROVER_ROLES as readonly string[]).includes(roleOf(role));
+/** creative_head or production_head: read-only everywhere. */
+export const isReadOnlyViewer = (role: RoleInput): boolean => (READ_ONLY_VIEWER_ROLES as readonly string[]).includes(roleOf(role));
+/** A production worker (role key "executive"). */
+export const isWorker = (role: RoleInput): boolean => roleOf(role) === WORKER_ROLE;
+/** May approve, review, rate and reopen: both leads and admin (never on their own work). */
+export const canReview = (role: RoleInput): boolean => roleOf(role) === "admin" || isApprover(role);
+/** Sees everyone's email and phone. Workers see only their own. */
+export const canSeeContactDetails = (role: RoleInput): boolean => isKnownRole(role) && !isWorker(role);
+/** Revision notes, rating feedback and clip threads on any step (workers: their own steps only). */
+export const canSeeAllReviewText = (role: RoleInput): boolean => isKnownRole(role) && !isWorker(role);
+/** Manage workers' operational fields: job role, preferences, capacity, department. */
+export const canManageOperationalFields = (role: RoleInput): boolean => roleOf(role) === "admin" || isApprover(role);
+/** View and download a person's profile report. */
+export const canViewProfileReport = (role: RoleInput): boolean =>
+  roleOf(role) === "admin" || isApprover(role) || isReadOnlyViewer(role);
+/** Only admin grants these roles. */
+export const ADMIN_GRANTED_ROLES = ["admin", ...READ_ONLY_VIEWER_ROLES, ...APPROVER_ROLES] as const;
 
 // Canonical Permission Keys (Marketing OS Model)
 export const PERMISSION_KEYS = [
@@ -58,29 +99,42 @@ export const PERMISSION_KEYS = [
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
 
-// Role-to-Permission Mapping Matrix (Spec Section 13.1 / Scope Reset R2)
-// Admin is dynamically derived from PERMISSION_KEYS so any new keys are automatically granted
+const LEAD_PERMISSIONS: PermissionKey[] = [
+  "portal.view",
+  "people.view",
+  "people.assign",
+  "calendar.approve",
+  "feedback.give",
+  "feedback.respond",
+  "revision.classify",
+  "assignment.override",
+  "work.update.own",
+  "analytics.team",
+  "report.view",
+  "chat.use",
+  "chat.group.create",
+  "chat.moderate",
+  "team.profile.view",
+];
+
+const VIEWER_PERMISSIONS: PermissionKey[] = [
+  "portal.view",
+  "people.view",
+  "analytics.team",
+  "report.view",
+  "chat.read",
+  "team.profile.view",
+];
+
+// Role-to-Permission Matrix (Phase 12b). Admin holds every key. report.configure and
+// automation.manage are admin only. In Phase 12b both leads approve on every calendar;
+// Phase 13 splits them by calendar.
 export const ROLE_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
   admin: [...PERMISSION_KEYS],
-  creative_head: [
-    "portal.view",
-    "people.view",
-    "people.assign",
-    "calendar.approve",
-    "feedback.give",
-    "feedback.respond",
-    "revision.classify",
-    "assignment.override",
-    "work.update.own",
-    "analytics.team",
-    "report.view",
-    "report.configure",
-    "automation.manage",
-    "chat.use",
-    "chat.group.create",
-    "chat.moderate",
-    "team.profile.view",
-  ],
+  creative_head: [...VIEWER_PERMISSIONS],
+  production_head: [...VIEWER_PERMISSIONS],
+  creative_lead: [...LEAD_PERMISSIONS],
+  growth_lead: [...LEAD_PERMISSIONS],
   sm_manager: [
     "calendar.plan",
     "work.create",
@@ -95,20 +149,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
     "chat.moderate",
     "team.profile.view",
   ],
-  executive: [
-    "portal.view",
-    "people.view",
-    "analytics.team",
-    "report.view",
-    "chat.read",
-    "team.profile.view",
-  ],
-  team_member: [
-    "work.update.own",
-    "work.request",
-    "feedback.respond",
-    "chat.use",
-  ],
+  executive: ["work.update.own", "work.request", "feedback.respond", "chat.use"],
 };
 
 // ==========================================
@@ -131,22 +172,11 @@ export type DepartmentCode = (typeof DEPARTMENT_CODES)[number];
 export const DEPARTMENT_TYPES = DEPARTMENT_CODES;
 export type DepartmentType = DepartmentCode;
 
-export const JOB_ROLES = [
-  "SEO Specialist",
-  "Social Specialist",
-  "UI Designer",
-  "Writer",
-  "Developer",
-  "Social Media Manager",
-  "Designer",
-  "Video Editor",
-  "Videographer",
-  "Creative Manager (TL)",
-  "Design Lead (TL)",
-  "YouTube Strategist",
-  "WhatsApp Marketer",
-  "Performance Marketer",
-] as const;
+// Phase 12b: the 5 worker job roles, plus the two leadership titles in use.
+export const WORKER_JOB_ROLES = ["Writer", "Cinematographer", "Graphic Designer", "Video Editor", "All Rounder"] as const;
+export type WorkerJobRole = (typeof WORKER_JOB_ROLES)[number];
+
+export const JOB_ROLES = [...WORKER_JOB_ROLES, "Creative Manager (TL)", "Social Media Manager"] as const;
 export type JobRole = (typeof JOB_ROLES)[number];
 
 // Stage Work Preferences
@@ -161,19 +191,55 @@ export const WORK_PREFERENCES = [
 ] as const;
 export type WorkPreference = (typeof WORK_PREFERENCES)[number];
 
-export const JOB_ROLE_DEFAULT_WORK_PREFERENCES: Record<string, WorkPreference[]> = {
-  Writer: ["Content", "Script"],
-  Designer: ["Design"],
-  "UI Designer": ["Design"],
+/**
+ * Which steps a worker's job role makes them eligible for. Post is never a worker's step:
+ * every Post step belongs to an SM Manager.
+ */
+export const JOB_ROLE_STEP_ELIGIBILITY: Record<WorkerJobRole, WorkPreference[]> = {
+  Writer: ["Script", "Content"],
+  Cinematographer: ["Shoot"],
+  "Graphic Designer": ["Design"],
   "Video Editor": ["Edit"],
-  Videographer: ["Shoot"],
-  "Social Media Manager": ["Post"],
-  "Social Specialist": ["Post"],
+  "All Rounder": ["Script", "Content", "Shoot", "Design", "Edit"],
 };
+
+// Kept for screens that prefill preferences from a job role: the eligible steps.
+export const JOB_ROLE_DEFAULT_WORK_PREFERENCES: Record<string, WorkPreference[]> = { ...JOB_ROLE_STEP_ELIGIBILITY };
 
 export function getDefaultPreferencesForJobRole(jobRole?: string | null): WorkPreference[] {
   if (!jobRole) return [];
-  return JOB_ROLE_DEFAULT_WORK_PREFERENCES[jobRole] || [];
+  return [...(JOB_ROLE_DEFAULT_WORK_PREFERENCES[jobRole] || [])];
+}
+
+/** The steps a role and job role allow, before preferences. */
+export function eligibleStepsFor(person: { role?: string | null; jobRole?: string | null } | null | undefined): WorkPreference[] {
+  if (!person) return [];
+  if (person.role === "sm_manager") return ["Post"];
+  if (person.role !== WORKER_ROLE) return [];
+  return [...(JOB_ROLE_STEP_ELIGIBILITY[(person.jobRole || "") as WorkerJobRole] || [])];
+}
+
+/**
+ * The steps a person can be suggested for: their job role sets eligibility, and their
+ * preferences can only narrow it (the steps in both). As before Phase 12b, a worker with
+ * no preferences is not suggested for any step. An SM Manager is always eligible for Post.
+ */
+export function effectiveStepsFor(
+  person: { role?: string | null; jobRole?: string | null; workPreferences?: string[] | null } | null | undefined,
+): WorkPreference[] {
+  const eligible = eligibleStepsFor(person);
+  if (person?.role === "sm_manager") return eligible;
+  const prefs = Array.isArray(person?.workPreferences) ? person!.workPreferences! : [];
+  return eligible.filter((step) => prefs.includes(step));
+}
+
+/** Preferences outside the job role's eligibility (empty when all are allowed). */
+export function ineligiblePreferences(
+  person: { role?: string | null; jobRole?: string | null } | null | undefined,
+  prefs: string[] | null | undefined,
+): string[] {
+  const eligible = eligibleStepsFor(person) as string[];
+  return (prefs || []).filter((p) => !eligible.includes(p));
 }
 
 export const PROGRAMS = [
@@ -991,7 +1057,8 @@ export const refreshTokenSchema = z.object({
   refreshToken: z.string().optional(),
 });
 
-export const REQUESTABLE_ROLES = ["team_member", "sm_manager"] as const;
+// Public access requests: a worker (executive) or an SM Manager only.
+export const REQUESTABLE_ROLES = ["executive", "sm_manager"] as const;
 export type RequestableRole = (typeof REQUESTABLE_ROLES)[number];
 
 export const requestAccessSchema = z.object({
@@ -1833,9 +1900,9 @@ export interface AvailableActionsResult {
  * Returns available actions for a user on a given stage/task.
  * Strictly enforces:
  * - A user never gets owner actions on a task they do not own, even with permission keys.
- * - creative_head and admin: Approve and Request revision only when Waiting for approval (Pending) and user is not owner. Nothing else on tasks they don't own.
+ * - creative_lead, growth_lead and admin: Approve and Request revision only when Waiting for approval (Pending) and user is not owner. Nothing else on tasks they don't own.
  * - sm_manager and admin: Change owner, Change date, Skip step (before start), Resolve blocker, Edit details, Delete (before start). No approve, no submit.
- * - executive and non-owners without role rights: no action buttons.
+ * - creative_head, production_head (read-only) and non-owners without role rights: no action buttons.
  */
 export function getAvailableActions(
   user: { _id?: string; id?: string; userId?: string; role?: string; name?: string } | null | undefined,
@@ -1885,8 +1952,8 @@ export function getAvailableActions(
     }
   }
 
-  // 2. Creative Head Actions (Approve & Request revision ONLY on Pending tasks they do NOT own)
-  if ((role === "creative_head" || role === "admin") && !isOwner) {
+  // 2. Creative Lead Actions (Approve & Request revision ONLY on Pending tasks they do NOT own)
+  if (canReview(role) && !isOwner) {
     if (status === "Pending") {
       actions.push("approve");
       actions.push("request_revision");
@@ -1962,9 +2029,9 @@ export function getActionDisabledReason(
 
   if (status === "Pending") {
     if (isOwner) {
-      return "Waiting for the Creative Head";
+      return "Waiting for the Creative Lead";
     }
-    return "Waiting for the Creative Head";
+    return "Waiting for the Creative Lead";
   }
 
   if (status === "Blocked") {
@@ -2169,8 +2236,8 @@ export function normalizeStatusKey(
  * - waiting for approval gives the owner read;
  * - approved and posted give read;
  * - locked gives none for the owner with the message 'Locked until <previous step> is approved'.
- * - creative_head and admin get read on every step and review on a step waiting for approval.
- * - sm_manager and executive get read.
+ * - creative_lead, growth_lead and admin get read on every step and review on a step waiting for approval.
+ * - sm_manager, creative_head and production_head get read.
  * - Other owners in the same piece get read of earlier steps only.
  * - Ownership is compared as strings of the id on the stage item, never through the piece.
  */
@@ -2278,8 +2345,8 @@ export function getWorkspaceModeInfo(
     };
   }
 
-  // 3. creative_head and admin
-  if (role === "creative_head" || role === "admin") {
+  // 3. Reviewers: both leads and admin
+  if (canReview(role)) {
     if (statusKey === "waiting for approval") {
       return {
         mode: "review",
@@ -2296,8 +2363,8 @@ export function getWorkspaceModeInfo(
     };
   }
 
-  // 4. sm_manager and executive
-  if (role === "sm_manager" || role === "executive") {
+  // 4. sm_manager and the read-only heads
+  if (role === "sm_manager" || isReadOnlyViewer(role)) {
     return {
       mode: "read",
       isOwner: false,
@@ -3160,7 +3227,7 @@ export interface PlanGridColumn {
 }
 
 export const TURNAROUND_HELP =
-  "Days from row approval to publishing. Counted once, when the post is published: from the time the Creative Head approved the row (its first step was created) to the publish time.";
+  "Days from row approval to publishing. Counted once, when the post is published: from the time the Creative Lead approved the row (its first step was created) to the publish time.";
 
 /** The 18 Excel columns, in Excel order. */
 export const PLAN_GRID_COLUMNS: PlanGridColumn[] = [

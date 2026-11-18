@@ -81,8 +81,8 @@ describe('Delete a plan row', () => {
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
     for (const [k, r] of [
-      ['sm', 'sm_manager'], ['admin', 'admin'], ['head', 'creative_head'], ['exec', 'executive'],
-      ['worker', 'team_member'], ['writer', 'team_member'], ['poster', 'team_member'],
+      ['sm', 'sm_manager'], ['admin', 'admin'], ['head', 'creative_lead'], ['exec', 'creative_head'],
+      ['worker', 'executive'], ['writer', 'executive'], ['poster', 'executive'],
     ]) {
       people[k] = await Person.create({ name: `RD ${k}`, email: `${k}.${salt}@rowdel.test`, role: r, status: 'active' });
     }

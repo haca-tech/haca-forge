@@ -91,8 +91,8 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
     memberDesignA = await Person.create({
       name: 'Designer Alice',
       email: 'alice@assignment-test.com',
-      role: 'team_member',
-      jobRole: 'Designer',
+      role: 'executive',
+      jobRole: 'Graphic Designer',
       departmentId: deptDesign._id,
       profileAccess: [profileHaca._id],
       reportsToIds: [leadUser._id],
@@ -104,8 +104,8 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
     memberDesignB = await Person.create({
       name: 'Designer Bob',
       email: 'bob@assignment-test.com',
-      role: 'team_member',
-      jobRole: 'Designer',
+      role: 'executive',
+      jobRole: 'Graphic Designer',
       departmentId: deptDesign._id,
       profileAccess: [profileHaca._id],
       reportsToIds: [leadUser._id],
@@ -117,7 +117,7 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
     memberVideoA = await Person.create({
       name: 'Editor Charlie',
       email: 'charlie@assignment-test.com',
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Video Editor',
       departmentId: deptVideo._id,
       profileAccess: [profileHaca._id],
@@ -454,8 +454,8 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
       scriptShooterMember = await Person.create({
         name: 'Shooter Sam',
         email: 'sam.shooter@assignment-test.com',
-        role: 'team_member',
-        jobRole: 'Social Specialist',
+        role: 'executive',
+        jobRole: 'All Rounder',
         departmentId: deptDesign._id, // in Design dept, but has Shoot & Script preferences
         profileAccess: [profileHaca._id],
         workPreferences: ['Shoot', 'Script'],
@@ -466,7 +466,7 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
       crossDeptEditor = await Person.create({
         name: 'Editor Emma',
         email: 'emma.editor@assignment-test.com',
-        role: 'team_member',
+        role: 'executive',
         jobRole: 'Video Editor',
         departmentId: deptVideo._id,
         profileAccess: [profileHaca._id],
@@ -477,6 +477,7 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
 
       // Update Alice with Design and Content preferences
       await Person.findByIdAndUpdate(memberDesignA._id, {
+        jobRole: 'All Rounder',
         workPreferences: ['Design', 'Content'],
       });
     });

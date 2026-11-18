@@ -5,7 +5,7 @@ import { MediaItem, MediaMessage } from './model.js';
 import { WorkItem } from '../workItems/model.js';
 import { User } from '../people/model.js';
 import { resolveScope } from '../../lib/scope.js';
-import { getWorkspaceMode } from '@mmp/shared';
+import { getWorkspaceMode, APPROVER_ROLES, isApprover } from '@mmp/shared';
 import { createNotification } from '../notifications/service.js';
 import { logActivity } from '../activity/service.js';
 import { canSeePrivateReview, canSeeStepOutput, getParticipation, isTeamMember } from '../workItems/access.js';
@@ -444,7 +444,7 @@ export async function reorderClips(stageItemId, clipIds, user) {
 
 /**
  * 7. Post message to clip thread
- * Permissions: step owner, creative_head and admin can post; sm_manager and executive read only; nobody else sees thread.
+ * Permissions: step owner, creative_lead/growth_lead and admin can post; sm_manager and creative_head/production_head read only; nobody else sees thread.
  */
 export async function postMessage(clipId, messageData, user) {
   const clip = await MediaItem.findById(clipId);
@@ -467,7 +467,7 @@ export async function postMessage(clipId, messageData, user) {
   const role = user.role;
 
   // Verify permission
-  const canPost = isOwner || role === 'creative_head' || role === 'admin';
+  const canPost = isOwner || isApprover(role) || role === 'admin';
   if (!canPost) {
     const error = new Error('You do not have permission to post messages to this clip');
     error.statusCode = 403;
@@ -501,8 +501,8 @@ export async function postMessage(clipId, messageData, user) {
 
   // Notification: new message to "the other side"
   if (isOwner) {
-    // Shooter posted -> notify creative_head
-    const creativeHeads = await User.find({ role: 'creative_head', status: 'active' });
+    // Shooter posted -> notify creative_lead/growth_lead
+    const creativeHeads = await User.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
     for (const ch of creativeHeads) {
       await createNotification({
         recipient: ch._id,
@@ -519,7 +519,7 @@ export async function postMessage(clipId, messageData, user) {
         recipient: workItem.ownerId,
         type: 'new_message',
         title: 'New feedback on clip',
-        message: `${user.name || 'Creative Head'} commented on "${clip.title}"`,
+        message: `${user.name || 'Creative Lead'} commented on "${clip.title}"`,
         link: `/work/${workItem._id}?clipId=${clip._id}`,
       });
     }
@@ -530,7 +530,7 @@ export async function postMessage(clipId, messageData, user) {
 
 /**
  * 8. List messages for a clip
- * Permissions: owner, creative_head, admin, sm_manager, executive.
+ * Permissions: owner, creative_lead/growth_lead, admin, sm_manager, creative_head/production_head.
  */
 export async function listMessages(clipId, user) {
   const clip = await MediaItem.findById(clipId);
@@ -624,7 +624,7 @@ export async function toggleMessageDone(clipId, messageId, done, user) {
   const userIdStr = (user.userId || user._id || user.id)?.toString();
   const ownerIdStr = (workItem.ownerId?._id || workItem.ownerId)?.toString();
   const isOwner = Boolean(userIdStr && ownerIdStr && userIdStr === ownerIdStr);
-  const isReviewer = user.role === 'creative_head' || user.role === 'admin';
+  const isReviewer = isApprover(user.role) || user.role === 'admin';
 
   if (done === false) {
     // Reopening is restricted to reviewers
@@ -653,12 +653,12 @@ export async function toggleMessageDone(clipId, messageId, done, user) {
 }
 
 /**
- * 11. Review clip (creative_head and admin)
+ * 11. Review clip (creative_lead/growth_lead and admin)
  * Approve clip, or Reshoot needed (a message is required).
  */
 export async function reviewClip(clipId, { action, message }, user) {
-  if (user.role !== 'creative_head' && user.role !== 'admin') {
-    const error = new Error('Only Creative Head or Admin can review clips');
+  if (!isApprover(user.role) && user.role !== 'admin') {
+    const error = new Error('Only Creative Lead or Admin can review clips');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_ACTION';
     throw error;
@@ -863,13 +863,13 @@ export async function submitClipsForApproval(stageItemId, user) {
   const { transitionWorkItem } = await import('../workItems/transition.service.js');
   const updatedWorkItem = await transitionWorkItem(
     workItem._id,
-    { toStatus: 'Pending', notes: 'Footage clips submitted for Creative Head review' },
+    { toStatus: 'Pending', notes: 'Footage clips submitted for Creative Lead review' },
     user,
     { ownerSubmission: true }
   );
 
-  // Notify Creative Head
-  const creativeHeads = await User.find({ role: 'creative_head', status: 'active' });
+  // Notify Creative Lead
+  const creativeHeads = await User.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
   for (const ch of creativeHeads) {
     await createNotification({
       recipient: ch._id,
@@ -884,7 +884,7 @@ export async function submitClipsForApproval(stageItemId, user) {
 }
 
 /**
- * 13. Finish review of shoot step (Creative Head / Admin)
+ * 13. Finish review of shoot step (Creative Lead / Admin)
  * If any clip is reshoot_needed -> the step waits in "Changes requested", like any other revision.
  * If all clips are approved -> approve step with 1 to 5 rating.
  * A step cannot be approved while a clip is waiting_review or reshoot_needed.
@@ -962,7 +962,7 @@ export async function finishShootStepReview(stageItemId, reviewData, user) {
           recipient: workItem.ownerId?._id || workItem.ownerId,
           type: 'revision_requested',
           title: 'Revision Requested on Stage Deliverable',
-          message: `Creative Head requested a revision on ${workItem.title}. Note: ${comment}`,
+          message: `Creative Lead requested a revision on ${workItem.title}. Note: ${comment}`,
           link: `/my-work?id=${workItem._id}`,
           metadata: { workItemId: workItem._id, comment },
         })

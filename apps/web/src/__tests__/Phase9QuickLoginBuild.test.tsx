@@ -10,10 +10,10 @@ const DIST = path.join(ROOT, 'dist');
 const acc = (label: string, role: string, i: number): QuickLoginAccount => ({ label, role, email: `${label.toLowerCase().replace(/\W/g, '')}${i}@demo.haca.local`, password: 'not-a-real-password' });
 const ACCOUNTS = [
   acc('Admin', 'admin', 0),
-  acc('Creative Head', 'creative_head', 1),
+  acc('Creative Lead', 'creative_lead', 1),
   acc('SM Manager', 'sm_manager', 2),
-  acc('Executive', 'executive', 3),
-  ...['Writer 1', 'Writer 2', 'Designer 1', 'Designer 2', 'Shooter', 'Editor 1', 'Editor 2', 'Poster', 'All-rounder'].map((l, i) => acc(l, 'team_member', 10 + i)),
+  acc('Creative Head', 'creative_head', 3),
+  ...['Writer 1', 'Writer 2', 'Designer 1', 'Designer 2', 'Shooter', 'Editor 1', 'Editor 2', 'Poster', 'All-rounder'].map((l, i) => acc(l, 'executive', 10 + i)),
 ];
 
 describe('Quick sign in (dev only)', () => {
@@ -21,10 +21,10 @@ describe('Quick sign in (dev only)', () => {
     const onPick = vi.fn();
     render(<DevQuickLogin accounts={ACCOUNTS} onPick={onPick} />);
     const groups = screen.getAllByTestId('quick-login-group');
-    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual(['Admin', 'Creative Head', 'SM Manager', 'Executive', 'Team members']);
+    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual(['Admin', 'Creative Head', 'Creative Lead', 'SM Manager', 'Executive']);
     expect(within(groups[4]).getAllByRole('button')).toHaveLength(9);
     within(groups[4]).getByRole('button', { name: 'Poster' }).click();
-    expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ label: 'Poster', role: 'team_member' }));
+    expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ label: 'Poster', role: 'executive' }));
   });
 
   it('accounts without a role still show, under Other', () => {

@@ -1,6 +1,7 @@
 // PG-2: grid decisions — month-resolved slash dates, exact type picks, Content/Design owner
 // columns, reel variants, owner picks by id, template/upload (new + older layout), and
 // batched autofill. Disposable test DB; synthetic rows in the November Excel structure.
+import { jobRoleFor } from './fixtures/jobRoles.js';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
@@ -48,18 +49,18 @@ describe('PG-2 plan grid', () => {
     await connectDB();
     await cleanup();
     const mk = (key, name, role, workPreferences = []) =>
-      Person.create({ name, email: `${key}@pg2-grid-test.com`, role, status: 'active', workPreferences }).then((p) => {
+      Person.create({ name, email: `${key}@pg2-grid-test.com`, role, status: 'active', workPreferences, jobRole: role === 'executive' ? jobRoleFor(workPreferences) : '' }).then((p) => {
         people[key] = p;
         tokens[key] = make(p);
       });
     await mk('sm', 'PG2 SM Manager', 'sm_manager');
-    await mk('writer', 'PG2 Writer', 'team_member', ['Script', 'Content']);
-    await mk('shooter', 'PG2 Shooter', 'team_member', ['Shoot']);
-    await mk('editor', 'PG2 Editor', 'team_member', ['Edit']);
-    await mk('designer', 'PG2 Designer', 'team_member', ['Design']);
-    await mk('poster', 'PG2 Poster', 'team_member', ['Post']);
-    await mk('twin1', 'PG2 Twin', 'team_member', ['Edit']);
-    await mk('twin2', 'PG2 Twin', 'team_member', ['Edit']);
+    await mk('writer', 'PG2 Writer', 'executive', ['Script', 'Content']);
+    await mk('shooter', 'PG2 Shooter', 'executive', ['Shoot']);
+    await mk('editor', 'PG2 Editor', 'executive', ['Edit']);
+    await mk('designer', 'PG2 Designer', 'executive', ['Design']);
+    await mk('poster', 'PG2 Poster', 'sm_manager'); // Post belongs to SM Managers (Phase 12b)
+    await mk('twin1', 'PG2 Twin', 'executive', ['Edit']);
+    await mk('twin2', 'PG2 Twin', 'executive', ['Edit']);
   });
   afterAll(cleanup);
 
@@ -281,7 +282,8 @@ describe('PG-2 plan grid', () => {
       const started = Date.now();
       const res = await post({ calendar: 'other', month: '2031-11', dryRun: true, rows });
       const elapsed = Date.now() - started;
-      const memberLoads = spy.mock.calls.filter(([q]) => q && q.role === 'team_member').length;
+      // The autofill candidate load: workers and SM Managers (Phase 12b), once per paste.
+      const memberLoads = spy.mock.calls.filter(([q]) => Array.isArray(q?.role?.$in) && q.role.$in.length === 2 && q.role.$in.includes('executive') && q.role.$in.includes('sm_manager')).length;
       spy.mockRestore();
       expect(res.body.data.counts.valid).toBe(12);
       expect(memberLoads).toBe(1);

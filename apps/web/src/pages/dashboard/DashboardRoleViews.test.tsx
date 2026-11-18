@@ -20,13 +20,13 @@ vi.mock('../../context/AuthContext', () => ({
     user: mockUser,
     hasPermission: (perm: string) => {
       if (mockUser?.role === 'admin') return true;
-      if (mockUser?.role === 'creative_head') {
+      if (mockUser?.role === 'creative_lead') {
         return ['calendar.approve', 'portal.view', 'report.configure', 'automation.manage'].includes(perm);
       }
       if (mockUser?.role === 'sm_manager') {
         return ['calendar.plan', 'work.create'].includes(perm);
       }
-      if (mockUser?.role === 'executive') {
+      if (mockUser?.role === 'creative_head') {
         return ['portal.view', 'report.view'].includes(perm);
       }
       return false;
@@ -52,7 +52,7 @@ const mockDashboardData = {
     departmentId: 'all',
     ownerId: 'all',
     month: '2026-10',
-    userRole: 'creative_head',
+    userRole: 'creative_lead',
   },
   monthPlanStatus: {
     selectedMonth: '2026-10',
@@ -93,7 +93,7 @@ const mockDashboardData = {
       status: 'In Progress',
       priority: 'high',
       profileId: { _id: 'p-1', name: 'HACA Master' },
-      ownerId: { _id: 'u-1', name: 'Alex Copywriter', role: 'team_member' },
+      ownerId: { _id: 'u-1', name: 'Alex Copywriter', role: 'executive' },
     },
   ],
   creativeStats: {
@@ -119,7 +119,7 @@ const mockDashboardData = {
       {
         personId: 'p-1',
         name: 'Overloaded Editor',
-        role: 'team_member',
+        role: 'executive',
         departmentName: 'Video Production',
         workloadPct: 125, // Uncapped real percentage (>100%)
         allocatedHours: 50,
@@ -129,7 +129,7 @@ const mockDashboardData = {
       {
         personId: 'p-2',
         name: 'Balanced Designer',
-        role: 'team_member',
+        role: 'executive',
         departmentName: 'Creative Design',
         workloadPct: 75,
         allocatedHours: 30,
@@ -211,7 +211,7 @@ describe('TeamDashboardPage Role Views & Scope Reset R4 Specifications', () => {
   });
 
   it('lists revision flags by project and step; the owner shows on the row only', async () => {
-    mockUser = { _id: 'u-head', name: 'Creative Head User', role: 'creative_head' };
+    mockUser = { _id: 'u-head', name: 'Creative Head User', role: 'creative_lead' };
     const flagged = {
       ...mockDashboardData,
       issues: {
@@ -243,7 +243,7 @@ describe('TeamDashboardPage Role Views & Scope Reset R4 Specifications', () => {
   });
 
   it('team_member is redirected to My Work immediately', async () => {
-    mockUser = { _id: 'u-member', name: 'Member Worker', role: 'team_member' };
+    mockUser = { _id: 'u-member', name: 'Member Worker', role: 'executive' };
     render(
       <MemoryRouter>
         <TeamDashboardPage />
@@ -254,7 +254,7 @@ describe('TeamDashboardPage Role Views & Scope Reset R4 Specifications', () => {
   });
 
   it('creative_head renders all 8 operational sections including Waiting for Approval', async () => {
-    mockUser = { _id: 'u-head', name: 'Creative Head User', role: 'creative_head' };
+    mockUser = { _id: 'u-head', name: 'Creative Head User', role: 'creative_lead' };
     render(
       <MemoryRouter>
         <TeamDashboardPage />
@@ -282,14 +282,14 @@ describe('TeamDashboardPage Role Views & Scope Reset R4 Specifications', () => {
     expect(screen.getByText(/Issues & Blockers/i)).toBeInTheDocument();
 
     // 7. Waiting for Approval (Creative Head primary operational block)
-    expect(screen.getByText(/Waiting for Creative Head Approval/i)).toBeInTheDocument();
+    expect(screen.getByText(/Waiting for Creative Lead Approval/i)).toBeInTheDocument();
 
     // 8. Recent Activity
     expect(screen.getByText(/Recent Activity Feed/i)).toBeInTheDocument();
   });
 
   it('Team Workload displays real percentage uncapped (125%) with band classifications', async () => {
-    mockUser = { _id: 'u-head', name: 'Creative Head User', role: 'creative_head' };
+    mockUser = { _id: 'u-head', name: 'Creative Head User', role: 'creative_lead' };
     render(
       <MemoryRouter>
         <TeamDashboardPage />
@@ -307,7 +307,7 @@ describe('TeamDashboardPage Role Views & Scope Reset R4 Specifications', () => {
   });
 
   it('strictly verifies zero Target, Funnel, or Campaign sections exist in DOM', async () => {
-    mockUser = { _id: 'u-head', name: 'Creative Head User', role: 'creative_head' };
+    mockUser = { _id: 'u-head', name: 'Creative Head User', role: 'creative_lead' };
     const { container } = render(
       <MemoryRouter>
         <TeamDashboardPage />
@@ -329,7 +329,7 @@ describe('TeamDashboardPage Role Views & Scope Reset R4 Specifications', () => {
   });
 
   it('executive view shows executive role badge and has no deliverable creation trigger', async () => {
-    mockUser = { _id: 'u-exec', name: 'Executive Director', role: 'executive' };
+    mockUser = { _id: 'u-exec', name: 'Executive Director', role: 'creative_head' };
     render(
       <MemoryRouter>
         <TeamDashboardPage />

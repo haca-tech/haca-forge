@@ -5,8 +5,17 @@ import { env } from "../../config/env.js";
 import { User } from "../people/model.js";
 import { AccessRequest } from "../access/model.js";
 import { Session } from "./session.model.js";
-import { ROLE_PERMISSIONS, normalizeRole } from "@mmp/shared";
+import { ROLE_PERMISSIONS, isKnownRole, normalizeRole, WORKER_ROLE } from "@mmp/shared";
 import { sendMail, templates } from "../../lib/mailer.js";
+
+/** An account still on a role from before Phase 12b waits for the migration. */
+function assertKnownRole(user) {
+  if (isKnownRole(user?.role)) return;
+  const error = new Error("Your account is being moved to the new roles. Ask an admin to finish the move.");
+  error.code = "ROLE_MIGRATION_PENDING";
+  error.statusCode = 403;
+  throw error;
+}
 
 export function parseDeviceLabel(userAgent = '') {
   if (!userAgent || typeof userAgent !== 'string') return 'Unknown Device';
@@ -125,6 +134,7 @@ export async function loginUser({ email, password, userAgent = '', ip = '' }) {
     error.statusCode = 401;
     throw error;
   }
+  assertKnownRole(user);
 
   const deviceLabel = parseDeviceLabel(userAgent);
   const ipHash = hashIp(ip);
@@ -252,6 +262,7 @@ export async function refreshTokens(refreshToken) {
     }
   }
 
+  assertKnownRole(user);
   const newTokens = generateTokens(user, {
     sessionId: session ? session._id.toString() : decoded.sessionId,
     refreshTokenFamily: session?.refreshTokenFamily || decoded.family,
@@ -326,7 +337,7 @@ export async function verifyPasswordToken(token) {
       valid: true,
       email: accessRequest.email,
       name: accessRequest.name,
-      role: accessRequest.assignedRole || accessRequest.requestedRole || "team_member",
+      role: accessRequest.assignedRole || accessRequest.requestedRole || WORKER_ROLE,
     };
   }
 

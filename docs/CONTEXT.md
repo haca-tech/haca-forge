@@ -14,7 +14,7 @@
 
 - **Owner & Developer:** Mubashir (Mubashir PP), MERN developer at HACA, founder of Orvynlabs. Prefers direct, actionable output, exact prompts, and code blocks over long conversational explanations.
 - **Product:** HACA Marketing OS (formerly FORGE / Media Manager). Internal creative and marketing operations portal for HACA's in-house team to plan, assign, produce, review, publish, and track creative deliverables (Reels and 14 design types) across 5 creative calendars.
-- **Stakeholders:** Abu Nabhan (Marketing Head), Social Media Manager, Creative Head, and the internal creative/production team.
+- **Stakeholders:** Abu Nabhan (Marketing Head), Social Media Manager, Creative Lead, and the internal creative/production team.
 - **Operating Model:** Antigravity (AI IDE agent in Planning mode) writes and executes code. Claude / Assistant drafts specifications, diagnostics, and exact pasteable prompts following `PROMPT_STYLE_GUIDE.md`. One phase per session, verified with tests before advancing.
 
 ---
@@ -28,7 +28,7 @@
    - **Zero ranking / leaderboards:** No comparing workers, no speed rankings, no incentive-linked performance metrics.
    - **No hour-based automated escalations:** All timers and measurements are display-only.
    - **Worker individual timing:** Timing counts from each worker's own `startedAt` (no shared clocks, no countdowns).
-   - **Privacy isolation:** `team_member` cannot harvest data or view other workers' profiles (`HTTP 404`). Executives have read-only access with contact information redacted.
+   - **Privacy isolation:** `executive` cannot harvest data or view other workers' profiles (`HTTP 404`). Creative Heads have read-only access with contact information redacted.
 5. **Zero New Dependencies:** Strictly no unapproved npm packages.
 6. **Data Safety:** Destructive scripts must have `--confirm` flags, dry-run by default, run only locally, and back up data outside the repository first.
 
@@ -41,7 +41,7 @@
 3. **Major Scope Reset (23 Oct 2026):**
    - **Completely removed:** Leads, LSQ, funnel, Data Center, Campaigns, Monthly Targets, multi-brand profiles, attendance/leave, file libraries.
    - Portal manages **work and team only**.
-   - 5 canonical roles: `admin`, `creative_head`, `sm_manager`, `executive`, `team_member`.
+   - 5 canonical roles: `admin`, `creative_lead`, `sm_manager`, `creative_head`, `executive`.
 4. **Creative Calendar & HACA-Only:** Single-brand system. 5 calendars (`sm`, `sales`, `ads`, `academics_management`, `other`). Step deadlines ($F-8$, $F-5$, $F-2$, $F$).
 5. **Role Workspaces:** Writing Studio, Review Studio, clip-by-clip Shoot Workspace, Edit/Design/Post Workspaces.
 6. **Individual Timing:** Removed shared clocks. Timing counts from each worker's own `startedAt`.
@@ -56,14 +56,26 @@
 
 ## 4. Current Product Definition
 
-### 4.1 Roles & Permissions
+### 4.1 Roles & Permissions (Phase 12b: 7 roles)
+Two keys were reused with a new meaning in Phase 12b: `creative_head` is now read-only leadership (it was the approver) and `executive` is now a production worker (it was read-only leadership). `team_member` no longer exists. Code uses the shared helpers (`isApprover`, `isReadOnlyViewer`, `isWorker`) and role groups in `@mmp/shared`, never the two reused keys as literals; a guard test enforces it.
+
 | Role Key | Title | Core Powers & Screen Permissions |
 |---|---|---|
-| `admin` | Administrator | Full platform control. Manages users, invites, approvals, role assignments, suspensions, password resets, and forced logouts. Only role that can edit registered emails. Excluded from workload suggestions. |
-| `creative_head` | Creative Head | Verifies and approves calendar plans. Reviews all deliverable outputs (mandatory 1–5 star rating on approval, root-cause classification on revision). Edits operational details (job role, department, capacity) for workers. Cannot create users or plans. |
-| `sm_manager` | SM Manager | Main planner. Creates monthly and individual plans across 5 calendars. Assigns step owners and deadlines. Reassigns, reschedules, shifts dates, and resolves blockers. Cannot approve deliverables. |
-| `executive` | Executive | Read-only observer across dashboard, plans, tracker, team directory, and reports. Zero write permissions (`HTTP 403`). All contact details (email, phone, WhatsApp) are redacted. |
-| `team_member` | Team Member / Worker | Works assigned steps via specialized workspaces. Sees own work (`/my-work`), own calendar items, own profile, and read-only pipeline of projects they belong to. Cannot view unauthorized projects (`HTTP 404`). |
+| `admin` | Admin | Full platform control: users, invites, access approvals, role grants, suspensions, password resets, forced logouts. Also approves and reviews any calendar as a backup. Only role with `report.configure` and `automation.manage`. |
+| `creative_head` | Creative Head | Views everything, read-only: every write is refused (`HTTP 403 READ_ONLY_ROLE`) except their own account (sign-out, password, own profile and settings, notification and chat read markers). Sees contact details and review text (revision notes, rating feedback, clip threads). Cannot comment, rate or decide. |
+| `production_head` | Production Head | Same access as Creative Head: views all calendars and works, read-only. |
+| `creative_lead` | Creative Lead | Approves plan rows, reviews steps (mandatory 1–5 rating on approval), requests changes, reopens, classifies root causes. Manages workers' operational fields (job role, preferences, capacity, department). Views and downloads profile reports. In Phase 12b this covers every calendar; Phase 13 limits it to every calendar except Ads. |
+| `growth_lead` | Growth Lead | Same powers as Creative Lead. Phase 13 limits approving to the Ads calendar; other calendars stay view-only. |
+| `sm_manager` | SM Manager | Main planner: plans, owners, deadlines, reschedules, blockers. Owns every Post step and marks it posted with its live link. Cannot approve. |
+| `executive` | Executive | Production worker (was `team_member`, unchanged access, including the 404s): works their own steps, sees their own work, profile and the pipeline of projects they belong to. Sees no one else's contact details. |
+
+Nobody reviews or approves their own work. Anti-ranking, the 3-rating minimum and the privacy rules apply as before. Public access requests can ask for `executive` or `sm_manager` only; only an Admin grants `admin`, `creative_head`, `production_head`, `creative_lead` or `growth_lead`.
+
+**Worker job roles and step eligibility.** Job role sets eligibility; preferences can only narrow it (eligible steps are the ones in both, so a worker with no preferences is not suggested, as before; a preference outside it is refused with `400 PREFERENCE_NOT_ELIGIBLE`, and a job role change drops preferences the new job role does not allow). Writer: Script, Content. Cinematographer: Shoot. Graphic Designer: Design. Video Editor: Edit. All Rounder: Script, Content, Shoot, Design, Edit. Post: SM Managers only. Autofill, owner suggestions, plan validation and Excel import all use this one rule (`effectiveStepsFor`). Job titles kept: the 5 worker titles plus "Creative Manager (TL)" and "Social Media Manager"; Videographer, Designer, Social Specialist and the unused titles were removed.
+
+**Role changes.** A role change ends the person's live sockets; the web app reloads `/auth/me` and reconnects, joining the new role's room. Live review comments go to the `role:creative_lead`, `role:growth_lead` and `role:admin` rooms.
+
+**Migration.** `apps/api/scripts/migrate-roles.js` moves an existing database to this model (dry run by default; `--confirm --db-name=<db>` backs up with mongodump to `D:\haca-backups\<timestamp>\` first, local databases only, API stopped). Until it runs, accounts still on `team_member` are refused with `403 ROLE_MIGRATION_PENDING`.
 
 ### 4.2 Five Creative Calendars
 Display names (Phase 10): SM Calendar, Sales Calendar, Ads Calendar, Academics & Management Calendar, Other. Keys unchanged.
@@ -83,7 +95,7 @@ Display names (Phase 10): SM Calendar, Sales Calendar, Ads Calendar, Academics &
   - Reel (Edit only): Edit $F-2$, Post $F$.
   - Postable Design: Content $F-5$, Design $F-2$, Post $F$.
   - Non-Postable Design: Content $F-5$, Design $F-2$ (handover on $F$).
-- **Review Steps:** Content, Script, Design, Edit, and Shoot go to the Creative Head. Post is direct by the posting owner.
+- **Review Steps:** Content, Script, Design, Edit, and Shoot go to the Creative Lead. Post is direct by the posting owner.
 - **Autofill Suggestions:** Suggests workers by matching step preference, workload under 85%, fewest revisions in 90 days, earliest availability.
 
 ### 4.4 Individual Timing & Tracking
@@ -100,43 +112,45 @@ Display names (Phase 10): SM Calendar, Sales Calendar, Ads Calendar, Academics &
 
 ### 4.5 Role Workspaces
 - **Writing Studio (Content / Script):** Word-style rich editor (Tiptap), two-column Visual/Audio table, duration estimator, teleprompter, shot list generator, .docx export/import.
-- **Review Studio (Creative Head):** Centralized review queue. Media viewers with second-pinned video comments, coordinate-pinned image comments, 1–5 star mandatory approval rating, and 7-category revision root causes.
+- **Review Studio (Creative Lead):** Centralized review queue. Media viewers with second-pinned video comments, coordinate-pinned image comments, 1–5 star mandatory approval rating, and 7-category revision root causes.
 - **Shoot Workspace (Videographer):** Clip-by-clip upload with pause/resume, individual clip review ("Approve Clip" / "Reshoot Needed"), and WhatsApp-style per-clip discussion thread.
 - **Edit / Design Workspaces:** Media upload with size guides, aspect ratio checks, approved copy side-by-side view, and revision checklist.
 - **Post Workspace:** Caption (required to post) and hashtags written on the Post step, with copy buttons; download of the approved final assets; platform checklist, live link and post timestamp recording.
 
 ### 4.6 Team Directory & Profile
 - **Team Directory (`/team`):** Operating status, workload percentage and band, 'Right Now' deliverable, and active counts (in progress, waiting for approval, late). Whitelist sorting: `name`, `department`, `jobRole`, `load`.
-- **Worker Profile (`/team/:id` and `/profile`):** 6 tabs: Overview, Work (timeline traces), Performance (individual craftsmanship metrics), Ratings (feedback summary, $\ge 3$ threshold), Activity, and Changes (operational audit log for Admin & Creative Head).
+- **Worker Profile (`/team/:id` and `/profile`):** 6 tabs: Overview, Work (timeline traces), Performance (individual craftsmanship metrics), Ratings (feedback summary, $\ge 3$ threshold), Activity, and Changes (operational audit log for Admin & Creative Lead).
 - **Edit Profile:** Name, preferred name, avatar upload with circular crop, locked registered email (Admin managed), phone number with 6-digit OTP verification, WhatsApp sync checkbox, bio, languages, and skills.
 
 ### 4.7 Team Chat
 - Real-time messaging via Socket.io.
-- Group channels created by Admin, Creative Head, and SM Manager.
-- Private DMs between non-executives (Admin cannot read DMs; Executive is read-only).
+- Group channels created by Admin, Creative Lead, and SM Manager.
+- Private DMs between non-executives (Admin cannot read DMs; Creative Head is read-only).
 - **Share to Chat:** Approved creative assets from workspaces can be shared directly into channels with media preview cards.
 
 ---
 
 ## 5. Canonical Database Seed Users
 
-Seeded only by `apps/api/scripts/reset-and-seed.js` (Phase 9: dry run by default; `--confirm --db-name=marketing_portal` on a local database only). Passwords are never in source or docs: the 12 users use `SEED_PASSWORD_<NAME>` and the admin `ADMIN_SEED_PASSWORD`, all in the git-ignored `apps/api/.env`. The app creates the admin at startup only when it is missing and never rewrites users or passwords. Dev quick sign-in reads `VITE_QUICK_LOGINS` from the git-ignored `apps/web/.env.local` and is absent from production builds.
-Work preferences: writers Content and Script; designers Design; shooter Shoot; editors Edit; poster Post; allrounder Script, Shoot and Post; Creative Head, SM manager and executive none.
-| # | Role | Job Role | Department | Email | Phone |
-|---|---|---|---|---|---|
-| 1 | `creative_head` | Creative Manager (TL) | Design | `creativehead@demo.haca.local` | 9000000001 |
-| 2 | `sm_manager` | Social Media Manager | Social Media | `smmanager@demo.haca.local` | 9000000002 |
-| 3 | `executive` | None | None | `executive@demo.haca.local` | 9000000003 |
-| 4 | `team_member` | Writer | SEO & Content | `writer1@demo.haca.local` | 9000000011 |
-| 5 | `team_member` | Writer | SEO & Content | `writer2@demo.haca.local` | 9000000012 |
-| 6 | `team_member` | Designer | Design | `designer1@demo.haca.local` | 9000000013 |
-| 7 | `team_member` | Designer | Design | `designer2@demo.haca.local` | 9000000014 |
-| 8 | `team_member` | Videographer | Video Production | `shooter@demo.haca.local` | 9000000015 |
-| 9 | `team_member` | Video Editor | Video Production | `editor1@demo.haca.local` | 9000000016 |
-| 10 | `team_member` | Video Editor | Video Production | `editor2@demo.haca.local` | 9000000017 |
-| 11 | `team_member` | Social Specialist | Social Media | `poster@demo.haca.local` | 9000000018 |
-| 12 | `team_member` | Social Specialist | Social Media | `allrounder@demo.haca.local` | 9000000019 |
-| 13 | `admin` | System Admin | Tech | `admin@hacaforge.com` | — |
+Seeded only by `apps/api/scripts/reset-and-seed.js` (Phase 9: dry run by default; `--confirm --db-name=marketing_portal` on a local database only). Passwords are never in source or docs: each user uses `SEED_PASSWORD_<KEY>` and the admin `ADMIN_SEED_PASSWORD`, all in the git-ignored `apps/api/.env`. The keys are unchanged from Phase 9 so existing `.env` entries keep working; Phase 12b changed the roles behind them. `PRODUCTIONHEAD` and `GROWTHLEAD` are optional: seeded only when their passwords are set. The app creates the admin at startup only when it is missing and never rewrites users or passwords. Dev quick sign-in reads `VITE_QUICK_LOGINS` from the git-ignored `apps/web/.env.local` and is absent from production builds.
+
+| # | Key | Role | Job Role | Department | Email | Phone |
+|---|---|---|---|---|---|---|
+| 1 | CREATIVEHEAD | `creative_lead` | Creative Manager (TL) | Design | `creativelead@demo.haca.local` | 9000000001 |
+| 2 | SMMANAGER | `sm_manager` | Social Media Manager | Social Media | `smmanager@demo.haca.local` | 9000000002 |
+| 3 | EXECUTIVE | `creative_head` | None | None | `creativehead@demo.haca.local` | 9000000003 |
+| 4 | WRITER1 | `executive` | Writer | SEO & Content | `writer1@demo.haca.local` | 9000000011 |
+| 5 | WRITER2 | `executive` | Writer | SEO & Content | `writer2@demo.haca.local` | 9000000012 |
+| 6 | DESIGNER1 | `executive` | Graphic Designer | Design | `designer1@demo.haca.local` | 9000000013 |
+| 7 | DESIGNER2 | `executive` | Graphic Designer | Design | `designer2@demo.haca.local` | 9000000014 |
+| 8 | SHOOTER | `executive` | Cinematographer | Video Production | `shooter@demo.haca.local` | 9000000015 |
+| 9 | EDITOR1 | `executive` | Video Editor | Video Production | `editor1@demo.haca.local` | 9000000016 |
+| 10 | EDITOR2 | `executive` | Video Editor | Video Production | `editor2@demo.haca.local` | 9000000017 |
+| 11 | POSTER | `executive` | None (to be assigned) | Social Media | `poster@demo.haca.local` | 9000000018 |
+| 12 | ALLROUNDER | `executive` | All Rounder | Social Media | `allrounder@demo.haca.local` | 9000000019 |
+| 13 | PRODUCTIONHEAD (optional) | `production_head` | None | None | `productionhead@demo.haca.local` | 9000000004 |
+| 14 | GROWTHLEAD (optional) | `growth_lead` | None | Performance Marketing | `growthlead@demo.haca.local` | 9000000005 |
+| — | (admin) | `admin` | System Admin | Tech | `ADMIN_SEED_EMAIL` | — |
 
 ---
 
@@ -166,7 +180,7 @@ Work preferences: writers Content and Script; designers Design; shooter Shoot; e
 | 20 | Phase 5: asset handoff, Drive links, caption on Post | **Done** | Phase 5 tests; 30/30 browser checks |
 | 21 | Phase 6: blockers, reopening, plan delete, small fixes | **Done** | Phase 6 tests; see docs/PROGRESS.md |
 | 22 | Phase 7: live reports, overdue and lateness labels, project KPIs | **Done** | Phase 7 tests; 49/49 browser checks; see docs/PROGRESS.md |
-| 23 | Phase 8: worker and Creative Head profile KPIs, profile report (PDF, CSV) | **Done** | Phase 8 tests; 41/41 browser checks; see docs/PROGRESS.md |
+| 23 | Phase 8: worker and Creative Lead profile KPIs, profile report (PDF, CSV) | **Done** | Phase 8 tests; 41/41 browser checks; see docs/PROGRESS.md |
 
 ---
 
@@ -185,7 +199,7 @@ npm test --workspace=@mmp/api
 # Test Web Suite
 npm test --workspace=@mmp/web
 
-# Database Reset & Seed (13 Canonical Users)
+# Database Reset & Seed (test users)
 node apps/api/scripts/reset-and-seed.js --confirm --db-name=marketing_portal
 ```
 

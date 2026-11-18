@@ -24,13 +24,13 @@ The portal unifies marketing operations into a verified digital workflow, replac
 
 | Role Key | Spec Title | Responsibilities in Content Flow |
 |---|---|---|
-| **`creative_head`** *(was marketing_head)* | Creative Head | **Approves plans and review stages:** Verifies calendar plans (approve all, approve selected rows, request changes with mandatory row comments, or reject the whole plan with an overall strategic concern); reviews and approves deliverables on review stages (`Script`, `Content`, `Design`, `Edit`); requests revisions with notes; classifies revision root causes (7 canonical causes); edits team operating fields. **Cannot upload plans or create users.** |
-| **`sm_manager`** *(was team_lead)* | SM Manager | **Main operational planner:** Uploads or types calendar plans (`monthly` and `individual`), selects deliverable types with instant stage list and owner/deadline auto-fill suggestions, customizes suggestions (tagged 'set by SM Manager'), submits plans to Creative Head. Once approved, can change stage owners/deadlines or reschedule $F$ with audit logging, tracks every stage across content pieces in Content Tracker, resolves blockers, monitors workload. **Cannot approve plans or review stages.** |
-| **`team_member`** | Creative Contributor | **Worker:** Sees assigned stages in `/my-work` (downstream locked stages appear greyed out with due dates). Executes work, updates status, pastes deliverable links, submits review stages to Creative Head or clicks Done and forward for non-review stages (`Shoot`, `Post`), replies to feedback, marks Blocked (9 canonical reasons), requests work from SM Manager. Sees only own items. |
-| **`executive`** | Executive Leadership | **Read-only viewer:** Total visibility into dashboard, calendar plans, content tracker, workload, and reports. Zero write/mutation permissions (HTTP 403). Contact details masked. Excluded from workload and candidate pools. |
+| **`creative_lead`** *(was marketing_head)* | Creative Lead | **Approves plans and review stages:** Verifies calendar plans (approve all, approve selected rows, request changes with mandatory row comments, or reject the whole plan with an overall strategic concern); reviews and approves deliverables on review stages (`Script`, `Content`, `Design`, `Edit`); requests revisions with notes; classifies revision root causes (7 canonical causes); edits team operating fields. **Cannot upload plans or create users.** |
+| **`sm_manager`** *(was team_lead)* | SM Manager | **Main operational planner:** Uploads or types calendar plans (`monthly` and `individual`), selects deliverable types with instant stage list and owner/deadline auto-fill suggestions, customizes suggestions (tagged 'set by SM Manager'), submits plans to Creative Lead. Once approved, can change stage owners/deadlines or reschedule $F$ with audit logging, tracks every stage across content pieces in Content Tracker, resolves blockers, monitors workload. **Cannot approve plans or review stages.** |
+| **`executive`** | Creative Contributor | **Worker:** Sees assigned stages in `/my-work` (downstream locked stages appear greyed out with due dates). Executes work, updates status, pastes deliverable links, submits review stages to Creative Lead or clicks Done and forward for non-review stages (`Shoot`, `Post`), replies to feedback, marks Blocked (9 canonical reasons), requests work from SM Manager. Sees only own items. |
+| **`creative_head`** | Creative Head Leadership | **Read-only viewer:** Total visibility into dashboard, calendar plans, content tracker, workload, and reports. Zero write/mutation permissions (HTTP 403). Contact details masked. Excluded from workload and candidate pools. |
 | **`admin`** | System Owner | **IT / System Admin:** System administration, user management, and access request approvals. Holds all permissions. Excluded from workload and candidate pools. Holds emergency operational rights. |
 
-*Approver rule:* Approvals belong strictly to the `creative_head` (or `admin`). The SM Manager assigns and orchestrates, but **cannot approve**.
+*Approver rule:* Approvals belong strictly to the `creative_lead` (or `admin`). The SM Manager assigns and orchestrates, but **cannot approve**.
 
 ---
 
@@ -40,8 +40,8 @@ The portal unifies marketing operations into a verified digital workflow, replac
 sequenceDiagram
     autonumber
     actor SMM as SM Manager
-    actor CH as Creative Head
-    actor Worker as Team Member
+    actor CH as Creative Lead
+    actor Worker as Executive
     actor Publisher as Posting Owner
     
     Note over SMM: 1. Plan Creation & Auto-Fill
@@ -94,7 +94,7 @@ When a deliverable type (and reel toggles) is selected, the system immediately p
   * `Priority`: `Normal` or `Urgent` (required, default `Normal`).
   * `Remarks`: operational notes (optional).
   * `Posting owner`: required for live types.
-* **Owner Suggestions:** Evaluates active `team_member` candidates matching `Person.workPreferences[]`, with workload $<85\%$ (accounting for open work plus draft plan hours: Content 2h, Script 2h, Design 4h, Shoot 4h, Edit 6h, Post 1h), ranked by: lowest workload $\rightarrow$ fewest 90-day revisions $\rightarrow$ earliest availability. Rationale displayed next to name. Fallback: `'No available person with this role'`.
+* **Owner Suggestions:** Evaluates active `executive` candidates matching `Person.workPreferences[]`, with workload $<85\%$ (accounting for open work plus draft plan hours: Content 2h, Script 2h, Design 4h, Shoot 4h, Edit 6h, Post 1h), ranked by: lowest workload $\rightarrow$ fewest 90-day revisions $\rightarrow$ earliest availability. Rationale displayed next to name. Fallback: `'No available person with this role'`.
 * **Suggested Deadlines (Calendar days from $F$; 2-day buffer after last creation stage):**
   * Postable Design: Content $F-5$, Design $F-2$, Post $F$.
   * Non-postable Design: Content $F-5$, Design $F-2$, Handover $F$.
@@ -108,8 +108,8 @@ When a deliverable type (and reel toggles) is selected, the system immediately p
 * **Warnings (Allowed):** Last creation stage $>F-1$, owner workload $>85\%$, row date outside plan month.
 * **Submission:** Transitions submitted rows to `submitted`. Plan status becomes `Submitted`.
 
-### Step 4: Creative Head Verification & Approval
-The Creative Head reviews the plan in **Feedback & Revisions $\rightarrow$ Plan Approvals**:
+### Step 4: Creative Lead Verification & Approval
+The Creative Lead reviews the plan in **Feedback & Revisions $\rightarrow$ Plan Approvals**:
 * **Approve All:** Approves all submitted rows.
 * **Approve Selected:** Approves valid rows; unapproved remain pending.
 * **Request Changes:** Attaches mandatory comment to row (`changes_requested`).
@@ -119,13 +119,13 @@ The Creative Head reviews the plan in **Feedback & Revisions $\rightarrow$ Plan 
 ### Step 5: Post-Approval Pipeline Generation
 * When a row transitions to `approved`, the system automatically generates a parent **ContentPiece** and sequential stage **WorkItems** using the owners and deadlines validated in the row.
 * **Sequential Locking:** Stage 1 unlocks immediately (`unlockedAt = new Date()`). Downstream stages remain locked (`unlockedAt = null`), visible greyed out in the worker's `/my-work` view with scheduled due dates.
-* **Mid-Flight Mutations:** SM Manager and Admin can change an owner, a deadline, reschedule $F$, or skip an unstarted stage. Every change is logged in `ActivityEvent` (`who`, `when`, `old`, `new`), and the worker and Creative Head are notified. Topic and type cannot change after approval.
+* **Mid-Flight Mutations:** SM Manager and Admin can change an owner, a deadline, reschedule $F$, or skip an unstarted stage. Every change is logged in `ActivityEvent` (`who`, `when`, `old`, `new`), and the worker and Creative Lead are notified. Topic and type cannot change after approval.
 
 ### Step 6: Contributor Execution & Review Loops
 * Contributor opens `/my-work`, clicks **Start Work** (`In Progress`), and pastes deliverable URL.
 * **Review Stages (`Script`, `Content`, `Design`, `Edit`):** Worker clicks **Submit for approval**.
-  * Creative Head reviews: **Approve** (unlocks next stage) or **Revision Required** (attaches note, work returns to worker queue, revision count increments).
-  * When revisions reach **4**, an automatic `RevisionFlag` is raised and pinned at the top of the Creative Head dashboard until classified.
+  * Creative Lead reviews: **Approve** (unlocks next stage) or **Revision Required** (attaches note, work returns to worker queue, revision count increments).
+  * When revisions reach **4**, an automatic `RevisionFlag` is raised and pinned at the top of the Creative Lead dashboard until classified.
 * **Non-Review Stages (`Shoot`, `Post`):**
   * `Shoot`: Worker pastes raw footage folder link and clicks **Done and forward** (no review required; unlocks Edit immediately).
   * `Post`: Posting owner publishes asset, inputs live public URL and timestamp, marking the piece complete. Non-postable items conclude upon final design approval and are handed over on date $F$.
@@ -140,8 +140,8 @@ Every piece is a **ContentPiece** that groups its stages. **Each stage is a norm
 
 | # | Stage | Done by | Reviewed by | Output |
 |---|---|---|---|---|
-| 1 | **Content** | Content writer (`workPreferences: Content`) | Creative Head (Content Approval) | Content document link |
-| 2 | **Design** | Graphic designer (`workPreferences: Design`) | Creative Head (Design Approval) | High-res assets / Drive link |
+| 1 | **Content** | Content writer (`workPreferences: Content`) | Creative Lead (Content Approval) | Content document link |
+| 2 | **Design** | Graphic designer (`workPreferences: Design`) | Creative Lead (Design Approval) | High-res assets / Drive link |
 | 3 | **Post** *(only for postable types)* | Posting owner (`workPreferences: Post`) | None (Done and forward) | Published live URL and time |
 
 *Completion rule:* Non-postable design items are **final done** upon Design Approval and handed over on date $F$. Postable items proceed to Post.
@@ -158,9 +158,9 @@ Configured when the row is created via two toggles: **Needs script?** and **Need
 
 | Stage | Done by | Reviewed by | Output |
 |---|---|---|---|
-| **Script** | Writer (`workPreferences: Script`) | Creative Head (Script Approval) | Script document link |
+| **Script** | Writer (`workPreferences: Script`) | Creative Lead (Script Approval) | Script document link |
 | **Shoot** | Anyone with `workPreferences: Shoot` | None (Shoot Done) | Raw footage folder link |
-| **Edit** | Video Editor (`workPreferences: Edit`) | Creative Head (Edit Approval) | Rendered video link |
+| **Edit** | Video Editor (`workPreferences: Edit`) | Creative Lead (Edit Approval) | Rendered video link |
 | **Post** | Posting owner (`workPreferences: Post`) | None (Published) | Published live URL and timestamp |
 
 ### 4.3 Type-to-Pipeline Mapping
@@ -196,7 +196,7 @@ The Content Tracker lives on `/calendar?tab=tracker`:
   * **Social View:** Tracks live social deliverables (`Reel`, `Static Post`, `Carousel Post`, `Story`) with posting date, topic, stage chips, live link, and turnaround.
   * **Design View:** Tracks collateral and design requirements with needed-by date, topic, stage chips, and assets link.
 * **Operational Indicators:**
-  * **Who holds it now:** Current holder name, Creative Head, SM Manager for 'needs owner', Blocked since <date>, or Locked.
+  * **Who holds it now:** Current holder name, Creative Lead, SM Manager for 'needs owner', Blocked since <date>, or Locked.
   * **Piece Status:**
     * **`On Track`:** All active stages proceeding normally.
     * **`At Risk`:** Active stage due within **2 calendar days** and currently `Not Started`, `Pending`, or `Blocked`.
@@ -212,7 +212,7 @@ The Content Tracker lives on `/calendar?tab=tracker`:
 | **Blockers** | Escalates to SM Manager after 4 hours. | Dependency owner and SM Manager notified **instantly**; tracker displays: **`Blocked since <date>`**. No 4-hour alert. |
 | **Overdue Work** | Escalates to SM Manager after 4 hours. | Notified **once** when due date passes (checked at end of day in `REPORT_TIMEZONE` by daily job); tracker shows **`Late by X days`**. |
 | **Approvals** | Hourly escalation countdown. | Review queue displays: **`Waiting for X days`**. |
-| **Revision Flags** | Escalates after 48 hours. | Pinned at **top of Creative Head dashboard** until classified. No 48-hour alert. |
+| **Revision Flags** | Escalates after 48 hours. | Pinned at **top of Creative Lead dashboard** until classified. No 48-hour alert. |
 | **Messaging** | Messages said *"blocked for 4h"*. | System messages and UI chips **never reference hour counts**. |
 
 ---

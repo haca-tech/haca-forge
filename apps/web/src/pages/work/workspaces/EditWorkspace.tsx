@@ -1,3 +1,4 @@
+import { APPROVER_ROLES, WORKER_ROLE, isApprover } from '@mmp/shared';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Film,
@@ -224,7 +225,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
   const ownerId = (workItem.ownerId?._id || workItem.ownerId)?.toString();
   const isOwner = ownerId && ownerId === currentUserId;
   const isApproved = workItem.status === 'Approved' || currentSubmission?.status === 'approved';
-  const canShare = isApproved && user && (['admin', 'creative_head', 'sm_manager'].includes(user.role) || isOwner);
+  const canShare = isApproved && user && (['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role) || isOwner);
 
   // Sync prop comments if updated from parent
   useEffect(() => {
@@ -317,13 +318,13 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
       });
 
       const created = res?.data || res;
-      const isReviewerUser = user?.role === 'creative_head' || user?.role === 'admin';
+      const isReviewerUser = isApprover(user?.role) || user?.role === 'admin';
       const optimisticMsg: RevisionComment = {
         id: created._id || created.id || `local-${Date.now()}`,
         content: text,
         authorId: user?.id || user?._id,
-        authorName: user?.name || (isReviewerUser ? 'Creative Head' : 'You (Editor)'),
-        authorRole: user?.role || (isReviewerUser ? 'creative_head' : 'team_member'),
+        authorName: user?.name || (isReviewerUser ? 'Reviewer' : 'You (Editor)'),
+        authorRole: user?.role || (isReviewerUser ? APPROVER_ROLES[0] : WORKER_ROLE),
         createdAt: new Date().toISOString(),
         timecode: taggedTimecode != null ? Math.round(taggedTimecode) : undefined,
         resolved: false,
@@ -481,7 +482,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
             )}
           </div>
           <p className="text-xs text-ui-muted mt-0.5">
-            Review your master cut, discuss live notes with Creative Head, and submit revised cuts.
+            Review your master cut, discuss live notes with Creative Lead, and submit revised cuts.
           </p>
         </div>
 
@@ -613,14 +614,14 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-amber-800">
-                        Revision Requested by Creative Head (Round #{workItem.revisions || 1})
+                        Revision Requested by Creative Lead (Round #{workItem.revisions || 1})
                       </span>
                       <span className="status-tint status-waiting text-[11px] px-2 py-0.5 rounded-full border font-semibold">
                         Action Required
                       </span>
                     </div>
                     <p className="text-xs text-ui-text mt-1 leading-relaxed">
-                      Creative Head requested changes on this cut. Review the feedback and timestamped notes in the Live Discussion panel on the right, make your adjustments, and upload the revised cut below.
+                      Creative Lead requested changes on this cut. Review the feedback and timestamped notes in the Live Discussion panel on the right, make your adjustments, and upload the revised cut below.
                     </p>
                   </div>
                 </div>
@@ -745,7 +746,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                         <MessageSquare className="w-8 h-8 text-ui-muted mb-2 stroke-1" />
                         <p className="text-xs font-medium text-ui-text">No review comments yet</p>
                         <p className="text-[11px] text-ui-muted mt-1 max-w-xs">
-                          Start the conversation with Creative Head below or tag specific moments in the video cut.
+                          Start the conversation with Creative Lead below or tag specific moments in the video cut.
                         </p>
                       </div>
                     ) : (
@@ -760,7 +761,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                         );
 
                         const isReviewer =
-                          roleLower === 'creative_head' ||
+                          isApprover(roleLower) ||
                           roleLower === 'admin' ||
                           nameLower.includes('head') ||
                           nameLower.includes('creative') ||
@@ -782,7 +783,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                             <div className="flex items-center justify-between text-[11px]">
                               <div className="flex items-center gap-1.5">
                                 <span className="font-bold text-ui-ink">
-                                  {comment.authorName || (isReviewer ? 'Creative Head' : 'Video Editor')}
+                                  {comment.authorName || (isReviewer ? 'Creative Lead' : 'Video Editor')}
                                 </span>
                                 <span
                                   className={`text-[11px] px-1.5 py-0.2 rounded-full font-semibold ${
@@ -791,7 +792,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                                       : 'bg-white text-ui-ink border border-ui-ink'
                                   }`}
                                 >
-                                  {isReviewer ? 'Creative Head' : 'Video Editor'}
+                                  {isReviewer ? 'Creative Lead' : 'Video Editor'}
                                 </span>
                               </div>
 
@@ -878,9 +879,9 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         placeholder={
-                          user?.role === 'creative_head' || user?.role === 'admin'
+                          isApprover(user?.role) || user?.role === 'admin'
                             ? 'Type review feedback or a message for the editor...'
-                            : 'Type a message or response to Creative Head...'
+                            : 'Type a message or response to Creative Lead...'
                         }
                         aria-label="Message"
                         className="ui-input flex-1 min-w-0"

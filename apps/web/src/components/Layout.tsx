@@ -1,3 +1,4 @@
+import { isApprover, isWorker } from '@mmp/shared';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -165,9 +166,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
 
   // Role flags
   const role = user?.role;
-  const isTeamMember = role === 'team_member';
+  const isTeamMember = isWorker(role);
   const isSmManager = role === 'sm_manager';
-  const isCreativeHead = role === 'creative_head';
+  const isCreativeHead = isApprover(role);
   const isAdmin = role === 'admin';
 
   // Pending Access Requests Count Badge for Admin
@@ -315,7 +316,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
       ];
     }
 
-    // creative_head, executive, admin
+    // creative_lead/growth_lead, creative_head/production_head, admin
     const cats: NavCategory[] = [
       {
         id: 'schedule',
@@ -478,7 +479,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
       ];
     }
 
-    // creative_head, executive, admin
+    // creative_lead/growth_lead, creative_head/production_head, admin
     const items: SidebarItem[] = [
       { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', active: isLandingActive },
       { id: 'calendar', icon: Calendar, label: 'Creative Calendar', path: '/calendar', active: location.pathname.startsWith('/calendar') },

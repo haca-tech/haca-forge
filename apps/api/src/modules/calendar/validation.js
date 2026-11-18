@@ -8,6 +8,8 @@ import {
   VALIDATION_WARNING_CODES,
   DEFAULT_STAGE_HOURS,
   sourceVideoLinkError,
+  WORKER_ROLE,
+  effectiveStepsFor,
 } from '@mmp/shared';
 import { Person } from '../people/model.js';
 import { WorkItem } from '../workItems/model.js';
@@ -28,7 +30,7 @@ function toStartOfDay(d) {
  * @param {Object} params
  * @param {Object} params.plan Calendar plan or metadata (title, kind, periodStart, periodEnd)
  * @param {Array} params.rows List of row objects (draft or existing)
- * @param {Boolean} params.isSubmitting Set to true when submitting to Creative Head
+ * @param {Boolean} params.isSubmitting Set to true when submitting to Creative Lead
  * @returns {Promise<{ isValid: boolean, errors: Array, warnings: Array }>}
  */
 export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting = false }) {
@@ -59,7 +61,7 @@ export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting =
 
   // Pre-fetch team members to validate stage owners and calculate workload warnings
   const activeMembers = await Person.find({
-    role: { $in: ['team_member', 'sm_manager', 'admin'] },
+    role: { $in: [WORKER_ROLE, 'sm_manager', 'admin'] },
     status: 'active',
   }).lean();
   const membersById = new Map(activeMembers.map((m) => [m._id.toString(), m]));
@@ -280,9 +282,9 @@ export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting =
             message: `Assigned owner for ${st.stageKey} is not an active team member.`,
           });
         } else {
-          // Check stage preference for creation stages (Script, Shoot, Edit, Design, Content)
-          if (st.stageKey !== 'Post') {
-            const prefs = member.workPreferences || [];
+          // Eligibility (Phase 12b): job role sets it, preferences narrow it; Post is SM Managers only.
+          {
+            const prefs = effectiveStepsFor(member);
             if (!prefs.includes(st.stageKey)) {
               errors.push({
                 rowNumber: rowNum,

@@ -37,7 +37,7 @@ describe('Admin user-management API', () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(mongoUri);
     await Person.deleteMany({ email: new RegExp(`${DOMAIN.replace('.', '\\.')}$`) });
 
-    for (const role of ['admin', 'creative_head', 'sm_manager', 'executive', 'team_member']) {
+    for (const role of ['admin', 'creative_lead', 'sm_manager', 'creative_head', 'executive']) {
       people[role] = await Person.create({ name: `UM ${role}`, email: `${role}${DOMAIN}`, role, status: 'active' });
       tokens[role] = makeToken(people[role]);
     }
@@ -48,7 +48,7 @@ describe('Admin user-management API', () => {
     target = await Person.create({
       name: 'UM Target',
       email: `target${DOMAIN}`,
-      role: 'team_member',
+      role: 'executive',
       status: 'active',
       mustSetPassword: false,
     });
@@ -63,7 +63,7 @@ describe('Admin user-management API', () => {
   });
 
   describe('Unauthorized roles are rejected and nothing changes', () => {
-    for (const role of ['creative_head', 'sm_manager', 'executive', 'team_member']) {
+    for (const role of ['creative_lead', 'sm_manager', 'creative_head', 'executive']) {
       it(`${role}: POST /api/people is rejected and no account is created`, async () => {
         const res = await request(app)
           .post('/api/people')
@@ -79,7 +79,7 @@ describe('Admin user-management API', () => {
           .set('Authorization', `Bearer ${tokens[role]}`)
           .send({ role: 'admin' });
         expect(res.status).toBe(403);
-        expect((await Person.findById(target._id)).role).toBe('team_member');
+        expect((await Person.findById(target._id)).role).toBe('executive');
       });
 
       it(`${role}: POST /api/team/:id/reset-password is rejected and the password state is unchanged`, async () => {
@@ -108,7 +108,7 @@ describe('Admin user-management API', () => {
       ];
       for (const res of await Promise.all(calls)) expect(res.status).toBe(401);
       const after = await Person.findById(target._id);
-      expect(after.role).toBe('team_member');
+      expect(after.role).toBe('executive');
       expect(after.mustSetPassword).toBe(false);
       expect(await Session.countDocuments({ userId: target._id })).toBe(1);
     });
@@ -131,7 +131,7 @@ describe('Admin user-management API', () => {
       const res = await request(app)
         .post('/api/people')
         .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ name: 'Dup', email: `target${DOMAIN}`, role: 'team_member' });
+        .send({ name: 'Dup', email: `target${DOMAIN}`, role: 'executive' });
       expect(res.status).toBe(409);
     });
 
@@ -150,7 +150,7 @@ describe('Admin user-management API', () => {
         .set('Authorization', `Bearer ${tokens.admin}`)
         .send({ role: 'superuser' });
       expect(res.status).toBeGreaterThanOrEqual(400);
-      expect((await Person.findById(target._id)).role).toBe('team_member');
+      expect((await Person.findById(target._id)).role).toBe('executive');
     });
 
     it('reset password: blocks sign-in until a new password is set and returns no credentials', async () => {

@@ -61,7 +61,7 @@ describe('Worker Individual Timing Test', () => {
       user: {
         _id: 'worker-1',
         name: 'Creative Worker',
-        role: 'team_member',
+        role: 'executive',
       },
     });
   });

@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { parsePriorityInput } from '@mmp/shared';
+import { parsePriorityInput, WORKER_ROLE, effectiveStepsFor } from '@mmp/shared';
 import {
   WORK_TYPES,
   normalizeWorkType,
@@ -204,7 +204,7 @@ function parseBoolean(val) {
 }
 
 /**
- * An .xlsx file is a zip ("PK"); anything else is read as CSV. The old check
+ * An .xlsx file is a zip ("PKexecutive (worker)"); anything else is read as CSV. The old check
  * ("a comma in the first 100 bytes") also matched zip bytes, so real Excel files were
  * read as CSV and came back empty.
  */
@@ -426,7 +426,7 @@ export async function validateImportRows(rawRows) {
 
   // Fetch active team members for owner lookup and autofill
   const activeMembers = await Person.find({
-    role: { $in: ['team_member', 'sm_manager', 'admin'] },
+    role: { $in: [WORKER_ROLE, 'sm_manager', 'admin'] },
     status: 'active',
   }).lean();
   const membersByEmail = new Map();
@@ -460,7 +460,7 @@ export async function validateImportRows(rawRows) {
 
   function pickBestMemberForStage(stageKey) {
     const eligible = activeMembers.filter((m) => {
-      const prefs = m.workPreferences || [];
+      const prefs = effectiveStepsFor(m);
       const load = memberWorkload.get(m._id.toString()) || 0;
       return prefs.includes(stageKey) && load < 85;
     });
@@ -593,11 +593,9 @@ export async function validateImportRows(rawRows) {
           if (found.error) {
             errors.push(`${stageKey} owner: ${found.error}`);
           } else if (member) {
-            if (stageKey !== 'Post') {
-              const prefs = member.workPreferences || [];
-              if (!prefs.includes(stageKey)) {
-                errors.push(`${member.name} (${email}) does not have "${stageKey}" in work preferences`);
-              }
+            // Eligibility (Phase 12b): job role sets it, preferences narrow it; Post is SM Managers only.
+            if (!effectiveStepsFor(member).includes(stageKey)) {
+              errors.push(`${member.name} (${email}) is not eligible for the ${stageKey} step`);
             }
             ownerId = member._id.toString();
             ownerName = member.name;

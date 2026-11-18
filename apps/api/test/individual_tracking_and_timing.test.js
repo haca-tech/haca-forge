@@ -71,7 +71,7 @@ describe('INDIVIDUAL TRACKING AND TIMING SUITE', () => {
       name: 'Timing Head',
       email: 'head@timing-test.com',
       passwordHash: 'dummy',
-      role: 'creative_head',
+      role: 'creative_lead',
       departmentId: testDept._id,
       status: 'active',
     });
@@ -80,7 +80,7 @@ describe('INDIVIDUAL TRACKING AND TIMING SUITE', () => {
       name: 'Timing Exec',
       email: 'exec@timing-test.com',
       passwordHash: 'dummy',
-      role: 'executive',
+      role: 'creative_head',
       departmentId: testDept._id,
       status: 'active',
     });
@@ -89,7 +89,7 @@ describe('INDIVIDUAL TRACKING AND TIMING SUITE', () => {
       name: 'Alice Worker',
       email: 'alice@timing-test.com',
       passwordHash: 'dummy',
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Video Editor',
       workPreferences: ['Edit'],
       departmentId: testDept._id,
@@ -100,8 +100,8 @@ describe('INDIVIDUAL TRACKING AND TIMING SUITE', () => {
       name: 'Bob Worker',
       email: 'bob@timing-test.com',
       passwordHash: 'dummy',
-      role: 'team_member',
-      jobRole: 'Designer',
+      role: 'executive',
+      jobRole: 'Graphic Designer',
       workPreferences: ['Design'],
       departmentId: testDept._id,
       status: 'active',
@@ -397,7 +397,7 @@ describe('INDIVIDUAL TRACKING AND TIMING SUITE', () => {
 
   describe('4. Anti-ranking verification in reports', () => {
     it('live reports show team-level figures, with no per-person rows', async () => {
-      const people = await Person.find({ role: { $in: ['team_member', 'sm_manager'] } }).select('name').lean();
+      const people = await Person.find({ role: { $in: ['executive', 'sm_manager'] } }).select('name').lean();
       for (const name of ['overview', 'production', 'quality', 'projects']) {
         const res = await request(app).get(`/api/reports/${name}`).set('Authorization', `Bearer ${adminToken}`);
         expect(res.status).toBe(200);

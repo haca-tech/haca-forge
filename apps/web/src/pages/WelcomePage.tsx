@@ -1,3 +1,4 @@
+import { isWorker } from '@mmp/shared';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, AlertCircle, ArrowRight } from 'lucide-react';
@@ -44,7 +45,7 @@ export const WelcomePage: React.FC = () => {
       await refreshUser();
 
       // Navigate to user's home or start page
-      if (user?.role === 'team_member') {
+      if (isWorker(user?.role)) {
         navigate('/my-work');
       } else {
         navigate('/dashboard');

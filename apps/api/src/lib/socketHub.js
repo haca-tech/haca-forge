@@ -49,3 +49,6 @@ export function withoutContact(payload) {
   if (payload == null) return payload;
   return strip(JSON.parse(JSON.stringify(payload)));
 }
+
+/** Socket rooms for these roles: `role:<key>`. Every connection joins its role's room at the handshake. */
+export const roleRooms = (roles) => roles.map((role) => `role:${role}`);

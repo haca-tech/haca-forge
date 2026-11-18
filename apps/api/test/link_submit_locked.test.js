@@ -96,7 +96,7 @@ describe('Locked workspaces: link submission, direct Shoot approval, Post link, 
     const step = await fresh(w);
     if (step.status === 'Approved' && step.stageKey !== 'Post') return 'done';
     if (step.status === 'Published') return 'done';
-    const owner = { _id: String(step.ownerId), role: 'team_member' };
+    const owner = { _id: String(step.ownerId), role: 'executive' };
     const { actions } = getAvailableActions(owner, { ...step, ownerId: String(step.ownerId) });
     const state = await stateOf(w);
     if (state === 'awaiting_review') {
@@ -112,7 +112,7 @@ describe('Locked workspaces: link submission, direct Shoot approval, Post link, 
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    for (const [k, r] of [['writer', 'team_member'], ['shooter', 'team_member'], ['editor', 'team_member'], ['designer', 'team_member'], ['copy', 'team_member'], ['poster', 'team_member'], ['outsider', 'team_member'], ['head', 'creative_head'], ['sm', 'sm_manager'], ['exec', 'executive'], ['admin', 'admin']]) await make(k, r);
+    for (const [k, r] of [['writer', 'executive'], ['shooter', 'executive'], ['editor', 'executive'], ['designer', 'executive'], ['copy', 'executive'], ['poster', 'executive'], ['outsider', 'executive'], ['head', 'creative_lead'], ['sm', 'sm_manager'], ['exec', 'creative_head'], ['admin', 'admin']]) await make(k, r);
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -578,7 +578,7 @@ describe('Locked workspaces: link submission, direct Shoot approval, Post link, 
       await move(w, 'editor', 'In Progress');
       expect(await nextActor(w)).toBe('owner:resubmit');
       expect((await move(w, 'editor', 'Blocked', { blockerReason: 'Waiting for feedback' })).status).toBe(200);
-      const owner = { _id: String(people.editor._id), role: 'team_member' };
+      const owner = { _id: String(people.editor._id), role: 'executive' };
       expect(getAvailableActions(owner, { ...(await fresh(w)), ownerId: String(people.editor._id) }).actions).toContain('resolve_blocker');
     });
   });
@@ -694,8 +694,8 @@ describe('Locked workspaces: link submission, direct Shoot approval, Post link, 
       expect(stage.awaitingReview).toBe(true);
       const detail2 = await as('editor').get(`/api/work/${sentBack._id}`);
       expect(detail2.body.data.pieceStages.find((s) => String(s._id) === String(sentBack._id)).awaitingReview).toBeUndefined();
-      // An executive sees the step, not the reviewer's note.
-      expect((await as('exec').get(`/api/work/${sentBack._id}`)).body.data.latestFeedback).toBeUndefined();
+      // A read-only head sees the reviewer's note too (Phase 12b), and cannot act on it.
+      expect((await as('exec').get(`/api/work/${sentBack._id}`)).body.data.latestFeedback.text).toBe('Colour is off');
     });
 
     it('the Tracker, the work list and the review counts tell the two apart', async () => {
@@ -725,7 +725,7 @@ describe('Locked workspaces: link submission, direct Shoot approval, Post link, 
       expect(row.hasWaitingApproval).toBe(true);
       const stage = (key) => row.stages.find((s) => s.stageKey === key);
       expect(stage('Script').awaitingReview).toBe(true);
-      expect(stage('Script').holder).toBe('Creative Head');
+      expect(stage('Script').holder).toBe('Creative Lead');
       expect(stage('Edit').awaitingReview).toBeUndefined();
       expect(stage('Edit').holder).toBe(people.editor.name);
 

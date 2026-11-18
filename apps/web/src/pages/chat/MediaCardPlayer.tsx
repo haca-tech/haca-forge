@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import { Play, Download, Eye, AlertCircle, FileText, CheckCircle2, Trash2 } from 'lucide-react';
-import { ChatSharedMediaCard } from '@mmp/shared';
+import { ChatSharedMediaCard, isApprover } from '@mmp/shared';
 import { Avatar } from '../../components/Avatar';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../lib/api';
@@ -25,7 +25,7 @@ export function MediaCardPlayer({ card, onRevoked }: MediaCardPlayerProps) {
   const cardOwnerId = (card.owner?._id || (card.owner as any)?.id)?.toString();
   const canUnshare =
     user?.role === 'admin' ||
-    user?.role === 'creative_head' ||
+    isApprover(user?.role) ||
     (cardOwnerId && cardOwnerId === currentUserId);
 
   async function handleUnshare() {

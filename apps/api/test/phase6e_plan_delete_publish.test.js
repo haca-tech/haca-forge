@@ -69,7 +69,7 @@ describe('Phase 6e: plan delete and publishing an invalid piece', () => {
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    for (const [k, r] of [['sm', 'sm_manager'], ['admin', 'admin'], ['head', 'creative_head'], ['worker', 'team_member'], ['poster', 'team_member']]) await make(k, r);
+    for (const [k, r] of [['sm', 'sm_manager'], ['admin', 'admin'], ['head', 'creative_lead'], ['worker', 'executive'], ['poster', 'executive']]) await make(k, r);
   });
 
   afterAll(async () => {

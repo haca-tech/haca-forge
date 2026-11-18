@@ -46,7 +46,7 @@ describe('Phase 8b: profile KPIs', () => {
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    for (const [k, r] of [['worker', 'team_member'], ['other', 'team_member'], ['head', 'creative_head'], ['head2', 'creative_head'], ['sm', 'sm_manager'], ['exec', 'executive'], ['admin', 'admin']]) await make(k, r);
+    for (const [k, r] of [['worker', 'executive'], ['other', 'executive'], ['head', 'creative_lead'], ['head2', 'creative_lead'], ['sm', 'sm_manager'], ['exec', 'creative_head'], ['admin', 'admin']]) await make(k, r);
 
     // The worker's steps, due in May 2025 (IST).
     await step('s1', { stageKey: 'Script', status: 'Approved', due: D('2025-05-05T00:00:00Z'), unlockedAt: D('2025-05-01T00:00:00Z'), startedAt: D('2025-05-04T00:00:00Z'), submittedAt: D('2025-05-04T04:00:00Z'), approvedAt: D('2025-05-04T06:00:00Z'), revisions: 0,

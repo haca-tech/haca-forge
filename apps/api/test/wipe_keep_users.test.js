@@ -40,7 +40,7 @@ describe('Database Wipe Script (scripts/wipe-keep-users.js)', () => {
       {
         name: 'Creative Head',
         email: 'head@demo.haca.local',
-        role: 'creative_head',
+        role: 'creative_lead',
         passwordHash: 'head_hash_preserved',
         status: 'active',
         workPreferences: ['Script', 'Design'],
@@ -58,7 +58,7 @@ describe('Database Wipe Script (scripts/wipe-keep-users.js)', () => {
       {
         name: 'Team Member Worker',
         email: 'writer@demo.haca.local',
-        role: 'team_member',
+        role: 'executive',
         passwordHash: 'writer_hash_preserved',
         status: 'active',
         workPreferences: ['Content'],
@@ -67,7 +67,7 @@ describe('Database Wipe Script (scripts/wipe-keep-users.js)', () => {
       {
         name: 'Pending Invite Member',
         email: 'pending@demo.haca.local',
-        role: 'team_member',
+        role: 'executive',
         status: 'active',
         mustSetPassword: true,
         resetPasswordTokenHash: 'hash_invite_123',
@@ -77,7 +77,7 @@ describe('Database Wipe Script (scripts/wipe-keep-users.js)', () => {
       {
         name: 'Executive Leader',
         email: 'exec@demo.haca.local',
-        role: 'executive',
+        role: 'creative_head',
         passwordHash: 'exec_hash_preserved',
         status: 'active',
         refreshTokens: [],
@@ -189,7 +189,7 @@ describe('Database Wipe Script (scripts/wipe-keep-users.js)', () => {
         reportKey: 'monthly_scorecard',
         name: 'Monthly Performance Scorecard',
         lastGeneratedAt: new Date(),
-        recipients: ['creative_head', 'admin'],
+        recipients: ['creative_lead', 'admin'],
       },
     ]);
 
@@ -352,7 +352,7 @@ describe('Database Wipe Script (scripts/wipe-keep-users.js)', () => {
       expect(admin.passwordHash).toBe('admin_hash_preserved');
 
       const head = users.find((u) => u.email === 'head@demo.haca.local');
-      expect(head.role).toBe('creative_head');
+      expect(head.role).toBe('creative_lead');
       expect(head.workPreferences).toEqual(['Script', 'Design']);
 
       const pending = users.find((u) => u.email === 'pending@demo.haca.local');
@@ -431,7 +431,7 @@ describe('Database Wipe Script (scripts/wipe-keep-users.js)', () => {
         expect(r.latestSnapshot).toBeNull();
       }
       const weekly = reports.find((r) => r.reportKey === 'weekly_marketing');
-      expect(weekly.recipients).toEqual(['creative_head', 'sm_manager']);
+      expect(weekly.recipients).toEqual(['creative_lead', 'sm_manager']);
     });
 
     it('is completely idempotent on a second run', async () => {

@@ -1,3 +1,4 @@
+import { eligiblePreferencesForUpdate } from '../people/eligibility.js';
 import mongoose from 'mongoose';
 import { countAwaitingReview, markAwaitingReview } from '../workItems/reviewState.js';
 import bcrypt from 'bcryptjs';
@@ -13,29 +14,17 @@ import { Session } from '../auth/session.model.js';
 import { logActivity } from '../activity/service.js';
 import { getRatingsSummary } from '../submissions/service.js';
 import { disconnectUserSockets } from '../../lib/socketHub.js';
-import {
-  calculateIndividualWorkMeasures,
-  formatDuration,
-  normalizeRole,
-  ROLE_LABELS,
-  submittedWorkTimeMs,
-  hasTimeLabel,
-  workerOnTime,
-  ratingAverage,
-  isFirstPassApproval,
-  isFirstPassCandidate,
-  ROLE_KEYS,
-} from '@mmp/shared';
+import { calculateIndividualWorkMeasures, formatDuration, normalizeRole, ROLE_LABELS, submittedWorkTimeMs, hasTimeLabel, workerOnTime, ratingAverage, isFirstPassApproval, isFirstPassCandidate, ROLE_KEYS, APPROVER_ROLES, isApprover, isReadOnlyViewer, isWorker, canSeeContactDetails } from '@mmp/shared';
 
 /**
- * Worker isolation guard: A team_member accessing someone else's profile gets HTTP 404 (strictly anti-harvesting).
+ * Worker isolation guard: A executive (worker) accessing someone else's profile gets HTTP 404 (strictly anti-harvesting).
  */
 export function enforceProfileAccess(targetPersonId, actor) {
   const actorRole = normalizeRole(actor?.role);
   const actorId = (actor?._id || actor?.id || actor?.userId)?.toString();
   const targetIdStr = targetPersonId.toString();
 
-  if (actorRole === 'team_member' && actorId !== targetIdStr) {
+  if (isWorker(actorRole) && actorId !== targetIdStr) {
     const error = new Error('Profile not found');
     error.code = 'NOT_FOUND';
     error.statusCode = 404;
@@ -281,9 +270,9 @@ export async function getPersonBaseProfile(targetPersonId, actor) {
   const averageRating = ratingSummary.average;
   const ratingCount = ratingSummary.count;
 
-  // Executive privacy redaction: hide email, phone, whatsapp
+  // Contact details: hidden from workers only (Phase 12b: the read-only heads see them).
   const isSelf = String(actor._id || actor.id || actor.userId) === String(targetPersonId);
-  const isExecutive = normalizeRole(actor.role) === 'executive' && !isSelf;
+  const hideContact = !canSeeContactDetails(normalizeRole(actor.role)) && !isSelf;
 
   return {
     _id: person._id,
@@ -301,9 +290,9 @@ export async function getPersonBaseProfile(targetPersonId, actor) {
     skills: person.skills || [],
     workPreferences: person.workPreferences || [],
     about: person.about || '',
-    email: isExecutive ? null : person.email,
-    phone: isExecutive ? null : person.phone || '',
-    whatsappNumber: isExecutive ? null : person.whatsappNumber || '',
+    email: hideContact ? null : person.email,
+    phone: hideContact ? null : person.phone || '',
+    whatsappNumber: hideContact ? null : person.whatsappNumber || '',
     kpis: {
       loadPct,
       capacityBand,
@@ -457,14 +446,14 @@ export async function getPersonOverview(targetPersonId, actor, query = {}) {
   let operationalSummary = null;
   const personRole = normalizeRole(person.role);
 
-  if (personRole === 'creative_head') {
+  if (isApprover(personRole)) {
     const pendingReviewsCount = await countAwaitingReview();
     const approvedPast30Days = await WorkItem.countDocuments({
       status: { $in: ['Approved', 'Published'] },
       approvedAt: { $gte: new Date(Date.now() - 30 * 86400000) },
     });
     operationalSummary = {
-      role: 'creative_head',
+      role: { $in: [...APPROVER_ROLES] },
       pendingReviewsCount,
       approvedPast30Days,
     };
@@ -862,12 +851,12 @@ export async function getPersonActivity(targetPersonId, actor, query = {}) {
 
 /**
  * Changes Tab (Audit Log of Operational Attributes)
- * Accessible ONLY to admin and creative_head.
+ * Accessible ONLY to admin and creative_lead/growth_lead.
  */
 export async function getPersonChanges(targetPersonId, actor) {
   const actorRole = normalizeRole(actor?.role);
-  if (actorRole !== 'admin' && actorRole !== 'creative_head') {
-    const error = new Error('Forbidden: Only Admin and Creative Head can view the operational changes audit log');
+  if (actorRole !== 'admin' && !isApprover(actorRole)) {
+    const error = new Error('Forbidden: Only Admin and Creative Lead can view the operational changes audit log');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;
     throw error;
@@ -898,24 +887,24 @@ export async function updatePersonDetails(targetPersonId, updates, actor) {
 
   const targetRole = normalizeRole(target.role);
 
-  // Creative Head permission check
-  if (actorRole === 'creative_head') {
-    if (targetRole === 'admin' || targetRole === 'creative_head' || targetRole === 'executive') {
-      const error = new Error('Forbidden: Creative Head cannot modify leadership accounts');
+  // Lead permission check (creative_lead, growth_lead): operational fields of workers and SM Managers only
+  if (isApprover(actorRole)) {
+    if (targetRole === 'admin' || isApprover(targetRole) || isReadOnlyViewer(targetRole)) {
+      const error = new Error('Forbidden: a lead cannot modify leadership accounts');
       error.code = 'FORBIDDEN';
       error.statusCode = 403;
       throw error;
     }
 
     if (updates.role && updates.role !== target.role) {
-      const error = new Error('Forbidden: Creative Head cannot change roles');
+      const error = new Error('Forbidden: a lead cannot change roles');
       error.code = 'FORBIDDEN';
       error.statusCode = 403;
       throw error;
     }
 
     if (updates.status && updates.status !== target.status) {
-      const error = new Error('Forbidden: Creative Head cannot alter account status');
+      const error = new Error('Forbidden: a lead cannot alter account status');
       error.code = 'FORBIDDEN';
       error.statusCode = 403;
       throw error;
@@ -933,6 +922,12 @@ export async function updatePersonDetails(targetPersonId, updates, actor) {
     error.code = 'INVALID_ROLE';
     error.statusCode = 400;
     throw error;
+  }
+
+  // Job role sets eligibility; preferences can only narrow it (checked before any write).
+  {
+    const eligiblePrefs = eligiblePreferencesForUpdate(target, updates);
+    if (eligiblePrefs !== undefined) updates = { ...updates, workPreferences: eligiblePrefs };
   }
 
   // Audit log tracking for operational fields
@@ -999,7 +994,7 @@ export async function updatePersonDetails(targetPersonId, updates, actor) {
  */
 export async function reassignSteps(sourcePersonId, { targetPersonId, workItemIds }, actor) {
   const actorRole = normalizeRole(actor?.role);
-  if (actorRole !== 'admin' && actorRole !== 'creative_head' && actorRole !== 'sm_manager') {
+  if (actorRole !== 'admin' && !isApprover(actorRole) && actorRole !== 'sm_manager') {
     const error = new Error('Forbidden: Insufficient privileges to reassign steps');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;

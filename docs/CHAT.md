@@ -35,7 +35,7 @@
   * Action: **Delete & Replace**. Remove these task-room legacy stubs and replace them with the standard channel-based chat methods: `joinChannel(channelId)`, `leaveChannel(channelId)`, `emitTyping(channelId, isTyping)`.
 * **Submission Comments (Approval Threads):**
   * Files: [`apps/api/src/modules/submissions/service.js`](file:///c:/Users/ADMIN/OneDrive/Desktop/HACA/TECH/haca-forge/apps/api/src/modules/submissions/service.js) (lines 458–466, 718–726), `apps/api/src/modules/submissions/model.js`.
-  * Findings: `SubmissionComment` models inline text and timecode review notes on deliverable versions, broadcasting `comment:new` to `user:${ownerId}`, `role:creative_head`, and `role:admin`.
+  * Findings: `SubmissionComment` models inline text and timecode review notes on deliverable versions, broadcasting `comment:new` to `user:${ownerId}`, `role:creative_lead`, and `role:admin`.
   * Status: **Retain strictly for Approval Workflows**. Approval discussions must remain private to review steps and MUST NOT leak into general chat.
 * **MediaThread Component:**
   * File: [`apps/web/src/pages/work/workspaces/MediaThread.tsx`](file:///c:/Users/ADMIN/OneDrive/Desktop/HACA/TECH/haca-forge/apps/web/src/pages/work/workspaces/MediaThread.tsx).
@@ -88,12 +88,12 @@ The system supports exactly three distinct channel types: **Team Chat**, **Group
 | 1. Team Chat       | Public company square for all staff | System-created singleton.  | Immutable. |
 |    (type: 'team')  | Announcements, team achievements    | All active users auto-join.| Cannot be  |
 |                    | and organization-wide discussion.   | Suspended users revoked.   | renamed or |
-|                    |                                     | Executives are read-only.  | archived.  |
+|                    |                                     | Creative Heads are read-only.  | archived.  |
 +--------------------+-------------------------------------+----------------------------+------------+
-| 2. Groups          | Cross-functional squads, project    | Created by creative_head,  | Creator    |
+| 2. Groups          | Cross-functional squads, project    | Created by creative_lead,  | Creator    |
 |    (type: 'group') | collaboration, or department chat   | sm_manager, or admin.      | manages.   |
 |                    | (e.g. "Video Editors", "Admissions")| Members picked by creator. | Can leave, |
-|                    |                                     | Executives join read-only. | archive.   |
+|                    |                                     | Creative Heads join read-only. | archive.   |
 +--------------------+-------------------------------------+----------------------------+------------+
 | 3. Direct Messages | Private 1-on-1 peer communication   | Any two active users who   | Private.   |
 |    (type: 'dm')    | for rapid coordination.             | are NOT executives.        | Admin      |
@@ -107,10 +107,10 @@ The system supports exactly three distinct channel types: **Team Chat**, **Group
 * **Automatic Membership:** Every active user joins automatically upon account activation (including new sign-ups, approved access requests, or reactivations).
 * **Instant Suspension Revocation:** When an admin suspends a user, their socket connection is severed, active sessions are invalidated, and their channel membership is revoked immediately.
 * **Immutability:** Team Chat cannot be renamed, description cannot be deleted, cannot be archived, and no user can leave it.
-* **Executive Restriction:** Users with role `executive` are added as **read-only members** (`roleInChannel: 'read_only'`). They can read messages and see shared media, but cannot post messages, react, upload attachments, or initiate threads.
+* **Creative Head Restriction:** Users with role `creative_head` are added as **read-only members** (`roleInChannel: 'read_only'`). They can read messages and see shared media, but cannot post messages, react, upload attachments, or initiate threads.
 
 ### 2.2 Groups (Squads & Topics)
-* **Creation Authority (`chat.group.create`):** Restricted to `creative_head`, `sm_manager`, and `admin`. Regular `team_member` and `executive` cannot create groups.
+* **Creation Authority (`chat.group.create`):** Restricted to `creative_lead`, `sm_manager`, and `admin`. Regular `executive` and `creative_head` cannot create groups.
 * **Ownership & Member Management:**
   - The creator is assigned as `owner`.
   - The owner can pick members from active users, add members, remove members, and rename the group.
@@ -126,10 +126,10 @@ The system supports exactly three distinct channel types: **Team Chat**, **Group
 * **Admin Override (`chat.moderate`):** An `admin` can manage members, transfer ownership, or archive any group if the original owner is inactive or departed.
 
 ### 2.3 Direct Messages (1-on-1 Peer Chat)
-* **Participants:** Between any two distinct, active users who do NOT hold the `executive` role.
+* **Participants:** Between any two distinct, active users who do NOT hold the `creative_head` role.
 * **Strict Privacy (No Admin Peeking):** DMs are strictly private between the two participants. `admin` users have **zero permission or endpoint access** to inspect or list DM conversations in which they are not a participant.
 * **No Group DMs:** DMs are strictly bilateral ($1:1$). Multi-person conversations must use Groups.
-* **Executive Exclusion:** Executives cannot send or receive direct messages; peer DMs are intended for operational workers.
+* **Creative Head Exclusion:** Creative Heads cannot send or receive direct messages; peer DMs are intended for operational workers.
 
 ---
 
@@ -144,7 +144,7 @@ The system supports exactly three distinct channel types: **Team Chat**, **Group
 |                       | third-party npm emoji dependencies. Inserted as native Unicode characters.|
 | @Mentions             | - `@name`: Autocompletes matching channel members. Dispatches alert.      |
 |                       | - `@everyone`: Dispatches alert to all channel members. Permitted ONLY    |
-|                       |   for `creative_head`, `sm_manager`, and `admin`. Blocked for workers.   |
+|                       |   for `creative_lead`, `sm_manager`, and `admin`. Blocked for workers.   |
 | Quoted Replies        | Select message to quote. Stores `replyToId`. Renders banner with original  |
 |                       | author name, text snippet, and 1-click scroll jump to quoted message.     |
 | Editing Own Messages  | Author can edit text within 24 hours. Message receives `[edited]` badge   |
@@ -154,7 +154,7 @@ The system supports exactly three distinct channel types: **Team Chat**, **Group
 |                       |   Admin deletions write an immutable record to `ActivityEvent`.           |
 | Reactions (Exact 6)   | Exactly 6 allowed reactions: 👍 (thumbs up), ❤️ (heart), 😂 (laugh),       |
 |                       | 🎉 (party), 👀 (eyes), ✅ (check). Users can toggle reactions on/off.      |
-| Pinned Messages       | Up to 10 pinned messages per channel. Permitted for `creative_head`,     |
+| Pinned Messages       | Up to 10 pinned messages per channel. Permitted for `creative_lead`,     |
 |                       | `sm_manager`, `admin`, and Group Owners. Displayed in right side panel.   |
 | Attachments           | Up to 5 files per message:                                                |
 |                       | - Images: PNG, JPG, WEBP up to 20 MB each.                                |
@@ -272,7 +272,7 @@ The "Share to Chat" capability allows creative leaders and workers to celebrate 
   - An approved master cut (`Edit` stage in `status: 'Approved'`).
   - Approved design graphics or PDFs (`Design` stage in `status: 'Approved'`).
 * **Blocked Items:** Draft submissions, items currently waiting for review (`status: 'Feedback'`), and clips flagged as `reshoot_needed` **cannot be shared**. The "Share to chat" button is hidden or disabled.
-* **Eligible Roles:** Output owner, `creative_head`, `sm_manager`, and `admin`.
+* **Eligible Roles:** Output owner, `creative_lead`, `sm_manager`, and `admin`.
 
 ### 6.2 The `ShareGrant` Authorization Model
 * **The Security Problem:** Regular channel members (or users in other departments) might not have access to the underlying `ContentPiece`, `CalendarPlan`, or raw storage directory.
@@ -281,14 +281,14 @@ The "Share to Chat" capability allows creative leaders and workers to celebrate 
   - When any member of that channel views the chat card or clicks "Play" / "Download", the asset delivery endpoint verifies that a valid, active `ShareGrant` exists for that channel.
   - **Zero Leakage:** The internal pipeline, step comments, stage history, and craftsmanship ratings remain strictly private under existing permissions. Only the shared media asset itself is granted read-only viewing and downloading access.
 * **Unsharing (Revocation):**
-  - The original sharer, a `creative_head`, or an `admin` can click "Unshare" on the message.
+  - The original sharer, a `creative_lead`, or an `admin` can click "Unshare" on the message.
   - The `ShareGrant` is marked revoked (`revokedAt: new Date()`).
   - The chat message updates to display: *"This media asset is no longer shared."* Download and playback links are immediately invalidated.
 
 ### 6.3 Approval Cockpit Quick-Share Checkbox
-When the Creative Head approves a final deliverable in Review Studio (`/feedback/review-studio`), the Decision Bar presents an optional checkbox:
+When the Creative Lead approves a final deliverable in Review Studio (`/feedback/review-studio`), the Decision Bar presents an optional checkbox:
 `[ ] Also share to Team chat` (Default: `unchecked`).
-If checked upon clicking **"Approve Deliverable"**, the system automatically creates the `ShareGrant` and broadcasts the approved media card into Team Chat on behalf of the Creative Head.
+If checked upon clicking **"Approve Deliverable"**, the system automatically creates the `ShareGrant` and broadcasts the approved media card into Team Chat on behalf of the Creative Lead.
 
 ---
 
@@ -296,7 +296,7 @@ If checked upon clicking **"Approve Deliverable"**, the system automatically cre
 
 ```
 +---------------------------------------------------------------------------------------------------------+
-| PERMISSION KEY         | admin     | creative_head | sm_manager  | team_member | executive              |
+| PERMISSION KEY         | admin     | creative_lead | sm_manager  | executive | creative_head              |
 +---------------------------------------------------------------------------------------------------------+
 | `chat.use`             | YES       | YES           | YES         | YES         | NO (Read-only)         |
 | `chat.group.create`    | YES       | YES           | YES         | NO          | NO                     |
@@ -334,7 +334,7 @@ The Chat interface strictly implements the Glass tokens, 8px layout grid, and to
 |                            | All-hands announcements & team milestones                 | # Team Chat                   |
 | CHANNELS:                  +-----------------------------------------------------------+ General company channel for   |
 | * # Team Chat        (1)   | 09:15 AM - Yesterday                                      | all HACA marketing staff.     |
-| * # Video Production       | [Avatar] Maya (Creative Head):                            |                               |
+| * # Video Production       | [Avatar] Maya (Creative Lead):                            |                               |
 | * # Admissions Reel        | Morning team! Please review the updated November calendar.| PINNED MESSAGES (2):          |
 |                            |                                                           | * Maya: "Brand guidelines v2" |
 | DIRECT MESSAGES:           | 10:30 AM - Today                           ─── Unread ─── | * Admin: "Server maintenance" |
@@ -344,10 +344,10 @@ The Chat interface strictly implements the Glass tokens, 8px layout grid, and to
 | ARCHIVED:                  |                                                           | [Poster PDF] [Story 9:16]     |
 | > Project Expo 2025        | [SHARED MEDIA CARD: Student Voices Reel]                  |                               |
 |                            | [Play Thumbnail] Status: APPROVED ★ 5.0                   | MEMBERS (24):                 |
-|                            | Asset: Master Cut v2 (00:58) | [Download Asset]           | * Maya (Creative Head)        |
+|                            | Asset: Master Cut v2 (00:58) | [Download Asset]           | * Maya (Creative Lead)        |
 |                            | Note: "Pacing is excellent. Approved for post!"           | * John (Video Editor)         |
 |                            |                                                           | * Sarah (Designer)            |
-|                            +-----------------------------------------------------------+ * David (Executive) [RO]      |
+|                            +-----------------------------------------------------------+ * David (Creative Head) [RO]      |
 |                            | [ Replying to John: "Draft for the student reel..."   [X] ]|                               |
 |                            | +-------------------------------------------------------+ | [ Leave Group ]               |
 | [+ New Group] [+ New DM]   | | Write a message in # Team Chat... (@ to mention)      | | [ Archive Group ]             |
@@ -695,9 +695,9 @@ All endpoints mount under `/api/chat/` and require JWT authentication via `authe
 | GET /api/chat/channels         | chat.use, chat.read       | Lists user's channels (Team, Groups, DMs,  |
 |                                |                           | unread counts, last message). 200 OK.      |
 | POST /api/chat/channels/group  | chat.group.create         | Creates new group channel (name, desc,     |
-|                                | (admin, creative_head, sm)| memberIds). 201 Created.                   |
+|                                | (admin, creative_lead, sm)| memberIds). 201 Created.                   |
 | POST /api/chat/channels/dm     | chat.use                  | Finds or creates a 1:1 DM channel.         |
-|                                | (Non-executives only)     | Executives return 403 Forbidden. 200/201.  |
+|                                | (Non-executives only)     | Creative Heads return 403 Forbidden. 200/201.  |
 | GET /api/chat/channels/:id     | chat.use, chat.read       | Fetches channel metadata & member list.    |
 |                                | (Must be channel member)  | 200 OK / 403 Forbidden / 404 Not Found.    |
 | PATCH /api/chat/channels/:id   | Group Owner or Admin      | Renames group or updates description.      |
@@ -787,7 +787,7 @@ const activeUsers = await User.find({ status: 'active' });
 
 // Step 3: Upsert ChannelMember Records
 for (const user of activeUsers) {
-  const isExec = user.role === 'executive';
+  const isExec = user.role === 'creative_head';
   await ChannelMember.updateOne(
     { channelId: teamChat._id, userId: user._id },
     {

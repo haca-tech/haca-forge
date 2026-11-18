@@ -67,8 +67,8 @@ describe('Media & Shoot Workspace Backend Engine', () => {
     shooterUser = await User.create({
       name: 'Test Shooter',
       email: `shooter_${Date.now()}@haca.local`,
-      role: 'team_member',
-      jobRole: 'Videographer',
+      role: 'executive',
+      jobRole: 'Cinematographer',
       departmentId: videoDept._id,
       profileAccess: [testProfile._id],
       status: 'active',
@@ -79,7 +79,7 @@ describe('Media & Shoot Workspace Backend Engine', () => {
     creativeHeadUser = await User.create({
       name: 'Test Creative Head',
       email: `head_${Date.now()}@haca.local`,
-      role: 'creative_head',
+      role: 'creative_lead',
       jobRole: 'Creative Manager (TL)',
       departmentId: videoDept._id,
       profileAccess: [testProfile._id],
@@ -103,7 +103,7 @@ describe('Media & Shoot Workspace Backend Engine', () => {
     execUser = await User.create({
       name: 'Test Executive',
       email: `exec_${Date.now()}@haca.local`,
-      role: 'executive',
+      role: 'creative_head',
       jobRole: 'Creative Manager (TL)',
       departmentId: videoDept._id,
       profileAccess: [testProfile._id],
@@ -115,7 +115,7 @@ describe('Media & Shoot Workspace Backend Engine', () => {
     otherWorkerUser = await User.create({
       name: 'Other Worker',
       email: `other_${Date.now()}@haca.local`,
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Writer',
       departmentId: videoDept._id,
       profileAccess: [testProfile._id],

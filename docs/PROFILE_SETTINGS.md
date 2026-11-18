@@ -3,7 +3,7 @@
 **Document Version:** 1.0.0  
 **Authority:** Single Source of Truth for Profile, Settings, Session Security, Avatars, and Onboarding  
 **Status:** SPECIFICATION READY FOR APPROVAL (PART A)  
-**Applicable Roles:** `admin`, `creative_head`, `sm_manager`, `executive`, `team_member`  
+**Applicable Roles:** `admin`, `creative_lead`, `sm_manager`, `creative_head`, `executive`  
 
 ---
 
@@ -13,7 +13,7 @@ This specification replaces all legacy My Account, profile, and onboarding imple
 
 ### Core Architectural Principles
 1. **One Unified Layout Shell:** Every role views the identical layout grid, glassmorphism tokens, and responsive structure.
-2. **Strict RBAC & Privacy Scoping:** Contact details (phone, email, WhatsApp) are strictly restricted by role. Workers can only view profiles of teammates collaborating on the same content piece, and contact details are masked. Executives have all contact details masked.
+2. **Strict RBAC & Privacy Scoping:** Contact details (phone, email, WhatsApp) are strictly restricted by role. Workers can only view profiles of teammates collaborating on the same content piece, and contact details are masked. Creative Heads have all contact details masked.
 3. **Zero Deprecated Dependencies:** Image cropping is implemented using standard HTML5 Canvas with circular masking and a zoom slider, requiring **zero new third-party npm dependencies**.
 4. **Strict Schema Validation:** All endpoints live under `/me/...` (or scoped `/people/...`), enforcing strict Zod validation with `.strict()` to reject unknown keys. Role, email, department, job role, weekly capacity, and stage work preferences can never be updated by users through `/me/...`.
 5. **Session-Level Device Revocation:** Replace the single-token hash on `Person` with a dedicated `Session` model tracking device labels (parsed from the User-Agent), hashed IP addresses, last used timestamps, and refresh token families.
@@ -37,7 +37,7 @@ This specification replaces all legacy My Account, profile, and onboarding imple
   * None (`/welcome` route and component are completely absent from `apps/web/src/App.tsx`).
 * **Current Implementation:**
   * In `apps/api/src/modules/people/model.js`, `Person` has `mustSetPassword: { type: Boolean, default: false }`, but has **no `profileCompletedAt`** field.
-  * When a user logs in, `RootRedirect` in `apps/web/src/App.tsx` directly routes `team_member` to `/my-work` and all other roles to `/dashboard`.
+  * When a user logs in, `RootRedirect` in `apps/web/src/App.tsx` directly routes `executive` to `/my-work` and all other roles to `/dashboard`.
   * New team members approved via access requests are never prompted to complete their profile (name, phone, photo).
 
 ### 2.3 Avatar Fields & Current Rendering Locations
@@ -261,7 +261,7 @@ All endpoints are strictly authenticated and live under the signed-in user's sco
       "name": "Jane Doe",
       "preferredName": "Jane",
       "email": "jane@example.com",
-      "role": "creative_head",
+      "role": "creative_lead",
       "jobRole": "Creative Director",
       "department": "Creative",
       "status": "active",
@@ -400,9 +400,9 @@ All endpoints are strictly authenticated and live under the signed-in user's sco
 #### `GET /api/people/:id/profile`
 * **Access:** Authenticated.
 * **Role Visibility Rules:**
-  1. `admin`, `creative_head`, `sm_manager`: Full profile including contact details (`email`, `phone`, `whatsappNumber`).
-  2. `executive`: Full profile with contact details masked (`email: "••••••••@••••", phone: "••••••••••", whatsappNumber: "••••••••••"`).
-  3. `team_member` (worker):
+  1. `admin`, `creative_lead`, `sm_manager`: Full profile including contact details (`email`, `phone`, `whatsappNumber`).
+  2. `creative_head`: Full profile with contact details masked (`email: "••••••••@••••", phone: "••••••••••", whatsappNumber: "••••••••••"`).
+  3. `executive` (worker):
      * **Content Piece Sharing Check:** Must share at least one `ContentPiece` with the target person (as stage owner or collaborator).
      * If NO shared piece: Returns **`403 Forbidden`** (`code: 'TEAMMATE_OUTSIDE_SHARED_PIECE'`).
      * If shared piece exists: Returns profile with contact details completely omitted/masked.
@@ -439,10 +439,10 @@ All endpoints are strictly authenticated and live under the signed-in user's sco
    * "Request a change" button: Opens modal with short message field (`"Explain what needs updating in your role or capacity"`). Notifies all admins.
 4. **Role Panel (1 Slot, 5 Dynamic Contents):**
    * **`admin`:** Pending access requests link with badge count (`/admin/access-requests`), active staff distribution by role.
-   * **`creative_head`:** Stages waiting for approval count + link (`/feedback`), content plans waiting review count + link (`/calendar?tab=plans`).
+   * **`creative_lead`:** Stages waiting for approval count + link (`/feedback`), content plans waiting review count + link (`/calendar?tab=plans`).
    * **`sm_manager`:** Plan status distribution (Draft, Submitted, Approved), count of stages needing an owner, late items count.
-   * **`executive`:** Marketing pulse throughput scorecard (active content pieces, on-time health, department output). Read-only.
-   * **`team_member`:** My open steps count, current weekly workload hours, utilization band (<85% Optimal, >=85% Over capacity), personal on-time completion rate.
+   * **`creative_head`:** Marketing pulse throughput scorecard (active content pieces, on-time health, department output). Read-only.
+   * **`executive`:** My open steps count, current weekly workload hours, utilization band (<85% Optimal, >=85% Over capacity), personal on-time completion rate.
    * *Rule:* Uses existing backend services. Hides missing/empty metrics cleanly without broken layouts.
 5. **Ratings & Feedback Section:**
    * Reuses `<RatingsFeedbackSection personId={user.id} personName={user.name} isOwnProfile={true} />`.
@@ -479,8 +479,8 @@ Layout: Left vertical tab navigation on desktop (>768px), stacked sections on mo
 3. **Preferences Section:**
    * Start Page dropdown:
      * Options tailored to role permissions:
-       * `admin`, `creative_head`, `sm_manager`, `executive`: `Home`, `Calendar`, `My Work`.
-       * `team_member`: `My Work`, `Home`.
+       * `admin`, `creative_lead`, `sm_manager`, `creative_head`: `Home`, `Calendar`, `My Work`.
+       * `executive`: `My Work`, `Home`.
    * Date Format dropdown: `DD/MM/YYYY` (default), `MM/DD/YYYY`, `YYYY-MM-DD`.
    * Time Format dropdown: `12h (e.g. 02:30 PM)` or `24h (e.g. 14:30)`.
    * Week Starts On dropdown: `Monday` (default) or `Sunday`.
@@ -534,13 +534,13 @@ Layout: Left vertical tab navigation on desktop (>768px), stacked sections on mo
 |  PROFILE                                                                                           |
 |  +-----------------------------------------------------------------------------------------------+ |
 |  | [ Avatar XL ]  Jane Doe (Preferred: Jane)                        [ Active ]                   | |
-|  | (Change Photo) Creative Head • Creative Department               Member since: 15/01/2026     | |
+|  | (Change Photo) Creative Lead • Creative Department               Member since: 15/01/2026     | |
 |  | (Remove Photo)                                                   Last sign-in: 29/10/2026     | |
 |  +-----------------------------------------------------------------------------------------------+ |
 |                                                                                                    |
 |  +--------------------------------------------------+ +------------------------------------------+ |
 |  | ABOUT ME                                         | | WORK DETAILS (Read-only)                 | |
-|  | Preferred Name: [ Jane                         ] | | Role: Creative Head                      | |
+|  | Preferred Name: [ Jane                         ] | | Role: Creative Lead                      | |
 |  | Phone:          [ +91 98765 43210              ] | | Job Role: Creative Director              | |
 |  | WhatsApp:       [ +91 98765 43210 ] [x] Same     | | Department: Creative                     | |
 |  | Languages:      [ English x ] [ Hindi x ]        | | Capacity: 40 hrs / week                  | |
@@ -552,7 +552,7 @@ Layout: Left vertical tab navigation on desktop (>768px), stacked sections on mo
 |  +--------------------------------------------------+                                              |
 |                                                                                                    |
 |  +-----------------------------------------------------------------------------------------------+ |
-|  | ROLE PANEL (Creative Head Content)                                                            | |
+|  | ROLE PANEL (Creative Lead Content)                                                            | |
 |  |  +------------------------------------+  +--------------------------------------------------+ | |
 |  |  | Deliverables Waiting Approval: 6   |  | Calendar Plans Waiting Review: 2                 | | |
 |  |  | [ View Review Studio Queue -> ]    |  | [ View Plans Tab -> ]                            | | |
@@ -578,7 +578,7 @@ Layout: Left vertical tab navigation on desktop (>768px), stacked sections on mo
 | |                               | |
 | | Jane Doe                      | |
 | | (Preferred: Jane)             | |
-| | Creative Head • Creative      | |
+| | Creative Lead • Creative      | |
 | | [ Active Badge ]              | |
 | | Member: 15/01/2026            | |
 | | Last sign-in: 29/10/2026      | |
@@ -607,7 +607,7 @@ Layout: Left vertical tab navigation on desktop (>768px), stacked sections on mo
 |                                   |
 | +-------------------------------+ |
 | | WORK DETAILS (Read-only)      | |
-| | Role: Creative Head           | |
+| | Role: Creative Lead           | |
 | | Dept: Creative                | |
 | | Capacity: 40 hrs/wk           | |
 | | Stages:                       | |
@@ -718,16 +718,16 @@ Layout: Left vertical tab navigation on desktop (>768px), stacked sections on mo
 
 ## 8. Test Plan
 
-A comprehensive suite covering all 5 roles (`admin`, `creative_head`, `sm_manager`, `executive`, `team_member`):
+A comprehensive suite covering all 5 roles (`admin`, `creative_lead`, `sm_manager`, `creative_head`, `executive`):
 
 1. **Profile & Settings Layout Consistency:**
    * Every role renders identical header card, about section, work details, and settings sections.
 2. **Role Panel Accuracy:**
    * `admin`: Access request badge link and role counts.
-   * `creative_head`: Waiting approvals and waiting plans.
+   * `creative_lead`: Waiting approvals and waiting plans.
    * `sm_manager`: Plan status counts, needs-owner count, late deliverables.
-   * `executive`: Company marketing throughput scorecard (read-only).
-   * `team_member`: Personal open steps, load utilization band, on-time rate.
+   * `creative_head`: Company marketing throughput scorecard (read-only).
+   * `executive`: Personal open steps, load utilization band, on-time rate.
 3. **Strict Validation & Forbidden Fields:**
    * PATCH `/me/profile` rejects edits to `role`, `email`, `department`, `jobRole`, `weeklyCapacityHours`, `workPreferences`, and unknown keys (400 Bad Request).
 4. **Avatar Upload & Removal:**
@@ -744,9 +744,9 @@ A comprehensive suite covering all 5 roles (`admin`, `creative_head`, `sm_manage
    * Enforces 5 attempts per 15 min rate limit.
    * Dispatches mandatory security email notification.
 7. **Contact Details Masking & Teammate Drawer Scoping:**
-   * `admin`, `creative_head`, `sm_manager`: Full contact visibility.
-   * `executive`: Contact details masked.
-   * `team_member`: Teammate drawer permitted ONLY if sharing a content piece; contact details masked. If no shared content piece, returns 403 Forbidden.
+   * `admin`, `creative_lead`, `sm_manager`: Full contact visibility.
+   * `creative_head`: Contact details masked.
+   * `executive`: Teammate drawer permitted ONLY if sharing a content piece; contact details masked. If no shared content piece, returns 403 Forbidden.
 8. **First-Login Step & Migration:**
    * Users with `!profileCompletedAt` are routed to `/welcome`.
    * Migration runs cleanly in dry-run mode and produces backup.

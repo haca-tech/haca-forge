@@ -19,8 +19,8 @@ vi.mock('../../../hooks/useSocket', () => ({ useSocket: () => ({ on: () => () =>
 const apiFetch = apiModule.apiFetch as unknown as ReturnType<typeof vi.fn>;
 const useAuth = authContext.useAuth as unknown as ReturnType<typeof vi.fn>;
 const stale = (message: string) => Object.assign(new Error(message), { statusCode: 409, code: 'STALE_SUBMISSION' });
-const asHead = () => useAuth.mockReturnValue({ user: { _id: 'head-1', role: 'creative_head', name: 'Head' }, hasPermission: () => true });
-const asOwner = () => useAuth.mockReturnValue({ user: { _id: 'owner-1', role: 'team_member', name: 'Owner' }, hasPermission: () => true });
+const asHead = () => useAuth.mockReturnValue({ user: { _id: 'head-1', role: 'creative_lead', name: 'Head' }, hasPermission: () => true });
+const asOwner = () => useAuth.mockReturnValue({ user: { _id: 'owner-1', role: 'executive', name: 'Owner' }, hasPermission: () => true });
 const posts = (part: string) => apiFetch.mock.calls.filter(([url, opts]: any[]) => String(url).includes(part) && opts?.method === 'POST');
 
 beforeEach(() => {
@@ -137,7 +137,7 @@ describe('Shoot review', () => {
 });
 
 describe('Feedback page cannot approve', () => {
-  const workItem = { _id: 'w1', title: 'Feedback step', workType: 'Reel', deadline: new Date().toISOString(), status: 'Feedback', revisions: 0, reviewRequired: true, ownerId: { _id: 'owner-1', name: 'Owner', role: 'team_member' } };
+  const workItem = { _id: 'w1', title: 'Feedback step', workType: 'Reel', deadline: new Date().toISOString(), status: 'Feedback', revisions: 0, reviewRequired: true, ownerId: { _id: 'owner-1', name: 'Owner', role: 'executive' } };
   const show = async () => {
     apiFetch.mockImplementation(async (url: string) => {
       if (url === '/api/feedback/threads') return { data: [{ workItem, totalEntries: 0, revisions: 0, flag: null }] };
@@ -312,7 +312,7 @@ describe('My Work submit button', () => {
 });
 
 describe('Work Detail', () => {
-  const item = (extra: any) => ({ _id: 'w1', title: 'Detail step', workType: 'Reel', deadline: new Date().toISOString(), status: 'Pending', revisions: 0, reviewRequired: true, stageKey: 'Content', ownerId: { _id: 'owner-1', name: 'Owner', email: 'o@example.invalid', role: 'team_member' }, ...extra });
+  const item = (extra: any) => ({ _id: 'w1', title: 'Detail step', workType: 'Reel', deadline: new Date().toISOString(), status: 'Pending', revisions: 0, reviewRequired: true, stageKey: 'Content', ownerId: { _id: 'owner-1', name: 'Owner', email: 'o@example.invalid', role: 'executive' }, ...extra });
   const show = (data: any) => {
     apiFetch.mockImplementation(async (url: string) => (url === '/api/work/w1' ? { data } : { data: [] }));
     render(
@@ -430,7 +430,7 @@ describe('Work Detail', () => {
         isLocked: false,
         handoff: [
           { workItemId: 'a', stageKey: 'Shoot', ownerName: 'Shooter', version: 2, items: [{ url: 'https://drive.google.com/drive/folders/footage', kind: 'drive' }], clips: [] },
-          { workItemId: 'b', stageKey: 'Design', ownerName: 'Designer', version: 1, items: [{ url: 'https://drive.google.com/file/d/s1/view', name: 'Link 1', kind: 'drive' }, { url: 'https://drive.google.com/file/d/s2/view', name: 'Link 2', kind: 'drive' }], clips: [] },
+          { workItemId: 'b', stageKey: 'Design', ownerName: 'Graphic Designer', version: 1, items: [{ url: 'https://drive.google.com/file/d/s1/view', name: 'Link 1', kind: 'drive' }, { url: 'https://drive.google.com/file/d/s2/view', name: 'Link 2', kind: 'drive' }], clips: [] },
         ],
       })
     );

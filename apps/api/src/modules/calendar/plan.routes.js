@@ -6,6 +6,7 @@ import { validate } from '../../middleware/validate.js';
 import {
   calendarPlanCreateSchema,
   calendarPlanReviewSchema,
+  isWorker,
 } from '@mmp/shared';
 import * as planController from './plan.controller.js';
 import { normalizeRole } from '@mmp/shared';
@@ -47,7 +48,7 @@ router.post(
 // Excel-style grid: one grid per calendar + month (mounted before :id)
 // Team members get 404 on every grid route (isolation rule: the grid does not exist for them).
 router.use('/grid', (req, res, next) => {
-  if (normalizeRole(req.user?.role) === 'team_member') {
+  if (isWorker(normalizeRole(req.user?.role))) {
     return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } });
   }
   return next();

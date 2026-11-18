@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Table, Sparkles, X, Check } from 'lucide-react';
-import { formatShortDate, formatShortDateTime, getStepStatusLabel } from '@mmp/shared';
+import { formatShortDate, formatShortDateTime, getStepStatusLabel, isApprover, isReadOnlyViewer, isWorker } from '@mmp/shared';
 import { withDisplayStatus } from '../../lib/statusTone';
 import { apiFetch } from '../../lib/api';
 import { useDialogFocus } from '../../lib/useDialogFocus';
@@ -43,10 +43,10 @@ interface AssignRecommendation {
  */
 export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
   const { user } = useAuth();
-  const isExecutive = user?.role === 'executive';
-  const canAssign = user?.role === 'admin' || user?.role === 'creative_head' || user?.role === 'sm_manager';
+  const isExecutive = isReadOnlyViewer(user?.role);
+  const canAssign = user?.role === 'admin' || isApprover(user?.role) || user?.role === 'sm_manager';
   const canManageSteps = user?.role === 'admin' || user?.role === 'sm_manager';
-  const showOwnerFilter = user?.role !== 'team_member';
+  const showOwnerFilter = !isWorker(user?.role);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => filtersFromParams(searchParams), [searchParams]);

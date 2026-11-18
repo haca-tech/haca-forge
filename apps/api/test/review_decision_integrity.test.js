@@ -101,7 +101,7 @@ const cleanup = async () => {
 beforeAll(async () => {
   await connectDB();
   await cleanup();
-  for (const [k, role] of [['head', 'creative_head'], ['admin', 'admin'], ['sm', 'sm_manager'], ['exec', 'executive'], ['owner', 'team_member'], ['other', 'team_member']]) {
+  for (const [k, role] of [['head', 'creative_lead'], ['admin', 'admin'], ['sm', 'sm_manager'], ['exec', 'creative_head'], ['owner', 'executive'], ['other', 'executive']]) {
     P[k] = await Person.create({ name: `Decision ${k}`, email: `review.decision.${k}@example.com`, role, status: 'active' });
   }
 });

@@ -69,7 +69,7 @@ describe('CREATIVE CALENDAR AND MULTIPLE CALENDARS SUITE', () => {
     headUser = await Person.create({
       name: 'Creative Head MultiCal',
       email: 'head@multical-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       status: 'active',
       passwordHash: 'dummy',
     });
@@ -85,7 +85,7 @@ describe('CREATIVE CALENDAR AND MULTIPLE CALENDARS SUITE', () => {
     workerUser = await Person.create({
       name: 'Worker MultiCal',
       email: 'worker@multical-test.com',
-      role: 'team_member',
+      role: 'executive',
       status: 'active',
       passwordHash: 'dummy',
     });

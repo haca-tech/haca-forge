@@ -1,10 +1,11 @@
+import { eligiblePreferencesForUpdate } from './eligibility.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { Person } from './model.js';
 import { resolveScope } from '../../lib/scope.js';
 import { logActivity } from '../activity/service.js';
 import { syncUserTeamChatMembership } from '../chat/service.js';
-import { normalizeRole } from '@mmp/shared';
+import { normalizeRole, APPROVER_ROLES, READ_ONLY_VIEWER_ROLES, WORKER_ROLE, isApprover, isReadOnlyViewer, isWorker, canSeeContactDetails } from '@mmp/shared';
 
 export async function listPeople({ actor, filters = {}, excludeAdmin = false }) {
   const scope = await resolveScope(actor, filters);
@@ -34,9 +35,9 @@ export async function listPeople({ actor, filters = {}, excludeAdmin = false }) 
     query.role = filters.role;
   }
 
-  // Exclude admin and executive from auto-assignment candidate pools, workload calculations, and performance metrics
+  // Exclude admin and creative_head/production_head from auto-assignment candidate pools, workload calculations, and performance metrics
   if (excludeAdmin) {
-    query.role = { $nin: ['admin', 'executive'] };
+    query.role = { $nin: ['admin', ...READ_ONLY_VIEWER_ROLES] };
   }
 
   const people = await Person.find(query)
@@ -45,7 +46,8 @@ export async function listPeople({ actor, filters = {}, excludeAdmin = false }) 
     .sort({ name: 1 })
     .lean();
 
-  if (normalizeRole(actor?.role) === 'executive') {
+  // Contact details: hidden only from workers (the REST filter does the same).
+  if (!canSeeContactDetails(normalizeRole(actor?.role))) {
     return people.map((p) => {
       const sanitized = { ...p };
       delete sanitized.email;
@@ -91,7 +93,7 @@ export async function getPersonById(id, actor) {
     }
   }
 
-  if (normalizeRole(actor?.role) === 'executive') {
+  if (!canSeeContactDetails(normalizeRole(actor?.role))) {
     const sanitized = { ...person };
     delete sanitized.email;
     delete sanitized.phone;
@@ -143,7 +145,7 @@ export async function createPerson(data, actor) {
     name: data.name.trim(),
     email,
     passwordHash,
-    role: data.role || 'team_member',
+    role: data.role || WORKER_ROLE,
     jobRole: data.jobRole || '',
     departmentId: data.departmentId || null,
     reportsToIds: data.reportsToIds || [],
@@ -180,12 +182,14 @@ export async function updatePerson(id, updates, actor) {
   }
 
   const targetRole = normalizeRole(target.role);
+  // Job role sets eligibility; preferences can only narrow it (checked before any write).
+  const eligiblePrefs = eligiblePreferencesForUpdate(target, updates);
 
-  // Creative Head update restrictions
-  if (actorRole === 'creative_head') {
-    // Cannot touch admin, creative_head, or executive accounts
-    if (targetRole === 'admin' || targetRole === 'creative_head' || targetRole === 'executive') {
-      const error = new Error('Forbidden: Creative Head cannot modify admin, executive, or other creative_head accounts');
+  // Lead update restrictions (creative_lead, growth_lead): operational fields of workers and SM Managers only
+  if (isApprover(actorRole)) {
+    // Cannot touch admin, lead or read-only head accounts
+    if (targetRole === 'admin' || isApprover(targetRole) || isReadOnlyViewer(targetRole)) {
+      const error = new Error('Forbidden: a lead cannot modify admin, lead or head accounts');
       error.code = 'FORBIDDEN';
       error.statusCode = 403;
       throw error;
@@ -193,21 +197,21 @@ export async function updatePerson(id, updates, actor) {
 
     // Cannot modify core account identity fields
     if (updates.role && updates.role !== target.role) {
-      const error = new Error('Forbidden: Creative Head cannot change user roles');
+      const error = new Error('Forbidden: a lead cannot change user roles');
       error.code = 'FORBIDDEN';
       error.statusCode = 403;
       throw error;
     }
 
     if (updates.status && updates.status !== target.status) {
-      const error = new Error('Forbidden: Creative Head cannot change user status (suspend/activate)');
+      const error = new Error('Forbidden: a lead cannot change user status (suspend/activate)');
       error.code = 'FORBIDDEN';
       error.statusCode = 403;
       throw error;
     }
 
     if (updates.email || updates.password || updates.name) {
-      const error = new Error('Forbidden: Creative Head can only edit operational fields (department, jobRole, workPreferences, weeklyCapacityHours)');
+      const error = new Error('Forbidden: a lead can only edit operational fields (department, jobRole, workPreferences, weeklyCapacityHours)');
       error.code = 'FORBIDDEN';
       error.statusCode = 403;
       throw error;
@@ -218,7 +222,7 @@ export async function updatePerson(id, updates, actor) {
     if (updates.jobRole !== undefined) target.jobRole = updates.jobRole;
     if (updates.reportsToIds !== undefined) target.reportsToIds = updates.reportsToIds;
     if (updates.weeklyCapacityHours !== undefined) target.weeklyCapacityHours = updates.weeklyCapacityHours;
-    if (updates.workPreferences !== undefined) target.workPreferences = updates.workPreferences;
+    if (eligiblePrefs !== undefined) target.workPreferences = eligiblePrefs;
   } else if (actorRole === 'admin') {
     // Admin has full control
     if (updates.name !== undefined) target.name = updates.name;
@@ -229,7 +233,7 @@ export async function updatePerson(id, updates, actor) {
     if (updates.departmentId !== undefined) target.departmentId = updates.departmentId;
     if (updates.reportsToIds !== undefined) target.reportsToIds = updates.reportsToIds;
     if (updates.weeklyCapacityHours !== undefined) target.weeklyCapacityHours = updates.weeklyCapacityHours;
-    if (updates.workPreferences !== undefined) target.workPreferences = updates.workPreferences;
+    if (eligiblePrefs !== undefined) target.workPreferences = eligiblePrefs;
 
     if (updates.password) {
       const salt = await bcrypt.genSalt(10);
@@ -334,7 +338,7 @@ export async function reactivatePerson(id, actor) {
 
 export async function getAssignmentCandidates({ departmentId, excludeIds = [] }) {
   const query = {
-    role: { $nin: ['admin', 'executive'] }, // Admin & Executive strictly excluded from candidate pools
+    role: { $nin: ['admin', ...READ_ONLY_VIEWER_ROLES] }, // Admin & Executive strictly excluded from candidate pools
     status: 'active',
   };
 
@@ -403,7 +407,7 @@ export async function sharesContentPiece(personAId, personBId) {
 /**
  * Get person profile for read-only drawer / inspect views
  * Enforces strict visibility rules:
- * - Admin, Creative Head, SM Manager: Full profile with contact details
+ * - Admin, Creative Lead, SM Manager: Full profile with contact details
  * - Executive: Full profile with contact details masked
  * - Team Member: Allowed ONLY if sharing a ContentPiece with the person; contact details masked
  */
@@ -424,7 +428,7 @@ export async function getPersonProfile(targetId, actor) {
   const isSelf = actor?._id?.toString() === person._id.toString();
 
   // Worker sharing check
-  if (actorRole === 'team_member' && !isSelf) {
+  if (isWorker(actorRole) && !isSelf) {
     const isTeammate = await sharesContentPiece(actor._id, person._id);
     if (!isTeammate) {
       const error = new Error('Forbidden: You can only view profiles of teammates on shared content pieces.');
@@ -458,9 +462,9 @@ export async function getPersonProfile(targetId, actor) {
   };
 
   // Contact details visibility:
-  // Admin, creative_head, sm_manager see contact details. Self also sees contact details.
-  // Executive and team_member see NO contact details.
-  const canSeeContact = isSelf || ['admin', 'creative_head', 'sm_manager'].includes(actorRole);
+  // Everyone except workers sees contact details (Phase 12b: the read-only heads too).
+  // A worker (executive) sees only their own.
+  const canSeeContact = isSelf || canSeeContactDetails(actorRole);
 
   if (canSeeContact) {
     result.email = person.email;
@@ -551,7 +555,7 @@ export async function getPersonWorkHistory(targetPersonId, user) {
   const actorId = (user?._id || user?.id || user?.userId)?.toString();
 
   const isSelf = actorId === targetPersonId?.toString();
-  const isElevated = ['admin', 'creative_head', 'sm_manager', 'executive'].includes(actorRole);
+  const isElevated = ['admin', ...APPROVER_ROLES, 'sm_manager', ...READ_ONLY_VIEWER_ROLES].includes(actorRole);
 
   if (!isSelf && !isElevated) {
     const error = new Error('Forbidden: You can only view your own work history');

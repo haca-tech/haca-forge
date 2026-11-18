@@ -7,6 +7,10 @@ import {
   JOB_ROLES,
   requestAccessSchema,
   type RequestableRole,
+  WORKER_ROLE,
+  isWorker,
+  REQUESTABLE_ROLES,
+  ROLE_LABELS,
 } from '@mmp/shared';
 import {
   Lock,
@@ -57,7 +61,7 @@ export const LoginPage: React.FC = () => {
   const [reqPhone, setReqPhone] = useState('');
   const [reqDept, setReqDept] = useState<string>(DEPARTMENTS[0].name);
   const [reqJobRole, setReqJobRole] = useState<string>(JOB_ROLES[0]);
-  const [reqRole, setReqRole] = useState<RequestableRole>('team_member');
+  const [reqRole, setReqRole] = useState<RequestableRole>(WORKER_ROLE);
   const [reqReason, setReqReason] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmittingReq, setIsSubmittingReq] = useState(false);
@@ -110,7 +114,7 @@ export const LoginPage: React.FC = () => {
 
     try {
       const loggedUser = await login({ email: cleanEmail, password: signInPassword });
-      if (loggedUser.role === 'team_member') {
+      if (isWorker(loggedUser.role)) {
         navigate('/my-work');
       } else {
         navigate('/dashboard');
@@ -518,8 +522,11 @@ export const LoginPage: React.FC = () => {
                       onChange={(e) => setReqRole(e.target.value as RequestableRole)}
                       className="w-full px-4 py-2.5 bg-white/90 border border-slate-200 rounded-full text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-ui-ink shadow-xs cursor-pointer"
                     >
-                      <option value="team_member">Team Member</option>
-                      <option value="sm_manager">SM Manager</option>
+                      {REQUESTABLE_ROLES.map((rk) => (
+                        <option key={rk} value={rk}>
+                          {ROLE_LABELS[rk]}
+                        </option>
+                      ))}
                     </select>
                     <p className="text-[10px] text-slate-400 mt-1 pl-2">
                       Your administrator confirms your final role.

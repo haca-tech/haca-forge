@@ -2,6 +2,7 @@
 // Stored as the row's flags; approval creates only the workflow's steps with deadlines counted back
 // from the posting date; "From the plan" gives the first step the brief (and the source video for
 // Edit only). Disposable test DB, synthetic rows.
+import { jobRoleFor } from './fixtures/jobRoles.js';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
@@ -38,18 +39,18 @@ describe('Row workflows', () => {
     await connectDB();
     await cleanup();
     const mk = (key, name, role, workPreferences = []) =>
-      Person.create({ name, email: `${key}@wf-row-test.com`, role, status: 'active', workPreferences }).then((p) => {
+      Person.create({ name, email: `${key}@wf-row-test.com`, role, status: 'active', workPreferences, jobRole: role === 'executive' ? jobRoleFor(workPreferences) : '' }).then((p) => {
         people[key] = p;
         tokens[key] = make(p);
       });
     await mk('sm', 'WF SM Manager', 'sm_manager');
     await mk('admin', 'WF Admin', 'admin');
-    await mk('head', 'WF Creative Head', 'creative_head');
-    await mk('writer', 'WF Writer', 'team_member', ['Script', 'Content']);
-    await mk('shooter', 'WF Shooter', 'team_member', ['Shoot']);
-    await mk('editor', 'WF Editor', 'team_member', ['Edit']);
-    await mk('designer', 'WF Designer', 'team_member', ['Design']);
-    await mk('poster', 'WF Poster', 'team_member', ['Post']);
+    await mk('head', 'WF Creative Head', 'creative_lead');
+    await mk('writer', 'WF Writer', 'executive', ['Script', 'Content']);
+    await mk('shooter', 'WF Shooter', 'executive', ['Shoot']);
+    await mk('editor', 'WF Editor', 'executive', ['Edit']);
+    await mk('designer', 'WF Designer', 'executive', ['Design']);
+    await mk('poster', 'WF Poster', 'sm_manager'); // Post belongs to SM Managers (Phase 12b)
   });
   afterAll(cleanup);
 

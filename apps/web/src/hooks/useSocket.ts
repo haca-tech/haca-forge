@@ -5,11 +5,31 @@ import { refreshSession } from '../lib/api';
 
 let socketInstance: Socket | null = null;
 
+/**
+ * The server closes a user's sockets when their session or access changes (logout elsewhere,
+ * revoked sessions, a new role). Then: reload the signed-in user from /auth/me, so the role,
+ * permissions and navigation match the server, and try to reconnect once.
+ */
+export async function handleServerDisconnect(
+  reason: string,
+  { refreshUser, reconnect }: { refreshUser?: () => Promise<void>; reconnect: () => void }
+): Promise<boolean> {
+  if (reason !== 'io server disconnect') return false;
+  try {
+    await refreshUser?.();
+  } finally {
+    reconnect();
+  }
+  return true;
+}
+
 export function useSocket() {
   let user: any = null;
+  let refreshUser: (() => Promise<void>) | undefined;
   try {
     const auth = useAuth();
     user = auth?.user;
+    refreshUser = auth?.refreshUser;
   } catch {
     user = null;
   }
@@ -49,11 +69,17 @@ export function useSocket() {
       });
 
       // The server closes a user's sockets when their session or access changes (logout
-      // elsewhere, revoked sessions, a new role). Socket.IO does not reconnect after that, so
-      // try once; the handshake decides whether this browser may still connect.
+      // elsewhere, revoked sessions, a new role). Socket.IO does not reconnect after that:
+      // reload the user (/auth/me) and try once; the handshake decides whether this browser
+      // may still connect, and joins the new role's room.
       socket.on('disconnect', (reason) => {
         setIsConnected(false);
-        if (reason === 'io server disconnect' && socketInstance === socket) socket.connect();
+        void handleServerDisconnect(reason, {
+          refreshUser,
+          reconnect: () => {
+            if (socketInstance === socket) socket.connect();
+          },
+        });
       });
 
       // A refused handshake is not retried by Socket.IO. If the access cookie had expired,

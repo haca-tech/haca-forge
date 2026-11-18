@@ -34,7 +34,7 @@ describe('Phase 6b: blockers', () => {
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    for (const [k, r] of [['owner', 'team_member'], ['poster', 'team_member'], ['outsider', 'team_member'], ['sm', 'sm_manager'], ['admin', 'admin'], ['head', 'creative_head']]) await make(k, r);
+    for (const [k, r] of [['owner', 'executive'], ['poster', 'executive'], ['outsider', 'executive'], ['sm', 'sm_manager'], ['admin', 'admin'], ['head', 'creative_lead']]) await make(k, r);
   });
 
   afterAll(async () => {
@@ -127,11 +127,11 @@ describe('Phase 6b: blockers', () => {
   it('Resolve shows only to the owner, sm_manager and admin', () => {
     const stage = { _id: 's1', ownerId: 'owner-1', status: 'Blocked', stageKey: 'Edit', isLocked: false };
     const has = (user) => getAvailableActions(user, stage).actions.includes('resolve_blocker');
-    expect(has({ _id: 'owner-1', role: 'team_member' })).toBe(true);
+    expect(has({ _id: 'owner-1', role: 'executive' })).toBe(true);
     expect(has({ _id: 'sm-1', role: 'sm_manager' })).toBe(true);
     expect(has({ _id: 'admin-1', role: 'admin' })).toBe(true);
-    expect(has({ _id: 'head-1', role: 'creative_head' })).toBe(false);
-    expect(has({ _id: 'exec-1', role: 'executive' })).toBe(false);
-    expect(has({ _id: 'other-1', role: 'team_member' })).toBe(false);
+    expect(has({ _id: 'head-1', role: 'creative_lead' })).toBe(false);
+    expect(has({ _id: 'exec-1', role: 'creative_head' })).toBe(false);
+    expect(has({ _id: 'other-1', role: 'executive' })).toBe(false);
   });
 });

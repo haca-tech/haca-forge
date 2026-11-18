@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredPermission?: PermissionKey;
   allowedRoles?: UserRole[];
-  /** Roles sent elsewhere instead of shown this page, e.g. { executive: '/dashboard' }. */
+  /** Roles sent elsewhere instead of shown this page, e.g. { creative_head/production_head: '/dashboard' }. */
   redirectRoles?: Partial<Record<UserRole, string>>;
 }
 

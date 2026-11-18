@@ -3,7 +3,7 @@ import { useDialogFocus } from '../../lib/useDialogFocus';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
 import { TimeLabelChips, type TimeLabel } from '../../components/TimeLabelChips';
-import { hasTimeLabel, formatDuration, reworkTimeMs, stepReviewState } from '@mmp/shared';
+import { hasTimeLabel, formatDuration, reworkTimeMs, stepReviewState, isApprover } from '@mmp/shared';
 import { workspacesLocked } from '../../lib/workspaceLock';
 import { StepSubmitDialog } from '../../components/StepSubmitDialog';
 import { statusClass, statusTone } from '../../lib/statusTone';
@@ -75,7 +75,7 @@ interface WorkItemDetail {
   canReopen?: boolean;
   /** Phase 6: earlier steps being redone that this step is paused for. */
   pausedBy?: string[];
-  /** Approved files of a finished non-postable Design step (sm_manager, creative_head and admin only). */
+  /** Approved files of a finished non-postable Design step (sm_manager, creative_lead/growth_lead and admin only). */
   handover?: {
     approvedAt?: string | null;
     version?: number | null;
@@ -214,7 +214,7 @@ export const WorkDetailPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Approve Deliverable Modal (Creative Head / Admin)
+  // Approve Deliverable Modal (Creative Lead / Admin)
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [approveRatingScore, setApproveRatingScore] = useState<number>(5);
   const [approveFeedback, setApproveFeedback] = useState<string>('');
@@ -654,7 +654,7 @@ export const WorkDetailPage: React.FC = () => {
   const isOwner = Boolean(
     user && (user.userId || user.id || user._id) === (item.ownerId?._id || item.ownerId?.id || item.ownerId)
   );
-  const isReviewer = user?.role === 'creative_head' || user?.role === 'admin';
+  const isReviewer = isApprover(user?.role) || user?.role === 'admin';
   const hasOutput = Boolean(
     item.deliverableUrl ||
     item.latestSubmission?.fileUrl ||
@@ -830,7 +830,7 @@ export const WorkDetailPage: React.FC = () => {
               </>
             )}
 
-            {/* Reviewer Actions: Creative Head & Admin direct approval cockpit */}
+            {/* Reviewer Actions: Creative Lead & Admin direct approval cockpit */}
             {isReviewer && !isOwner && (isUnderReview || item.status === 'Pending' || (item.status === 'Feedback' && item.latestSubmission?.status === 'submitted')) && (
               <>
                 <button
@@ -1204,7 +1204,7 @@ export const WorkDetailPage: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-[11px] text-ui-muted">
-                  Reviewed by {item.rating.raterId?.name || 'Creative Head'} on {new Date(item.rating.createdAt).toLocaleDateString()}
+                  Reviewed by {item.rating.raterId?.name || 'Creative Lead'} on {new Date(item.rating.createdAt).toLocaleDateString()}
                 </p>
               </div>
             </div>
@@ -1229,8 +1229,8 @@ export const WorkDetailPage: React.FC = () => {
                 </span>
               )}
 
-              {/* Creative Head / Admin Edit Button */}
-              {(user?.role === 'creative_head' || user?.role === 'admin') && (
+              {/* Creative Lead / Admin Edit Button */}
+              {(isApprover(user?.role) || user?.role === 'admin') && (
                 <button
                   onClick={openEditRatingModal}
                   type="button"
@@ -1935,7 +1935,7 @@ export const WorkDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Approve Deliverable Modal (Creative Head / Admin) */}
+      {/* Approve Deliverable Modal (Creative Lead / Admin) */}
       {showApproveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 ui-scrim">
           <div
@@ -2338,7 +2338,7 @@ export const WorkDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Edit Rating Modal (WS4: Creative Head & Admin Corrections) */}
+      {/* Edit Rating Modal (WS4: Creative Lead & Admin Corrections) */}
       {showEditRatingModal && item?.rating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 ui-scrim">
           <div

@@ -1,28 +1,28 @@
 # HACA Marketing OS — Roles, Workers & Features Specification
 
 **Document Authority:** Definitive Reference for System Roles, Worker Specializations, Workspaces, Step Capabilities, Permissions, and Visibility Boundaries.  
-**Scope:** Covers all 5 system roles (`admin`, `creative_head`, `sm_manager`, `executive`, `team_member`) and the 6 production worker specializations.  
-**Current as of:** 3 November 2026.
+**Scope:** Covers all 7 system roles (`admin`, `creative_head`, `production_head`, `creative_lead`, `growth_lead`, `sm_manager`, `executive`) and the 5 worker job roles.  
+**Current as of:** 18 November 2026 (Phase 12b: Roles).
+
+> **Phase 12b.** Two keys were reused with a new meaning: `creative_head` is now read-only leadership (it was the approver) and `executive` is now a production worker (it was read-only leadership). `team_member` no longer exists. The older wording in sections 2–4 below was renamed to match; where it conflicts with this section and the matrix in section 5, these win. Approval routing by calendar (Creative Lead for every calendar except Ads, Growth Lead for Ads) is Phase 13; in Phase 12b both leads approve on every calendar.
 
 ---
 
 ## 1. System Roles Architecture
 
-HACA Marketing OS enforces strict Role-Based Access Control (RBAC) across five canonical system roles. Each user account is assigned exactly one system role.
+HACA Marketing OS enforces strict Role-Based Access Control (RBAC) across seven system roles. Each user account is assigned exactly one system role. The role list, labels, permission matrix and helpers (`isApprover`, `isReadOnlyViewer`, `isWorker`, `canReview`, `effectiveStepsFor`) live in `@mmp/shared` and are used by the API and the web app.
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                              SYSTEM ROLES                              │
-├────────────────┬────────────────────┬──────────────────┬───────────────┤
-│ Role Key       │ Display Title      │ Primary Scope    │ Write Powers  │
-├────────────────┼────────────────────┼──────────────────┼───────────────┤
-│ admin          │ Administrator      │ Full System      │ Complete      │
-│ creative_head  │ Creative Head      │ Creative Quality │ Review/Audit  │
-│ sm_manager     │ SM Manager         │ Plans & Schedule │ Plan/Assign   │
-│ executive      │ Executive Viewer   │ High-Level View  │ Zero (403)    │
-│ team_member    │ Worker             │ Assigned Steps   │ Own Work Only │
-└────────────────┴────────────────────┴──────────────────┴───────────────┘
-```
+| Role Key | Display Title | Primary Scope | Write Powers |
+|---|---|---|---|
+| `admin` | Admin | Full system; backup approver on every calendar | Complete |
+| `creative_head` | Creative Head | Views everything | None (403 on every write, own account excepted) |
+| `production_head` | Production Head | Views all calendars and works | None (403 on every write, own account excepted) |
+| `creative_lead` | Creative Lead | Plan rows, reviews, ratings, reopen, root causes (every calendar except Ads from Phase 13) | Review / approve; workers' operational fields |
+| `growth_lead` | Growth Lead | Same powers, Ads calendar only from Phase 13 | Review / approve; workers' operational fields |
+| `sm_manager` | SM Manager | Plans, schedules, owners; owns every Post step | Plan / assign / post |
+| `executive` | Executive (worker) | Their own steps | Own work only |
+
+Contact details: every role except `executive` sees them (workers see only their own). Review text (revision notes, rating feedback, clip threads): every role except `executive`, who sees it on their own steps. Nobody reviews or approves their own work.
 
 ---
 
@@ -34,7 +34,7 @@ The system administrator manages platform security, user lifecycles, and high-le
 - **Primary Menu Items (Max 8):** `Home`, `Plans`, `Tracker`, `Team Directory`, `Problems`, `Reports`, `Users`, `Access Requests`.
 - **Exclusive Powers:**
   - **User Lifecycle:** Invites users, approves/rejects public signup requests (`/admin/access-requests`), suspends/reactivates accounts, resets passwords, and forces active session logout.
-  - **Role Assignments:** The only role authorized to assign or elevate users to `admin`, `creative_head`, or `executive`.
+  - **Role Assignments:** The only role authorized to assign or elevate users to `admin`, `creative_lead`, or `creative_head`.
   - **Email Override:** The only role authorized to modify a user's registered official email (`PATCH /api/team/:id`).
   - **Direct System Override:** Can reassign any step, reschedule dates, or skip unstarted steps if an SM Manager is unavailable.
 - **Strict Guardrails & Exclusions:**
@@ -44,8 +44,8 @@ The system administrator manages platform security, user lifecycles, and high-le
 
 ---
 
-### 2.2 Role: Creative Head (`creative_head`)
-The Creative Head is the sole gatekeeper of creative quality and craftsmanship.
+### 2.2 Role: Creative Lead (`creative_lead`)
+The Creative Lead is the sole gatekeeper of creative quality and craftsmanship.
 
 - **Primary Menu Items (Max 8):** `Home`, `Review Queue`, `Plans & Approvals`, `Tracker`, `Team Directory`, `Problems`, `Reports`.
 - **Core Powers & Responsibilities:**
@@ -68,17 +68,17 @@ The Social Media Manager is the master planner, scheduler, and traffic controlle
 - **Core Powers & Responsibilities:**
   - **Calendar Plan Creation:** Creates monthly and individual plans across the 5 creative calendars (`sm`, `sales`, `ads`, `academics_management`, `other`).
   - **Step-by-Step Assignment & Deadlines:** Chooses owners and deadlines for each step using autofill recommendations and offset presets.
-  - **Plan Submission:** Submits drafted plans to the Creative Head for formal verification.
+  - **Plan Submission:** Submits drafted plans to the Creative Lead for formal verification.
   - **Operational Interventions:** Can reassign steps, shift dates, skip unstarted steps, and resolve marked blockers.
   - **Team Workload Monitoring:** Analyzes real-time team capacity heatmaps (`<65% Healthy`, `65-85% High`, `>85% Overloaded`).
 - **Strict Guardrails & Exclusions:**
-  - Cannot approve deliverable steps (quality approval belongs strictly to Creative Head).
+  - Cannot approve deliverable steps (quality approval belongs strictly to Creative Lead).
   - Cannot invite or suspend users.
 
 ---
 
-### 2.4 Role: Executive (`executive`)
-The executive viewer provides high-level transparency for organizational leadership.
+### 2.4 Role: Creative Head (`creative_head`)
+The creative_head viewer provides high-level transparency for organizational leadership.
 
 - **Primary Menu Items (Max 8):** `Home`, `Plans`, `Tracker`, `Team Directory`, `Team Workload`, `Reports`.
 - **Core Capabilities:**
@@ -94,24 +94,18 @@ The executive viewer provides high-level transparency for organizational leaders
 
 ## 3. Worker Specializations & Production Workspaces
 
-All creative production workers share the system role `team_member`. Their individual capabilities and assignment eligibility are governed by their **Job Role**, their **Work Preferences**, and their specialized **Workspaces**.
+All production workers share the system role `executive`. Their **Job Role** sets the steps they are eligible for; their **Work Preferences** can only narrow it. Post is never a worker's step: every Post step belongs to an SM Manager.
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        WORKER SPECIALIZATIONS                          │
-├────────────────────┬─────────────────┬──────────────────┬──────────────┤
-│ Specialization     │ Canonical Role  │ Work Preference  │ Workspace    │
-├────────────────────┼─────────────────┼──────────────────┼──────────────┤
-│ Copywriter / Script│ Writer          │ Content, Script  │ Writing      │
-│ Graphic Designer   │ Designer        │ Design           │ Design       │
-│ Videographer       │ Videographer    │ Shoot            │ Shoot        │
-│ Video Editor       │ Video Editor    │ Edit             │ Edit         │
-│ Social Specialist  │ Social Spec.    │ Post             │ Post         │
-│ Multidisciplinary  │ Allrounder      │ Multiple         │ Dynamic      │
-└────────────────────┴─────────────────┴──────────────────┴──────────────┘
-```
+| Job Role | Eligible steps |
+|---|---|
+| Writer | Script, Content |
+| Cinematographer | Shoot |
+| Graphic Designer | Design |
+| Video Editor | Edit |
+| All Rounder | Script, Content, Shoot, Design, Edit |
+| (SM Manager role) | Post |
 
----
+Removed in Phase 12b: Videographer (now Cinematographer), Designer (now Graphic Designer), Social Specialist (All Rounder, or "to be assigned" for posting-only accounts) and the unused titles. Kept leadership titles: Creative Manager (TL), Social Media Manager. The worker subsections below describe the workspaces, which are locked behind `WORKSPACES_LOCKED` (Phase 12); steps are submitted with Drive links.
 
 ### 3.1 Specialization 1: Writers (`Content` & `Script`)
 Writers create copy for static graphics, carousel slides, brochures, and full audio/visual scripts for reels and videos.
@@ -135,7 +129,7 @@ Writers create copy for static graphics, carousel slides, brochures, and full au
     - **Document Import/Export:** Import `.docx` files directly; export to `.docx`, `.pdf`, or `.txt`.
 - **Worker Actions:**
   - `Start Work`: Records `startedAt` and begins individual work timer.
-  - `Submit for Review`: Hands off copy to the Creative Head in the Review Studio.
+  - `Submit for Review`: Hands off copy to the Creative Lead in the Review Studio.
 
 ---
 
@@ -153,7 +147,7 @@ Graphic Designers produce visual creatives across digital and print formats.
   - **Format Support:** High-resolution PNG, JPG, and multi-page PDF previews.
 - **Worker Actions:**
   - `Start Work`: Commences timer.
-  - `Submit for Review`: Uploads final graphic files to the Creative Head.
+  - `Submit for Review`: Uploads final graphic files to the Creative Lead.
 
 ---
 
@@ -171,11 +165,11 @@ Videographers execute raw footage capture, b-roll recording, and studio shoots b
     - Metadata per clip: Scene/Shot number, Take number, Resolution (4K/1080p), FPS (24/60/120), and cameraman notes.
   - **Clip-by-Clip Review & Feedback Thread:**
     - WhatsApp-style discussion thread for each clip.
-    - Creative Head reviews each clip individually (`Approve Clip` or `Reshoot Needed`).
+    - Creative Lead reviews each clip individually (`Approve Clip` or `Reshoot Needed`).
     - The step completes only when all required shots are marked approved.
 - **Worker Actions:**
   - `Start Shoot`: Commences production timer.
-  - `Submit Footage`: Sends uploaded raw clips to Creative Head for footage review.
+  - `Submit Footage`: Sends uploaded raw clips to Creative Lead for footage review.
 
 ---
 
@@ -191,10 +185,10 @@ Video Editors take approved raw footage, sync audio, add visual effects, color g
   - **Video Quality Checks:**
     - Aspect ratio enforcement (flags non-9:16 vertical videos).
     - Duration warnings (flags reels exceeding 90 seconds).
-  - **Interactive Revision Checklist:** When revisions are requested, the Creative Head's second-by-second timestamps appear as an interactive checklist.
+  - **Interactive Revision Checklist:** When revisions are requested, the Creative Lead's second-by-second timestamps appear as an interactive checklist.
 - **Worker Actions:**
   - `Start Editing`: Commences edit timer.
-  - `Submit Final Cut`: Uploads MP4/MOV master video to the Creative Head.
+  - `Submit Final Cut`: Uploads MP4/MOV master video to the Creative Lead.
 
 ---
 
@@ -259,23 +253,25 @@ The home screen for every creative worker:
 
 ## 5. Summary Matrix: Roles, Permissions & Workspaces
 
-| Capability / Screen | `admin` | `creative_head` | `sm_manager` | `executive` | `team_member` |
-|---|:---:|:---:|:---:|:---:|:---:|
-| **Access Requests & Invites** | Full | No | No | No | No |
-| **User Role / Email Editing** | Full | No | No | No | No |
-| **Create Calendar Plans** | Full | No | Full | No | No |
-| **Approve Calendar Plans** | No | Full | No | No | No |
-| **Autofill Step Assignment** | Full | No | Full | No | No |
-| **Reassign / Shift Dates** | Full | No | Full | No | No |
-| **Access Review Studio** | Full | Full | View | No | No |
-| **Give 1-5 Star Ratings** | No | Full | No | No | No |
-| **Request Revisions & Root Causes** | No | Full | No | No | No |
-| **Execute Writing Studio** | No | No | No | No | If Assigned |
-| **Execute Shoot Workspace** | No | No | No | No | If Assigned |
-| **Execute Edit/Design Workspace** | No | No | No | No | If Assigned |
-| **Execute Post Workspace** | No | No | No | No | If Assigned |
-| **View Team Directory (`/team`)** | Full | Full | Full | Redacted | No (404) |
-| **Edit Operational Details** | Full | Full | No | No | No |
-| **Access Team Chat** | Full | Full | Full | Read-Only | Full |
-| **Share Approved Asset to Chat** | Full | Full | Full | No | If Owner |
+| Capability / Screen | `admin` | `creative_head` | `production_head` | `creative_lead` | `growth_lead` | `sm_manager` | `executive` |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Access Requests & Invites, role grants** | Full | No | No | No | No | No | No |
+| **User Role / Email Editing** | Full | No | No | No | No | No | No |
+| **Report configuration, automation** | Full | No | No | No | No | No | No |
+| **Create Calendar Plans** | Full | View | View | View | View | Full | No |
+| **Approve Plan Rows** | Backup | No | No | Full | Full | No | No |
+| **Autofill Step Assignment** | Full | No | No | No | No | Full | No |
+| **Reassign / Shift Dates** | Full | No | No | Full | Full | Full | No |
+| **Review Studio** | Full | View | View | Full | Full | View | No |
+| **Give 1-5 Star Ratings, request changes, reopen** | Backup | No | No | Full | Full | No | No |
+| **Classify Root Causes** | Full | No | No | Full | Full | No | No |
+| **Read review text and clip threads** | Full | View | View | Full | Full | View | Own steps |
+| **Submit own steps / Start rework** | If owner | No | No | If owner | If owner | If owner | If owner |
+| **Mark a Post step posted** | Full | No | No | No | No | Full | No |
+| **View Team Directory (`/team`)** | Full | View | View | Full | Full | Full | No (404) |
+| **See contact details** | Yes | Yes | Yes | Yes | Yes | Yes | Own only |
+| **Edit Operational Details (workers)** | Full | No | No | Full | Full | No | No |
+| **Profile report (view and download)** | Yes | Yes | Yes | Yes | Yes | No | No |
+| **Team Chat** | Full | Read-only | Read-only | Full | Full | Full | Full |
+| **Share Approved Asset to Chat** | Full | No | No | Full | Full | Full | If owner |
 

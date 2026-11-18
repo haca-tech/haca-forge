@@ -21,7 +21,7 @@ vi.mock('../lib/api', () => ({
     };
   }),
 }));
-vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { _id: 'u1', role: 'creative_head' }, hasPermission: () => true }) }));
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { _id: 'u1', role: 'creative_lead' }, hasPermission: () => true }) }));
 
 import { TimeLabelChips } from '../components/TimeLabelChips';
 import { WorkListPage } from '../pages/work/WorkListPage';

@@ -14,7 +14,7 @@ describe('Shared Zod Schemas: Request Access & Review', () => {
     phone: '+1 555 123 4567',
     department: DEPARTMENTS[0].name,
     jobRole: JOB_ROLES[0],
-    requestedRole: 'team_member',
+    requestedRole: 'executive',
     reason: 'I will create high-converting video and graphic campaigns for HACA.',
   };
 
@@ -24,7 +24,7 @@ describe('Shared Zod Schemas: Request Access & Review', () => {
     if (result.success) {
       expect(result.data.name).toBe('Jane Doe');
       expect(result.data.email).toBe('jane.doe@example.com');
-      expect(result.data.requestedRole).toBe('team_member');
+      expect(result.data.requestedRole).toBe('executive');
     }
   });
 
@@ -56,17 +56,17 @@ describe('Shared Zod Schemas: Request Access & Review', () => {
   });
 
   it('strictly limits requestedRole to team_member and sm_manager only', () => {
-    expect(REQUESTABLE_ROLES).toEqual(['team_member', 'sm_manager']);
+    expect(REQUESTABLE_ROLES).toEqual(['executive', 'sm_manager']);
 
     // Allowed roles
-    expect(requestAccessSchema.safeParse({ ...validPayload, requestedRole: 'team_member' }).success).toBe(true);
+    expect(requestAccessSchema.safeParse({ ...validPayload, requestedRole: 'executive' }).success).toBe(true);
     expect(requestAccessSchema.safeParse({ ...validPayload, requestedRole: 'sm_manager' }).success).toBe(true);
 
     // Privileged and retired roles are strictly rejected
     const adminAttempt = requestAccessSchema.safeParse({ ...validPayload, requestedRole: 'admin' });
     expect(adminAttempt.success).toBe(false);
 
-    const headAttempt = requestAccessSchema.safeParse({ ...validPayload, requestedRole: 'creative_head' });
+    const headAttempt = requestAccessSchema.safeParse({ ...validPayload, requestedRole: 'creative_lead' });
     expect(headAttempt.success).toBe(false);
 
     const retiredAttempt = requestAccessSchema.safeParse({ ...validPayload, requestedRole: 'team_lead' });

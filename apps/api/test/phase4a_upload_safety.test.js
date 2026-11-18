@@ -46,10 +46,10 @@ describe('Phase 4a: upload safety', () => {
     fs.mkdirSync(UPLOADS, { recursive: true });
     const make = (name, role) =>
       Person.create({ name, email: `${name.toLowerCase().replace(/\s/g, '.')}.${salt}@p4a.test`, role, status: 'active' });
-    head = await make('P4a Head', 'creative_head');
+    head = await make('P4a Head', 'creative_lead');
     admin = await make('P4a Admin', 'admin');
-    member = await make('P4a Member', 'team_member');
-    outsider = await make('P4a Outsider', 'team_member');
+    member = await make('P4a Member', 'executive');
+    outsider = await make('P4a Outsider', 'executive');
     headToken = tokenFor(head);
     adminToken = tokenFor(admin);
     memberToken = tokenFor(member);

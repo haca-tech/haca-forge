@@ -27,10 +27,10 @@ describe('departments in use', () => {
     for (const [key, code] of [['withPerson', 'inuse_person'], ['withWork', 'inuse_work'], ['suspendedOnly', 'inuse_susp'], ['empty', 'inuse_empty']]) {
       ids[key] = String((await Department.create({ name: `InUseTest ${key}`, code, type: code, isActive: true }))._id);
     }
-    const viewer = await Person.create({ name: 'InUse Viewer', email: 'viewer@dept-inuse-test.com', role: 'executive', status: 'active' });
+    const viewer = await Person.create({ name: 'InUse Viewer', email: 'viewer@dept-inuse-test.com', role: 'creative_head', status: 'active' });
     token = jwt.sign({ userId: viewer._id.toString(), email: viewer.email, role: viewer.role }, env.JWT_SECRET, { expiresIn: '1h' });
-    await Person.create({ name: 'InUse Active', email: 'a@dept-inuse-test.com', role: 'team_member', status: 'active', departmentId: ids.withPerson });
-    await Person.create({ name: 'InUse Suspended', email: 's@dept-inuse-test.com', role: 'team_member', status: 'suspended', departmentId: ids.suspendedOnly });
+    await Person.create({ name: 'InUse Active', email: 'a@dept-inuse-test.com', role: 'executive', status: 'active', departmentId: ids.withPerson });
+    await Person.create({ name: 'InUse Suspended', email: 's@dept-inuse-test.com', role: 'executive', status: 'suspended', departmentId: ids.suspendedOnly });
     await WorkItem.collection.insertOne({ title: 'InUseTest item', departmentId: new Department({ _id: ids.withWork })._id, status: 'Not Started' });
   });
   afterAll(cleanup);

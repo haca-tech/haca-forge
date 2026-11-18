@@ -75,7 +75,7 @@ describe("Pass 1: Session and Security Test Suite", () => {
     headUser = await Person.create({
       name: "Pass1 Head",
       email: "head@pass1-test.com",
-      role: "creative_head",
+      role: "creative_lead",
       status: "active",
       passwordHash: defaultPassHash,
       profileAccess: [profileHaca._id],
@@ -85,7 +85,7 @@ describe("Pass 1: Session and Security Test Suite", () => {
     execUser = await Person.create({
       name: "Pass1 Exec",
       email: "exec@pass1-test.com",
-      role: "executive",
+      role: "creative_head",
       status: "active",
       passwordHash: defaultPassHash,
       profileAccess: [profileHaca._id],
@@ -105,7 +105,7 @@ describe("Pass 1: Session and Security Test Suite", () => {
     memberUser = await Person.create({
       name: "Pass1 Member",
       email: "member@pass1-test.com",
-      role: "team_member",
+      role: "executive",
       status: "active",
       passwordHash: defaultPassHash,
       profileAccess: [profileHaca._id],
@@ -176,10 +176,10 @@ describe("Pass 1: Session and Security Test Suite", () => {
 
       for (const [roleName, token] of [
         ["admin", adminToken],
-        ["creative_head", headToken],
-        ["executive", execToken],
+        ["creative_lead", headToken],
+        ["creative_head", execToken],
         ["sm_manager", leadToken],
-        ["team_member", memberToken],
+        ["executive", memberToken],
       ]) {
         const socketMock = {
           handshake: { auth: { token }, headers: {} },
@@ -213,7 +213,8 @@ describe("Pass 1: Session and Security Test Suite", () => {
           .post("/api/reports/definitions/creative_production/generate")
           .set("Authorization", `Bearer ${token}`)
           .send({});
-        expect(res.status).toBe(404);
+        // A read-only head is refused every write before the route is looked up (Phase 12b).
+        expect(res.status).toBe(token === execToken ? 403 : 404);
       }
     });
   });
@@ -276,10 +277,10 @@ describe("Pass 1: Session and Security Test Suite", () => {
     it("Allows password change for each of the 5 roles", async () => {
       const rolesToTest = [
         { role: "admin", token: adminToken, email: adminUser.email },
-        { role: "creative_head", token: headToken, email: headUser.email },
-        { role: "executive", token: execToken, email: execUser.email },
+        { role: "creative_lead", token: headToken, email: headUser.email },
+        { role: "creative_head", token: execToken, email: execUser.email },
         { role: "sm_manager", token: leadToken, email: leadUser.email },
-        { role: "team_member", token: memberToken, email: memberUser.email },
+        { role: "executive", token: memberToken, email: memberUser.email },
       ];
 
       for (const item of rolesToTest) {

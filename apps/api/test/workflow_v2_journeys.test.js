@@ -84,7 +84,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
     creativeHeadUser = await Person.create({
       name: 'WV2 Creative Head',
       email: 'creative.head@wv2-journey.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       passwordHash: 'dummy',
       departmentId: deptCreative._id,
       status: 'active',
@@ -104,7 +104,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
     execUser = await Person.create({
       name: 'WV2 Executive',
       email: 'executive@wv2-journey.com',
-      role: 'executive',
+      role: 'creative_head',
       passwordHash: 'dummy',
       departmentId: deptCreative._id,
       status: 'active',
@@ -115,7 +115,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
     writerUser = await Person.create({
       name: 'WV2 Writer',
       email: 'writer@wv2-journey.com',
-      role: 'team_member',
+      role: 'executive',
       passwordHash: 'dummy',
       departmentId: deptContent._id,
       workPreferences: ['Content', 'Script'],
@@ -127,7 +127,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
     designerUser = await Person.create({
       name: 'WV2 Designer',
       email: 'designer@wv2-journey.com',
-      role: 'team_member',
+      role: 'executive',
       passwordHash: 'dummy',
       departmentId: deptCreative._id,
       workPreferences: ['Design'],
@@ -139,7 +139,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
     videographerUser = await Person.create({
       name: 'WV2 Videographer',
       email: 'videographer@wv2-journey.com',
-      role: 'team_member',
+      role: 'executive',
       passwordHash: 'dummy',
       departmentId: deptVideo._id,
       workPreferences: ['Shoot'],
@@ -151,7 +151,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
     editorUser = await Person.create({
       name: 'WV2 Editor',
       email: 'editor@wv2-journey.com',
-      role: 'team_member',
+      role: 'executive',
       passwordHash: 'dummy',
       departmentId: deptVideo._id,
       workPreferences: ['Edit'],
@@ -163,7 +163,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
     posterUser = await Person.create({
       name: 'WV2 Poster Publisher',
       email: 'poster@wv2-journey.com',
-      role: 'team_member',
+      role: 'executive',
       passwordHash: 'dummy',
       departmentId: deptSocial._id,
       workPreferences: ['Post'],
@@ -204,7 +204,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
           phone: '9876543210',
           department: deptContent.name,
           jobRole: 'Writer',
-          requestedRole: 'team_member',
+          requestedRole: 'executive',
           requestedProfileCodes: ['wv2_haca'],
           reason: 'Joining marketing copy team to write content.',
         });
@@ -217,7 +217,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           status: 'approved',
-          assignedRole: 'team_member',
+          assignedRole: 'executive',
           jobRole: 'Writer',
         });
       expect(approveRes.status).toBe(200);
@@ -225,7 +225,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
       // Verify Person was created
       approvedCandidate = await Person.findOne({ email: 'candidate@wv2-journey.com' });
       expect(approvedCandidate).toBeDefined();
-      expect(approvedCandidate.role).toBe('team_member');
+      expect(approvedCandidate.role).toBe('executive');
       expect(approvedCandidate.status).toBe('active');
     });
 

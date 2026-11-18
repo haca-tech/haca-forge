@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import { MediaThread } from '../MediaThread';
 
 vi.mock('../../../../context/AuthContext', () => ({
-  useAuth: () => ({ user: { _id: 'u-me', name: 'Me', role: 'creative_head' }, hasPermission: () => true }),
+  useAuth: () => ({ user: { _id: 'u-me', name: 'Me', role: 'creative_lead' }, hasPermission: () => true }),
 }));
 vi.mock('../../../../lib/api', () => ({
   apiFetch: async (raw?: string) => {
@@ -13,8 +13,8 @@ vi.mock('../../../../lib/api', () => ({
       return {
         data: {
           messages: [
-            { _id: 'm1', text: 'My own note on the intro', authorId: { _id: 'u-me', name: 'Me', role: 'creative_head' }, createdAt: '2026-11-01T10:00:00.000Z', seenBy: [] },
-            { _id: 'm2', text: 'Their reply about the intro', authorId: { _id: 'u-other', name: 'Other', role: 'team_member' }, createdAt: '2026-11-01T10:05:00.000Z', seenBy: [] },
+            { _id: 'm1', text: 'My own note on the intro', authorId: { _id: 'u-me', name: 'Me', role: 'creative_lead' }, createdAt: '2026-11-01T10:00:00.000Z', seenBy: [] },
+            { _id: 'm2', text: 'Their reply about the intro', authorId: { _id: 'u-other', name: 'Other', role: 'executive' }, createdAt: '2026-11-01T10:05:00.000Z', seenBy: [] },
           ],
         },
       };

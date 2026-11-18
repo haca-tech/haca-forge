@@ -3,7 +3,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 
-let currentRole = 'team_member';
+let currentRole = 'executive';
 
 vi.mock('../context/AuthContext', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -67,7 +67,7 @@ afterEach(() => cleanup());
 describe('team_member route boundaries', () => {
   for (const { path, heading } of ROUTES) {
     it(`${path}: team_member gets the not-found state and no page data is requested`, async () => {
-      currentRole = 'team_member';
+      currentRole = 'executive';
       visit(path);
       expect(await screen.findByRole('heading', { name: /page not found/i }, WAIT)).toBeInTheDocument();
       expect(screen.queryByRole('heading', { level: 1, name: heading })).not.toBeInTheDocument();

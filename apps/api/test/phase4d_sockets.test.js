@@ -75,9 +75,9 @@ describe('Phase 4d: sockets', () => {
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
     await make('admin', 'admin');
-    await make('head', 'creative_head');
-    await make('exec', 'executive');
-    for (const k of ['member', 'member2', 'outsider', 'leaver', 'suspendee', 'promotee', 'forced', 'revoker', 'logouter']) await make(k, 'team_member');
+    await make('head', 'creative_lead');
+    await make('exec', 'creative_head');
+    for (const k of ['member', 'member2', 'outsider', 'leaver', 'suspendee', 'promotee', 'forced', 'revoker', 'logouter']) await make(k, 'executive');
     group = await Channel.create({ name: `P4d group ${salt}`, type: 'group', createdById: people.head._id });
     await ChannelMember.create(
       ['head', 'member', 'member2', 'leaver', 'exec'].map((k) => ({ channelId: group._id, userId: people[k]._id, role: k === 'head' ? 'owner' : 'member' }))
@@ -111,7 +111,7 @@ describe('Phase 4d: sockets', () => {
     });
 
     it('refuses a suspended user even with a valid token', async () => {
-      const p = await make('alreadySuspended', 'team_member', { status: 'suspended' });
+      const p = await make('alreadySuspended', 'executive', { status: 'suspended' });
       const r = await connect(p);
       expect(r.ok).toBe(false);
       expect(r.error).toMatch(/suspended/i);
@@ -121,7 +121,7 @@ describe('Phase 4d: sockets', () => {
       const r = await connect(people.member2, { claims: { role: 'admin' } });
       expect(r.ok).toBe(true);
       io.to('role:admin').emit('p4d:probe', 'admin-room');
-      io.to('role:team_member').emit('p4d:probe', 'member-room');
+      io.to('role:executive').emit('p4d:probe', 'member-room');
       await wait(300);
       expect(got(r.socket, 'p4d:probe').map((e) => e.payload)).toEqual(['member-room']);
     });
@@ -169,7 +169,7 @@ describe('Phase 4d: sockets', () => {
       expect(await reason).toBe('io server disconnect');
       const again = await connect(people.promotee);
       expect(again.ok).toBe(true);
-      io.to('role:team_member').emit('p4d:role', 'old');
+      io.to('role:executive').emit('p4d:role', 'old');
       io.to('role:sm_manager').emit('p4d:role', 'new');
       await wait(300);
       expect(got(again.socket, 'p4d:role').map((e) => e.payload)).toEqual(['new']);

@@ -52,7 +52,7 @@ describe('Phase 7c: live reports', () => {
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    for (const [k, r] of [['head', 'creative_head'], ['sm', 'sm_manager'], ['exec', 'executive'], ['admin', 'admin'], ['worker', 'team_member'], ['other', 'team_member']]) await make(k, r);
+    for (const [k, r] of [['head', 'creative_lead'], ['sm', 'sm_manager'], ['exec', 'creative_head'], ['admin', 'admin'], ['worker', 'executive'], ['other', 'executive']]) await make(k, r);
 
     // A: Reel (ads), publish 10 Mar, posted 12 Mar (completed 2 days late).
     await piece('A', { calendar: 'ads', contentType: 'Reel', pipeline: 'reel_a', postingDate: '2025-03-10T00:00:00Z', publishedAt: '2025-03-12T05:00:00Z' });

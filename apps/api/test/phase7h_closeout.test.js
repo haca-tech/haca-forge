@@ -42,9 +42,9 @@ describe('Phase 7 close-out', () => {
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    await make('worker', 'team_member', { departmentId: dept });
+    await make('worker', 'executive', { departmentId: dept });
     await make('sm', 'sm_manager', { departmentId: dept });
-    await make('head', 'creative_head');
+    await make('head', 'creative_lead');
     await make('admin', 'admin');
   });
 

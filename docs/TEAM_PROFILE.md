@@ -2,7 +2,7 @@
 
 **Document Version:** 1.0.0  
 **Status:** SPECIFICATION READY FOR APPROVAL (PART A)  
-**Applicable Roles:** `admin`, `creative_head`, `sm_manager`, `executive`, `team_member`  
+**Applicable Roles:** `admin`, `creative_lead`, `sm_manager`, `creative_head`, `executive`  
 **Governing Documents:** `docs/WORKFLOW.md`, `docs/WORKSPACES.md`, `docs/PROFILE_SETTINGS.md`, `docs/METRICS.md`, `docs/UI_STANDARDS.md`, `docs/PROGRESS.md`
 
 ---
@@ -26,7 +26,7 @@
 
 1. **Fragmented People Views:**
    - `apps/web/src/pages/admin/UsersPage.tsx` (admin user grid) and `apps/web/src/pages/workload/TeamWorkloadPage.tsx` (workload member cards) present duplicate user summary cards with differing fields and styles.
-   - **Resolution:** Consolidate into the unified **Team Directory (`/team`)** as the primary entry in the main navigation for `admin`, `creative_head`, `sm_manager`, and `executive`. `/people` and `/admin/users` redirect to `/team`.
+   - **Resolution:** Consolidate into the unified **Team Directory (`/team`)** as the primary entry in the main navigation for `admin`, `creative_lead`, `sm_manager`, and `creative_head`. `/people` and `/admin/users` redirect to `/team`.
 2. **Duplicate Work History & Profile Views:**
    - `PersonWorkHistoryView.tsx` (`/team/members/:id/work`) and `ProfileView.tsx` (`/profile`) present disconnected slices of member information.
    - **Resolution:** Consolidate into a single polymorphic **Worker Profile component (`/team/:id` and `/profile`)**. The same component displays a worker's full management profile to leadership, and their own data to themselves at `/profile`.
@@ -39,15 +39,15 @@
 ## 2. Team Directory Specification (`/team`)
 
 ### 2.1 Navigation & Permissions
-- **Menu Entry:** Added to Main Navigation under `Organization -> Team Directory` (route `/team`) for `admin`, `creative_head`, `sm_manager`, and `executive`.
+- **Menu Entry:** Added to Main Navigation under `Organization -> Team Directory` (route `/team`) for `admin`, `creative_lead`, `sm_manager`, and `creative_head`.
 - **Permission Key:** `team.profile.view`.
-- **Access Rule:** `team_member` visiting `/team` is blocked (redirected or HTTP 403).
+- **Access Rule:** `executive` visiting `/team` is blocked (redirected or HTTP 403).
 
 ### 2.2 Directory Grid & Filters
 - **Member Row / Card Data:**
   - Avatar with status badge
   - Name (preferred name first, e.g., "Alex (Alexander Smith)")
-  - Role badge (e.g. `Team Member`, `Creative Head`, `SM Manager`, `Executive`, `Admin`)
+  - Role badge (e.g. `Executive`, `Creative Lead`, `SM Manager`, `Creative Head`, `Admin`)
   - Job Role (e.g. `Writer`, `Graphic Designer`, `Video Editor`)
   - Department (e.g. `SEO & Content`, `Design`, `Video Production`)
   - Status indicator (`Active` / `Suspended`)
@@ -55,7 +55,7 @@
   - 'Now' Indicator: Current active deliverable step and content title (e.g. `Content: Diwali Campaign Reel`)
   - Operational Counts: `In Progress`, `Waiting for Approval`, `Late`
 - **Filters Bar:**
-  - Role dropdown (`All`, `team_member`, `creative_head`, `sm_manager`, `executive`, `admin`)
+  - Role dropdown (`All`, `executive`, `creative_lead`, `sm_manager`, `creative_head`, `admin`)
   - Department dropdown (`All`, `Design`, `Video Production`, `SEO & Content`, `Social Media`, etc.)
   - Status toggle (`Active`, `Suspended`, `All`)
   - Load Band filter (`All`, `Healthy`, `High`, `Overloaded`)
@@ -79,13 +79,13 @@
 |--------------------------------------------------------------------------------------------------------------------|
 | MEMBER               ROLE & DEPT             STATUS     LOAD & BAND      NOW (CURRENT STEP)         IN PROG  WAIT  LATE|
 |--------------------------------------------------------------------------------------------------------------------|
-| (AV) Test Writer One  Team Member             Active     45% [Healthy]   Content: Diwali Reel #1        2      1     0 |
+| (AV) Test Writer One  Executive             Active     45% [Healthy]   Content: Diwali Reel #1        2      1     0 |
 |      Writer          SEO & Content                                       Due: Nov 5, 2026                          |
 |--------------------------------------------------------------------------------------------------------------------|
-| (AV) Test Designer    Team Member             Active     78% [High]      Design: Black Friday Carousel  3      2     1 |
+| (AV) Test Designer    Executive             Active     78% [High]      Design: Black Friday Carousel  3      2     1 |
 |      Graphic Designer Design                                             Due: Nov 4, 2026 (Late 1d)                |
 |--------------------------------------------------------------------------------------------------------------------|
-| (AV) Test Video Ed    Team Member             Active     92% [Overloaded] Edit: Product Teaser #2       4      0     0 |
+| (AV) Test Video Ed    Executive             Active     92% [Overloaded] Edit: Product Teaser #2       4      0     0 |
 |      Video Editor    Video Production                                    Due: Nov 7, 2026                          |
 +--------------------------------------------------------------------------------------------------------------------+
 ```
@@ -128,20 +128,20 @@
 ## 3. Worker Profile Specification (`/team/:id` and `/profile`)
 
 ### 3.1 Dual-Mount Route Architecture
-- **Management View (`/team/:id`):** Mounted for `admin`, `creative_head`, `sm_manager`, and `executive` to inspect, manage, and reassign work for any team member.
+- **Management View (`/team/:id`):** Mounted for `admin`, `creative_lead`, `sm_manager`, and `creative_head` to inspect, manage, and reassign work for any team member.
 - **Worker Self-View (`/profile`):** The exact same component renders for the logged-in user viewing their own profile.
-- **Worker Isolation Rule:** A `team_member` attempting to access `/team/:id` where `:id !== loggedInUserId` receives **HTTP 404 Not Found** (strictly 404, not 403, preventing account existence enumeration).
+- **Worker Isolation Rule:** A `executive` attempting to access `/team/:id` where `:id !== loggedInUserId` receives **HTTP 404 Not Found** (strictly 404, not 403, preventing account existence enumeration).
 
 ### 3.2 Transparency Notice (Self-View)
 When viewed by a worker at `/profile` (or when `isSelf === true` for a team member), a prominent glassmorphic transparency banner is displayed immediately under the header:
-> *"Your work history, timings and ratings are visible to the Admin, Creative Head, SM Manager and Executive."*
+> *"Your work history, timings and ratings are visible to the Admin, Creative Lead, SM Manager and Creative Head."*
 
 ### 3.3 Profile Header
 - **Avatar:** Large circular avatar with initials fallback and active status badge. (When viewing own profile, includes photo upload / crop button).
 - **Identity:** Full Name, Preferred Name in parenthesis if set (`Test Writer One (Alex)`).
-- **Role & Org Badges:** Role pill (`Team Member`), Job Role (`Writer`), Department (`SEO & Content`), Status pill (`Active` / `Suspended`).
+- **Role & Org Badges:** Role pill (`Executive`), Job Role (`Writer`), Department (`SEO & Content`), Status pill (`Active` / `Suspended`).
 - **Tenure & Access:** Member since (`createdAt` formatted as `MMM YYYY`), Last sign-in (`lastLoginAt` formatted as `DD/MM/YYYY hh:mm a` or `Never`).
-- **Contact Details (Strictly Hidden for `executive`):**
+- **Contact Details (Strictly Hidden for `creative_head`):**
   - Phone: `+91 9000000011`
   - WhatsApp: Direct link button to `https://wa.me/...`
   - Email: `writer1@demo.haca.local`
@@ -153,7 +153,7 @@ When viewed by a worker at `/profile` (or when `isSelf === true` for a team memb
 Mounted beneath the header across all tabs:
 1. **Load & Capacity Band:** e.g. `65% [High]` (or `Healthy` / `Overloaded`).
 2. **In Progress:** Count of currently active steps (`status === 'In Progress'`).
-3. **Waiting for Approval:** Count of steps submitted to Creative Head (`status === 'Feedback'`).
+3. **Waiting for Approval:** Count of steps submitted to Creative Lead (`status === 'Feedback'`).
 4. **Late:** Count of active deliverables past due date.
 5. **On-Time Rate:** Percentage of completed steps delivered on or before due date (`92%`).
 6. **Average Rating:** Star rating and numerical average (e.g. `★ 4.8 / 5.0`).
@@ -228,7 +228,7 @@ Applies dynamically across the **Work**, **Performance**, **Ratings**, and **Act
 - **Rating Distribution:**
   - Star distribution bars (5★, 4★, 3★, 2★, 1★).
 - **Recent Feedback Cards:**
-  - Star score, content piece title, step type, reviewer name (Creative Head), review date, and constructive feedback note.
+  - Star score, content piece title, step type, reviewer name (Creative Lead), review date, and constructive feedback note.
 
 ### Tab 5: Activity
 - Audit feed of the member's operational events over time:
@@ -241,7 +241,7 @@ Applies dynamically across the **Work**, **Performance**, **Ratings**, and **Act
 - **Privacy Enforcement:** **Zero chat messages, chat statistics, or private channel activities** are included in the activity feed.
 
 ### Tab 6: Changes (Audit Log)
-- **Role Access:** Visible **ONLY** to `admin` and `creative_head`. (Hidden for `sm_manager`, `executive`, and `team_member`).
+- **Role Access:** Visible **ONLY** to `admin` and `creative_lead`. (Hidden for `sm_manager`, `creative_head`, and `executive`).
 - **Audit Scope:** Records historical modifications to operational fields:
   - `Job Role`
   - `Department`
@@ -249,7 +249,7 @@ Applies dynamically across the **Work**, **Performance**, **Ratings**, and **Act
   - `Weekly Capacity Hours`
 - **Table Columns:**
   - Timestamp (Date and Time)
-  - Changed By (Admin / Creative Head name)
+  - Changed By (Admin / Creative Lead name)
   - Attribute Modified (e.g. `Weekly Capacity`)
   - Old Value (e.g. `30h / week`)
   - New Value (e.g. `40h / week`)
@@ -260,19 +260,19 @@ Applies dynamically across the **Work**, **Performance**, **Ratings**, and **Act
 ## 5. Reduced Profiles & Role Actions Matrix
 
 ### 5.1 Reduced Profiles for Non-Worker Roles
-When viewing profiles of users who are not individual creative workers (`sm_manager`, `creative_head`, `admin`, `executive`):
-- **`sm_manager` & `creative_head` Profile:**
+When viewing profiles of users who are not individual creative workers (`sm_manager`, `creative_lead`, `admin`, `creative_head`):
+- **`sm_manager` & `creative_lead` Profile:**
   - **Tabs Shown:** `Overview`, `Activity`, and **Role-Specific Operational Summary**.
-  - Operational Summary for Creative Head: Pending review queue count, review turnaround time, approval counts.
+  - Operational Summary for Creative Lead: Pending review queue count, review turnaround time, approval counts.
   - Operational Summary for SM Manager: Active plans managed, upcoming publications, calendar assignments.
   - `Work`, `Performance`, and `Ratings` tabs are omitted.
-- **`admin` & `executive` Profile:**
+- **`admin` & `creative_head` Profile:**
   - **Tabs Shown:** `Overview` only (System administration / corporate governance profile).
   - Operational tabs (`Work`, `Performance`, `Ratings`, `Changes`) are omitted.
 
 ### 5.2 Role Actions Matrix
 
-| Action | Admin | Creative Head | SM Manager | Executive | Team Member (Self) |
+| Action | Admin | Creative Lead | SM Manager | Creative Head | Executive (Self) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **View Profile & Directory** | Yes | Yes | Yes | Yes (No Contact) | Self Only |
 | **Reassign Active Steps** | Yes | Yes | Yes | No | No |
@@ -331,7 +331,7 @@ $$\text{FirstPassApprovalRate} = \frac{\text{CompletedSteps with } \text{Rounds}
 | [<- Back to Team Directory]                                                     [Reassign Steps] [Edit Details v]  |
 |                                                                                                                    |
 | (AVATAR)  Test Writer One (Alex)                       [Active]                 Member since: Nov 2026             |
-|           Role: Team Member  |  Job: Writer  |  Dept: SEO & Content             Last sign-in: Today, 10:15 AM       |
+|           Role: Executive  |  Job: Writer  |  Dept: SEO & Content             Last sign-in: Today, 10:15 AM       |
 |           Email: writer1@demo.haca.local  |  Phone: +91 9000000011  [WhatsApp]  Weekly Capacity: 40h / week        |
 |           Languages: English, Hindi  |  Skills: Copywriting, SEO, Scriptwriting                                    |
 |           Preferences: [Content] [Script]                                                                          |
@@ -362,11 +362,11 @@ $$\text{FirstPassApprovalRate} = \frac{\text{CompletedSteps with } \text{Rounds}
 ### 7.2 Mobile Wireframe (360px)
 ```text
 +---------------------------------------+
-| [< Back]  Team Member Profile   (AV)  |
+| [< Back]  Executive Profile   (AV)  |
 +---------------------------------------+
 | (AVATAR)                              |
 | Test Writer One (Alex)                |
-| Team Member * Writer                  |
+| Executive * Writer                  |
 | Dept: SEO & Content                   |
 | Status: [Active]                      |
 |                                       |
@@ -407,13 +407,13 @@ $$\text{FirstPassApprovalRate} = \frac{\text{CompletedSteps with } \text{Rounds}
 
 ### 8.1 Permission Configuration
 - Added permission key: `team.profile.view`.
-- Assigned to: `admin`, `creative_head`, `sm_manager`, `executive`.
+- Assigned to: `admin`, `creative_lead`, `sm_manager`, `creative_head`.
 
 ### 8.2 Endpoints Specification
 
 #### 1. `GET /api/team`
 - **Description:** Returns the filtered, paginated list of team members for the directory.
-- **Access:** `admin`, `creative_head`, `sm_manager`, `executive`.
+- **Access:** `admin`, `creative_lead`, `sm_manager`, `creative_head`.
 - **Query Parameters:**
   - `role`: Optional string enum filter.
   - `departmentId`: Optional ObjectId filter.
@@ -436,7 +436,7 @@ $$\text{FirstPassApprovalRate} = \frac{\text{CompletedSteps with } \text{Rounds}
         "name": "Test Writer One",
         "preferredName": "Alex",
         "avatarUrl": null,
-        "role": "team_member",
+        "role": "executive",
         "jobRole": "Writer",
         "department": { "_id": "...", "name": "SEO & Content" },
         "status": "active",
@@ -463,8 +463,8 @@ $$\text{FirstPassApprovalRate} = \frac{\text{CompletedSteps with } \text{Rounds}
 
 #### 2. `GET /api/team/:id`
 - **Description:** Returns base profile header, identity, skills, preferences, and KPI strip.
-- **Executive Privacy Rule:** If `req.user.role === 'executive'`, `email`, `phone`, and `whatsappNumber` fields are returned as `null`.
-- **Worker Isolation Rule:** If `req.user.role === 'team_member'` and `req.user._id.toString() !== req.params.id`, returns **HTTP 404**.
+- **Creative Head Privacy Rule:** If `req.user.role === 'creative_head'`, `email`, `phone`, and `whatsappNumber` fields are returned as `null`.
+- **Worker Isolation Rule:** If `req.user.role === 'executive'` and `req.user._id.toString() !== req.params.id`, returns **HTTP 404**.
 
 #### 3. `GET /api/team/:id/overview`
 - **Description:** Returns Right Now items, Next Up items, 8-week load history array, and work distribution.
@@ -485,11 +485,11 @@ $$\text{FirstPassApprovalRate} = \frac{\text{CompletedSteps with } \text{Rounds}
 
 #### 8. `GET /api/team/:id/changes`
 - **Description:** Audit log of modifications to `jobRole`, `departmentId`, `workPreferences`, and `weeklyCapacityHours`.
-- **Access Rule:** Accessible **ONLY** to `admin` and `creative_head`. Others receive HTTP 403.
+- **Access Rule:** Accessible **ONLY** to `admin` and `creative_lead`. Others receive HTTP 403.
 
 #### 9. Mutation Endpoints
-- `PATCH /api/team/:id`: Admin (all fields) / Creative Head (operational fields only: jobRole, departmentId, workPreferences, weeklyCapacityHours). Logs to changes audit.
-- `POST /api/team/:id/reassign`: Reassign active steps (`admin`, `creative_head`, `sm_manager`).
+- `PATCH /api/team/:id`: Admin (all fields) / Creative Lead (operational fields only: jobRole, departmentId, workPreferences, weeklyCapacityHours). Logs to changes audit.
+- `POST /api/team/:id/reassign`: Reassign active steps (`admin`, `creative_lead`, `sm_manager`).
 - `POST /api/team/:id/status`: Suspend or reactivate user (`admin` only).
 - `POST /api/team/:id/reset-password`: Send password reset link (`admin` only).
 - `POST /api/team/:id/force-logout`: Revoke all active sessions (`admin` only).
@@ -500,13 +500,13 @@ $$\text{FirstPassApprovalRate} = \frac{\text{CompletedSteps with } \text{Rounds}
 
 ### 9.1 Backend API Test Matrix (`test/team_profile_api.test.js`)
 1. **Access Control & RBAC:**
-   - Verify `admin`, `creative_head`, `sm_manager`, and `executive` can call `GET /api/team`.
-   - Verify `team_member` calling `GET /api/team` is rejected with 403.
-   - Verify `team_member` calling `GET /api/team/:otherId` receives **404 Not Found** (anti-harvesting).
-   - Verify `team_member` calling `GET /api/team/:ownId` succeeds (200 OK).
-2. **Executive Redaction:**
-   - Verify `executive` receiving `GET /api/team/:id` has `email: null`, `phone: null`, `whatsappNumber: null`.
-   - Verify `admin`, `creative_head`, and `sm_manager` receive full contact details.
+   - Verify `admin`, `creative_lead`, `sm_manager`, and `creative_head` can call `GET /api/team`.
+   - Verify `executive` calling `GET /api/team` is rejected with 403.
+   - Verify `executive` calling `GET /api/team/:otherId` receives **404 Not Found** (anti-harvesting).
+   - Verify `executive` calling `GET /api/team/:ownId` succeeds (200 OK).
+2. **Creative Head Redaction:**
+   - Verify `creative_head` receiving `GET /api/team/:id` has `email: null`, `phone: null`, `whatsappNumber: null`.
+   - Verify `admin`, `creative_lead`, and `sm_manager` receive full contact details.
 3. **Sorting Whitelist & Anti-Ranking:**
    - Verify sorting succeeds on `name`, `department`, `jobRole`, `load`.
    - Verify requesting sorting by `rating`, `speed`, or `performance` is rejected or defaults to `name`.
@@ -517,7 +517,7 @@ $$\text{FirstPassApprovalRate} = \frac{\text{CompletedSteps with } \text{Rounds}
    - User with 3 or more ratings returns calculated `averageRating`.
 6. **Changes Audit Logging:**
    - Update `jobRole` or `weeklyCapacityHours` via `PATCH /api/team/:id` and verify entry logged in changes table with `actorId`, `oldValue`, `newValue`.
-   - Verify `sm_manager` and `executive` cannot access `GET /api/team/:id/changes` (403 Forbidden).
+   - Verify `sm_manager` and `creative_head` cannot access `GET /api/team/:id/changes` (403 Forbidden).
 
 ### 9.2 Frontend Component Test Matrix (`apps/web/src/pages/team/__tests__/TeamProfileSuite.test.tsx`)
 1. **Team Directory Rendering & Filters:**
@@ -525,9 +525,9 @@ $$\text{FirstPassApprovalRate} = \frac{\text{CompletedSteps with } \text{Rounds}
    - Filters by role, department, load band, and late work.
 2. **Worker Profile Tabs:**
    - Renders Header, KPI strip, and tabs (Overview, Work, Performance, Ratings, Activity, Changes).
-   - Verifies transparency notice displays for `team_member` viewing `/profile`.
-   - Verifies Changes tab is hidden for `sm_manager`, `executive`, and `team_member`.
-   - Verifies Executive sees no contact details and no mutation action buttons.
+   - Verifies transparency notice displays for `executive` viewing `/profile`.
+   - Verifies Changes tab is hidden for `sm_manager`, `creative_head`, and `executive`.
+   - Verifies Creative Head sees no contact details and no mutation action buttons.
 
 ---
 

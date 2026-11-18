@@ -7,6 +7,7 @@ import {
   ROLE_KEYS,
   ROLE_LABELS,
   type UserRole,
+  WORKER_ROLE,
 } from '@mmp/shared';
 import {
   ShieldCheck,
@@ -67,7 +68,7 @@ export const AccessRequestsPage: React.FC = () => {
   });
 
   // Approve dialog form fields
-  const [assignedRole, setAssignedRole] = useState<UserRole>('team_member');
+  const [assignedRole, setAssignedRole] = useState<UserRole>(WORKER_ROLE);
   const [assignedJobRole, setAssignedJobRole] = useState<string>('');
   const [assignedDept, setAssignedDept] = useState<string>('');
   const [assignedReportsTo, setAssignedReportsTo] = useState<string[]>([]);
@@ -104,7 +105,7 @@ export const AccessRequestsPage: React.FC = () => {
         '/admin/access-requests/bulk-approve',
         {
           method: 'POST',
-          body: JSON.stringify({ requestIds: selectedIds, defaultRole: 'team_member', defaultCapacity: 40 }),
+          body: JSON.stringify({ requestIds: selectedIds, defaultRole: WORKER_ROLE, defaultCapacity: 40 }),
         }
       );
       alert(res.message || `Successfully processed ${selectedIds.length} access requests.`);
@@ -150,7 +151,7 @@ export const AccessRequestsPage: React.FC = () => {
   const openApproveModal = (req: AccessRequestItem) => {
     setSelectedRequest(req);
     setActionType('approve');
-    setAssignedRole(req.requestedRole || 'team_member');
+    setAssignedRole(req.requestedRole || WORKER_ROLE);
     setAssignedJobRole(req.jobRole || JOB_ROLES[0]);
     setAssignedDept(req.department || DEPARTMENTS[0].name);
     setAssignedReportsTo([]);

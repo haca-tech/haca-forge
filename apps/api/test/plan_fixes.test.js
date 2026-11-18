@@ -65,7 +65,7 @@ describe('PLAN LIST FIXES: Unit, API, Database Repair & Text Scan Suite', () => 
     headUser = await Person.create({
       name: 'Head Fixes User',
       email: 'head@plan-fixes-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       status: 'active',
     });
     headToken = makeToken(headUser);
@@ -508,8 +508,9 @@ describe('PLAN LIST FIXES: Unit, API, Database Repair & Text Scan Suite', () => 
         title: 'PF-ReelVideo Test Plan',
         code: 'PF-RV-01',
         kind: 'individual',
-        periodStart: new Date('2026-11-15T00:00:00.000Z'),
-        periodEnd: new Date('2026-11-15T00:00:00.000Z'),
+        // A fixed future date: the original 2026-11-15 is now in the past and the submit refuses it.
+        periodStart: new Date('2031-11-15T00:00:00.000Z'),
+        periodEnd: new Date('2031-11-15T00:00:00.000Z'),
         calendar: 'sm',
         createdById: smUser._id,
         status: 'Draft',
@@ -520,7 +521,7 @@ describe('PLAN LIST FIXES: Unit, API, Database Repair & Text Scan Suite', () => 
         topic: 'PF-ReelVideo Launch',
         type: 'Reel / Video',
         contentType: 'Reel / Video',
-        postingDate: new Date('2026-11-15T18:00:00.000Z'),
+        postingDate: new Date('2031-11-15T18:00:00.000Z'),
         brief: 'Deliverable brief for Reel / Video',
         calendar: 'sm',
         pipeline: 'reel_a',

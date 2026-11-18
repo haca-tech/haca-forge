@@ -212,7 +212,7 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
   };
 
   const canEdit = Boolean(data?.permissions.canEdit) && !data?.selectionRequired;
-  // Creative Head reviews rows; never edits planning fields (the API refuses those writes too).
+  // Creative Lead reviews rows; never edits planning fields (the API refuses those writes too).
   const canReview = Boolean(data?.permissions.canReview) && !data?.selectionRequired;
   const readOnly = Boolean(data?.permissions.readOnly); // executive
   const people = data?.people || [];
@@ -487,7 +487,7 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
     setSubmitting(true);
     try {
       await apiFetch(`/api/calendar-plans/${plan._id}/submit`, { method: 'POST' });
-      setNotice({ tone: 'ok', text: 'Sent to the Creative Head for review.' });
+      setNotice({ tone: 'ok', text: 'Sent to the Creative Lead for review.' });
       await load(keepUnsaved());
       onChanged?.();
     } catch (err) {

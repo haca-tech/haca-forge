@@ -42,9 +42,9 @@ describe('PG-3 plan grid review and roles', () => {
       });
     await mk('sm', 'PG3 SM Manager', 'sm_manager');
     await mk('admin', 'PG3 Admin', 'admin');
-    await mk('head', 'PG3 Creative Head', 'creative_head');
-    await mk('exec', 'PG3 Executive', 'executive');
-    await mk('member', 'PG3 Member', 'team_member', ['Content', 'Design', 'Post']);
+    await mk('head', 'PG3 Creative Head', 'creative_lead');
+    await mk('exec', 'PG3 Executive', 'creative_head');
+    await mk('member', 'PG3 Member', 'executive', ['Content', 'Design', 'Post']);
   });
   afterAll(cleanup);
 
@@ -92,16 +92,18 @@ describe('PG-3 plan grid review and roles', () => {
     expect(b.status).toBe('saved');
   });
 
-  it('only the Creative Head can review plan rows: admin is refused for every review action', async () => {
+  it('the leads review plan rows and admin is a backup reviewer (Phase 12b); a read-only head is refused', async () => {
+    const adminGrid = await request(app).get('/api/calendar-plans/grid').query({ calendar: CAL, month: MONTH }).set(as('admin'));
+    expect(adminGrid.body.data.permissions).toEqual({ canEdit: true, canReview: true, readOnly: false });
     for (const body of [
       { action: 'approve_selected', approvedRowIds: [rowB] },
       { action: 'approve_all' },
       { action: 'request_changes', changes: [{ rowId: rowB, comment: 'x' }] },
       { action: 'reject', rejectionConcern: 'x' },
     ]) {
-      const res = await request(app).post(`/api/calendar-plans/${planId}/review`).set(as('admin')).send(body);
+      const res = await request(app).post(`/api/calendar-plans/${planId}/review`).set(as('exec')).send(body);
       expect(res.status).toBe(403);
-      expect(res.body.error.code).toBe('FORBIDDEN_APPROVAL');
+      expect(res.body.error.code).toBe('READ_ONLY_ROLE');
     }
     expect((await ContentPiece.findById(rowB).lean()).rowStatus).toBe('changes_requested');
   });

@@ -16,7 +16,7 @@ import {
 import { apiFetch } from '../../../lib/api';
 import { useAuth } from '../../../context/AuthContext';
 import { Avatar } from '../../../components/Avatar';
-import { MediaMessageType } from '@mmp/shared';
+import { MediaMessageType, APPROVER_ROLES, isApprover, isReadOnlyViewer } from '@mmp/shared';
 import { ShareToChatModal } from '../../chat/ShareToChatModal';
 
 interface MediaThreadProps {
@@ -54,8 +54,8 @@ export const MediaThread: React.FC<MediaThreadProps> = ({
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const currentUserId = user?._id || (user as any)?.id || (user as any)?.userId;
-  const isReviewer = user?.role === 'creative_head' || user?.role === 'admin';
-  const isReadOnlyRole = user?.role === 'sm_manager' || user?.role === 'executive' || readOnly;
+  const isReviewer = isApprover(user?.role) || user?.role === 'admin';
+  const isReadOnlyRole = user?.role === 'sm_manager' || isReadOnlyViewer(user?.role) || readOnly;
 
   // Sync external timestamp from player "Reference this moment"
   useEffect(() => {
@@ -223,7 +223,7 @@ export const MediaThread: React.FC<MediaThreadProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {isApproved && user && (['admin', 'creative_head', 'sm_manager'].includes(user.role) || !isReadOnlyRole) && (
+          {isApproved && user && (['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role) || !isReadOnlyRole) && (
             <button
               type="button"
               onClick={() => setShowShareModal(true)}

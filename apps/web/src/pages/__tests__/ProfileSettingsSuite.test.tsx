@@ -193,7 +193,7 @@ describe('Profile & Settings Frontend Suite', () => {
     });
 
     it('Creative Head profile renders creative metrics: stages waiting approval & plans waiting', () => {
-      const profile = makeMockProfile('creative_head', {
+      const profile = makeMockProfile('creative_lead', {
         rolePanelData: {
           creativeMetrics: {
             stagesWaitingApproval: 5,
@@ -239,7 +239,7 @@ describe('Profile & Settings Frontend Suite', () => {
     });
 
     it('Executive profile renders companySummary: active users & active deliverables', () => {
-      const profile = makeMockProfile('executive', {
+      const profile = makeMockProfile('creative_head', {
         rolePanelData: {
           companySummary: {
             activeUsersCount: 28,
@@ -262,7 +262,7 @@ describe('Profile & Settings Frontend Suite', () => {
     });
 
     it('Team Member profile renders memberMetrics: current steps, load & on-time rate', () => {
-      const profile = makeMockProfile('team_member', {
+      const profile = makeMockProfile('executive', {
         rolePanelData: {
           memberMetrics: {
             myCurrentStepsCount: 3,
@@ -286,7 +286,7 @@ describe('Profile & Settings Frontend Suite', () => {
     });
 
     it('About form tracks character count, displays dirty warning, and cancels changes', () => {
-      const profile = makeMockProfile('team_member');
+      const profile = makeMockProfile('executive');
 
       render(
         <MemoryRouter>
@@ -309,7 +309,7 @@ describe('Profile & Settings Frontend Suite', () => {
     });
 
     it('Work details is read-only and Request a change button opens modal', () => {
-      const profile = makeMockProfile('team_member');
+      const profile = makeMockProfile('executive');
 
       render(
         <MemoryRouter>
@@ -330,7 +330,7 @@ describe('Profile & Settings Frontend Suite', () => {
     });
 
     it('Contact masking: hides contact info when fields are null (Worker / Executive viewing teammate)', () => {
-      const maskedProfile = makeMockProfile('team_member', {
+      const maskedProfile = makeMockProfile('executive', {
         email: null as any,
         phone: null as any,
         whatsappNumber: null as any,

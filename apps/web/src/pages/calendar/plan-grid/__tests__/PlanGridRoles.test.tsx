@@ -10,7 +10,7 @@ import type { GridData, GridRow } from '../types';
 const calls: { url: string; method: string; body: any }[] = [];
 let gridResponse: GridData;
 let saveHandler: (body: any) => any;
-let role = 'creative_head';
+let role = 'creative_lead';
 
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: { _id: 'u1', role, name: 'User' }, hasPermission: () => true }) }));
 vi.mock('../../../../lib/api', async () => {
@@ -46,9 +46,9 @@ const individualApprovalPlans = [
 ];
 
 const people = [
-  { _id: 'p-writer', name: 'Asha Writer', role: 'team_member', workPreferences: ['Script', 'Content'] },
-  { _id: 'p-editor', name: 'Ravi Editor', role: 'team_member', workPreferences: ['Edit'] },
-  { _id: 'p-designer', name: 'Dia Designer', role: 'team_member', workPreferences: ['Design'] },
+  { _id: 'p-writer', name: 'Asha Writer', role: 'executive', workPreferences: ['Script', 'Content'] },
+  { _id: 'p-editor', name: 'Ravi Editor', role: 'executive', workPreferences: ['Edit'] },
+  { _id: 'p-designer', name: 'Dia Designer', role: 'executive', workPreferences: ['Design'] },
 ];
 const base: GridRow = {
   rowId: 'r1', rowStatus: 'submitted', editable: true, postingDate: '2031-11-12', topic: 'Founder reel', type: 'Reel',
@@ -83,7 +83,7 @@ const reviewCalls = () => calls.filter((c) => c.url === '/api/calendar-plans/pla
 let mql: ((q: string) => boolean) | null = null;
 beforeEach(() => {
   calls.length = 0;
-  role = 'creative_head';
+  role = 'creative_lead';
   saveHandler = () => ({ calendar: 'sm', month: '2031-11', dryRun: false, planCreated: false, plan: grid().plan, paste: null, counts: { total: 0, saved: 0, valid: 0, invalid: 0, locked: 0 }, results: [], warnings: [] });
   mql = null;
   Object.defineProperty(window, 'matchMedia', {
@@ -164,7 +164,7 @@ describe('Creative Head review in the grid', () => {
 
 describe('Executive read-only grid', () => {
   it('hides editing, paste, delete, submit and review actions', async () => {
-    role = 'executive';
+    role = 'creative_head';
     await show({ permissions: { canEdit: false, canReview: false, readOnly: true } });
     expect(screen.getByText('Read-only view. Contact details are not shown.')).toBeInTheDocument();
     for (const name of [/Download Template/, /^Upload$/, /Submit for review/, /Approve selected/, /Approve whole plan/]) {
@@ -267,9 +267,9 @@ describe('Accessible names and cell errors', () => {
 
 describe('Plans waiting for approval (Feedback page)', () => {
 
-  it('monthly plans: admin and Creative Head get the plan grid link, and no review buttons here', async () => {
+  it('monthly plans: admin (backup reviewer) and the Creative Lead get the review link, and no review buttons here', async () => {
     approvalPlans = monthlyApprovalPlans;
-    for (const r of ['admin', 'creative_head']) {
+    for (const r of ['admin', 'creative_lead']) {
       role = r;
       const { unmount } = render(
         <MemoryRouter>
@@ -277,16 +277,16 @@ describe('Plans waiting for approval (Feedback page)', () => {
         </MemoryRouter>
       );
       await screen.findByRole('button', { name: /PLAN-2031-11-001/ });
-      expect(await screen.findByRole('button', { name: r === 'admin' ? 'View in plan grid' : 'Review in plan grid' })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: 'Review in plan grid' })).toBeInTheDocument();
       expect(screen.getByText('Monthly plans are reviewed row by row in the plan grid.')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Approve All Rows|Approve Selected|Request Changes/ })).not.toBeInTheDocument();
       unmount();
     }
   });
 
-  it('individual plans (not in the grid) keep their review here, for the Creative Head only', async () => {
+  it('individual plans (not in the grid) keep their review here, for the leads and admin', async () => {
     approvalPlans = individualApprovalPlans;
-    role = 'creative_head';
+    role = 'creative_lead';
     const { unmount } = render(
       <MemoryRouter>
         <PlansApprovalTab />
@@ -296,14 +296,25 @@ describe('Plans waiting for approval (Feedback page)', () => {
     expect(await screen.findByRole('button', { name: 'Approve All Rows' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /in plan grid/ })).not.toBeInTheDocument();
     unmount();
+    // Admin is a backup reviewer (Phase 12b): the same review buttons.
     role = 'admin';
+    const admin = render(
+      <MemoryRouter>
+        <PlansApprovalTab />
+      </MemoryRouter>
+    );
+    await screen.findByRole('button', { name: /PLAN-2031-11-002/ });
+    expect(await screen.findByRole('button', { name: 'Approve All Rows' })).toBeInTheDocument();
+    admin.unmount();
+    // A read-only head sees the plan, with no review buttons.
+    role = 'creative_head';
     render(
       <MemoryRouter>
         <PlansApprovalTab />
       </MemoryRouter>
     );
     await screen.findByRole('button', { name: /PLAN-2031-11-002/ });
-    expect(await screen.findByText('Only the Creative Head can approve or return plan rows.')).toBeInTheDocument();
+    expect(await screen.findByText('Only a Creative Lead, a Growth Lead or an Admin can approve or return plan rows.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Approve All Rows' })).not.toBeInTheDocument();
   });
 });

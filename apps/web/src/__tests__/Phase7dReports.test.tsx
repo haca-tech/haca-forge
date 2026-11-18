@@ -15,7 +15,7 @@ vi.mock('../lib/api', () => ({
     throw err;
   }),
 }));
-vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { _id: 'u1', role: 'creative_head' }, hasPermission: () => true }) }));
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { _id: 'u1', role: 'creative_lead' }, hasPermission: () => true }) }));
 // Charts render their own SVG; the figures under test are in the tables.
 vi.mock('recharts', async () => {
   const Stub = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;

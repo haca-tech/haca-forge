@@ -15,12 +15,12 @@ const NEW_DUE = '2031-06-20T00:00:00.000Z';
 const ROLES = {
   admin: 'admin',
   sm: 'sm_manager',
-  head: 'creative_head',
-  exec: 'executive',
-  owner: 'team_member',
-  teammate: 'team_member',
-  outsider: 'team_member',
-  headOwner: 'creative_head',
+  head: 'creative_lead',
+  exec: 'creative_head',
+  owner: 'executive',
+  teammate: 'executive',
+  outsider: 'executive',
+  headOwner: 'creative_lead',
 };
 const EMAIL = (key) => `patch.access.${key.toLowerCase()}@example.com`;
 

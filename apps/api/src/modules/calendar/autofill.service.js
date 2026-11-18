@@ -4,6 +4,8 @@ import {
   DEFAULT_STAGE_HOURS,
   isPostableWorkType,
   normalizeWorkType,
+  WORKER_ROLE,
+  effectiveStepsFor,
 } from '@mmp/shared';
 import { Person } from '../people/model.js';
 import { WorkItem } from '../workItems/model.js';
@@ -20,8 +22,9 @@ const OPEN_STATUSES = ['Not Started', 'In Progress', 'Feedback'];
  * `estimatedEffortHrs || 4`, revisions use `avgRevisions || 90-day entries || 0`.
  */
 export async function buildAutofillContext() {
-  // Strictly team members (exclude admin, creative_head, sm_manager, executive)
-  const members = await Person.find({ role: 'team_member', status: 'active' }).lean();
+  // Workers for the creation steps, SM Managers for Post (Phase 12b). Each person's steps
+  // come from their job role, narrowed by their preferences (effectiveStepsFor).
+  const members = await Person.find({ role: { $in: [WORKER_ROLE, 'sm_manager'] }, status: 'active' }).lean();
   const ids = members.map((m) => m._id);
 
   const openItems = await WorkItem.find({ ownerId: { $in: ids }, status: { $in: OPEN_STATUSES } })
@@ -56,7 +59,7 @@ export async function buildAutofillContext() {
       const k = String(member._id);
       return {
         member,
-        workPreferences: member.workPreferences || [],
+        workPreferences: effectiveStepsFor(member),
         capacity: member.weeklyCapacityHours || 40,
         existingHours: openHours.get(k) || 0,
         revisionsCount: member.avgRevisions || revisions.get(k) || 0,

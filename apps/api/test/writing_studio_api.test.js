@@ -47,7 +47,7 @@ describe('WS2: Writing Studio API & Single-Editor Lock Suite', () => {
     writerUser = await Person.create({
       name: 'Ananya Writer',
       email: 'ananya@writing-studio-test.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Content',
       jobRole: 'Writer',
       status: 'active',
@@ -58,7 +58,7 @@ describe('WS2: Writing Studio API & Single-Editor Lock Suite', () => {
     writer2User = await Person.create({
       name: 'Kiran Writer',
       email: 'kiran@writing-studio-test.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Content',
       jobRole: 'Writer',
       status: 'active',
@@ -69,7 +69,7 @@ describe('WS2: Writing Studio API & Single-Editor Lock Suite', () => {
     headUser = await Person.create({
       name: 'Siddharth Head',
       email: 'siddharth@writing-studio-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       department: 'Creative',
       jobRole: 'Creative Manager (TL)',
       status: 'active',
@@ -80,9 +80,9 @@ describe('WS2: Writing Studio API & Single-Editor Lock Suite', () => {
     shooterUser = await Person.create({
       name: 'Vishnu Videographer',
       email: 'vishnu@writing-studio-test.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Video',
-      jobRole: 'Videographer',
+      jobRole: 'Cinematographer',
       status: 'active',
       authMethod: 'password',
       profileAccess: [profileDoc._id],

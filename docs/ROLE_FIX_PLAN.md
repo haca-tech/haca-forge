@@ -6,7 +6,7 @@
 
 ## 1. Status in one page
 
-**Solid, according to the documentation:** five roles with CASL permissions, `resolveScope` on every query, the Target to Campaign to Work Item rule, the work item state machine with the approver and self-approval guards, auto-assignment with an override log, feedback rounds, revision flags, blockers with dependency alerts, the 9-section dashboard, the LSQ funnel and Data Center (on mock data), 7 automation rules, 6 reports, the Executive read-only lock, and 211 passing API tests.
+**Solid, according to the documentation:** five roles with CASL permissions, `resolveScope` on every query, the Target to Campaign to Work Item rule, the work item state machine with the approver and self-approval guards, auto-assignment with an override log, feedback rounds, revision flags, blockers with dependency alerts, the 9-section dashboard, the LSQ funnel and Data Center (on mock data), 7 automation rules, 6 reports, the Creative Head read-only lock, and 211 passing API tests.
 
 **Not built:** ContentPiece and the Content Tracker (your real SM workflow), My Account editing and the first-login step, the role cards, HACA-only mode, and any role-based UI tests.
 
@@ -25,7 +25,7 @@
 | A5 | Reports 'Generate Now' accepts `campaign.manage` | Team leads can email reports. The plan says Head and Admin only | Team Lead | P1 | Require `report.configure` only |
 | A6 | ~~Data Center 'resolve' writes `profileId` and `leadSource` on a lead~~ | **NO LONGER APPLIES (SCOPE RESET):** Data Center, Leads, and LSQ sync are completely removed from the portal scope. | - | Retired | None (domain removed) |
 | A7 | ~~DELETE exists for targets and campaigns~~ | **NO LONGER APPLIES (SCOPE RESET):** Monthly Targets and Campaigns models and routes are completely removed from the portal scope. | - | Retired | None (domain removed) |
-| A8 | A marketing\_head may edit other marketing\_head accounts (only admin and executive are protected) | Heads can change each other | Head | P2 Verify | Protect admin, executive and marketing\_head |
+| A8 | A marketing\_head may edit other marketing\_head accounts (only admin and creative_head are protected) | Heads can change each other | Head | P2 Verify | Protect admin, creative_head and marketing\_head |
 | A9 | No change-password endpoint. Password rule is 8 characters only. No documented rate limit on forgot-password | Weak account hygiene | All | P2 | Add change password, require 8+ with an uppercase letter and a number, rate limit forgot-password |
 | A10 | Swagger is open outside production | API surface visible in staging | Admin | P2 | Admin only outside local development |
 | A11 | Access-request alerts go only to `ADMIN_SEED_EMAIL` | Missed requests if that mailbox changes | Admin | P2 | Notify every active admin |
@@ -36,7 +36,7 @@
 | --- | --- | --- | --- | --- | --- |
 | B1 | The feedback read endpoints need `analytics.team` or `portal.view`, which members lack | Members cannot read revision notes on their own work | Member | **P0** Verify | Let the owner and the reviewers read their own item's thread |
 | B2 | POST /api/work accepts `work.request`, which members hold. No WorkRequest record exists in the data model | Members may create work directly, or have no way to ask a lead for work | Member | **P0** Verify | Add WorkRequest (to a team lead). Members cannot create work items |
-| B3 | Only the Creative Head, Head and Admin can approve. Other team leads cannot approve standalone work | A Design Lead cannot approve their own team's non-content work | Team Lead | P1 Decision | Team lead of the owner approves standalone items. Content stages stay with the Creative Head |
+| B3 | Only the Creative Lead, Head and Admin can approve. Other team leads cannot approve standalone work | A Design Lead cannot approve their own team's non-content work | Team Lead | P1 Decision | Team lead of the owner approves standalone items. Content stages stay with the Creative Lead |
 | B4 | PATCH /api/work/:id uses `work.update.own` for all fields | A member might edit deadline, priority, effort or brief | Member | P1 Verify | Field-level rules: members edit actual effort, links and deliverable only |
 | B5 | People over 85% are ranked last, not excluded | An overloaded person can still be recommended | Team Lead, Head | P1 Verify | Exclude them. If nobody qualifies, say why |
 | B6 | Workload percentage is capped at 100 | Hides how overloaded someone is | Team Lead, Head | P2 | Show the real number, cap only the bar |
@@ -101,15 +101,15 @@
 - **Never:** appears in workload or in assignment recommendations.
 - **Fixes:** A4, A9, A10, A11, C1 to C5 (B10 retired by scope reset).
 
-### 3.2 Creative Head (formerly Marketing Head)
+### 3.2 Creative Lead (formerly Marketing Head)
 
 - **Lands on:** /dashboard
 - **Menu:** Dashboard, Calendar (with Plans & Tracker), Work, Reviews & Approvals, Issues, Workload, Reports and Automation, People (operating fields only), My Account
 - **Daily flow:** verify and approve calendar plans, watch Overdue, Blocked and Flags, approve or request revisions on review stages, classify revision causes, pause or run automation rules, Generate Now, edit people's department, job role, work preferences, reports-to and capacity.
-- **Cannot:** create or suspend users, change roles, upload calendar plans, or touch admin, executive or other creative_head accounts.
+- **Cannot:** create or suspend users, change roles, upload calendar plans, or touch admin, creative_head or other creative_lead accounts.
 - **Fixes:** A5, A8, B11, C5 (A6, A7, B10 retired by scope reset).
 
-### 3.3 Executive
+### 3.3 Creative Head
 
 - **Lands on:** /dashboard
 - **Menu:** the same screens as the Head, read-only. No My Work, no Access Requests. People is masked (no email or phone).
@@ -121,11 +121,11 @@
 
 - **Lands on:** /dashboard
 - **Menu:** Dashboard, Calendar (with Plans & Tracker), Work, Issues, Workload, Reports (view), My Account
-- **Daily flow:** create and upload calendar plans (Monthly or Project), submit to Creative Head, assign stages by work preference with 1-click confirmation or override, set and shift deadlines, resolve blockers, track all stages in Content Tracker, watch workload.
+- **Daily flow:** create and upload calendar plans (Monthly or Project), submit to Creative Lead, assign stages by work preference with 1-click confirmation or override, set and shift deadlines, resolve blockers, track all stages in Content Tracker, watch workload.
 - **Cannot:** approve calendar plans or review stages, create users, Generate Now.
-- **Fixes:** B5, B8, B9, E1 to E3 (standalone lead approver B3 replaced by creative_head approval).
+- **Fixes:** B5, B8, B9, E1 to E3 (standalone lead approver B3 replaced by creative_lead approval).
 
-### 3.5 Team Member
+### 3.5 Executive
 
 - **Lands on:** /my-work
 - **Menu:** My Work, Todo, Calendar (own items), Notifications, My Account. No Workload, Reports, or People.
@@ -147,13 +147,13 @@
 | # | Flow | Steps and who does them | Fix |
 | --- | --- | --- | --- |
 | 1 | Onboarding | Candidate submits Request Access (department, job role, requested role, reason). **Admin** approves with the final role, job role, department, work preferences, reports-to and capacity. Invite email (48 hours). The person sets a password, completes **/welcome** (name, phone, photo), and lands on their home screen | A9, A11, C1, C3, C5 |
-| 2 | Plan the month / project | **SM Manager** creates Calendar Plan (upload CSV/Excel or grid) and submits. **Creative Head** approves all, approves selected rows, or requests changes. Approved rows generate ContentPieces and stages | E1 to E3 (D4, B10, A7 retired) |
+| 2 | Plan the month / project | **SM Manager** creates Calendar Plan (upload CSV/Excel or grid) and submits. **Creative Lead** approves all, approves selected rows, or requests changes. Approved rows generate ContentPieces and stages | E1 to E3 (D4, B10, A7 retired) |
 | 3 | Create and assign work | SM Manager opens Assign Stages. Recommendations generated from work preferences and capacity (<85%). SM Manager confirms all with one click or overrides. The owner is notified | B5, B6, D5, D6 |
 | 4 | Do the work | **Member** starts in My Work, then submits for approval (review stages) or clicks Done and forward (non-review stages). Next stage unlocks | B1, B4, E1 |
-| 5 | Review | **Creative Head** approves, or requests a revision with notes. The member replies and resubmits. The fourth revision raises a flag classified by Creative Head | B7, E4 (B3 superseded by creative_head) |
+| 5 | Review | **Creative Lead** approves, or requests a revision with notes. The member replies and resubmits. The fourth revision raises a flag classified by Creative Lead | B7, E4 (B3 superseded by creative_lead) |
 | 6 | Blockers | **Member** marks Blocked with a reason and dependency owner, who is notified. In content pieces the previous stage owner is suggested | E1 |
 | 7 | Publish and measure | **Posting owner** publishes and enters live link and date. Turnaround is calculated | Scope Reset (D7, D8, A6, B10 retired) |
-| 8 | Report | Automation rules run and build the 4 reports. **Creative Head or Admin** can Generate Now. Executives view in app | A5, B11 |
+| 8 | Report | Automation rules run and build the 4 reports. **Creative Lead or Admin** can Generate Now. Creative Heads view in app | A5, B11 |
 
 ## 5. Fix passes
 
@@ -165,7 +165,7 @@ Do each pass in a **new conversation**, then commit and tag it (`mos-fix-pass-N-
 | 0 | Verify (read-only) | Every item marked Verify | `docs/ROLE_FIX_VERIFICATION.md` lists each as Confirmed, Partly or Not an issue, with file and line evidence |
 | 1 | Session and security | A1 to A5, A8 to A11 (A6, A7, B10, D8 retired) | The app refreshes silently after the token expires. Unauthenticated sockets are rejected. A non-admin/head gets 403 on Generate Now. The credentials file is out of git. |
 | 2 | Permissions and workflow rules | B1, B2, B4 to B9, B11, E4, E5 (B3, B10 retired) | A member reads and replies to the thread on their own item. A member cannot create work but can request it. Field-level edit rules hold. Overloaded people are never recommended. Revisions count rounds. Escalation jobs are scheduled and show their last run |
-| 3 | People, My Account and onboarding | C1 to C6 | Every role can edit name, phone and photo and change the password. The five role cards show. /welcome appears once. Admin and Creative Head can edit work preferences. Forgot password works |
+| 3 | People, My Account and onboarding | C1 to C6 | Every role can edit name, phone and photo and change the password. The five role cards show. /welcome appears once. Admin and Creative Lead can edit work preferences. Forgot password works |
 | 4 | Data corrections and HACA only | D1 to D3, D5, D6, F6 (D4, D7 retired) | Only HACA is active. The seven agreed departments exist. WorkItem has all fields cleaned. The standard work types exist. Single-brand mode applied. |
 | 5 | Content flow (Phase 5b) | E1 to E3 | The Phase 5b acceptance criteria |
 | 6 | Tests and hygiene | F1 to F5 | Role-based UI tests and one Playwright journey per role pass in CI. The route-table walk passes for all five roles. Legacy routes and scripts are gone. The repo is outside OneDrive |
@@ -178,16 +178,16 @@ Do each pass in a **new conversation**, then commit and tag it (`mos-fix-pass-N-
 | --- | --- |
 | **Admin** | Approve a request with work preferences and see the invite in the log. Create a user directly. Suspend and reactivate. Confirm Admin is in no workload or recommendation list. Stay signed in after 20 minutes. Check the Access Requests badge count |
 | **Marketing Head** | Set the monthly target. Create a campaign (blocked without a target). Try to create a user (blocked). Try to edit another head (blocked). Generate Now works. Pause a rule and see it not run. Classify a revision cause |
-| **Executive** | Every screen opens. No create, edit, approve, generate, notify or classify control anywhere. A direct API write returns 403. People shows no email or phone. The Tracker is read-only |
-| **Team Lead** | Create work and see the recommendation card. An overloaded person is not recommended. Generate Now is blocked. Other teams' people and performance are not visible. Approve own team's standalone work. SM Manager: assign stages, cannot approve. Creative Head: approves, cannot assign |
-| **Team Member** | Lands on My Work. Start, Submit, Done and forward. Read and reply to revision notes. Mark Blocked with a dependency owner. Request Work. /campaigns, /reports, /leads and /people are refused. Cannot edit deadline or priority. Sees only their own items |
+| **Creative Head** | Every screen opens. No create, edit, approve, generate, notify or classify control anywhere. A direct API write returns 403. People shows no email or phone. The Tracker is read-only |
+| **Team Lead** | Create work and see the recommendation card. An overloaded person is not recommended. Generate Now is blocked. Other teams' people and performance are not visible. Approve own team's standalone work. SM Manager: assign stages, cannot approve. Creative Lead: approves, cannot assign |
+| **Executive** | Lands on My Work. Start, Submit, Done and forward. Read and reply to revision notes. Mark Blocked with a dependency owner. Request Work. /campaigns, /reports, /leads and /people are refused. Cannot edit deadline or priority. Sees only their own items |
 | **Everyone** | Edit profile, change password, first-login /welcome, forgot password, stay signed in past 15 minutes |
 
 ## 7. Decisions and the defaults used
 
 | # | Decision | Default |
 | --- | --- | --- |
-| 1 | Who approves standalone (non-content) work | The team lead of the owner, plus the Creative Head, Head and Admin |
+| 1 | Who approves standalone (non-content) work | The team lead of the owner, plus the Creative Lead, Head and Admin |
 | 2 | Can members create work | No. They send a Request Work to a team lead |
 | 3 | Brands | HACA only. Other profiles inactive and hidden |
 | 4 | Departments | Design, Video Production, Social Media, SEO & Content, WhatsApp, Performance Marketing, Tech |

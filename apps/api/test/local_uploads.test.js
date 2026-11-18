@@ -19,7 +19,7 @@ describe('Local File Uploads Engine', () => {
     testUser = await User.create({
       name: 'Local Test Shooter',
       email: `shooter_local_${Date.now()}@haca.local`,
-      role: 'team_member',
+      role: 'executive',
       status: 'active',
       password: 'password123',
     });

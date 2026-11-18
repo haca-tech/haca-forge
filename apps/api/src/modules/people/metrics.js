@@ -1,3 +1,4 @@
+import { READ_ONLY_VIEWER_ROLES } from '@mmp/shared';
 import { WorkItem } from '../workItems/model.js';
 import { FeedbackEntry } from '../feedback/model.js';
 import { Person } from './model.js';
@@ -264,7 +265,7 @@ export async function calculateTeamPerformance(filters = {}, actor = null) {
     return { overallTeamScore: 0, members: [] };
   }
 
-  const query = { status: { $ne: 'suspended' }, role: { $nin: ['admin', 'executive'] } };
+  const query = { status: { $ne: 'suspended' }, role: { $nin: ['admin', ...READ_ONLY_VIEWER_ROLES] } };
   if (scope.allowedPersonIds !== null) {
     query._id = { $in: scope.allowedPersonIds };
   }

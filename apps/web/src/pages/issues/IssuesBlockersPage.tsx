@@ -8,6 +8,7 @@ import {
   CANONICAL_REVISION_ROOT_CAUSES,
   type BlockerReason,
   type CanonicalRevisionRootCause,
+  isApprover,
 } from '@mmp/shared';
 import {
   ShieldAlert,
@@ -116,7 +117,7 @@ interface OpenWorkItemOption {
 export const IssuesBlockersPage: React.FC = () => {
   const { user, hasPermission } = useAuth();
   // Same permissions the API checks on /api/blockers create, resolve and notify (blockers/routes.js).
-  // Every role except executive holds one of them, so only executive loses these actions.
+  // Every role except creative_head/production_head holds one of them, so only creative_head/production_head loses these actions.
   const canManageBlockers = hasPermission('work.request') || hasPermission('work.update.own');
   // Same rule as the API: resolving or reminding is for the step owner, an SM Manager or an Admin.
   const canActOnBlocker = (blocker: BlockerItem) => {
@@ -338,7 +339,7 @@ export const IssuesBlockersPage: React.FC = () => {
     });
   }, [revisionFlags, searchQuery]);
 
-  const isLeadOrAdmin = user?.role === 'admin' || user?.role === 'creative_head' || user?.role === 'sm_manager';
+  const isLeadOrAdmin = user?.role === 'admin' || isApprover(user?.role) || user?.role === 'sm_manager';
 
   return (
     <div className="space-y-6 pb-12">
@@ -662,7 +663,7 @@ export const IssuesBlockersPage: React.FC = () => {
                         </div>
                       ) : (
                         <p className="text-[11px] text-ui-muted italic">
-                          Requires SM Manager or Creative Head root-cause classification.
+                          Requires SM Manager or Creative Lead root-cause classification.
                         </p>
                       )}
                     </div>

@@ -65,7 +65,7 @@ describe('Team Chat Comprehensive API Suite (Phase CH1)', () => {
       name: 'Creative Head User',
       preferredName: 'CreativeBoss',
       email: `head-${salt}@chat.com`,
-      role: 'creative_head',
+      role: 'creative_lead',
       status: 'active',
       profileId: testProfile._id,
     });
@@ -80,7 +80,7 @@ describe('Team Chat Comprehensive API Suite (Phase CH1)', () => {
     exec = await Person.create({
       name: 'Executive Viewer',
       email: `exec-${salt}@chat.com`,
-      role: 'executive',
+      role: 'creative_head',
       status: 'active',
       profileId: testProfile._id,
     });
@@ -88,7 +88,7 @@ describe('Team Chat Comprehensive API Suite (Phase CH1)', () => {
       name: 'Worker Alpha',
       preferredName: 'AlphaDev',
       email: `workera-${salt}@chat.com`,
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Video Editor',
       status: 'active',
       profileId: testProfile._id,
@@ -97,15 +97,15 @@ describe('Team Chat Comprehensive API Suite (Phase CH1)', () => {
       name: 'Worker Beta',
       preferredName: 'BetaDesigner',
       email: `workerb-${salt}@chat.com`,
-      role: 'team_member',
-      jobRole: 'Designer',
+      role: 'executive',
+      jobRole: 'Graphic Designer',
       status: 'active',
       profileId: testProfile._id,
     });
     suspendedUser = await Person.create({
       name: 'Suspended Worker',
       email: `suspended-${salt}@chat.com`,
-      role: 'team_member',
+      role: 'executive',
       status: 'suspended',
       profileId: testProfile._id,
     });
@@ -370,7 +370,7 @@ describe('Team Chat Comprehensive API Suite (Phase CH1)', () => {
         .send({ targetUserId: workerA._id.toString() });
 
       expect(res.status).toBe(403);
-      expect(['FORBIDDEN', 'EXECUTIVE_CANNOT_DM']).toContain(res.body.error.code);
+      expect(['FORBIDDEN', 'EXECUTIVE_CANNOT_DM', 'READ_ONLY_ROLE']).toContain(res.body.error.code);
     });
 
     it('denies messaging an executive directly (HTTP 403)', async () => {
@@ -380,7 +380,7 @@ describe('Team Chat Comprehensive API Suite (Phase CH1)', () => {
         .send({ targetUserId: exec._id.toString() });
 
       expect(res.status).toBe(403);
-      expect(['FORBIDDEN', 'EXECUTIVE_CANNOT_DM']).toContain(res.body.error.code);
+      expect(['FORBIDDEN', 'EXECUTIVE_CANNOT_DM', 'READ_ONLY_ROLE']).toContain(res.body.error.code);
     });
 
     it('ensures DMs are private: admin cannot view messages of DMs they are not a member of (HTTP 403)', async () => {
@@ -446,7 +446,7 @@ describe('Team Chat Comprehensive API Suite (Phase CH1)', () => {
         .send({ content: 'Executive trying to send a message' });
 
       expect(res.status).toBe(403);
-      expect(['FORBIDDEN', 'EXECUTIVE_READ_ONLY']).toContain(res.body.error.code);
+      expect(['FORBIDDEN', 'EXECUTIVE_READ_ONLY', 'READ_ONLY_ROLE']).toContain(res.body.error.code);
     });
 
     it('prevents team_member from using @everyone mention (HTTP 403)', async () => {

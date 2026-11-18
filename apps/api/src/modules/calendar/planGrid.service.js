@@ -35,6 +35,10 @@ import {
   workflowOptionsFor,
   defaultWorkflowFor,
   ROW_WORKFLOW_LABELS,
+  WORKER_ROLE,
+  isApprover,
+  isWorker,
+  effectiveStepsFor,
 } from '@mmp/shared';
 import { markAwaitingReview } from '../workItems/reviewState.js';
 import { CalendarPlan } from './plan.model.js';
@@ -169,7 +173,7 @@ export function toGridRow(piece, workItems = []) {
   const postingOwnerName =
     (piece.postingOwnerId && typeof piece.postingOwnerId === 'object' && piece.postingOwnerId.name) || ownerName('Post');
 
-  // Approval = Creative Head decision on the last creation step (Edit for reels, Design otherwise). VERIFY.
+  // Approval = Creative Lead decision on the last creation step (Edit for reels, Design otherwise). VERIFY.
   const finalStage = [...stages].reverse().find((s) => s !== 'Post');
   const finalWi = finalStage ? wiByStage.get(finalStage) : null;
   // Same wording as the rest of the app (getStepStatusLabel): Pending = waiting, Feedback = changes requested.
@@ -266,15 +270,18 @@ async function loadGridRows(planId) {
 function gridPermissions(user) {
   const role = normalizeRole(user.role);
   const canEdit = PLAN_EDIT_ROLES.includes(role);
-  // Spec: only the Creative Head reviews rows. The existing review endpoint also lets admin; see PG-3.
-  const canReview = role === 'creative_head';
+  // Phase 12b: the leads review rows, with admin as a backup (same rule as the review endpoint).
+  const canReview = isApprover(role) || role === 'admin';
   return { role, canEdit, canReview, readOnly: !canEdit && !canReview };
 }
 
+/** Owner choices: workers and SM Managers. Their workPreferences here are the steps they are
+ *  eligible for (job role, narrowed by preferences; Post is SM Managers only). */
 async function activeOwnerCandidates() {
-  return Person.find({ role: { $in: ['team_member', 'sm_manager', 'admin'] }, status: 'active' })
-    .select('name role workPreferences')
+  const people = await Person.find({ role: { $in: [WORKER_ROLE, 'sm_manager', 'admin'] }, status: 'active' })
+    .select('name role jobRole workPreferences')
     .lean();
+  return people.map((p) => ({ ...p, workPreferences: effectiveStepsFor(p) }));
 }
 
 /**
@@ -283,7 +290,7 @@ async function activeOwnerCandidates() {
  */
 export async function loadGrid({ calendar = 'sm', month, planId } = {}, user) {
   const perms = gridPermissions(user);
-  if (perms.role === 'team_member') {
+  if (isWorker(perms.role)) {
     throw httpError(403, 'FORBIDDEN_SCOPE', 'Team members cannot access calendar plans.');
   }
   const monthKey = month || monthKeyInAppTz(new Date());
@@ -789,7 +796,7 @@ export async function uploadGridFile({ buffer, mimetype = '', calendar = 'sm', m
   const emailFields = parsed.rows.flatMap((r) => Object.keys(r.cells).filter((k) => k.endsWith('Email')));
   let byEmail = new Map();
   if (emailFields.length) {
-    const active = await Person.find({ role: { $in: ['team_member', 'sm_manager', 'admin'] }, status: 'active' }).select('email').lean();
+    const active = await Person.find({ role: { $in: [WORKER_ROLE, 'sm_manager', 'admin'] }, status: 'active' }).select('email').lean();
     byEmail = new Map(active.filter((p) => p.email).map((p) => [p.email.toLowerCase(), String(p._id)]));
   }
   const rows = parsed.rows.map((r) => {

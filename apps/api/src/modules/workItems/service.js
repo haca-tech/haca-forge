@@ -5,7 +5,7 @@ import { resolveScope } from '../../lib/scope.js';
 import { logActivity, listRecentActivities } from '../activity/service.js';
 import { ActivityEvent } from '../activity/model.js';
 import { Submission } from '../submissions/model.js';
-import { normalizeWorkType, normalizeRole, WORK_TYPE_DEPARTMENT_MAP, getAvailableActions } from '@mmp/shared';
+import { normalizeWorkType, normalizeRole, WORK_TYPE_DEPARTMENT_MAP, getAvailableActions, APPROVER_ROLES, isWorker } from '@mmp/shared';
 
 export async function createWorkItem(data, user) {
   // 1. Resolve Department ID (auto-infer from workType if omitted)
@@ -108,7 +108,7 @@ export async function listWorkItems(filters = {}, user) {
   const query = {};
 
   // Person Scoping (for Team Member)
-  if (user.role === 'team_member' && filters.scopedToSelf !== false && !filters.allWork) {
+  if (isWorker(user.role) && filters.scopedToSelf !== false && !filters.allWork) {
     const userId = (user._id || user.id || user.userId)?.toString();
     query.ownerId = userId;
   } else if (filters.ownerId && filters.ownerId !== 'all') {
@@ -127,7 +127,7 @@ export async function listWorkItems(filters = {}, user) {
     query.calendar = filters.calendar;
   }
 
-  if (user && user.role === 'team_member') {
+  if (user && isWorker(user.role)) {
     query.ownerId = (user._id || user.id || user.userId)?.toString();
   }
 
@@ -368,7 +368,7 @@ export async function getWorkItemById(id, user) {
 
   // A finished non-postable Design step is handed over: its approved files, with download,
   // for the SM manager, creative head and admin.
-  if (['sm_manager', 'creative_head', 'admin'].includes(normalizeRole(user?.role))) {
+  if (['sm_manager', ...APPROVER_ROLES, 'admin'].includes(normalizeRole(user?.role))) {
     const handover = await buildHandover(result);
     if (handover) result.handover = handover;
   }
@@ -397,15 +397,15 @@ function workItemPatchForbidden(message) {
  * Who may PATCH a work item. Ownership always comes from the stored step, never the request.
  * - admin, sm_manager: every field.
  * - The step's owner, in any other role: deliverableUrl only, until the step is Approved or Published.
- * - team_member who owns another step of the same content piece: 403.
- * - Any other team_member: 404, the same response as a missing item or an invalid id.
- * - creative_head who does not own the step: 403.
+ * - executive (worker) who owns another step of the same content piece: 403.
+ * - Any other executive (worker): 404, the same response as a missing item or an invalid id.
+ * - creative_lead/growth_lead who does not own the step: 403.
  */
 export async function assertCanPatchWorkItem(id, body, user) {
   const role = normalizeRole(user.role);
   if (role === 'admin' || role === 'sm_manager') return;
 
-  const isTeamMember = role === 'team_member';
+  const isTeamMember = isWorker(role);
   if (isTeamMember && !mongoose.isValidObjectId(id)) throw workItemNotFound();
 
   const stored = await WorkItem.findById(id).select('ownerId contentPieceId status').lean();
@@ -661,7 +661,7 @@ export async function getMyWork(user) {
     if (item.latestSubmissionStatus === 'changes_requested' && (item.status === 'Feedback' || item.status === 'In Progress')) {
       const sentBack = await Submission.findOne({ workItemId: item._id, version: { $gt: 0 } }).sort({ version: -1 }).lean();
       const note = await revisionNoteFor(item, sentBack);
-      if (note) item.latestFeedback = { ...note, reviewer: note.reviewer || 'Creative Head' };
+      if (note) item.latestFeedback = { ...note, reviewer: note.reviewer || 'Creative Lead' };
     } else if (item.status === 'Feedback' && !item.latestSubmissionStatus) {
       // A step sent back before versions existed: the feedback entry is all there is.
       try {
@@ -672,7 +672,7 @@ export async function getMyWork(user) {
         if (latestEntry) {
           item.latestFeedback = {
             text: latestEntry.text,
-            reviewer: latestEntry.fromPersonId?.name || 'Creative Head',
+            reviewer: latestEntry.fromPersonId?.name || 'Creative Lead',
             createdAt: latestEntry.createdAt,
           };
         }
@@ -766,7 +766,7 @@ async function individualPlanIds(planIds) {
 export async function getCalendarWorkItems(filters = {}, user) {
   const query = {};
 
-  if (user && user.role === 'team_member') {
+  if (user && isWorker(user.role)) {
     const userId = (user._id || user.id || user.userId)?.toString();
     query.ownerId = userId;
   } else if (filters.ownerId && filters.ownerId !== 'all') {
@@ -814,7 +814,7 @@ export async function getCalendarWorkItems(filters = {}, user) {
   }
 
   // If not scoped to worker personal view, also include publish date events from ContentPiece
-  if (user?.role !== 'team_member' && startParam && endParam) {
+  if (!isWorker(user?.role) && startParam && endParam) {
     const pieceQuery = {
       postingDate: {
         $gte: new Date(startParam),
@@ -872,7 +872,7 @@ export async function getTodoItems(user) {
   const scope = await resolveScope(user);
   const query = {};
 
-  if (user.role === 'team_member') {
+  if (isWorker(user.role)) {
     const userId = (user._id || user.id || user.userId)?.toString();
     query.ownerId = userId;
   } else if (scope.allowedPersonIds) {

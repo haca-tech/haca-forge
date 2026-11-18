@@ -135,7 +135,8 @@ export async function run({ argv = process.argv.slice(2), log = console.log } = 
 
   const adminEmail = (env.ADMIN_SEED_EMAIL || '').toLowerCase().trim();
   if (!adminEmail) throw new Error('Refusing: ADMIN_SEED_EMAIL is not set in .env.');
-  const { SEED_USERS, seedPasswordVar, missingSeedPasswords } = await import('../src/modules/people/seedUsers.js');
+  const { SEED_USERS: ALL_SEED_USERS, seedPasswordVar, missingSeedPasswords, seedUsersToCreate } = await import('../src/modules/people/seedUsers.js');
+  const SEED_USERS = seedUsersToCreate(process.env);
   const missing = missingSeedPasswords(process.env);
 
   await mongoose.connect(uri);

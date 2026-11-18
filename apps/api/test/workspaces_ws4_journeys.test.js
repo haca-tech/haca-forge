@@ -52,7 +52,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
     creativeHeadUser = await Person.create({
       name: 'Creative Head Maya WS4J',
       email: 'ch@ws4-journey.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       department: 'Creative',
       jobRole: 'Creative Manager (TL)',
       status: 'active',
@@ -63,7 +63,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
     executiveUser = await Person.create({
       name: 'Executive Roy WS4J',
       email: 'exec@ws4-journey.com',
-      role: 'executive',
+      role: 'creative_head',
       department: 'Executive',
       status: 'active',
       authMethod: 'password',
@@ -74,7 +74,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
     writerUser = await Person.create({
       name: 'Writer Wendy WS4J',
       email: 'wendy@ws4-journey.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Content',
       jobRole: 'Writer',
       status: 'active',
@@ -85,9 +85,9 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
     shooterUser = await Person.create({
       name: 'Shooter Sam WS4J',
       email: 'sam@ws4-journey.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Video',
-      jobRole: 'Videographer',
+      jobRole: 'Cinematographer',
       status: 'active',
       authMethod: 'password',
       profileAccess: [profId],
@@ -96,7 +96,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
     editorUser = await Person.create({
       name: 'Editor Eric WS4J',
       email: 'eric@ws4-journey.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Video',
       jobRole: 'Video Editor',
       status: 'active',
@@ -107,9 +107,9 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
     designerUser = await Person.create({
       name: 'Designer Dana WS4J',
       email: 'dana@ws4-journey.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Design',
-      jobRole: 'Designer',
+      jobRole: 'Graphic Designer',
       status: 'active',
       authMethod: 'password',
       profileAccess: [profId],
@@ -118,9 +118,9 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
     posterUser = await Person.create({
       name: 'Poster Paul WS4J',
       email: 'paul@ws4-journey.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Social Media',
-      jobRole: 'Social Specialist',
+      jobRole: 'All Rounder',
       status: 'active',
       authMethod: 'password',
       profileAccess: [profId],
@@ -656,7 +656,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
         });
 
       expect(res.status).toBe(403);
-      expect(res.body.error?.code).toBe('FORBIDDEN_APPROVAL');
+      expect(res.body.error?.code).toBe('READ_ONLY_ROLE');
     });
 
     it('Executive is strictly forbidden from editing ratings (HTTP 403)', async () => {
@@ -672,7 +672,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
         });
 
       expect(res.status).toBe(403);
-      expect(res.body.error?.code).toBe('FORBIDDEN_ACTION');
+      expect(res.body.error?.code).toBe('READ_ONLY_ROLE');
     });
   });
 });

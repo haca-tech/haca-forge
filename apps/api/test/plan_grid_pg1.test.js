@@ -1,6 +1,7 @@
 // PG-1: Excel-style plan grid — month periods, paste parsing, grid load/save API.
 // Runs against the disposable test DB (marketing_portal_test). Sample rows follow the
 // November Excel structure with made-up data, not production data.
+import { jobRoleFor } from './fixtures/jobRoles.js';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
@@ -53,22 +54,22 @@ describe('PG-1 plan grid', () => {
     await connectDB();
     await cleanup();
     const mk = (key, name, role, workPreferences = []) =>
-      Person.create({ name, email: `${key}@pg1-grid-test.com`, role, status: 'active', workPreferences }).then((p) => {
+      Person.create({ name, email: `${key}@pg1-grid-test.com`, role, status: 'active', workPreferences, jobRole: role === 'executive' ? jobRoleFor(workPreferences) : '' }).then((p) => {
         people[key] = p;
         tokens[key] = make(p);
       });
     await mk('sm', 'PG1 SM Manager', 'sm_manager');
     await mk('admin', 'PG1 Admin', 'admin');
-    await mk('head', 'PG1 Creative Head', 'creative_head');
-    await mk('exec', 'PG1 Executive', 'executive');
-    await mk('member', 'PG1 Member', 'team_member', ['Content']);
-    await mk('writer', 'PG1 Writer', 'team_member', ['Script', 'Content']);
-    await mk('shooter', 'PG1 Shooter', 'team_member', ['Shoot']);
-    await mk('editor', 'PG1 Editor', 'team_member', ['Edit']);
-    await mk('designer', 'PG1 Designer', 'team_member', ['Design']);
-    await mk('poster', 'PG1 Poster', 'team_member', ['Post']);
-    await mk('twin1', 'PG1 Twin', 'team_member', ['Edit']);
-    await mk('twin2', 'PG1 Twin', 'team_member', ['Edit']);
+    await mk('head', 'PG1 Creative Head', 'creative_lead');
+    await mk('exec', 'PG1 Executive', 'creative_head');
+    await mk('member', 'PG1 Member', 'executive', ['Content']);
+    await mk('writer', 'PG1 Writer', 'executive', ['Script', 'Content']);
+    await mk('shooter', 'PG1 Shooter', 'executive', ['Shoot']);
+    await mk('editor', 'PG1 Editor', 'executive', ['Edit']);
+    await mk('designer', 'PG1 Designer', 'executive', ['Design']);
+    await mk('poster', 'PG1 Poster', 'sm_manager'); // Post belongs to SM Managers (Phase 12b)
+    await mk('twin1', 'PG1 Twin', 'executive', ['Edit']);
+    await mk('twin2', 'PG1 Twin', 'executive', ['Edit']);
   });
 
   afterAll(cleanup);

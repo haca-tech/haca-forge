@@ -8,7 +8,7 @@ const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async (orig) => ({ ...(await orig<typeof import('react-router-dom')>()), useNavigate: () => mockNavigate }));
 
 const shoot: PipelineStageItem = {
-  _id: 's1', stageKey: 'Shoot', status: 'Approved', ownerId: { name: 'Test Shooter', jobRole: 'Videographer', avatarUrl: 'https://example.test/shooter.jpg' }, deadline: '2031-11-05T00:00:00.000Z',
+  _id: 's1', stageKey: 'Shoot', status: 'Approved', ownerId: { name: 'Test Shooter', jobRole: 'Cinematographer', avatarUrl: 'https://example.test/shooter.jpg' }, deadline: '2031-11-05T00:00:00.000Z',
   startedAt: '2031-11-01T04:30:00.000Z', submittedAt: '2031-11-03T10:54:00.000Z', approvedAt: '2031-11-04T06:00:00.000Z',
 };
 const edit: PipelineStageItem = {
@@ -56,7 +56,7 @@ describe('PipelineStepper workflow diagram', () => {
     show([shoot, edit, post]);
     const [first, second, third] = steps();
     expect(first.querySelector('img')).toHaveAttribute('src', 'https://example.test/shooter.jpg');
-    expect(within(first).getByText('Videographer')).toBeInTheDocument();
+    expect(within(first).getByText('Cinematographer')).toBeInTheDocument();
     expect(second.querySelector('img')).toBeNull();
     expect(within(second).getByText('TE')).toBeInTheDocument();
     expect(third.querySelector('img')).toBeNull();

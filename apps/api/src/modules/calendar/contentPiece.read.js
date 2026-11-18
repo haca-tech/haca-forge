@@ -6,7 +6,7 @@ import { outputItems, plainText } from '../workItems/handoff.js';
 
 /**
  * GET /api/content-pieces/:id (Phase 6): a piece and its steps, each finished step with its
- * latest approved output. Phase 3 rules: a team_member must be on the piece (otherwise the
+ * latest approved output. Phase 3 rules: a executive (worker) must be on the piece (otherwise the
  * same 404 as a piece that does not exist), and sees only the outputs of earlier finished
  * steps and their own.
  */

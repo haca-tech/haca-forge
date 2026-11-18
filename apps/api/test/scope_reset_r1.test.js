@@ -67,7 +67,7 @@ describe('SCOPE RESET R1 Verification Suite', () => {
     memberUser = await Person.create({
       name: 'R1 Team Member',
       email: 'member@r1-verify.com',
-      role: 'team_member',
+      role: 'executive',
       departmentId: testDept._id,
       reportsToIds: [leadUser._id],
       status: 'active',

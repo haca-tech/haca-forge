@@ -27,7 +27,7 @@ const workItem = {
   status: 'Feedback',
   revisions: 4,
   reviewRequired: true,
-  ownerId: { _id: 'owner-1', name: 'Sample Owner', email: 'o@example.invalid', role: 'team_member' },
+  ownerId: { _id: 'owner-1', name: 'Sample Owner', email: 'o@example.invalid', role: 'executive' },
 };
 const thread = (rootCause: string | null) => ({
   workItem,
@@ -38,7 +38,7 @@ const thread = (rootCause: string | null) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useAuth.mockReturnValue({ user: { _id: 'head-1', role: 'creative_head', name: 'Head' }, hasPermission: () => true });
+  useAuth.mockReturnValue({ user: { _id: 'head-1', role: 'creative_lead', name: 'Head' }, hasPermission: () => true });
 });
 
 describe('Revision root causes: only the 7 canonical values are offered', () => {

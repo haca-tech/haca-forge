@@ -6,7 +6,7 @@ import { createNotification } from '../notifications/service.js';
 /** A step is flagged when it reaches this review round (Phase 7 close-out). */
 export const REVISION_FLAG_ROUND = 4;
 import { resolveScope } from '../../lib/scope.js';
-import { CANONICAL_REVISION_ROOT_CAUSES, normalizeRole } from '@mmp/shared';
+import { CANONICAL_REVISION_ROOT_CAUSES, normalizeRole, APPROVER_ROLES, isApprover, isReadOnlyViewer, isWorker } from '@mmp/shared';
 import { isTeamMember, requireParticipant } from '../workItems/access.js';
 import {
   assertDecisionAllowed,
@@ -37,17 +37,7 @@ export async function getFeedbackForWorkItem(workItemId, user) {
     error.statusCode = 403;
     throw error;
   }
-  if (normalizeRole(user.role) === 'executive') {
-    const flagForExecutive = await RevisionFlag.findOne({ workItemId })
-      .populate('ownerId', 'name role jobRole')
-      .populate('classifiedBy', 'name role');
-    return {
-      workItem,
-      entries: [],
-      rounds: [],
-      flag: flagForExecutive ? { ...flagForExecutive.toObject(), isOver48HoursUnclassified: flagForExecutive.isOver48HoursUnclassified } : null,
-    };
-  }
+  // The read-only heads see review text (Phase 12b): no separate branch for them.
 
   // Fetch entries sorted chronologically
   const entries = await FeedbackEntry.find({ workItemId })
@@ -127,7 +117,7 @@ export async function createFeedbackEntry(data, user) {
 
   const ownerIdStr = workItem.ownerId?._id?.toString() || workItem.ownerId?.toString();
   const userRole = normalizeRole(user.role);
-  const isAdminOrHead = userRole === 'admin' || userRole === 'creative_head';
+  const isAdminOrHead = userRole === 'admin' || isApprover(userRole);
 
   // Determine round if not explicitly supplied
   const existingEntries = await FeedbackEntry.find({ workItemId }).sort({ round: -1, createdAt: -1 });
@@ -136,7 +126,7 @@ export async function createFeedbackEntry(data, user) {
 
   if (isResponse) {
     // Owner response logic
-    if (user.role === 'team_member' && ownerIdStr !== fromPerson._id.toString()) {
+    if (isWorker(user.role) && ownerIdStr !== fromPerson._id.toString()) {
       const error = new Error('Only the assigned owner can respond to review feedback');
       error.statusCode = 403;
       throw error;
@@ -312,10 +302,10 @@ export async function checkAndCreateRevisionFlag(workItem, actor = null) {
       },
     });
 
-    // Alert Creative Heads and SM Managers
+    // Alert Creative Leads and SM Managers
     const alertPersons = await Person.find({
       $or: [
-        { role: 'creative_head', status: 'active' },
+        { role: { $in: [...APPROVER_ROLES] }, status: 'active' },
         { role: 'sm_manager', departmentId: workItem.departmentId, status: 'active' },
       ],
     });
@@ -338,11 +328,11 @@ export async function checkAndCreateRevisionFlag(workItem, actor = null) {
 }
 
 /**
- * Classify root cause for a revision flag (SM Manager, Creative Head or Admin)
+ * Classify root cause for a revision flag (SM Manager, Creative Lead or Admin)
  */
 export async function classifyRevisionFlag(flagId, { rootCause, rootCauseNotes }, user) {
-  if (user.role === 'team_member') {
-    const error = new Error('Only an SM Manager, Creative Head, or Admin can classify revision root causes');
+  if (isWorker(user.role)) {
+    const error = new Error('Only an SM Manager, Creative Lead, or Admin can classify revision root causes');
     error.statusCode = 403;
     throw error;
   }
@@ -482,7 +472,7 @@ export async function listFeedbackThreads(filters = {}, user) {
       return {
         workItem: item,
         awaitingReview: awaiting.has(String(item._id)),
-        latestEntry: normalizeRole(user.role) === 'executive' ? null : latestEntry,
+        latestEntry,
         totalEntries,
         revisions: item.revisions || 0,
         flag: flag

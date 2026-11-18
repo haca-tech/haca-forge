@@ -34,7 +34,7 @@ describe('Team Directory and Worker Profile Frontend Suite', () => {
               _id: 'user-1',
               name: 'Test Writer One',
               preferredName: 'Alex',
-              role: 'team_member',
+              role: 'executive',
               jobRole: 'Writer',
               department: { _id: 'dept-1', name: 'SEO & Content' },
               status: 'active',
@@ -91,7 +91,7 @@ describe('Team Directory and Worker Profile Frontend Suite', () => {
       _id: 'user-1',
       name: 'Test Writer One',
       preferredName: 'Alex',
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Writer',
       department: { _id: 'dept-1', name: 'SEO & Content' },
       status: 'active',
@@ -118,7 +118,7 @@ describe('Team Directory and Worker Profile Frontend Suite', () => {
 
     it('renders worker profile header, KPI strip, and minimum 3-ratings confidentiality notice', async () => {
       (authContext.useAuth as any).mockReturnValue({
-        user: { _id: 'head-1', role: 'creative_head', name: 'Creative Head' },
+        user: { _id: 'head-1', role: 'creative_lead', name: 'Creative Head' },
       });
 
       (apiModule.apiFetch as any).mockImplementation((url: string) => {
@@ -150,7 +150,7 @@ describe('Team Directory and Worker Profile Frontend Suite', () => {
 
     it('renders transparency notice when worker views their own profile at /profile', async () => {
       (authContext.useAuth as any).mockReturnValue({
-        user: { _id: 'user-1', role: 'team_member', name: 'Test Writer One' },
+        user: { _id: 'user-1', role: 'executive', name: 'Test Writer One' },
       });
 
       (apiModule.apiFetch as any).mockImplementation((url: string) => {
@@ -175,7 +175,7 @@ describe('Team Directory and Worker Profile Frontend Suite', () => {
 
     it('hides contact details when profile is viewed by executive role', async () => {
       (authContext.useAuth as any).mockReturnValue({
-        user: { _id: 'exec-1', role: 'executive', name: 'Executive Viewer' },
+        user: { _id: 'exec-1', role: 'creative_head', name: 'Executive Viewer' },
       });
 
       const redactedProfile = {

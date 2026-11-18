@@ -84,7 +84,7 @@ const cleanup = async () => {
 beforeAll(async () => {
   await connectDB();
   await cleanup();
-  for (const [k, role] of [['head', 'creative_head'], ['admin', 'admin'], ['sm', 'sm_manager'], ['exec', 'executive'], ['owner', 'team_member'], ['earlier', 'team_member'], ['later', 'team_member'], ['outsider', 'team_member']]) {
+  for (const [k, role] of [['head', 'creative_lead'], ['admin', 'admin'], ['sm', 'sm_manager'], ['exec', 'creative_head'], ['owner', 'executive'], ['earlier', 'executive'], ['later', 'executive'], ['outsider', 'executive']]) {
     P[k] = await Person.create({ name: `Access ${k}`, email: EMAIL(k), role, status: 'active', phone: PHONE, whatsappNumber: PHONE });
   }
 });
@@ -264,7 +264,7 @@ describe('Participants: pipeline status for every step, outputs only where allow
   it('removes outputs from steps that are Mongoose documents, not only plain objects', async () => {
     const pieceStages = await WorkItem.find({ contentPieceId: f.edit.contentPieceId }).sort({ stageOrder: 1 });
     const item = { ...f.post.toObject(), pieceStages };
-    const result = await applyWorkItemViewerRules(item, { _id: P.later._id, role: 'team_member' });
+    const result = await applyWorkItemViewerRules(item, { _id: P.later._id, role: 'executive' });
     const edit = result.pieceStages.find((s) => String(s._id) === String(f.edit._id));
     expect(edit.status).toBe('Pending');
     expect(edit.deliverableUrl).toBeUndefined();
@@ -345,13 +345,13 @@ describe('Participants: pipeline status for every step, outputs only where allow
   });
 });
 
-describe('Private review: owner, admin, creative_head and sm_manager only', () => {
+describe('Private review: owner, admin, the leads, sm_manager and the read-only heads (Phase 12b)', () => {
   let f;
   beforeAll(async () => {
     f = await fresh();
   });
 
-  it.each(['owner', 'head', 'admin', 'sm'])('%s can read revision notes and the clip thread', async (who) => {
+  it.each(['owner', 'head', 'admin', 'sm', 'exec'])('%s can read revision notes and the clip thread', async (who) => {
     expect(text(await call('get', `/api/work/${f.edit._id}/comments`, who))).toContain(NOTE);
     expect(text(await call('get', `/api/submissions/${f.sub._id}/comments`, who))).toContain(NOTE);
     expect(text(await call('get', `/api/submissions/${f.sub._id}`, who))).toContain(NOTE);
@@ -360,7 +360,7 @@ describe('Private review: owner, admin, creative_head and sm_manager only', () =
     expect(text(await call('get', `/api/work/${f.edit._id}`, who))).toContain(RATING_NOTE);
   });
 
-  it.each(['exec', 'earlier', 'later'])('%s cannot read any of them', async (who) => {
+  it.each(['earlier', 'later'])('%s cannot read any of them', async (who) => {
     for (const url of [`/api/work/${f.edit._id}`, `/api/work/${f.edit._id}/comments`, `/api/submissions/${f.sub._id}`, `/api/submissions/${f.sub._id}/comments`, `/api/feedback/work-item/${f.edit._id}`, `/api/clips/${f.clip._id}/messages`, `/api/work/${f.edit._id}/activity`]) {
       const t = text(await call('get', url, who));
       expect(t, url).not.toContain(NOTE);
@@ -369,24 +369,24 @@ describe('Private review: owner, admin, creative_head and sm_manager only', () =
     }
   });
 
-  it('an executive keeps the rating score, without the feedback', async () => {
+  it('a read-only head sees the rating score and its feedback (Phase 12b)', async () => {
     const res = await call('get', `/api/work/${f.edit._id}`, 'exec');
     expect(res.body.data.rating.score).toBe(4);
-    expect(res.body.data.rating.feedback).toBeUndefined();
+    expect(res.body.data.rating.feedback).toBe(RATING_NOTE);
     const summaryText = text(await call('get', `/api/submissions/ratings/summary/${P.owner._id}`, 'exec'));
-    expect(summaryText).not.toContain(RATING_NOTE);
+    expect(summaryText).toContain(RATING_NOTE);
   });
 
-  it('feedback threads hide the note from an executive; sm_manager still sees it', async () => {
-    expect(text(await call('get', '/api/feedback/threads', 'exec'))).not.toContain(NOTE);
+  it('feedback threads show the note to a read-only head and to sm_manager', async () => {
+    expect(text(await call('get', '/api/feedback/threads', 'exec'))).toContain(NOTE);
     expect(text(await call('get', '/api/feedback/threads', 'sm'))).toContain(NOTE);
   });
 
-  it('activity keeps who did what, without the private text', async () => {
+  it('activity keeps who did what; the private text shows to leadership', async () => {
     const exec = await call('get', `/api/work/${f.edit._id}/activity`, 'exec');
     expect(exec.status).toBe(200);
     expect((exec.body.data || []).some((e) => e.action === 'work_item.feedback_submitted')).toBe(true);
-    expect(text(exec)).not.toContain(NOTE);
+    expect(text(exec)).toContain(NOTE);
     expect(text(await call('get', `/api/work/${f.edit._id}/activity`, 'sm'))).toContain(NOTE);
   });
 });
@@ -426,14 +426,13 @@ describe('Contact details', () => {
     }
   });
 
-  it('an executive sees no one else\'s, on nested and leadership responses', async () => {
+  it('a read-only head reads every leadership response and sees contact details (Phase 12b)', async () => {
     const urls = [...REST(f).filter((u) => !u.includes('/messages') && u !== '/api/my-work'), '/api/submissions/review-queue', '/api/feedback/threads', '/api/calendar-plans', `/api/calendar-plans/${f.plan._id}`, '/api/content-pieces', '/api/revisions/flags', `/api/team/${P.owner._id}`, `/api/team/${P.owner._id}/activity`];
     for (const url of urls) {
       const res = await call('get', url, 'exec');
       expect(res.status, url).toBe(200);
-      expectNoOtherContact(res, 'exec', url);
-      expect(text(res), url).not.toContain(PHONE);
     }
+    expect(text(await call('get', `/api/team/${P.owner._id}`, 'exec'))).toContain(EMAIL('owner'));
   });
 
   it.each(['exec', 'owner'])('%s still sees their own details on their own profile', async (who) => {
@@ -481,7 +480,7 @@ describe('Blockers', () => {
   beforeAll(async () => {
     f = await fresh({ editStatus: 'In Progress' });
     // A blocker on a deliverable none of these team members is on.
-    const stranger = await Person.create({ name: 'Access stranger', email: EMAIL('stranger'), role: 'team_member', status: 'active' });
+    const stranger = await Person.create({ name: 'Access stranger', email: EMAIL('stranger'), role: 'executive', status: 'active' });
     const step = await WorkItem.create({ title: 'AccessBoundary Other', workType: 'Reel', stageKey: 'Edit', stageOrder: 1, status: 'In Progress', ownerId: stranger._id, deadline: new Date('2031-05-10'), departmentId: dept, profileId: new mongoose.Types.ObjectId() });
     other = await Blocker.create({ workItemId: step._id, blockedById: stranger._id, reason: 'Other', notes: 'STRANGERS_BLOCKER', status: 'Active' });
   });
@@ -554,9 +553,11 @@ describe('Editor lock and clip messages seen', () => {
 
   it('no one can lock a step that does not exist', async () => {
     const missing = new mongoose.Types.ObjectId();
-    for (const who of ['exec', 'admin', 'owner']) {
+    for (const who of ['admin', 'owner']) {
       expect((await call('post', `/api/work/${missing}/editor-lock`, who, {})).status).toBe(404);
     }
+    // A read-only head is refused every write before anything is looked up.
+    expect((await call('post', `/api/work/${missing}/editor-lock`, 'exec', {})).status).toBe(403);
     expect(await EditorLock.findOne({ workItemId: missing })).toBeNull();
   });
 

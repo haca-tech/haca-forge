@@ -70,7 +70,7 @@ describe('Phase 5: Feedback Loops, Revision Flags & Blockers', () => {
     leadUser = await Person.create({
       name: 'Creative Head Reviewer',
       email: 'lead@feedback-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       departmentId: deptDesign._id,
       profileAccess: [profileHaca._id],
       status: 'active',
@@ -80,8 +80,8 @@ describe('Phase 5: Feedback Loops, Revision Flags & Blockers', () => {
     memberUser = await Person.create({
       name: 'Creative Owner Member',
       email: 'member@feedback-test.com',
-      role: 'team_member',
-      jobRole: 'Designer',
+      role: 'executive',
+      jobRole: 'Graphic Designer',
       departmentId: deptDesign._id,
       profileAccess: [profileHaca._id],
       status: 'active',
@@ -91,7 +91,7 @@ describe('Phase 5: Feedback Loops, Revision Flags & Blockers', () => {
     dependencyOwner = await Person.create({
       name: 'Content Dependency Owner',
       email: 'content.dep@feedback-test.com',
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Writer',
       departmentId: deptDesign._id,
       profileAccess: [profileHaca._id],

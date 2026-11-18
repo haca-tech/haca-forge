@@ -1,4 +1,4 @@
-import { normalizeRole } from '@mmp/shared';
+import { normalizeRole, isApprover } from '@mmp/shared';
 import { Submission, Rating } from './model.js';
 import { MediaItem } from '../media/model.js';
 import { logActivity } from '../activity/service.js';
@@ -90,14 +90,14 @@ export function assertReworkStarted(workItem, latestSubmission) {
   }
 }
 
-/** creative_head and admin decide; nobody decides on their own work. */
+/** creative_lead/growth_lead and admin decide; nobody decides on their own work. */
 export function assertReviewer(user, workItem, decision = 'approve') {
   const role = normalizeRole(user.role);
-  if (role !== 'creative_head' && role !== 'admin') {
+  if (!isApprover(role) && role !== 'admin') {
     throw decisionError(
       403,
       decision === 'approve' ? 'FORBIDDEN_APPROVAL' : 'FORBIDDEN_ACTION',
-      decision === 'approve' ? 'Only Creative Head or Admin can approve deliverables' : 'Only Creative Head or Admin can request revisions'
+      decision === 'approve' ? 'Only Creative Lead or Admin can approve deliverables' : 'Only Creative Lead or Admin can request revisions'
     );
   }
   const userId = (user._id || user.id || user.userId)?.toString();

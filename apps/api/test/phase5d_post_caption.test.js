@@ -45,7 +45,7 @@ describe('Phase 5d: the Post step is posted with its live link only (no caption)
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    for (const [k, r] of [['poster', 'team_member'], ['writer', 'team_member'], ['other', 'team_member'], ['sm', 'sm_manager'], ['admin', 'admin'], ['head', 'creative_head'], ['exec', 'executive']]) await make(k, r);
+    for (const [k, r] of [['poster', 'executive'], ['writer', 'executive'], ['other', 'executive'], ['sm', 'sm_manager'], ['admin', 'admin'], ['head', 'creative_lead'], ['exec', 'creative_head']]) await make(k, r);
   });
 
   afterAll(async () => {

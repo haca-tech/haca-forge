@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { normalizeRole } from '@mmp/shared';
+import { normalizeRole, isApprover, isWorker, canSeeAllReviewText } from '@mmp/shared';
 import { WorkItem } from './model.js';
 import { Submission, SubmissionComment, Rating } from '../submissions/model.js';
 import { MediaItem } from '../media/model.js';
@@ -8,7 +8,7 @@ import { Blocker } from '../blockers/model.js';
 /**
  * Who can reach a work item, and what they see on it.
  *
- * A team_member reaches an item only as a participant: they own a step in its content
+ * A executive (worker) reaches an item only as a participant: they own a step in its content
  * piece. Anyone else gets one identical 404, for an item that exists, one that does not,
  * and an invalid id, so a response never confirms that something exists. Other roles are
  * not affected here and keep their existing behaviour.
@@ -17,7 +17,7 @@ import { Blocker } from '../blockers/model.js';
  * router) and before validation, so a blocked user learns nothing from validation errors.
  */
 
-export const isTeamMember = (user) => normalizeRole(user?.role) === 'team_member';
+export const isTeamMember = (user) => isWorker(normalizeRole(user?.role));
 export const userIdOf = (user) => (user?._id || user?.id || user?.userId)?.toString();
 const idOf = (value) => (value?._id || value)?.toString();
 export const isFinished = (step) => step.status === 'Approved' || step.status === 'Published';
@@ -36,10 +36,13 @@ function forbidden(message, code = 'FORBIDDEN_ACTION') {
   return error;
 }
 
-/** Revision notes, rating feedback and clip threads: the step owner, admin, creative_head, sm_manager. */
+/**
+ * Revision notes, rating feedback and clip threads: everyone but a worker (admin, both leads,
+ * sm_manager and the read-only heads), and a worker on their own step.
+ */
 export function canSeePrivateReview(user, workItem) {
   const role = normalizeRole(user?.role);
-  if (role === 'admin' || role === 'creative_head' || role === 'sm_manager') return true;
+  if (canSeeAllReviewText(role)) return true;
   return Boolean(userIdOf(user) && idOf(workItem?.ownerId) === userIdOf(user));
 }
 
@@ -78,7 +81,7 @@ export async function approvedOutputOf(step) {
   return Submission.findOne({ workItemId: step._id, version: { $gt: 0 } }).sort({ version: -1 });
 }
 
-/** team_member only: the item and their participation, or the one identical 404. */
+/** executive (worker) only: the item and their participation, or the one identical 404. */
 export async function requireParticipant(id, user) {
   if (!id || !mongoose.isValidObjectId(id)) throw notFound();
   const workItem = await WorkItem.findById(id).select('ownerId contentPieceId stageOrder status').lean();
@@ -98,7 +101,7 @@ export const requireBodyWorkItemAccess = async (req, _res, next) => {
   }
 };
 
-/** The work item ids a team_member participates in. */
+/** The work item ids a executive (worker) participates in. */
 export async function participantWorkItemIds(user) {
   const userId = userIdOf(user);
   const owned = await WorkItem.find({ ownerId: userId }).select('_id contentPieceId').lean();
@@ -159,7 +162,7 @@ export const requireRatingAccess = onParamId(checkRating);
 
 /**
  * Resolving a blocker or reminding its dependency owner: the step owner, sm_manager or admin.
- * A team_member elsewhere on the piece gets 403; anyone else on the team gets the 404.
+ * A executive (worker) elsewhere on the piece gets 403; anyone else on the team gets the 404.
  */
 export const requireBlockerAccess = async (req, _res, next) => {
   try {

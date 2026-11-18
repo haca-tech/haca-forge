@@ -1,9 +1,9 @@
-import { normalizeRole } from '@mmp/shared';
+import { normalizeRole, isReadOnlyViewer, isWorker, canSeeContactDetails } from '@mmp/shared';
 
 /**
- * Contact details in REST responses. A team_member or executive sees only their own:
+ * Contact details in REST responses. A worker (executive) sees only their own:
  * email, phone and WhatsApp are removed from every other person, however deeply nested.
- * admin, creative_head and sm_manager are not affected.
+ * admin, creative_lead/growth_lead and sm_manager are not affected.
  *
  * Only text values are removed. Settings such as `{ inApp: true, email: true }` stay, and so
  * does an existing null, which is how a masked contact field already reads on screens.
@@ -27,7 +27,9 @@ export function redactContact(req, res, next) {
   const originalJson = res.json.bind(res);
   res.json = (body) => {
     const role = normalizeRole(req.user?.role);
-    if (role !== 'team_member' && role !== 'executive') return originalJson(body);
+    // No signed-in user (status, sign-in): nothing to filter. Workers see only their own
+    // contact details; every other role sees them.
+    if (!req.user || canSeeContactDetails(role)) return originalJson(body);
     const viewerId = (req.user._id || req.user.id || req.user.userId)?.toString();
     // Through JSON first, so documents, ids and dates are plain values, as res.json would send them.
     return originalJson(stripContact(JSON.parse(JSON.stringify(body ?? null)), viewerId));

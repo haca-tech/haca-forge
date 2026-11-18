@@ -1,3 +1,4 @@
+import { ROLE_KEYS, ROLE_LABELS } from '@mmp/shared';
 import React from 'react';
 
 export interface QuickLoginAccount {
@@ -21,13 +22,7 @@ export function parseQuickLogins(raw: unknown): QuickLoginAccount[] {
 }
 
 /** Role groups in a fixed order; accounts without a known role go under "Other". */
-export const QUICK_LOGIN_GROUPS: { role: string; title: string }[] = [
-  { role: 'admin', title: 'Admin' },
-  { role: 'creative_head', title: 'Creative Head' },
-  { role: 'sm_manager', title: 'SM Manager' },
-  { role: 'executive', title: 'Executive' },
-  { role: 'team_member', title: 'Team members' },
-];
+export const QUICK_LOGIN_GROUPS: { role: string; title: string }[] = ROLE_KEYS.map((role) => ({ role, title: ROLE_LABELS[role] }));
 
 export function groupQuickLogins(accounts: QuickLoginAccount[]): { title: string; accounts: QuickLoginAccount[] }[] {
   const known = new Set(QUICK_LOGIN_GROUPS.map((g) => g.role));

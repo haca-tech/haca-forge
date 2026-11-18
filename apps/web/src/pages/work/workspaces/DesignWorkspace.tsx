@@ -22,7 +22,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { ShareToChatModal } from '../../chat/ShareToChatModal';
 import { ResumableUploadTask } from '../../../lib/uploadManager';
 import type { RevisionComment } from './EditWorkspace';
-import { isDriveLink } from '@mmp/shared';
+import { isDriveLink, APPROVER_ROLES, isApprover } from '@mmp/shared';
 import { DriveLinkInput, driveLinkError } from '../../../components/DriveLinkInput';
 
 interface SlideItem {
@@ -95,7 +95,7 @@ export const DesignWorkspace: React.FC<DesignWorkspaceProps> = ({
   const ownerId = (workItem.ownerId?._id || workItem.ownerId)?.toString();
   const isOwner = ownerId && ownerId === currentUserId;
   const isApproved = workItem.status === 'Approved';
-  const canShare = isApproved && user && (['admin', 'creative_head', 'sm_manager'].includes(user.role) || isOwner);
+  const canShare = isApproved && user && (['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role) || isOwner);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [designNotes, setDesignNotes] = useState('');
@@ -109,9 +109,9 @@ export const DesignWorkspace: React.FC<DesignWorkspaceProps> = ({
 
   const deliverableType = workItem.workType || 'Static Post';
 
-  // Creative Head / Admin revision feedback (read-only here; comments without a role are kept).
+  // Creative Lead / Admin revision feedback (read-only here; comments without a role are kept).
   const reviewerFeedback = revisionComments.filter(
-    (c) => !c.authorRole || c.authorRole === 'creative_head' || c.authorRole === 'admin'
+    (c) => !c.authorRole || isApprover(c.authorRole) || c.authorRole === 'admin'
   );
 
   const copyToClipboard = (key: string, text: string) => {
@@ -266,7 +266,7 @@ export const DesignWorkspace: React.FC<DesignWorkspaceProps> = ({
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* LEFT PANEL: Approved Copy beside canvas */}
         <div className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-ui-line bg-white/60 p-4 overflow-y-auto space-y-4 flex-shrink-0">
-          {/* Revision feedback from the Creative Head (same comment data as the Edit workspace) */}
+          {/* Revision feedback from the Creative Lead (same comment data as the Edit workspace) */}
           {reviewerFeedback.length > 0 && (
             <section aria-labelledby="design-revision-feedback" className="status-tint status-waiting p-4 rounded-2xl border space-y-2.5">
               <h3 id="design-revision-feedback" className="text-xs font-bold flex items-center gap-1.5">
@@ -277,7 +277,7 @@ export const DesignWorkspace: React.FC<DesignWorkspaceProps> = ({
                 {reviewerFeedback.map((c) => (
                   <li key={c.id} className="p-2.5 rounded-xl bg-white/70 border border-ui-line text-xs text-ui-ink space-y-1">
                     <div className="flex items-center justify-between gap-2 text-[11px] text-ui-muted">
-                      <span className="font-semibold text-ui-text">{c.authorName || 'Creative Head'}</span>
+                      <span className="font-semibold text-ui-text">{c.authorName || 'Creative Lead'}</span>
                       {c.createdAt && <span>{new Date(c.createdAt).toLocaleDateString()}</span>}
                     </div>
                     <p className="whitespace-pre-wrap break-words">{c.content}</p>

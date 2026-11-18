@@ -3,18 +3,19 @@ import { ROLE_PERMISSIONS, ROLE_KEYS, PERMISSION_KEYS, ROLE_LABELS } from '@mmp/
 import { defineAbilityForUser } from '../src/lib/permissions.js';
 
 describe('Marketing OS Permissions & CASL Ability Tests (R2 Canonical 5 Roles)', () => {
-  it('should have exact 5 role keys defined in specification', () => {
-    const expectedRoles = ['admin', 'creative_head', 'executive', 'sm_manager', 'team_member'];
-    expect(ROLE_KEYS).toEqual(expectedRoles);
+  it('should have exactly the 7 Phase 12b role keys', () => {
+    expect(ROLE_KEYS).toEqual(['admin', 'creative_head', 'production_head', 'creative_lead', 'growth_lead', 'sm_manager', 'executive']);
   });
 
-  it('should export ROLE_LABELS with Creative Head and SM Manager', () => {
-    expect(ROLE_LABELS).toMatchObject({
-      admin: 'Administrator',
+  it('should export ROLE_LABELS for every role', () => {
+    expect(ROLE_LABELS).toEqual({
+      admin: 'Admin',
       creative_head: 'Creative Head',
-      executive: 'Executive',
+      production_head: 'Production Head',
+      creative_lead: 'Creative Lead',
+      growth_lead: 'Growth Lead',
       sm_manager: 'SM Manager',
-      team_member: 'Team Member',
+      executive: 'Executive',
     });
   });
 
@@ -29,9 +30,8 @@ describe('Marketing OS Permissions & CASL Ability Tests (R2 Canonical 5 Roles)',
     expect(ROLE_PERMISSIONS.admin).toContain('calendar.approve');
   });
 
-  it('creative_head has authoritative creative & people ops permissions snapshot', () => {
-    const headPerms = ROLE_PERMISSIONS.creative_head;
-    const expectedHeadPerms = [
+  it('creative_lead and growth_lead hold the approver permissions snapshot (both calendars in Phase 12b)', () => {
+    const expectedLeadPerms = [
       'portal.view',
       'people.view',
       'people.assign',
@@ -43,93 +43,36 @@ describe('Marketing OS Permissions & CASL Ability Tests (R2 Canonical 5 Roles)',
       'work.update.own',
       'analytics.team',
       'report.view',
-      'report.configure',
-      'automation.manage',
       'chat.use',
       'chat.group.create',
       'chat.moderate',
       'team.profile.view',
     ];
-
-    // Creative Head CANNOT manage users, create plans, or create raw work items
-    expect(headPerms).not.toContain('user.manage');
-    expect(headPerms).not.toContain('user.approve');
-    expect(headPerms).not.toContain('calendar.plan');
-    expect(headPerms).not.toContain('work.create');
+    expect(ROLE_PERMISSIONS.creative_lead).toEqual(expectedLeadPerms);
+    expect(ROLE_PERMISSIONS.growth_lead).toEqual(expectedLeadPerms);
+    for (const key of ['user.manage', 'user.approve', 'calendar.plan', 'work.create', 'report.configure', 'automation.manage']) {
+      expect(ROLE_PERMISSIONS.creative_lead).not.toContain(key);
+    }
   });
 
-  it('executive has portal.view, people.view and read-only view keys but zero write keys', () => {
-    const execPerms = ROLE_PERMISSIONS.executive;
-    const expectedExecPerms = [
-      'portal.view',
-      'people.view',
-      'analytics.team',
-      'report.view',
-      'chat.read',
-      'team.profile.view',
-    ];
-    expect(execPerms).toEqual(expectedExecPerms);
-
-    // Strictly NO write keys
-    expect(execPerms).not.toContain('work.create');
-    expect(execPerms).not.toContain('work.request');
-    expect(execPerms).not.toContain('work.update.own');
-    expect(execPerms).not.toContain('assignment.override');
-    expect(execPerms).not.toContain('feedback.give');
-    expect(execPerms).not.toContain('revision.classify');
-    expect(execPerms).not.toContain('report.configure');
-    expect(execPerms).not.toContain('automation.manage');
-    expect(execPerms).not.toContain('user.approve');
-    expect(execPerms).not.toContain('user.manage');
-    expect(execPerms).not.toContain('people.assign');
-    expect(execPerms).not.toContain('calendar.plan');
-    expect(execPerms).not.toContain('calendar.approve');
+  it('creative_head and production_head are read-only: view keys and zero write keys', () => {
+    const viewerPerms = ['portal.view', 'people.view', 'analytics.team', 'report.view', 'chat.read', 'team.profile.view'];
+    expect(ROLE_PERMISSIONS.creative_head).toEqual(viewerPerms);
+    expect(ROLE_PERMISSIONS.production_head).toEqual(viewerPerms);
+    for (const key of ['work.create', 'work.request', 'work.update.own', 'calendar.plan', 'calendar.approve', 'feedback.give', 'feedback.respond', 'chat.use', 'assignment.override', 'people.assign']) {
+      expect(ROLE_PERMISSIONS.creative_head).not.toContain(key);
+    }
   });
 
-  it('sm_manager has planning, work creation and assignment override permissions snapshot', () => {
-    const smPerms = ROLE_PERMISSIONS.sm_manager;
-    const expectedSmPerms = [
-      'calendar.plan',
-      'work.create',
-      'assignment.override',
-      'work.update.own',
-      'feedback.respond',
-      'analytics.team',
-      'report.view',
-      'people.view',
-      'chat.use',
-      'chat.group.create',
-      'chat.moderate',
-      'team.profile.view',
-    ];
-    expect(smPerms).toEqual(expectedSmPerms);
-
-    // SM Manager CANNOT approve calendar plans or approve review stages, or people.assign
-    expect(smPerms).not.toContain('calendar.approve');
-    expect(smPerms).not.toContain('people.assign');
-    expect(smPerms).not.toContain('feedback.give');
-    expect(smPerms).not.toContain('revision.classify');
-    expect(smPerms).not.toContain('report.configure');
-    expect(smPerms).not.toContain('automation.manage');
-    expect(smPerms).not.toContain('user.manage');
+  it('executive (workers) has personal work permissions only, exactly as team_member had', () => {
+    expect(ROLE_PERMISSIONS.executive).toEqual(['work.update.own', 'work.request', 'feedback.respond', 'chat.use']);
+    expect(ROLE_PERMISSIONS.team_member).toBeUndefined();
   });
 
-  it('team_member has personal work permissions only', () => {
-    const memberPerms = ROLE_PERMISSIONS.team_member;
-    const expectedMemberPerms = [
-      'work.update.own',
-      'work.request',
-      'feedback.respond',
-      'chat.use',
-    ];
-    expect(memberPerms).toEqual(expectedMemberPerms);
-
-    // Team Member CANNOT create work, give feedback, plan calendar, or approve
-    expect(memberPerms).not.toContain('work.create');
-    expect(memberPerms).not.toContain('feedback.give');
-    expect(memberPerms).not.toContain('people.assign');
-    expect(memberPerms).not.toContain('calendar.plan');
-    expect(memberPerms).not.toContain('calendar.approve');
+  it('report.configure and automation.manage are admin only', () => {
+    for (const key of ['report.configure', 'automation.manage']) {
+      expect(ROLE_KEYS.filter((r) => ROLE_PERMISSIONS[r].includes(key))).toEqual(['admin']);
+    }
   });
 
   it('admin should have full ability to manage all in CASL', () => {

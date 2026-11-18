@@ -9,11 +9,11 @@ import { CalendarPlan } from '../calendar/plan.model.js';
 import { ContentPiece } from '../calendar/contentPiece.model.js';
 import { calculateMemberWorkloadMetrics } from '../assignment/service.js';
 import { resolveScope } from '../../lib/scope.js';
-import { derivePlanStatus } from '@mmp/shared';
+import { derivePlanStatus, WORKER_ROLE, isWorker } from '@mmp/shared';
 
 /**
  * 8-Section Operational Dashboard Overview Service
- * (admin, creative_head, sm_manager, executive; team_member redirected to /my-work)
+ * (admin, creative_lead/growth_lead, sm_manager, creative_head/production_head; executive (worker) redirected to /my-work)
  * Strictly operational: NO target, funnel, or campaign sections!
  */
 export async function getDashboardOverview(filters = {}, user) {
@@ -25,7 +25,7 @@ export async function getDashboardOverview(filters = {}, user) {
   const workItemQuery = {};
 
   // Person Scoping (for Team Member)
-  if (user.role === 'team_member' && !filters.allWork) {
+  if (isWorker(user.role) && !filters.allWork) {
     const userId = (user._id || user.id || user.userId)?.toString();
     workItemQuery.ownerId = userId;
   } else if (filters.ownerId && filters.ownerId !== 'all') {
@@ -247,7 +247,7 @@ export async function getDashboardOverview(filters = {}, user) {
 
   const personQuery = {
     $or: [{ status: 'active' }, { active: true }],
-    role: { $in: ['team_member', 'sm_manager'] },
+    role: { $in: [WORKER_ROLE, 'sm_manager'] },
   };
   if (workItemQuery.departmentId) {
     personQuery.departmentId = workItemQuery.departmentId;

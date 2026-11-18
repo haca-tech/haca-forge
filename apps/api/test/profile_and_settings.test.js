@@ -88,7 +88,7 @@ describe('Profile and Settings Comprehensive Suite', () => {
     headUser = await Person.create({
       name: 'Creative Director',
       email: 'creative@profile-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       status: 'active',
       passwordHash: hashedPassword,
       departmentId: testDept._id,
@@ -110,7 +110,7 @@ describe('Profile and Settings Comprehensive Suite', () => {
     execUser = await Person.create({
       name: 'Executive Leader',
       email: 'exec@profile-test.com',
-      role: 'executive',
+      role: 'creative_head',
       status: 'active',
       passwordHash: hashedPassword,
       departmentId: testDept._id,
@@ -121,8 +121,8 @@ describe('Profile and Settings Comprehensive Suite', () => {
     workerA = await Person.create({
       name: 'Worker Alpha',
       email: 'worker.a@profile-test.com',
-      role: 'team_member',
-      jobRole: 'Designer',
+      role: 'executive',
+      jobRole: 'Graphic Designer',
       status: 'active',
       passwordHash: hashedPassword,
       departmentId: testDept._id,
@@ -133,7 +133,7 @@ describe('Profile and Settings Comprehensive Suite', () => {
     workerB = await Person.create({
       name: 'Worker Beta',
       email: 'worker.b@profile-test.com',
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Video Editor',
       status: 'active',
       passwordHash: hashedPassword,
@@ -145,7 +145,7 @@ describe('Profile and Settings Comprehensive Suite', () => {
     externalWorker = await Person.create({
       name: 'Worker External',
       email: 'worker.ext@profile-test.com',
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Writer',
       status: 'active',
       passwordHash: hashedPassword,
@@ -217,7 +217,7 @@ describe('Profile and Settings Comprehensive Suite', () => {
         .set('Authorization', `Bearer ${headToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.role).toBe('creative_head');
+      expect(res.body.data.role).toBe('creative_lead');
       expect(res.body.data.rolePanelData).toBeDefined();
       expect(res.body.data.rolePanelData.creativeMetrics).toBeDefined();
       expect(typeof res.body.data.rolePanelData.creativeMetrics.stagesWaitingApproval).toBe('number');
@@ -243,7 +243,7 @@ describe('Profile and Settings Comprehensive Suite', () => {
         .set('Authorization', `Bearer ${execToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.role).toBe('executive');
+      expect(res.body.data.role).toBe('creative_head');
       expect(res.body.data.rolePanelData).toBeDefined();
       expect(res.body.data.rolePanelData.companySummary).toBeDefined();
       expect(typeof res.body.data.rolePanelData.companySummary.activeUsersCount).toBe('number');
@@ -256,7 +256,7 @@ describe('Profile and Settings Comprehensive Suite', () => {
         .set('Authorization', `Bearer ${workerAToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.role).toBe('team_member');
+      expect(res.body.data.role).toBe('executive');
       expect(res.body.data.rolePanelData).toBeDefined();
       expect(res.body.data.rolePanelData.memberMetrics).toBeDefined();
       expect(typeof res.body.data.rolePanelData.memberMetrics.myCurrentStepsCount).toBe('number');
@@ -702,15 +702,13 @@ describe('Profile and Settings Comprehensive Suite', () => {
       expect(res.body.data.email).toBe(workerA.email);
     });
 
-    it('Executive sees masked contact details (email, phone are null)', async () => {
+    it('A read-only head sees contact details (Phase 12b)', async () => {
       const res = await request(app)
         .get(`/api/people/${workerA._id}/profile`)
         .set('Authorization', `Bearer ${execToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.email).toBeNull();
-      expect(res.body.data.phone).toBeNull();
-      expect(res.body.data.whatsappNumber).toBeNull();
+      expect(res.body.data.email).toBe(workerA.email);
     });
 
     it('Worker viewing non-teammate outside shared content piece is rejected (HTTP 403)', async () => {
@@ -785,7 +783,7 @@ describe('Profile and Settings Comprehensive Suite', () => {
       freshUser = await Person.create({
         name: 'New Joinee',
         email: 'newjoinee@profile-test.com',
-        role: 'team_member',
+        role: 'executive',
         status: 'active',
         passwordHash: await bcrypt.hash('InitialPassword123!', 10),
         profileCompletedAt: null, // Uncompleted profile

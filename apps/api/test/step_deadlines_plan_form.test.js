@@ -70,7 +70,7 @@ describe('STEP DEADLINES IN THE PLAN ROW FORM SUITE', () => {
       name: 'Step Creative Head',
       email: 'head@step-test.com',
       passwordHash: 'dummy',
-      role: 'creative_head',
+      role: 'creative_lead',
       departmentId: testDept._id,
       status: 'active',
     });
@@ -79,8 +79,9 @@ describe('STEP DEADLINES IN THE PLAN ROW FORM SUITE', () => {
       name: 'Step Writer',
       email: 'writer@step-test.com',
       passwordHash: 'dummy',
-      role: 'team_member',
+      role: 'executive',
       departmentId: testDept._id,
+      jobRole: 'Writer',
       workPreferences: ['Script'],
       status: 'active',
     });
@@ -89,8 +90,9 @@ describe('STEP DEADLINES IN THE PLAN ROW FORM SUITE', () => {
       name: 'Step Videographer',
       email: 'video@step-test.com',
       passwordHash: 'dummy',
-      role: 'team_member',
+      role: 'executive',
       departmentId: testDept._id,
+      jobRole: 'Cinematographer',
       workPreferences: ['Shoot'],
       status: 'active',
     });
@@ -99,8 +101,9 @@ describe('STEP DEADLINES IN THE PLAN ROW FORM SUITE', () => {
       name: 'Step Editor',
       email: 'editor@step-test.com',
       passwordHash: 'dummy',
-      role: 'team_member',
+      role: 'executive',
       departmentId: testDept._id,
+      jobRole: 'Video Editor',
       workPreferences: ['Edit'],
       status: 'active',
     });

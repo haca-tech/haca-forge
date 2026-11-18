@@ -45,8 +45,8 @@ describe('Canonical revision root causes', () => {
     await cleanup();
     const dept = await mongoose.connection.db.collection('departments').findOne({});
     deptId = dept?._id || new mongoose.Types.ObjectId();
-    head = await Person.create({ name: 'RC Head', email: `head${DOMAIN}`, role: 'creative_head', status: 'active' });
-    owner = await Person.create({ name: 'RC Owner', email: `owner${DOMAIN}`, role: 'team_member', status: 'active' });
+    head = await Person.create({ name: 'RC Head', email: `head${DOMAIN}`, role: 'creative_lead', status: 'active' });
+    owner = await Person.create({ name: 'RC Owner', email: `owner${DOMAIN}`, role: 'executive', status: 'active' });
     headToken = makeToken(head);
   });
 

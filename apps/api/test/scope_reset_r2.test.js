@@ -76,7 +76,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
     headUser = await Person.create({
       name: 'R2 Creative Head',
       email: 'head@r2-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       status: 'active',
       profileAccess: [profileHaca._id],
       weeklyCapacityHours: 40,
@@ -85,7 +85,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
     execUser = await Person.create({
       name: 'R2 Executive',
       email: 'exec@r2-test.com',
-      role: 'executive',
+      role: 'creative_head',
       status: 'active',
       profileAccess: [profileHaca._id],
     });
@@ -104,8 +104,8 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
     memberUser = await Person.create({
       name: 'R2 Member Alice',
       email: 'alice@r2-test.com',
-      role: 'team_member',
-      jobRole: 'UI Designer',
+      role: 'executive',
+      jobRole: 'Graphic Designer',
       departmentId: deptCreative._id,
       status: 'active',
       profileAccess: [profileHaca._id],
@@ -115,7 +115,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
     otherMemberUser = await Person.create({
       name: 'R2 Member Bob',
       email: 'bob@r2-test.com',
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Video Editor',
       departmentId: deptCreative._id,
       status: 'active',
@@ -185,15 +185,16 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
   // TASK 1 & 2: Permission Map Snapshot for the Five Roles
   // =========================================================================
   describe('1. Permission Map Snapshot & Canonical Contracts', () => {
-    it('defines exactly the 5 canonical roles in ROLE_KEYS', () => {
-      expect(ROLE_KEYS).toEqual(['admin', 'creative_head', 'executive', 'sm_manager', 'team_member']);
+    it('defines exactly the 7 Phase 12b roles in ROLE_KEYS', () => {
+      expect(ROLE_KEYS).toEqual(['admin', 'creative_head', 'production_head', 'creative_lead', 'growth_lead', 'sm_manager', 'executive']);
     });
 
-    it('exports ROLE_LABELS with Creative Head and SM Manager', () => {
+    it('exports ROLE_LABELS for the new roles', () => {
       expect(ROLE_LABELS.creative_head).toBe('Creative Head');
+      expect(ROLE_LABELS.creative_lead).toBe('Creative Lead');
       expect(ROLE_LABELS.sm_manager).toBe('SM Manager');
       expect(ROLE_LABELS.executive).toBe('Executive');
-      expect(ROLE_LABELS.team_member).toBe('Team Member');
+      expect(ROLE_LABELS.team_member).toBeUndefined();
     });
 
     it('PERMISSION_KEYS contains calendar.plan and calendar.approve, and deleted reference.manage', () => {
@@ -216,7 +217,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
       expect(ROLE_PERMISSIONS.admin).toContain('user.approve');
     });
 
-    it('creative_head role has exact 16 authoritative creative & people ops keys', () => {
+    it('creative_lead and growth_lead have the approver keys', () => {
       const expectedKeys = [
         'portal.view',
         'people.view',
@@ -229,18 +230,19 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
         'work.update.own',
         'analytics.team',
         'report.view',
-        'report.configure',
-        'automation.manage',
         'chat.use',
         'chat.group.create',
         'chat.moderate',
         'team.profile.view',
       ];
-      expect(ROLE_PERMISSIONS.creative_head).toEqual(expectedKeys);
-      expect(ROLE_PERMISSIONS.creative_head).not.toContain('calendar.plan');
-      expect(ROLE_PERMISSIONS.creative_head).not.toContain('work.create');
-      expect(ROLE_PERMISSIONS.creative_head).not.toContain('user.manage');
-      expect(ROLE_PERMISSIONS.creative_head).not.toContain('user.approve');
+      // Phase 12b: the approver is creative_lead (and growth_lead); report.configure and
+      // automation.manage are admin only.
+      expect(ROLE_PERMISSIONS.creative_lead).toEqual(expectedKeys);
+      expect(ROLE_PERMISSIONS.growth_lead).toEqual(expectedKeys);
+      expect(ROLE_PERMISSIONS.creative_lead).not.toContain('calendar.plan');
+      expect(ROLE_PERMISSIONS.creative_lead).not.toContain('work.create');
+      expect(ROLE_PERMISSIONS.creative_lead).not.toContain('user.manage');
+      expect(ROLE_PERMISSIONS.creative_lead).not.toContain('user.approve');
     });
 
     it('sm_manager role has exact 11 operational planning and tracking keys', () => {
@@ -268,27 +270,28 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
       expect(ROLE_PERMISSIONS.sm_manager).not.toContain('user.manage');
     });
 
-    it('executive role has exact 5 read-only keys with zero write keys', () => {
+    it('creative_head and production_head have the read-only keys with zero write keys', () => {
       const expectedKeys = ['portal.view', 'people.view', 'analytics.team', 'report.view', 'chat.read', 'team.profile.view'];
-      expect(ROLE_PERMISSIONS.executive).toEqual(expectedKeys);
-      expect(ROLE_PERMISSIONS.executive).not.toContain('work.create');
-      expect(ROLE_PERMISSIONS.executive).not.toContain('work.update.own');
-      expect(ROLE_PERMISSIONS.executive).not.toContain('assignment.override');
-      expect(ROLE_PERMISSIONS.executive).not.toContain('calendar.plan');
-      expect(ROLE_PERMISSIONS.executive).not.toContain('calendar.approve');
-      expect(ROLE_PERMISSIONS.executive).not.toContain('feedback.give');
-      expect(ROLE_PERMISSIONS.executive).not.toContain('feedback.respond');
+      expect(ROLE_PERMISSIONS.production_head).toEqual(expectedKeys);
+      expect(ROLE_PERMISSIONS.creative_head).toEqual(expectedKeys);
+      expect(ROLE_PERMISSIONS.creative_head).not.toContain('work.create');
+      expect(ROLE_PERMISSIONS.creative_head).not.toContain('work.update.own');
+      expect(ROLE_PERMISSIONS.creative_head).not.toContain('assignment.override');
+      expect(ROLE_PERMISSIONS.creative_head).not.toContain('calendar.plan');
+      expect(ROLE_PERMISSIONS.creative_head).not.toContain('calendar.approve');
+      expect(ROLE_PERMISSIONS.creative_head).not.toContain('feedback.give');
+      expect(ROLE_PERMISSIONS.creative_head).not.toContain('feedback.respond');
     });
 
-    it('team_member role has exact 4 personal contributor keys', () => {
+    it('executive (workers) has the 4 personal contributor keys team_member had', () => {
       const expectedKeys = ['work.update.own', 'work.request', 'feedback.respond', 'chat.use'];
-      expect(ROLE_PERMISSIONS.team_member).toEqual(expectedKeys);
-      expect(ROLE_PERMISSIONS.team_member).not.toContain('portal.view');
-      expect(ROLE_PERMISSIONS.team_member).not.toContain('people.view');
-      expect(ROLE_PERMISSIONS.team_member).not.toContain('calendar.plan');
-      expect(ROLE_PERMISSIONS.team_member).not.toContain('calendar.approve');
-      expect(ROLE_PERMISSIONS.team_member).not.toContain('work.create');
-      expect(ROLE_PERMISSIONS.team_member).not.toContain('feedback.give');
+      expect(ROLE_PERMISSIONS.executive).toEqual(expectedKeys);
+      expect(ROLE_PERMISSIONS.executive).not.toContain('portal.view');
+      expect(ROLE_PERMISSIONS.executive).not.toContain('people.view');
+      expect(ROLE_PERMISSIONS.executive).not.toContain('calendar.plan');
+      expect(ROLE_PERMISSIONS.executive).not.toContain('calendar.approve');
+      expect(ROLE_PERMISSIONS.executive).not.toContain('work.create');
+      expect(ROLE_PERMISSIONS.executive).not.toContain('feedback.give');
     });
   });
 
@@ -406,7 +409,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
         const res = await request(app)
           .post('/api/people')
           .set('Authorization', `Bearer ${execToken}`)
-          .send({ name: 'Illegal Person', email: 'illegal@r2-test.com', role: 'team_member' });
+          .send({ name: 'Illegal Person', email: 'illegal@r2-test.com', role: 'executive' });
         expect(res.status).toBe(403);
       });
     });
@@ -447,7 +450,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
         const res = await request(app)
           .post('/api/people')
           .set('Authorization', `Bearer ${memberToken}`)
-          .send({ name: 'Member Friend', email: 'friend@r2-test.com', role: 'team_member' });
+          .send({ name: 'Member Friend', email: 'friend@r2-test.com', role: 'executive' });
         expect(res.status).toBe(403);
       });
 
@@ -493,14 +496,14 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
             { toStatus: 'Approved' },
             smUser
           )
-        ).rejects.toThrow(/Review stages can be approved only by Creative Head and Admin/);
+        ).rejects.toThrow(/Review stages can be approved only by Creative Lead and Admin/);
       });
 
       it('POST /api/people -> 403 (Cannot create users)', async () => {
         const res = await request(app)
           .post('/api/people')
           .set('Authorization', `Bearer ${smToken}`)
-          .send({ name: 'New Hire', email: 'hire@r2-test.com', role: 'team_member' });
+          .send({ name: 'New Hire', email: 'hire@r2-test.com', role: 'executive' });
         expect(res.status).toBe(403);
       });
     });
@@ -535,7 +538,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
         const res = await request(app)
           .post('/api/people')
           .set('Authorization', `Bearer ${headToken}`)
-          .send({ name: 'New Head Member', email: 'headmember@r2-test.com', role: 'team_member' });
+          .send({ name: 'New Head Member', email: 'headmember@r2-test.com', role: 'executive' });
         expect(res.status).toBe(403);
       });
     });
@@ -562,7 +565,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
           { toStatus: 'Approved' },
           smUser
         )
-      ).rejects.toThrow(/Review stages can be approved only by Creative Head and Admin/);
+      ).rejects.toThrow(/Review stages can be approved only by Creative Lead and Admin/);
     });
 
     it('allows Creative Head to approve review stage deliverable', async () => {
@@ -595,14 +598,14 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
       const updated = await peopleService.updatePerson(
         memberUser._id,
         {
-          jobRole: 'UI Designer',
+          jobRole: 'Graphic Designer',
           workPreferences: ['Design'],
           weeklyCapacityHours: 35,
         },
         headUser
       );
 
-      expect(updated.jobRole).toBe('UI Designer');
+      expect(updated.jobRole).toBe('Graphic Designer');
       expect(updated.weeklyCapacityHours).toBe(35);
       expect(updated.workPreferences).toEqual(['Design']);
     });
@@ -611,24 +614,24 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
       // Attempt on admin
       await expect(
         peopleService.updatePerson(adminUser._id, { weeklyCapacityHours: 30 }, headUser)
-      ).rejects.toThrow(/Creative Head cannot modify admin, executive, or other creative_head accounts/);
+      ).rejects.toThrow(/a lead cannot modify admin, lead or head accounts/);
 
       // Attempt on executive
       await expect(
         peopleService.updatePerson(execUser._id, { weeklyCapacityHours: 30 }, headUser)
-      ).rejects.toThrow(/Creative Head cannot modify admin, executive, or other creative_head accounts/);
+      ).rejects.toThrow(/a lead cannot modify admin, lead or head accounts/);
 
       // Attempt on other creative_head
       const otherHead = await Person.create({
         name: 'Other Creative Head',
         email: 'otherhead@r2-test.com',
-        role: 'creative_head',
+        role: 'creative_lead',
         status: 'active',
       });
 
       await expect(
         peopleService.updatePerson(otherHead._id, { weeklyCapacityHours: 30 }, headUser)
-      ).rejects.toThrow(/Creative Head cannot modify admin, executive, or other creative_head accounts/);
+      ).rejects.toThrow(/a lead cannot modify admin, lead or head accounts/);
 
       await Person.deleteOne({ _id: otherHead._id });
     });
@@ -637,7 +640,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
       // Head tries to promote member to sm_manager -> rejected
       await expect(
         peopleService.updatePerson(memberUser._id, { role: 'sm_manager' }, headUser)
-      ).rejects.toThrow(/Creative Head cannot change user roles/);
+      ).rejects.toThrow(/a lead cannot change user roles/);
 
       // Admin promotes member to sm_manager -> allowed
       const promoted = await peopleService.updatePerson(
@@ -648,7 +651,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
       expect(promoted.role).toBe('sm_manager');
 
       // Reset back to team_member
-      await Person.updateOne({ _id: memberUser._id }, { $set: { role: 'team_member' } });
+      await Person.updateOne({ _id: memberUser._id }, { $set: { role: 'executive' } });
     });
   });
 
@@ -657,7 +660,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
   // =========================================================================
   describe('6. Request Access Role Options', () => {
     it('REQUESTABLE_ROLES strictly contains team_member and sm_manager only', () => {
-      expect(REQUESTABLE_ROLES).toEqual(['team_member', 'sm_manager']);
+      expect(REQUESTABLE_ROLES).toEqual(['executive', 'sm_manager']);
     });
 
     it('accepts public access request with requestedRole team_member or sm_manager', async () => {
@@ -667,11 +670,11 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
         phone: '+1 555 111 2222',
         department: 'Creative Production',
         jobRole: 'Writer',
-        requestedRole: 'team_member',
+        requestedRole: 'executive',
         requestedProfileCodes: ['r2_haca'],
         reason: 'Applying as creative writer for HACA campaigns',
       });
-      expect(req1.requestedRole).toBe('team_member');
+      expect(req1.requestedRole).toBe('executive');
 
       const req2 = await accessService.submitAccessRequest({
         name: 'Applicant SM Manager',
@@ -687,7 +690,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
     });
 
     it('rejects public access request with privileged role (admin, creative_head, executive) with 400', async () => {
-      for (const role of ['admin', 'creative_head', 'executive']) {
+      for (const role of ['admin', 'creative_lead', 'creative_head']) {
         await expect(
           accessService.submitAccessRequest({
             name: 'Privilege Seeker',

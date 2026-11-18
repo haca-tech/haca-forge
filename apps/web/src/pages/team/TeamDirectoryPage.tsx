@@ -16,7 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { InviteUserDialog } from './InviteUserDialog';
 import { roleClass, bandClass } from '../../lib/statusTone';
 import { Avatar } from '../../components/Avatar';
-import { ROLE_LABELS } from '@mmp/shared';
+import { ROLE_LABELS, ROLE_KEYS } from '@mmp/shared';
 
 interface DirectoryMember {
   _id: string;
@@ -209,11 +209,11 @@ export const TeamDirectoryPage: React.FC = () => {
               className="ui-select w-full"
             >
               <option value="all">All Roles</option>
-              <option value="team_member">Team Member</option>
-              <option value="creative_head">Creative Head</option>
-              <option value="sm_manager">SM Manager</option>
-              <option value="executive">Executive</option>
-              <option value="admin">Administrator</option>
+              {ROLE_KEYS.map((rk) => (
+                <option key={rk} value={rk}>
+                  {ROLE_LABELS[rk]}
+                </option>
+              ))}
             </select>
           </div>
 

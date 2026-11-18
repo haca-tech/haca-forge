@@ -49,7 +49,7 @@ const ch: ReviewerKpis = {
   charts: { reviewsPerWeek: [], ratingsGiven: [], rootCausesUsed: [] },
 };
 const data: ProfileKpiData = {
-  person: { _id: 'p1', name: 'Asha Worker', preferredName: '', role: 'team_member', jobRole: 'Editor', department: 'Video', status: 'active' },
+  person: { _id: 'p1', name: 'Asha Worker', preferredName: '', role: 'executive', jobRole: 'Editor', department: 'Video', status: 'active' },
   period: { kind: 'custom', from: '2025-05-01', to: '2025-05-31', label: '2025-05-01 to 2025-05-31' },
   worker,
   creativeHead: ch,
@@ -146,7 +146,7 @@ describe('Profile report (print layout)', () => {
     open();
     await screen.findByTestId('profile-report');
     expect(screen.getByTestId('profile-report-name')).toHaveTextContent('Asha Worker');
-    expect(screen.getByText(/Team member · Editor · Video/)).toBeInTheDocument();
+    expect(screen.getByText(/Executive · Editor · Video/)).toBeInTheDocument();
     expect(screen.getByText(/2025-05-01 to 2025-05-31, IST/)).toBeInTheDocument();
     expect(within(screen.getByTestId('profile-report-steps')).getByText('Reel A')).toBeInTheDocument();
     expect(screen.getByTestId('profile-report-review')).toHaveTextContent('Oldest item in the team review queue');

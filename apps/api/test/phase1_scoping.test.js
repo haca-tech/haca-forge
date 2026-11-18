@@ -45,7 +45,7 @@ describe('Phase 1: Profiles, People & Access Scoping Tests', () => {
     headUser = await Person.create({
       name: 'Creative Head',
       email: 'head@phase1test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       status: 'active',
       profileAccess: [profile1Id, profile2Id],
     });
@@ -63,8 +63,8 @@ describe('Phase 1: Profiles, People & Access Scoping Tests', () => {
     member1User = await Person.create({
       name: 'Designer Direct Report',
       email: 'member1@phase1test.com',
-      role: 'team_member',
-      jobRole: 'Designer',
+      role: 'executive',
+      jobRole: 'Graphic Designer',
       departmentId: designDeptId,
       reportsToIds: [leadUser._id],
       status: 'active',
@@ -74,7 +74,7 @@ describe('Phase 1: Profiles, People & Access Scoping Tests', () => {
     member2User = await Person.create({
       name: 'Other Team Member',
       email: 'member2@phase1test.com',
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Video Editor',
       status: 'active',
       profileAccess: [profile2Id], // Access to profile 2 only
@@ -139,11 +139,11 @@ describe('Phase 1: Profiles, People & Access Scoping Tests', () => {
         {
           name: 'New Head Candidate',
           email: 'newhead@phase1test.com',
-          role: 'creative_head',
+          role: 'creative_lead',
         },
         adminUser
       );
-      expect(newPerson.role).toBe('creative_head');
+      expect(newPerson.role).toBe('creative_lead');
       expect(newPerson.status).toBe('active');
     });
 
@@ -153,7 +153,7 @@ describe('Phase 1: Profiles, People & Access Scoping Tests', () => {
           {
             name: 'Unauthorized User',
             email: 'unauth@phase1test.com',
-            role: 'team_member',
+            role: 'executive',
           },
           headUser
         )
@@ -178,37 +178,37 @@ describe('Phase 1: Profiles, People & Access Scoping Tests', () => {
     it('Creative Head CANNOT edit admin, executive, or other creative_head accounts', async () => {
       await expect(
         peopleService.updatePerson(adminUser._id, { weeklyCapacityHours: 20 }, headUser)
-      ).rejects.toThrow(/Creative Head cannot modify admin, executive, or other creative_head accounts/);
+      ).rejects.toThrow(/a lead cannot modify admin, lead or head accounts/);
 
       await expect(
         peopleService.updatePerson(headUser._id, { weeklyCapacityHours: 20 }, headUser)
-      ).rejects.toThrow(/Creative Head cannot modify admin, executive, or other creative_head accounts/);
+      ).rejects.toThrow(/a lead cannot modify admin, lead or head accounts/);
     });
 
     it('Creative Head CANNOT change user roles or status or emails', async () => {
       await expect(
         peopleService.updatePerson(member1User._id, { role: 'sm_manager' }, headUser)
-      ).rejects.toThrow(/Creative Head cannot change user roles/);
+      ).rejects.toThrow(/a lead cannot change user roles/);
 
       await expect(
         peopleService.updatePerson(member1User._id, { status: 'suspended' }, headUser)
-      ).rejects.toThrow(/Creative Head cannot change user status/);
+      ).rejects.toThrow(/a lead cannot change user status/);
 
       await expect(
         peopleService.updatePerson(member1User._id, { email: 'newemail@phase1test.com' }, headUser)
-      ).rejects.toThrow(/Creative Head can only edit operational fields/);
+      ).rejects.toThrow(/a lead can only edit operational fields/);
     });
 
     it('Creative Head CAN edit operational fields of sm_manager and team_member', async () => {
       const updated = await peopleService.updatePerson(
         member1User._id,
         {
-          jobRole: 'UI Designer',
+          jobRole: 'Graphic Designer',
           weeklyCapacityHours: 35,
         },
         headUser
       );
-      expect(updated.jobRole).toBe('UI Designer');
+      expect(updated.jobRole).toBe('Graphic Designer');
       expect(updated.weeklyCapacityHours).toBe(35);
     });
 

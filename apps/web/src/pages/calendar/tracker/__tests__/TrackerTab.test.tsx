@@ -140,7 +140,7 @@ describe('Content Flow Tracker', () => {
     expect(screen.getAllByRole('button', { name: /^Assign owners:/ })).toHaveLength(2);
     expect(screen.getAllByRole('button', { name: /^Change publish date:/ })).toHaveLength(2);
     sm.unmount();
-    show('/calendar?tab=tracker', 'executive');
+    show('/calendar?tab=tracker', 'creative_head');
     await waitFor(() => expect(titles()).toEqual(['Founder story', 'Campus walk cutdown']));
     expect(screen.queryByRole('button', { name: /^Assign owners:/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Change publish date:/ })).not.toBeInTheDocument();

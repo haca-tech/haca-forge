@@ -1,4 +1,4 @@
-import { getStepStatusLabel } from '@mmp/shared';
+import { getStepStatusLabel, isApprover } from '@mmp/shared';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import { displayStatus, statusClass, statusTone } from '../../lib/statusTone';
@@ -301,15 +301,15 @@ export const FeedbackPage: React.FC = () => {
     activeThread?.workItem.ownerId?._id === user?._id ||
     activeThread?.workItem.ownerId?._id === (user as any)?.userId;
 
-  // Same reviewer rule as the API: creative_head and admin, never on their own work.
+  // Same reviewer rule as the API: creative_lead/growth_lead and admin, never on their own work.
   const canRequestRevision =
-    (user?.role === 'admin' || user?.role === 'creative_head') && !isAssignedOwner;
+    (user?.role === 'admin' || isApprover(user?.role)) && !isAssignedOwner;
 
-  const isReviewerOrAdmin = user?.role === 'admin' || user?.role === 'creative_head' || user?.role === 'sm_manager';
+  const isReviewerOrAdmin = user?.role === 'admin' || isApprover(user?.role) || user?.role === 'sm_manager';
 
   return (
     <div className="space-y-6 pb-12 animate-fadeIn">
-      {/* Scope Reset R3 Top Tab Navigation for Creative Head */}
+      {/* Scope Reset R3 Top Tab Navigation for Creative Lead */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="ui-tabs flex-wrap max-w-full rounded-ui-card">
         <button
@@ -657,7 +657,7 @@ export const FeedbackPage: React.FC = () => {
                           </div>
                         ) : (
                           <p className="text-[11px] mt-1">
-                            Awaiting root cause classification by SM Manager or Creative Head.
+                            Awaiting root cause classification by SM Manager or Creative Lead.
                           </p>
                         )}
                       </div>
@@ -755,7 +755,7 @@ export const FeedbackPage: React.FC = () => {
                   <span>Submit Thread Update</span>
                 </h3>
 
-                {/* Reviewer Action Form (Creative Head or Admin) */}
+                {/* Reviewer Action Form (Creative Lead or Admin) */}
                 {canRequestRevision && (
                   <form onSubmit={handleSubmitReview} className="space-y-3 pt-2 border-t border-ui-line">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -787,7 +787,7 @@ export const FeedbackPage: React.FC = () => {
                   </form>
                 )}
 
-                {/* Owner Response Form (Assigned Owner or Creative Head/Admin) */}
+                {/* Owner Response Form (Assigned Owner or Creative Lead/Admin) */}
                 {(isAssignedOwner || isReviewerOrAdmin) && (
                   <form onSubmit={handleSubmitResponse} className="space-y-3 pt-3 border-t border-ui-line">
                     <span id="fb-response-label" className="text-xs font-semibold text-ui-ink block">

@@ -5,7 +5,7 @@ import { ShootReviewView } from '../ShootReviewView';
 import { DesignWorkspace } from '../DesignWorkspace';
 
 vi.mock('../../../../context/AuthContext', () => ({
-  useAuth: () => ({ user: { _id: 'u-ch', name: 'Head', role: 'creative_head' }, hasPermission: () => true }),
+  useAuth: () => ({ user: { _id: 'u-ch', name: 'Head', role: 'creative_lead' }, hasPermission: () => true }),
 }));
 const mockApiFetch = vi.fn();
 vi.mock('../../../../lib/api', () => ({ apiFetch: (...args: any[]) => mockApiFetch(...args) }));
@@ -52,8 +52,8 @@ describe('DesignWorkspace revision feedback', () => {
         workItem={workItem}
         onSubmit={vi.fn()}
         revisionComments={[
-          { id: 'r1', content: 'Increase headline contrast on slide 2.', authorName: 'Sarah', authorRole: 'creative_head', createdAt: '2026-11-01T10:00:00.000Z' },
-          { id: 'r2', content: 'Done, uploaded v2.', authorName: 'Dev', authorRole: 'team_member', createdAt: '2026-11-01T11:00:00.000Z' },
+          { id: 'r1', content: 'Increase headline contrast on slide 2.', authorName: 'Sarah', authorRole: 'creative_lead', createdAt: '2026-11-01T10:00:00.000Z' },
+          { id: 'r2', content: 'Done, uploaded v2.', authorName: 'Dev', authorRole: 'executive', createdAt: '2026-11-01T11:00:00.000Z' },
         ]}
       />
     );

@@ -18,6 +18,8 @@ import { removeUserFromRoom } from '../../lib/socketHub.js';
 import {
   CHAT_REACTION_EMOJIS,
   CHAT_ATTACHMENT_CONFIG,
+  APPROVER_ROLES,
+  isReadOnlyViewer,
 } from '@mmp/shared';
 
 // Helper to strip executable HTML tags (XSS guard)
@@ -223,7 +225,7 @@ export async function getChannelDetails(channelId, userId) {
 }
 
 /**
- * 4. Create Group Channel (creative_head, sm_manager, admin).
+ * 4. Create Group Channel (creative_lead/growth_lead, sm_manager, admin).
  */
 export async function createGroupChannel(user, { name, description = '', memberIds = [] }) {
   const trimmedName = name.trim();
@@ -485,10 +487,10 @@ export async function removeGroupMember(channelId, user, targetUserId) {
 }
 
 /**
- * 10. Direct Messages: Get or create 1:1 conversation between two active non-executive users.
+ * 10. Direct Messages: Get or create 1:1 conversation between two active non-creative_head/production_head users.
  */
 export async function getOrCreateDMChannel(user, targetUserId) {
-  if (user.role === 'executive') {
+  if (isReadOnlyViewer(user.role)) {
     const error = new Error('Executives are read-only viewers and cannot participate in direct messages.');
     error.statusCode = 403;
     error.code = 'EXECUTIVE_CANNOT_DM';
@@ -503,7 +505,7 @@ export async function getOrCreateDMChannel(user, targetUserId) {
     throw error;
   }
 
-  if (target.role === 'executive') {
+  if (isReadOnlyViewer(target.role)) {
     const error = new Error('Executives cannot be messaged directly.');
     error.statusCode = 403;
     error.code = 'EXECUTIVE_CANNOT_DM';
@@ -615,7 +617,7 @@ export async function listMessages(channelId, userId, { cursor, limit = 50, arou
  * 12. Send a message to a channel.
  */
 export async function sendMessage(channelId, user, { content = '', replyToId = null, attachments = [], sharedMedia = null }) {
-  if (user.role === 'executive') {
+  if (isReadOnlyViewer(user.role)) {
     const error = new Error('Executives are read-only viewers and cannot post messages.');
     error.statusCode = 403;
     error.code = 'EXECUTIVE_READ_ONLY';
@@ -630,7 +632,7 @@ export async function sendMessage(channelId, user, { content = '', replyToId = n
       member = await ChannelMember.create({
         channelId: channel._id,
         userId: person._id,
-        role: person.role === 'executive' ? 'viewer' : 'member',
+        role: isReadOnlyViewer(person.role) ? 'viewer' : 'member',
       });
     }
   }
@@ -660,9 +662,9 @@ export async function sendMessage(channelId, user, { content = '', replyToId = n
   // Permission check for @everyone
   const hasEveryoneMention = /@everyone\b/i.test(sanitized);
   if (hasEveryoneMention) {
-    const canMentionEveryone = ['admin', 'creative_head', 'sm_manager'].includes(user.role);
+    const canMentionEveryone = ['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role);
     if (!canMentionEveryone) {
-      const error = new Error('Only the Creative Head, SM Manager, or Administrator can mention @everyone.');
+      const error = new Error('Only the Creative Lead, SM Manager, or Administrator can mention @everyone.');
       error.statusCode = 403;
       error.code = 'UNAUTHORIZED_EVERYONE_MENTION';
       throw error;
@@ -806,7 +808,7 @@ export async function deleteMessage(channelId, messageId, user) {
  * 15. Toggle emoji reaction on a message.
  */
 export async function toggleReaction(channelId, messageId, user, emoji) {
-  if (user.role === 'executive') {
+  if (isReadOnlyViewer(user.role)) {
     const error = new Error('Executives cannot react to messages.');
     error.statusCode = 403;
     throw error;
@@ -866,7 +868,7 @@ export async function togglePinMessage(channelId, messageId, user) {
 
   const member = await ChannelMember.findOne({ channelId, userId: user.userId });
   const isOwner = member?.role === 'owner';
-  const isLeader = ['admin', 'creative_head', 'sm_manager'].includes(user.role);
+  const isLeader = ['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role);
 
   if (!isOwner && !isLeader) {
     const error = new Error('Only channel owners, leaders, or administrators can pin messages.');
@@ -941,7 +943,7 @@ export async function setChannelMute(channelId, userId, isMuted) {
  * 19. Share approved asset to chat with scoped ShareGrant.
  */
 export async function shareAssetToChat(user, { channelId, assetId, mediaItemId, assetType, contentPieceId, stageKey, note = '' }) {
-  if (user.role === 'executive') {
+  if (isReadOnlyViewer(user.role)) {
     const error = new Error('Executives cannot share assets.');
     error.statusCode = 403;
     throw error;
@@ -1054,10 +1056,10 @@ export async function shareAssetToChat(user, { channelId, assetId, mediaItemId, 
     isOwner = subOwnerIds.includes(user.userId.toString());
   }
 
-  // Permission check: only output owner, creative_head, sm_manager, and admin can share
-  const isPrivilegedRole = ['admin', 'creative_head', 'sm_manager'].includes(user.role);
+  // Permission check: only output owner, creative_lead/growth_lead, sm_manager, and admin can share
+  const isPrivilegedRole = ['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role);
   if (!isPrivilegedRole && !isOwner) {
-    const error = new Error('Only the asset owner, Creative Head, SM Manager, or Admin can share this asset.');
+    const error = new Error('Only the asset owner, Creative Lead, SM Manager, or Admin can share this asset.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_CANNOT_SHARE';
     throw error;
@@ -1149,10 +1151,10 @@ export async function revokeShareGrant(grantId, user) {
 
   const sharerId = (grant.grantedBy || grant.sharedById)?.toString();
   const isSharer = sharerId === user.userId?.toString();
-  const isLeader = ['admin', 'creative_head'].includes(user.role);
+  const isLeader = ['admin', ...APPROVER_ROLES].includes(user.role);
 
   if (!isSharer && !isLeader) {
-    const error = new Error('Only the sharer, Creative Head, or an Administrator can revoke this share.');
+    const error = new Error('Only the sharer, Creative Lead, or an Administrator can revoke this share.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_REVOKE';
     throw error;

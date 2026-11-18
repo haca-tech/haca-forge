@@ -83,7 +83,7 @@ describe('Phase 7: Automation Rules, Reports & Notifications (Screen 14)', () =>
     headUser = await Person.create({
       name: 'Auto Head',
       email: 'head@auto-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       profileAccess: [profileAlpha._id],
       active: true,
     });
@@ -91,7 +91,7 @@ describe('Phase 7: Automation Rules, Reports & Notifications (Screen 14)', () =>
     memberUser = await Person.create({
       name: 'Auto Member',
       email: 'member@auto-test.com',
-      role: 'team_member',
+      role: 'executive',
       departmentId: deptDesign._id,
       profileAccess: [profileAlpha._id],
       reportsToIds: [leadUser._id],
@@ -101,7 +101,7 @@ describe('Phase 7: Automation Rules, Reports & Notifications (Screen 14)', () =>
     depOwnerUser = await Person.create({
       name: 'Dep Owner Member',
       email: 'dep.owner@auto-test.com',
-      role: 'team_member',
+      role: 'executive',
       departmentId: deptDesign._id,
       profileAccess: [profileAlpha._id],
       reportsToIds: [leadUser._id],

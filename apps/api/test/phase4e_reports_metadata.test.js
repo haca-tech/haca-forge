@@ -57,9 +57,9 @@ describe('Phase 4e: reports and upload metadata', () => {
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    await make('head', 'creative_head');
-    await make('worker', 'team_member');
-    await make('inactive', 'team_member', { status: 'suspended' });
+    await make('head', 'creative_lead');
+    await make('worker', 'executive');
+    await make('inactive', 'executive', { status: 'suspended' });
     headToken = tokenFor(people.head);
 
     const due = new Date('2026-10-10T00:00:00Z');
@@ -154,7 +154,7 @@ describe('Phase 4e: reports and upload metadata', () => {
     };
 
     beforeAll(async () => {
-      await make('shooter', 'team_member');
+      await make('shooter', 'executive');
       shooterToken = tokenFor(people.shooter);
       shoot = await WorkItem.create({ title: `P4e shoot ${salt}`, workType: 'Reel', stageKey: 'Shoot', stageOrder: 2, departmentId: dept, ownerId: people.shooter._id, status: 'In Progress', isLocked: false, deadline: new Date(Date.now() + 5 * DAY) });
     });

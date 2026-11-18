@@ -32,7 +32,7 @@ describe('Phase 6f: small fixes', () => {
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
     fs.mkdirSync(UPLOADS, { recursive: true });
-    for (const [k, r] of [['admin', 'admin'], ['head', 'creative_head'], ['worker', 'team_member'], ['sender', 'team_member'], ['reader', 'team_member']]) await make(k, r);
+    for (const [k, r] of [['admin', 'admin'], ['head', 'creative_lead'], ['worker', 'executive'], ['sender', 'executive'], ['reader', 'executive']]) await make(k, r);
     group = await Channel.create({ name: `P6f group ${salt}`, type: 'group', createdById: people.head._id });
     await ChannelMember.create([
       { channelId: group._id, userId: people.sender._id, role: 'owner' },
@@ -56,14 +56,14 @@ describe('Phase 6f: small fixes', () => {
       const res = await request(app).patch(`/api/team/${people.worker._id}`).set(as('admin')).send({ role: 'wizard' });
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('INVALID_ROLE');
-      expect((await Person.findById(people.worker._id).lean()).role).toBe('team_member');
+      expect((await Person.findById(people.worker._id).lean()).role).toBe('executive');
     });
 
     it('a known role still changes', async () => {
       const res = await request(app).patch(`/api/team/${people.worker._id}`).set(as('admin')).send({ role: 'sm_manager' });
       expect(res.status).toBe(200);
       expect((await Person.findById(people.worker._id).lean()).role).toBe('sm_manager');
-      await Person.updateOne({ _id: people.worker._id }, { $set: { role: 'team_member' } });
+      await Person.updateOne({ _id: people.worker._id }, { $set: { role: 'executive' } });
     });
   });
 

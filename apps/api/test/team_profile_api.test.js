@@ -58,7 +58,7 @@ describe('Team Directory and Worker Profile API Suite', () => {
     creativeHead = await Person.create({
       name: 'TP Creative Head',
       email: 'head@team-profile-test.local',
-      role: 'creative_head',
+      role: 'creative_lead',
       jobRole: 'Creative Manager (TL)',
       departmentId: dept._id,
       status: 'active',
@@ -78,7 +78,7 @@ describe('Team Directory and Worker Profile API Suite', () => {
     executive = await Person.create({
       name: 'TP Executive',
       email: 'exec@team-profile-test.local',
-      role: 'executive',
+      role: 'creative_head',
       status: 'active',
       phone: '9000000004',
     });
@@ -87,7 +87,7 @@ describe('Team Directory and Worker Profile API Suite', () => {
       name: 'TP Writer One',
       preferredName: 'Alex Writer',
       email: 'writer1@team-profile-test.local',
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Writer',
       departmentId: dept._id,
       weeklyCapacityHours: 40,
@@ -102,8 +102,8 @@ describe('Team Directory and Worker Profile API Suite', () => {
       name: 'TP Designer Two',
       preferredName: 'Bella Design',
       email: 'designer2@team-profile-test.local',
-      role: 'team_member',
-      jobRole: 'Designer',
+      role: 'executive',
+      jobRole: 'Graphic Designer',
       departmentId: dept._id,
       weeklyCapacityHours: 40,
       workPreferences: ['Design'],
@@ -280,14 +280,12 @@ describe('Team Directory and Worker Profile API Suite', () => {
       expect(res.body.data.preferredName).toBe('Alex Writer');
     });
 
-    it('executive accessing member profile has contact details redacted (null)', async () => {
+    it('a read-only head accessing a member profile sees contact details (Phase 12b)', async () => {
       const res = await request(app)
         .get(`/api/team/${worker1._id}`)
         .set('Authorization', `Bearer ${execToken}`);
       expect(res.status).toBe(200);
-      expect(res.body.data.email).toBeNull();
-      expect(res.body.data.phone).toBeNull();
-      expect(res.body.data.whatsappNumber).toBeNull();
+      expect(res.body.data.email).toBe(worker1.email);
     });
 
     it('creative_head accessing member profile sees full contact details', async () => {
@@ -427,7 +425,7 @@ describe('Team Directory and Worker Profile API Suite', () => {
         .set('Authorization', `Bearer ${headToken}`)
         .send({
           weeklyCapacityHours: 35,
-          jobRole: 'Designer',
+          jobRole: 'Graphic Designer',
           reason: 'Promoted to Designer',
         });
       expect(res.status).toBe(200);
@@ -436,10 +434,12 @@ describe('Team Directory and Worker Profile API Suite', () => {
         .get(`/api/team/${worker1._id}/changes`)
         .set('Authorization', `Bearer ${headToken}`);
       expect(logsRes.status).toBe(200);
-      expect(logsRes.body.data.length).toBe(2);
+      // Writer -> Graphic Designer also drops the preferences a Graphic Designer is not eligible for.
+      expect(logsRes.body.data.length).toBe(3);
       const fields = logsRes.body.data.map((l) => l.field);
       expect(fields).toContain('weeklyCapacityHours');
       expect(fields).toContain('jobRole');
+      expect(fields).toContain('workPreferences');
     });
 
     it('sm_manager and executive are forbidden from accessing changes audit log', async () => {

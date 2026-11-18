@@ -89,7 +89,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
     headUser = await Person.create({
       name: 'Claire Head',
       email: 'creative.head@r3-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       jobRole: 'Creative Manager (TL)',
       status: 'active',
       profileAccess: [hacaProfile._id],
@@ -111,7 +111,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
     execUser = await Person.create({
       name: 'Edward Exec',
       email: 'exec@r3-test.com',
-      role: 'executive',
+      role: 'creative_head',
       status: 'active',
       profileAccess: [hacaProfile._id],
     });
@@ -121,7 +121,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
     writerUser = await Person.create({
       name: 'Wendy Writer',
       email: 'writer@r3-test.com',
-      role: 'team_member',
+      role: 'executive',
       departmentId: contentDept._id,
       jobRole: 'Writer',
       workPreferences: ['Content', 'Script'],
@@ -134,9 +134,9 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
     designerUser = await Person.create({
       name: 'Dan Designer',
       email: 'designer@r3-test.com',
-      role: 'team_member',
+      role: 'executive',
       departmentId: designDept._id,
-      jobRole: 'Designer',
+      jobRole: 'Graphic Designer',
       workPreferences: ['Design'],
       weeklyCapacityHours: 40,
       status: 'active',
@@ -146,7 +146,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
     editorUser = await Person.create({
       name: 'Eddie Editor',
       email: 'editor@r3-test.com',
-      role: 'team_member',
+      role: 'executive',
       departmentId: videoDept._id,
       jobRole: 'Video Editor',
       workPreferences: ['Edit', 'Post'],
@@ -659,7 +659,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
       // 3. SM Manager cannot approve review stage (403)
       await expect(
         transitionService.transitionWorkItem(s1Script._id, { toStatus: 'Approved' }, smUser)
-      ).rejects.toThrow(/Review stages can be approved only by Creative Head and Admin/);
+      ).rejects.toThrow(/Review stages can be approved only by Creative Lead and Admin/);
 
       // 4. Creative Head cannot approve a review stage through /transition
       await expect(
@@ -767,7 +767,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
       expect(recs[0].recommendedPerson.email).toBe('designer@r3-test.com');
 
       // Now overload all designers in department (allocated hours >= 35 / 40 -> > 85%)
-      const allDesigners = await Person.find({ departmentId: designDept._id, role: 'team_member' });
+      const allDesigners = await Person.find({ departmentId: designDept._id, role: 'executive' });
       for (const d of allDesigners) {
         await WorkItem.create({
           title: `R3 Heavy Workload ${d._id}`,
@@ -1117,7 +1117,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
         type: 'plan_changes_requested',
       });
       expect(notif).toBeDefined();
-      expect(notif.message).toContain('Creative Head requested changes');
+      expect(notif.message).toContain('Creative Lead requested changes');
     });
 
     it('enforces approval and revision guards on review stages: sm_manager and owner cannot approve or request revisions', async () => {

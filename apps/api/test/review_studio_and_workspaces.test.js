@@ -52,7 +52,7 @@ describe('Review Studio & Workspaces API Tests (WS3)', () => {
     creativeHeadUser = await Person.create({
       name: 'Creative Head',
       email: 'ch@ws3-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       department: 'Creative',
       jobRole: 'Creative Manager (TL)',
       status: 'active',
@@ -63,7 +63,7 @@ describe('Review Studio & Workspaces API Tests (WS3)', () => {
     writerUser = await Person.create({
       name: 'Script Writer',
       email: 'writer@ws3-test.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Content',
       jobRole: 'Writer',
       status: 'active',
@@ -74,9 +74,9 @@ describe('Review Studio & Workspaces API Tests (WS3)', () => {
     videographerUser = await Person.create({
       name: 'Videographer Pro',
       email: 'shooter@ws3-test.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Video',
-      jobRole: 'Videographer',
+      jobRole: 'Cinematographer',
       status: 'active',
       authMethod: 'password',
       profileAccess: [profId],

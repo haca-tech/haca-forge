@@ -1,7 +1,7 @@
 # HACA Marketing OS — UI Standards & Component Design System
 
 **Document Authority:** Single Source of Truth for Visual Design, Layout Shells, Glassmorphism Tokens, Spacing Grid, Core Components, Accessibility, and Mobile Responsiveness.  
-**Scope:** Universal across all five canonical roles (`admin`, `creative_head`, `sm_manager`, `executive`, `team_member`).
+**Scope:** Universal across all five canonical roles (`admin`, `creative_lead`, `sm_manager`, `creative_head`, `executive`).
 
 ---
 
@@ -96,10 +96,10 @@ Both `/profile` and `/settings` share the identical outer layout shell:
 ### 3.3 Chips & Badges
 * **Role Badges:**
   * `admin`: `bg-purple-500/10 text-purple-700 border border-purple-200/50`
-  * `creative_head`: `bg-amber-500/10 text-amber-800 border border-amber-200/50`
+  * `creative_lead`: `bg-amber-500/10 text-amber-800 border border-amber-200/50`
   * `sm_manager`: `bg-blue-500/10 text-blue-700 border border-blue-200/50`
-  * `executive`: `bg-indigo-500/10 text-indigo-700 border border-indigo-200/50`
-  * `team_member`: `bg-emerald-500/10 text-emerald-700 border border-emerald-200/50`
+  * `creative_head`: `bg-indigo-500/10 text-indigo-700 border border-indigo-200/50`
+  * `executive`: `bg-emerald-500/10 text-emerald-700 border border-emerald-200/50`
 * **Status Badges:**
   * `active`: `bg-emerald-50 text-emerald-700 border border-emerald-200`
   * `suspended`: `bg-rose-50 text-rose-700 border border-rose-200`

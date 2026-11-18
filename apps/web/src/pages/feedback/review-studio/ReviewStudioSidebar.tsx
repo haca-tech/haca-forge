@@ -1,3 +1,4 @@
+import { isApprover } from '@mmp/shared';
 import React, { useState } from 'react';
 import {
   FileText,
@@ -230,8 +231,8 @@ export const ReviewStudioSidebar: React.FC<ReviewStudioSidebarProps> = ({
                             <span
                               className="text-[11px] px-1.5 py-0.5 rounded-full font-medium bg-white text-ui-text border border-ui-line shrink-0"
                             >
-                              {comment.author.role === 'creative_head' || comment.author.role === 'admin'
-                                ? 'Creative Head'
+                              {isApprover(comment.author.role) || comment.author.role === 'admin'
+                                ? 'Creative Lead'
                                 : 'Video Editor'}
                             </span>
                           )}

@@ -306,7 +306,7 @@ export const ShootWorkspace: React.FC<ShootWorkspaceProps> = ({
         <div className="status-tint status-approved p-3 border-b text-xs flex items-center justify-between px-6 animate-fadeIn">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-800" />
-            <span>Footage submitted for review! The Creative Head will be notified.</span>
+            <span>Footage submitted for review! The Creative Lead will be notified.</span>
           </div>
           <button onClick={() => setSubmitSuccess(false)} className="p-1 hover:bg-emerald-500/30 rounded">
             <X className="w-3.5 h-3.5" />

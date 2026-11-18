@@ -15,7 +15,7 @@ vi.mock('../../../hooks/useSocket', () => ({ useSocket: () => ({ on: () => () =>
 
 const apiFetch = apiModule.apiFetch as unknown as ReturnType<typeof vi.fn>;
 const useAuth = authContext.useAuth as unknown as ReturnType<typeof vi.fn>;
-const signIn = (role: string, _id = `${role}-1`, canManage = role !== 'executive') =>
+const signIn = (role: string, _id = `${role}-1`, canManage = role !== 'creative_head') =>
   useAuth.mockReturnValue({ user: { _id, role, name: role }, hasPermission: () => canManage });
 
 beforeEach(() => {
@@ -42,7 +42,7 @@ describe('Review Studio controls by role', () => {
     await screen.findAllByText('Edit step');
   };
 
-  it.each(['sm_manager', 'executive'])('%s gets no decision or comment controls', async (role) => {
+  it.each(['sm_manager', 'creative_head'])('%s gets no decision or comment controls', async (role) => {
     signIn(role);
     await showStudio();
     expect(screen.queryByRole('button', { name: /^approve/i })).not.toBeInTheDocument();
@@ -51,7 +51,7 @@ describe('Review Studio controls by role', () => {
     expect(screen.queryByRole('button', { name: /comment @/i })).not.toBeInTheDocument();
   });
 
-  it.each(['creative_head', 'admin'])('%s can decide and comment', async (role) => {
+  it.each(['creative_lead', 'admin'])('%s can decide and comment', async (role) => {
     signIn(role);
     await showStudio();
     expect(screen.getByRole('button', { name: /^approve/i })).toBeInTheDocument();
@@ -61,7 +61,7 @@ describe('Review Studio controls by role', () => {
   });
 
   it('the step owner can comment but cannot decide', async () => {
-    signIn('team_member', 'owner-1');
+    signIn('executive', 'owner-1');
     await showStudio();
     expect(screen.getByRole('button', { name: /post comment/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /request revision/i })).not.toBeInTheDocument();
@@ -79,7 +79,7 @@ describe('Image pins', () => {
 
 describe('Shoot clip threads', () => {
   const load = () => {
-    signIn('executive');
+    signIn('creative_head');
     apiFetch.mockImplementation(async (url: string) => {
       if (url.includes('/messages')) return [];
       if (url.includes('/clips')) {
@@ -137,20 +137,20 @@ describe('Blocker actions by role', () => {
   });
 
   it('a creative head can only act on a step they own', async () => {
-    signIn('creative_head');
+    signIn('creative_lead');
     await showIssues();
     expect(actions().resolve).not.toBeInTheDocument();
     expect(actions().notify).not.toBeInTheDocument();
   });
 
   it('a creative head who owns the step can act on it', async () => {
-    signIn('creative_head', 'owner-1');
+    signIn('creative_lead', 'owner-1');
     await showIssues();
     expect(actions().resolve).toBeInTheDocument();
   });
 
   it('an executive cannot act', async () => {
-    signIn('executive');
+    signIn('creative_head');
     await showIssues();
     expect(actions().resolve).not.toBeInTheDocument();
     expect(actions().notify).not.toBeInTheDocument();

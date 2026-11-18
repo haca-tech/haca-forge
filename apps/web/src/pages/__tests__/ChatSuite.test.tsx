@@ -49,7 +49,7 @@ vi.mock('../../context/AuthContext', () => ({
     isLoading: false,
     hasPermission: (perm: string) => {
       if (mockCurrentUser.role === 'admin') return true;
-      if (mockCurrentUser.role === 'executive') return perm === 'chat.read';
+      if (mockCurrentUser.role === 'creative_head') return perm === 'chat.read';
       return ['chat.use', 'chat.group.create'].includes(perm);
     },
     logout: vi.fn(),
@@ -97,7 +97,7 @@ const mockChannels: ChatChannelTypeDetail[] = [
     otherUser: {
       _id: 'user-sarah-2',
       name: 'Sarah Connor',
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Video Editor',
     },
   },
@@ -300,7 +300,7 @@ describe('Team Chat Frontend Suite (Phase CH1)', () => {
         id: 'user-exec-1',
         _id: 'user-exec-1',
         name: 'Chief Executive',
-        role: 'executive',
+        role: 'creative_head',
         email: 'ceo@marketingos.com',
       };
 
@@ -529,7 +529,7 @@ describe('Team Chat Frontend Suite (Phase CH1)', () => {
           _id: 'user-2',
           name: 'Jane Doe',
           preferredName: 'Jane',
-          role: 'team_member',
+          role: 'executive',
           jobRole: 'Copywriter',
         },
         {

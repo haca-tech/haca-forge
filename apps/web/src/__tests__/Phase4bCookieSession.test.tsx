@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-const user = { _id: 'u1', id: 'u1', name: 'Cookie User', role: 'team_member', email: 'u1@test' };
+const user = { _id: 'u1', id: 'u1', name: 'Cookie User', role: 'executive', email: 'u1@test' };
 
 let fetchMock: ReturnType<typeof vi.fn>;
 

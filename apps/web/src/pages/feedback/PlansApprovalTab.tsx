@@ -11,7 +11,7 @@ import {
   ChevronUp,
   FileSpreadsheet,
 } from 'lucide-react';
-import { planMonthKey, type CalendarPlanStatus, type RowStatus } from '@mmp/shared';
+import { planMonthKey, type CalendarPlanStatus, type RowStatus, isApprover } from '@mmp/shared';
 
 interface PlanRow {
   _id: string;
@@ -47,8 +47,9 @@ interface CalendarPlanWaiting {
 export const PlansApprovalTab: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  // Plan row review is the Creative Head's alone (PG-3); others see the queue read-only.
-  const canReview = user?.role === 'creative_head';
+  // Plan row review is the Creative Lead's alone (PG-3); others see the queue read-only.
+  // The leads review plan rows; admin is a backup reviewer.
+  const canReview = isApprover(user?.role) || user?.role === 'admin';
   // Review controls on this page are for individual plans; monthly plans are reviewed in the plan grid.
   const canReviewHere = (plan: { kind: string }) => canReview && plan.kind !== 'monthly';
   const [plans, setPlans] = useState<CalendarPlanWaiting[]>([]);
@@ -168,7 +169,7 @@ export const PlansApprovalTab: React.FC = () => {
   if (isLoading) {
     return (
       <div className="glass-card p-8 text-center text-xs text-ui-muted">
-        Loading plans waiting for Creative Head approval...
+        Loading plans waiting for Creative Lead approval...
       </div>
     );
   }
@@ -181,7 +182,7 @@ export const PlansApprovalTab: React.FC = () => {
         </div>
         <h3 className="text-base font-bold text-ui-ink">All Plans Approved!</h3>
         <p className="text-xs text-ui-muted max-w-sm mx-auto">
-          There are currently no submitted monthly or project calendar plans waiting for Creative Head review.
+          There are currently no submitted monthly or project calendar plans waiting for Creative Lead review.
         </p>
       </div>
     );
@@ -257,11 +258,11 @@ export const PlansApprovalTab: React.FC = () => {
               {/* Expanded Review Section */}
               {isExpanded && (
                 <div className="border-t border-ui-line p-4 space-y-4">
-                  {/* Creative Head Action Bar */}
+                  {/* Creative Lead Action Bar */}
                   <div className="flex items-center justify-between flex-wrap gap-2 p-3 bg-white/60 rounded-xl">
                     <div className="flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-ui-ink" aria-hidden="true" />
-                      <span className="text-xs font-semibold text-ui-ink">Creative Head Review Actions:</span>
+                      <span className="text-xs font-semibold text-ui-ink">Creative Lead Review Actions:</span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -278,7 +279,7 @@ export const PlansApprovalTab: React.FC = () => {
                         </button>
                       )}
                       {!canReview && plan.kind !== 'monthly' && (
-                        <p className="text-xs text-ui-muted">Only the Creative Head can approve or return plan rows.</p>
+                        <p className="text-xs text-ui-muted">Only a Creative Lead, a Growth Lead or an Admin can approve or return plan rows.</p>
                       )}
                       {plan.kind === 'monthly' && (
                         <p className="text-xs text-ui-muted">Monthly plans are reviewed row by row in the plan grid.</p>

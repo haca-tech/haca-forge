@@ -11,7 +11,7 @@ import { ActivityEvent } from '../activity/model.js';
 import { sendMail, templates } from '../../lib/mailer.js';
 import { createNotification } from '../notifications/service.js';
 import { logger } from '../../lib/logger.js';
-import { normalizeRole } from '@mmp/shared';
+import { normalizeRole, isApprover, isReadOnlyViewer, isWorker } from '@mmp/shared';
 import { AccessRequest } from '../access/model.js';
 import { CalendarPlan } from '../calendar/plan.model.js';
 import { WorkItem } from '../workItems/model.js';
@@ -59,7 +59,7 @@ export async function getProfile(userId) {
     rolePanelData = {
       adminMetrics: { pendingAccessRequests, usersByRole },
     };
-  } else if (normalizedRole === 'creative_head') {
+  } else if (isApprover(normalizedRole)) {
     const stagesWaitingApproval = await countAwaitingReview().catch(() => 0);
     const plansWaiting = await CalendarPlan.countDocuments({ status: { $in: ['submitted', 'in_review'] } }).catch(() => 0);
     rolePanelData = {
@@ -75,13 +75,13 @@ export async function getProfile(userId) {
     rolePanelData = {
       smMetrics: { planStatus: 'Active', needsOwnerCount, lateItemsCount },
     };
-  } else if (normalizedRole === 'executive') {
+  } else if (isReadOnlyViewer(normalizedRole)) {
     const activeUsersCount = await User.countDocuments({ status: 'active' }).catch(() => 0);
     const activeDeliverablesCount = await WorkItem.countDocuments({ status: { $nin: ['Published'] } }).catch(() => 0);
     rolePanelData = {
       companySummary: { activeUsersCount, activeDeliverablesCount },
     };
-  } else if (normalizedRole === 'team_member') {
+  } else if (isWorker(normalizedRole)) {
     const myCurrentStepsCount = await WorkItem.countDocuments({
       ownerId: userId,
       status: { $nin: ['Approved', 'Published'] },

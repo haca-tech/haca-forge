@@ -38,7 +38,7 @@ const showRoute = (segment: string) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useAuth.mockReturnValue({ user: { _id: 'owner-1', role: 'team_member', name: 'Owner' }, hasPermission: () => true });
+  useAuth.mockReturnValue({ user: { _id: 'owner-1', role: 'executive', name: 'Owner' }, hasPermission: () => true });
 });
 afterEach(() => setWorkspacesLockedForTests(null));
 
@@ -90,7 +90,7 @@ describe('Locked workspaces', () => {
 describe('No workspace buttons while locked', () => {
   const detail = (stageKey: string, extra: any = {}) => ({
     _id: 'w1', title: `${stageKey} step`, workType: 'Reel', deadline: new Date().toISOString(), status: 'In Progress', revisions: 0, reviewRequired: stageKey !== 'Post',
-    stageKey, stageOrder: 1, isLocked: false, ownerId: { _id: 'owner-1', name: 'Owner', email: 'o@example.invalid', role: 'team_member' }, ...extra,
+    stageKey, stageOrder: 1, isLocked: false, ownerId: { _id: 'owner-1', name: 'Owner', email: 'o@example.invalid', role: 'executive' }, ...extra,
   });
   const showDetail = (data: any) => {
     apiFetch.mockImplementation(async (url: string) => (url === '/api/work/w1' ? { data } : { data: [] }));
@@ -113,7 +113,7 @@ describe('No workspace buttons while locked', () => {
   }
 
   it('Work Detail, reviewer: Review Studio stays available, no workspace button', async () => {
-    useAuth.mockReturnValue({ user: { _id: 'head-1', role: 'creative_head', name: 'Head' }, hasPermission: () => true });
+    useAuth.mockReturnValue({ user: { _id: 'head-1', role: 'creative_lead', name: 'Head' }, hasPermission: () => true });
     showDetail(detail('Shoot', { status: 'Feedback', latestSubmission: { _id: 's1', status: 'submitted', version: 1, kind: 'link' } }));
     expect((await screen.findAllByRole('button', { name: /Open in Review Studio/ })).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: /Approve Deliverable/ }).length).toBeGreaterThan(0);

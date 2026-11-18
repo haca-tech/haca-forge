@@ -1,4 +1,4 @@
-import { getStepStatusLabel } from '@mmp/shared';
+import { getStepStatusLabel, isApprover, isReadOnlyViewer, isWorker } from '@mmp/shared';
 import React, { useState, useEffect, useRef } from 'react';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
@@ -57,9 +57,9 @@ export const WorkerProfilePage: React.FC = () => {
   const targetId = isProfileRoute ? user?._id || user?.id : id;
 
   const isSelf = user?._id === targetId || user?.id === targetId;
-  const isExecutive = user?.role === 'executive';
+  const isExecutive = isReadOnlyViewer(user?.role);
   const isAdmin = user?.role === 'admin';
-  const isCreativeHead = user?.role === 'creative_head';
+  const isCreativeHead = isApprover(user?.role);
   const isSmManager = user?.role === 'sm_manager';
 
   // Base Profile & KPIs
@@ -272,8 +272,8 @@ export const WorkerProfilePage: React.FC = () => {
     ? `${profile.preferredName} (${profile.name})`
     : profile.name;
 
-  const isWorkerRole = profile.role === 'team_member';
-  const isSmOrCreativeRole = profile.role === 'sm_manager' || profile.role === 'creative_head';
+  const isWorkerRole = isWorker(profile.role);
+  const isSmOrCreativeRole = profile.role === 'sm_manager' || isApprover(profile.role);
 
   // Available tabs based on viewed role
   const availableTabs: Array<{ id: any; label: string }> = [
@@ -291,8 +291,8 @@ export const WorkerProfilePage: React.FC = () => {
       availableTabs.push({ id: 'changes', label: 'Changes Log' });
     }
   } else if (isSmOrCreativeRole) {
-    // Phase 8: an SM manager or Creative Head who owns production steps gets the worker tabs
-    // too, and a Creative Head's own review work is on the Reviews tab (when visible).
+    // Phase 8: an SM manager or Creative Lead who owns production steps gets the worker tabs
+    // too, and a Creative Lead's own review work is on the Reviews tab (when visible).
     if (kpiData?.worker) availableTabs.push({ id: 'work', label: 'Work' }, { id: 'performance', label: 'Performance' });
     if (kpiData?.creativeHead) availableTabs.push({ id: 'reviews', label: 'Reviews' });
     availableTabs.push({ id: 'activity', label: 'Activity' });
@@ -601,8 +601,8 @@ export const WorkerProfilePage: React.FC = () => {
         <div className="p-4 rounded-ui-card bg-white/60 text-[13px] text-ui-text flex items-start gap-2.5">
           <Info className="w-4 h-4 text-ui-ink shrink-0 mt-0.5" />
           <p className="font-medium">
-            Your work history, timings and ratings are visible to the Admin, Creative Head, SM
-            Manager and Executive.
+            Your work history, timings and ratings are visible to the Admin, Creative Head, Production Head, Creative Lead, Growth Lead
+            and SM Manager.
           </p>
         </div>
       )}
@@ -1001,7 +1001,7 @@ export const WorkerProfilePage: React.FC = () => {
               <h3 className="text-xs font-black text-ui-ink">
                 Leadership Operational Summary
               </h3>
-              {overviewData.operationalSummary.role === 'creative_head' && (
+              {isApprover(overviewData.operationalSummary.role) && (
                 <div className="grid grid-cols-2 gap-4 text-xs">
                   <div>
                     <span className="text-ui-ink font-semibold block">Pending Reviews Queue:</span>
@@ -1352,7 +1352,7 @@ export const WorkerProfilePage: React.FC = () => {
         </div>
       )}
 
-      {/* Phase 8: Creative Head review work (admin, executive, and the Creative Head on their own profile) */}
+      {/* Phase 8: Creative Lead review work (admin, executive, and the Creative Lead on their own profile) */}
       {activeTab === 'reviews' && kpiData?.creativeHead && (
         <div className="space-y-6" data-testid="profile-reviews">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">

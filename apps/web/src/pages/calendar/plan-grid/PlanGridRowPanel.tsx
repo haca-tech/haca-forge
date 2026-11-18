@@ -43,7 +43,7 @@ interface Props {
   planId?: string;
   month: string;
   canEdit: boolean;
-  /** Creative Head: approve or return a submitted row. */
+  /** Creative Lead: approve or return a submitted row. */
   canReview?: boolean;
   people?: GridPerson[];
   types?: string[];
@@ -97,7 +97,7 @@ function stepsFromRow(line: GridLine, people: GridPerson[]): StepLineState[] {
 
 /**
  * Row editor: every planning field (same fields as the Add Row form), Steps & Deadlines for
- * every step the row has (Content and Design included), review feedback, and the Creative Head's review.
+ * every step the row has (Content and Design included), review feedback, and the Creative Lead's review.
  */
 export const PlanGridRowPanel: React.FC<Props> = ({
   line,

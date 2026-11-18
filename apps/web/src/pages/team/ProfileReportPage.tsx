@@ -1,3 +1,4 @@
+import { ROLE_LABELS } from '@mmp/shared';
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
@@ -6,18 +7,12 @@ import { ReportTable } from '../reports/ReportViews';
 import { FIGURE_COLUMNS, STEP_COLUMNS, reviewerFigureRows, workerFigureRows, type ProfileKpiData } from './profileFigures';
 import { ReviewerCharts, WorkerCharts } from './ProfileKpiViews';
 
-const ROLE_NAMES: Record<string, string> = {
-  admin: 'Admin',
-  creative_head: 'Creative Head',
-  sm_manager: 'SM Manager',
-  executive: 'Executive',
-  team_member: 'Team member',
-};
+const ROLE_NAMES: Record<string, string> = ROLE_LABELS;
 
 /**
  * The individual profile report (Phase 8): print layout for Save as PDF. Header (name, role,
  * job role, department; no contact details), the period, the figures, charts and the step
- * list with labels. admin, creative_head and executive only (the API enforces it).
+ * list with labels. admin, creative_lead/growth_lead and creative_head/production_head only (the API enforces it).
  */
 export const ProfileReportPage: React.FC = () => {
   const { id } = useParams();

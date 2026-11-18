@@ -1,8 +1,8 @@
-import { normalizeRole } from '@mmp/shared';
+import { normalizeRole, APPROVER_ROLES, READ_ONLY_VIEWER_ROLES } from '@mmp/shared';
 import { LIVE_REPORTS, parseReportFilters, projectKpiReport } from './live.service.js';
 
 /** Roles that may open a Project KPI page. Everyone else gets the same 404 as a missing project. */
-const KPI_ROLES = ['admin', 'creative_head', 'sm_manager', 'executive'];
+const KPI_ROLES = ['admin', ...APPROVER_ROLES, 'sm_manager', ...READ_ONLY_VIEWER_ROLES];
 
 const notFound = (res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Project not found' } });
 

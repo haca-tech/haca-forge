@@ -1,7 +1,7 @@
 # HACA Marketing OS — UI & Design System Reference
 
 **Authority:** Single source of truth for visual design, shared controls, layout shell, role screens and workspaces.
-**Scope:** All 5 roles (`admin`, `creative_head`, `sm_manager`, `executive`, `team_member`).
+**Scope:** All 5 roles (`admin`, `creative_lead`, `sm_manager`, `creative_head`, `executive`).
 **Current as of:** 5 November 2026 (after retheme phases UI-1 to UI-4C).
 **Code is the reference:** tokens live in `apps/web/src/index.css` (`:root`) and `apps/web/tailwind.config.js`; status, role and band mapping lives in `apps/web/src/lib/statusTone.ts`. If this document and the code disagree, the code wins and this file should be corrected.
 
@@ -100,7 +100,7 @@ Status colours come from shared **web** classes in `index.css` and the helper in
 Render as `.status-chip` (pill), `.status-tint` (larger block) or `.status-dot`. All pass WCAG AA (5.7:1–19.7:1).
 
 ### 3.3 Roles, bands and calendars
-- **Roles:** `.role-badge` + `roleClass(role)` → `.role-admin`, `.role-creative-head`, `.role-sm-manager`, `.role-executive`, `.role-team-member` (desaturated, AA).
+- **Roles:** `.role-badge` + `roleClass(role)` → `.role-admin`, `.role-creative-head`, `.role-sm-manager`, `.role-creative_head`, `.role-team-member` (desaturated, AA).
 - **Workload bands:** `bandClass(band)` / `bandForPct(pct)` → `.band-healthy` (<65%, blue), `.band-high` (65–85%, neutral ink), `.band-overloaded` (>85%, coral); use `.band-chip`, `.band-tint`, `.band-bar`. The band label is always shown. Workload % is real and unclamped.
 - **Calendars:** `.cal-dot` + `.cal-sm` (ink), `.cal-sales` (blue), `.cal-ads` (coral), `.cal-academics_management` (muted), `.cal-other` (hollow ring). The calendar name is always shown beside the dot.
 
@@ -126,9 +126,9 @@ The shell is frozen at its pre-retheme look: retheme phases did not change it.
 - Full-screen tools (Writing Studio, Review Studio, production workspaces) render without the app shell and provide their own back control.
 
 Navigation per role (sidebar and mobile menu):
-- `team_member`: My Work, Creative Calendar, Notifications.
+- `executive`: My Work, Creative Calendar, Notifications.
 - `sm_manager`: Dashboard, My Work, Creative Calendar, Work, Team Workload, Issues and Blockers, Reports, Team Directory.
-- `creative_head`, `executive`: Dashboard, Creative Calendar, Work, Feedback and Revisions, Team Workload, Issues and Blockers, Reports and Automation, Team Directory.
+- `creative_lead`, `creative_head`: Dashboard, Creative Calendar, Work, Feedback and Revisions, Team Workload, Issues and Blockers, Reports and Automation, Team Directory.
 - `admin`: the same as above plus **Access Requests**.
 
 There is no separate Admin Users screen and no "Users" navigation item. `/admin/users` redirects to `/team`.

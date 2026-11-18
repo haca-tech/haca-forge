@@ -18,14 +18,14 @@ describe('Security Probe: Creative Head executing worker actions on tasks owned 
     headUser = await Person.create({
       name: 'Probe Creative Head',
       email: 'probe.head@test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       status: 'active',
     });
 
     writerUser = await Person.create({
       name: 'Probe Writer',
       email: 'probe.writer@test.com',
-      role: 'team_member',
+      role: 'executive',
       status: 'active',
     });
 

@@ -1,3 +1,4 @@
+import { ROLE_KEYS } from '@mmp/shared';
 /**
  * Maps raw step statuses and roles to the shared CSS tone classes in index.css
  * (`.status-*`, `.role-*`). Colours live only in the stylesheet; this file only
@@ -42,20 +43,9 @@ export function statusTone(status?: string | null, isLocked?: boolean): StatusTo
 /** Class for a status tone, e.g. `status-in-progress`. Combine with `status-chip`, `status-dot` or `status-tint`. */
 export const statusClass = (tone: StatusTone): string => `status-${tone}`;
 
-/** Class for a role tone, e.g. `role-creative-head`. Combine with `role-badge`. */
+/** Class for a role tone, e.g. `role-creative-lead`. Combine with `role-badge`. */
 export function roleClass(role?: string | null): string {
-  switch (role) {
-    case 'admin':
-      return 'role-admin';
-    case 'creative_head':
-      return 'role-creative-head';
-    case 'sm_manager':
-      return 'role-sm-manager';
-    case 'executive':
-      return 'role-executive';
-    default:
-      return 'role-team-member';
-  }
+  return role && (ROLE_KEYS as readonly string[]).includes(role) ? `role-${role.replace(/_/g, '-')}` : 'role-executive';
 }
 
 /** Workload capacity band -> shared class (`band-healthy` | `band-high` | `band-overloaded`).

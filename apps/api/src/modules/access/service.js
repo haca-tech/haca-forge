@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import mongoose from 'mongoose';
-import { REQUESTABLE_ROLES, ROLE_KEYS } from '@mmp/shared';
+import { REQUESTABLE_ROLES, ROLE_KEYS, APPROVER_ROLES, READ_ONLY_VIEWER_ROLES, WORKER_ROLE } from '@mmp/shared';
 import { AccessRequest } from './model.js';
 import { Person } from '../people/model.js';
 import { Department } from '../departments/model.js';
@@ -38,7 +38,7 @@ export async function resolveDepartmentObjectId(rawDept) {
 export async function submitAccessRequest(data) {
   const normalizedEmail = data.email ? data.email.toLowerCase().trim() : '';
 
-  // Server-side guard: public request form strictly allows team_member and sm_manager only
+  // Server-side guard: public request form strictly allows executive (worker) and sm_manager only
   if (!REQUESTABLE_ROLES.includes(data.requestedRole)) {
     const error = new Error('Only Team Member or SM Manager can be requested');
     error.code = 'INVALID_REQUESTED_ROLE';
@@ -184,11 +184,11 @@ export async function approveAccessRequest(id, reviewData = {}, adminUser) {
     throw error;
   }
 
-  const assignedRole = reviewData.assignedRole || accessReq.requestedRole || 'team_member';
+  const assignedRole = reviewData.assignedRole || accessReq.requestedRole || WORKER_ROLE;
 
-  // Only admin may grant admin, creative_head, or executive
-  if (['admin', 'creative_head', 'executive'].includes(assignedRole) && adminUser.role !== 'admin') {
-    const error = new Error('Only full Administrators can grant Admin, Creative Head, or Executive roles');
+  // Only admin may grant admin, creative_lead/growth_lead, or creative_head/production_head
+  if (['admin', ...APPROVER_ROLES, ...READ_ONLY_VIEWER_ROLES].includes(assignedRole) && adminUser.role !== 'admin') {
+    const error = new Error('Only an Admin can grant the Admin, Creative Head, Production Head, Creative Lead or Growth Lead roles');
     error.code = 'UNAUTHORIZED_ROLE_ASSIGNMENT';
     error.statusCode = 403;
     throw error;

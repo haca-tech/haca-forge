@@ -33,6 +33,9 @@ import {
   WORK_PREFERENCES,
   ROLE_LABELS,
   UserRole,
+  isApprover,
+  isReadOnlyViewer,
+  isWorker,
 } from '@mmp/shared';
 
 export interface ProfileData {
@@ -137,7 +140,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               totalUsers: usersRes.status === 'fulfilled' ? usersRes.value.data?.length || 0 : 0,
             });
           }
-        } else if (profile.role === 'creative_head') {
+        } else if (isApprover(profile.role)) {
           // Approvals and pending plans
           const [feedRes, planRes] = await Promise.allSettled([
             apiFetch<{ data: any[] }>('/api/feedback?status=Feedback'),
@@ -163,7 +166,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               needsOwnerCount: trackerRes.status === 'fulfilled' ? trackerRes.value.data?.length || 0 : 0,
             });
           }
-        } else if (profile.role === 'team_member') {
+        } else if (isWorker(profile.role)) {
           // My active steps & workload
           const [myWorkRes, workloadRes] = await Promise.allSettled([
             apiFetch<{ data: any[] }>('/api/my-work?status=active'),
@@ -175,7 +178,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               utilizationBand: workloadRes.status === 'fulfilled' ? 'Optimal' : 'Standard',
             });
           }
-        } else if (profile.role === 'executive') {
+        } else if (isReadOnlyViewer(profile.role)) {
           // Executive summary
           const dashRes = await apiFetch<any>('/api/dashboard').catch(() => null);
           if (isMounted && dashRes) {
@@ -998,8 +1001,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </div>
             )}
 
-            {/* 2. Creative Head Role Panel */}
-            {profile.role === 'creative_head' && (
+            {/* 2. Creative Lead Role Panel */}
+            {isApprover(profile.role) && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Link
                   to="/feedback"
@@ -1076,7 +1079,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             )}
 
             {/* 4. Executive Role Panel (Read-only Company Summary) */}
-            {profile.role === 'executive' && (
+            {isReadOnlyViewer(profile.role) && (
               <div className="p-4 rounded-2xl bg-white/70 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -1098,7 +1101,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             )}
 
             {/* 5. Team Member Role Panel */}
-            {profile.role === 'team_member' && (
+            {isWorker(profile.role) && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Link
                   to="/my-work"
@@ -1152,7 +1155,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           personId={profile.id || profile._id || ''}
           personName={profile.name}
           isOwnProfile={isSelf}
-          canEditRating={profile.role === 'creative_head' || profile.role === 'admin'}
+          canEditRating={isApprover(profile.role) || profile.role === 'admin'}
         />
       </div>
 

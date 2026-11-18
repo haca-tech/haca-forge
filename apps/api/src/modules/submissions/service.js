@@ -10,7 +10,7 @@ import { recordRoundSubmission } from '../workItems/rounds.js';
 import { assertCanHoldEditorLock, canSeePrivateReview, isTeamMember, requireParticipant } from '../workItems/access.js';
 import { visibleVersionsFilter } from '../workItems/viewerRules.js';
 import { createNotification, getSocketIO } from '../notifications/service.js';
-import { withoutContact } from '../../lib/socketHub.js';
+import { roleRooms, withoutContact } from '../../lib/socketHub.js';
 import { assertOutputUrl, assertOutputFiles } from '../uploads/outputUrls.js';
 import {
   assertDecisionAllowed,
@@ -32,6 +32,12 @@ import {
   normalizeRole,
   getWorkspaceMode,
   stepAllowsManyLinks,
+  APPROVER_ROLES,
+  READ_ONLY_VIEWER_ROLES,
+  isApprover,
+  isReadOnlyViewer,
+  isWorker,
+  canSeeAllReviewText,
 } from '@mmp/shared';
 
 /**
@@ -39,7 +45,7 @@ import {
  */
 async function canAccessPieceOutputs(user, pieceId) {
   const role = normalizeRole(user.role);
-  if (['admin', 'creative_head', 'sm_manager', 'executive'].includes(role)) {
+  if (['admin', ...APPROVER_ROLES, 'sm_manager', ...READ_ONLY_VIEWER_ROLES].includes(role)) {
     return true;
   }
   const userId = (user._id || user.id || user.userId)?.toString();
@@ -123,7 +129,7 @@ export async function getDraft(workItemId, user) {
   const ownerId = (workItem.ownerId?._id || workItem.ownerId)?.toString();
 
   // Scoping: Worker can only get draft of their own work item; reviewers can inspect
-  if (role === 'team_member' && ownerId !== userId) {
+  if (isWorker(role) && ownerId !== userId) {
     const err = new Error('You can only view drafts for work items assigned to you');
     err.statusCode = 403;
     err.code = 'FORBIDDEN_OWNERSHIP';
@@ -358,7 +364,7 @@ export async function saveSubmittedVersion({ workItem, user, fields, toStatus = 
 
   // Notify the reviewers
   await afterDecision('the submission notification', async () => {
-    const creativeHeads = await Person.find({ role: 'creative_head', status: 'active' });
+    const creativeHeads = await Person.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
     for (const ch of creativeHeads) {
       await createNotification({
         recipient: ch._id,
@@ -563,8 +569,8 @@ export async function addComment(submissionId, commentData, user) {
   const userId = (user._id || user.id || user.userId)?.toString();
   const ownerId = (workItem?.ownerId?._id || workItem?.ownerId)?.toString();
 
-  // Comment Privacy Guard: strictly between step owner and reviewers (creative_head, admin)
-  const isReviewer = role === 'creative_head' || role === 'admin';
+  // Comment Privacy Guard: strictly between step owner and reviewers (creative_lead/growth_lead, admin)
+  const isReviewer = isApprover(role) || role === 'admin';
   const isStepOwner = ownerId === userId;
 
   if (!isReviewer && !isStepOwner) {
@@ -607,7 +613,7 @@ export async function addComment(submissionId, commentData, user) {
       metadata: { submissionId: submission._id, commentId: comment._id },
     });
   } else if (isStepOwner) {
-    const creativeHeads = await Person.find({ role: 'creative_head', status: 'active' });
+    const creativeHeads = await Person.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
     for (const ch of creativeHeads) {
       await createNotification({
         recipient: ch._id,
@@ -625,8 +631,8 @@ export async function addComment(submissionId, commentData, user) {
   const io = getSocketIO();
   if (io) {
     if (ownerId) io.to(`user:${ownerId}`).emit('comment:new', populated);
-    io.to('role:creative_head').emit('comment:new', populated);
-    io.to('role:admin').emit('comment:new', populated);
+    // The reviewers: both lead rooms and admin (Phase 12b).
+    io.to(roleRooms([...APPROVER_ROLES, 'admin'])).emit('comment:new', populated);
   }
 
   return populated;
@@ -646,7 +652,8 @@ export async function listComments(submissionId, user) {
   const ownerId = (workItem?.ownerId?._id || workItem?.ownerId)?.toString();
 
   // Privacy Guard
-  const isReviewer = role === 'creative_head' || role === 'admin' || role === 'sm_manager';
+  // Reading comments: every role but a worker (Phase 12b: the read-only heads too), and the step owner.
+  const isReviewer = canSeeAllReviewText(role);
   const isStepOwner = ownerId === userId;
   if (!isReviewer && !isStepOwner) {
     const err = new Error('Comments are private to the assigned worker and reviewers');
@@ -678,7 +685,7 @@ export async function resolveComment(commentId, user) {
   const userId = (user._id || user.id || user.userId)?.toString();
   const ownerId = (workItem?.ownerId?._id || workItem?.ownerId)?.toString();
 
-  const isReviewer = role === 'creative_head' || role === 'admin';
+  const isReviewer = isApprover(role) || role === 'admin';
   const isStepOwner = ownerId === userId;
   if (!isReviewer && !isStepOwner) {
     const err = new Error('Only the author, owner, or reviewer can resolve comments');
@@ -825,8 +832,7 @@ export async function requestRevision(submissionId, { comment, rootCause }, user
       const io = getSocketIO();
       if (io) {
         if (ownerId) io.to(`user:${ownerId}`).emit('comment:new', populatedComment);
-        io.to('role:creative_head').emit('comment:new', populatedComment);
-        io.to('role:admin').emit('comment:new', populatedComment);
+        io.to(roleRooms([...APPROVER_ROLES, 'admin'])).emit('comment:new', populatedComment);
       }
     });
   }
@@ -887,7 +893,7 @@ export async function requestRevision(submissionId, { comment, rootCause }, user
         recipient: ownerId,
         type: 'revision_requested',
         title: 'Revision Requested on Stage Deliverable',
-        message: `Creative Head requested a revision on ${workItem.title}. Note: ${trimmedComment || 'Please review comments and resubmit.'}`,
+        message: `Creative Lead requested a revision on ${workItem.title}. Note: ${trimmedComment || 'Please review comments and resubmit.'}`,
         link: `/my-work?id=${workItem._id}`,
         metadata: { workItemId: workItem._id, submissionId: submission._id, comment: trimmedComment },
       })
@@ -987,7 +993,7 @@ export async function editRating(ratingId, editData, user) {
 
 export async function getReviewQueue(user) {
   const role = normalizeRole(user.role);
-  if (!['admin', 'creative_head', 'sm_manager', 'executive'].includes(role)) {
+  if (!['admin', ...APPROVER_ROLES, 'sm_manager', ...READ_ONLY_VIEWER_ROLES].includes(role)) {
     const err = new Error('Only reviewers and leadership can view the review queue');
     err.statusCode = 403;
     throw err;
@@ -1090,9 +1096,9 @@ export async function getRatingsSummary(personId, user) {
 
   // Scoping Guard:
   // - A worker reads ONLY their own ratings
-  // - creative_head, sm_manager, admin, executive read anyone's
+  // - creative_lead/growth_lead, sm_manager, admin, creative_head/production_head read anyone's
   // - NO comparative ranking or leaderboards
-  if (role === 'team_member' && userId !== targetIdStr) {
+  if (isWorker(role) && userId !== targetIdStr) {
     const err = new Error('Workers are permitted to inspect only their own quality ratings');
     err.statusCode = 403;
     err.code = 'FORBIDDEN_RATINGS_ACCESS';
@@ -1203,7 +1209,7 @@ export async function getRatingsSummary(personId, user) {
       workItemId: r.workItemId?._id || r.workItemId,
       date: r.createdAt,
       seenAt: r.seenAt,
-      raterName: r.raterId?.name || 'Creative Head',
+      raterName: r.raterId?.name || 'Creative Lead',
       editedLog: r.editedLog || [],
     }));
 
@@ -1217,7 +1223,7 @@ export async function getRatingsSummary(personId, user) {
     distribution,
     monthlyTrend,
     averagePerStepType,
-    recentFeedback: role === 'executive' ? [] : recentFeedback,
+    recentFeedback,
   };
 }
 
@@ -1290,7 +1296,7 @@ export async function listWorkItemComments(workItemId, user) {
   const userId = (user._id || user.id || user.userId)?.toString();
   const ownerId = (workItem.ownerId?._id || workItem.ownerId)?.toString();
 
-  const isReviewer = role === 'creative_head' || role === 'admin' || role === 'sm_manager';
+  const isReviewer = canSeeAllReviewText(role);
   const isStepOwner = ownerId === userId;
   if (!isReviewer && !isStepOwner) {
     const err = new Error('Comments are private to the assigned worker and reviewers');

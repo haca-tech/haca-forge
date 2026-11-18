@@ -17,7 +17,7 @@ vi.mock('../../../../lib/api', () => ({
 
 vi.mock('../../../../context/AuthContext', () => ({
   useAuth: () => ({
-    user: { id: 'u-ch-1', name: 'Creative Lead', role: 'creative_head' },
+    user: { id: 'u-ch-1', name: 'Creative Lead', role: 'creative_lead' },
   }),
 }));
 
@@ -401,7 +401,7 @@ describe('Review Studio Components & Decision Rules', () => {
           step: 'Shoot',
           ownerId: {
             name: 'Test Shooter',
-            role: 'team_member',
+            role: 'executive',
           },
         },
       };

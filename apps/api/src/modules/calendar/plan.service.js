@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { CalendarPlan } from './plan.model.js';
-import { parsePriorityInput } from '@mmp/shared';
+import { parsePriorityInput, APPROVER_ROLES, isApprover, isWorker } from '@mmp/shared';
 import { ContentPiece } from './contentPiece.model.js';
 import { WorkItem } from '../workItems/model.js';
 import { Person } from '../people/model.js';
@@ -219,7 +219,7 @@ export async function listPlans(filters = {}, user) {
   const scope = await resolveScope(user);
   const userRole = normalizeRole(user.role);
 
-  if (userRole === 'team_member') {
+  if (isWorker(userRole)) {
     const error = new Error('Team members cannot access calendar plans.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_SCOPE';
@@ -287,7 +287,7 @@ export async function listPlans(filters = {}, user) {
  */
 export async function getPlanById(id, user) {
   const userRole = normalizeRole(user.role);
-  if (userRole === 'team_member') {
+  if (isWorker(userRole)) {
     const error = new Error('Team members cannot access calendar plans.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_SCOPE';
@@ -831,8 +831,8 @@ export async function submitRow(planId, rowId, user) {
   plan.rejectionConcern = '';
   await plan.save();
 
-  // Notify Creative Heads
-  const creativeHeads = await Person.find({ role: 'creative_head', status: 'active' });
+  // Notify Creative Leads
+  const creativeHeads = await Person.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
   for (const ch of creativeHeads) {
     await createNotification({
       recipient: ch._id,
@@ -858,7 +858,7 @@ export async function submitRow(planId, rowId, user) {
 /**
  * Submit Calendar Plan
  * Moves draft and changes_requested rows to 'submitted'
- * Notifies all Creative Heads
+ * Notifies all Creative Leads
  */
 export async function submitPlan(id, user) {
   const plan = await CalendarPlan.findById(id);
@@ -971,8 +971,8 @@ export async function submitPlan(id, user) {
   plan.rejectionConcern = '';
   await plan.save();
 
-  // Notify every creative_head
-  const creativeHeads = await Person.find({ role: 'creative_head', status: 'active' });
+  // Notify every creative_lead/growth_lead
+  const creativeHeads = await Person.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
   for (const ch of creativeHeads) {
     await createNotification({
       recipient: ch._id,
@@ -1141,15 +1141,15 @@ export async function generateStagesForApprovedRow(piece, user) {
 }
 
 /**
- * Creative Head Review
+ * Creative Lead Review
  * Actions: approve_all | approve_selected | request_changes | reject
  */
 export async function reviewPlan(id, reviewData, user) {
   const userRole = normalizeRole(user.role);
-  // PG-3: plan row review (approve, request changes, reject) is the Creative Head's alone.
-  // Admin keeps every other permission; step reviews in transition.service are unchanged.
-  if (userRole !== 'creative_head') {
-    const error = new Error('Plan rows can be reviewed only by the Creative Head.');
+  // Phase 12b: plan rows are reviewed by the leads (creative_lead, growth_lead), with admin as a backup.
+  // Phase 13 splits the leads by calendar.
+  if (!isApprover(userRole) && userRole !== 'admin') {
+    const error = new Error('Plan rows can be reviewed only by a Creative Lead, a Growth Lead or an Admin.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_APPROVAL';
     throw error;
@@ -1246,10 +1246,10 @@ export async function reviewPlan(id, reviewData, user) {
 
     if (action === 'reject') {
       notifTitle = 'Calendar Plan Rejected';
-      notifMsg = `Entire plan rejected by Creative Head: ${plan.rejectionConcern || 'Strategic concern'}.`;
+      notifMsg = `Entire plan rejected by Creative Lead: ${plan.rejectionConcern || 'Strategic concern'}.`;
     } else if (action === 'request_changes') {
       notifTitle = 'Changes Requested on Calendar Plan';
-      notifMsg = `Creative Head requested changes on ${changesRequestedRows.length} row(s) in ${plan.title}.`;
+      notifMsg = `Creative Lead requested changes on ${changesRequestedRows.length} row(s) in ${plan.title}.`;
     } else if (action === 'approve_selected') {
       notifTitle = 'Calendar Plan Partially Approved';
       notifMsg = `${rowsToApprove.length} row(s) approved in ${plan.title}.`;
@@ -1481,7 +1481,7 @@ export async function movePlanCalendar(id, newCalendar, user) {
   });
 
   // Create notification
-  const notifyRoles = ['creative_head'];
+  const notifyRoles = [...APPROVER_ROLES];
   if (userRole !== 'sm_manager') notifyRoles.push('sm_manager');
   const notifyUsers = await Person.find({ role: { $in: notifyRoles }, status: 'active' }).lean();
   for (const recipient of notifyUsers) {

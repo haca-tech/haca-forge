@@ -1,3 +1,4 @@
+import { isReadOnlyViewer } from '@mmp/shared';
 import { ChannelMember } from './channelMember.model.js';
 import { logger } from '../../lib/logger.js';
 import { withoutContact } from '../../lib/socketHub.js';
@@ -22,7 +23,7 @@ export function setupChatSocket(io, socket) {
   const userId = socket.user?.userId;
 
   if (!userId) return;
-  const isExecutive = socket.user?.role === 'executive';
+  const isExecutive = isReadOnlyViewer(socket.user?.role);
   const isMember = async (channelId) =>
     Boolean(channelId) && Boolean(await ChannelMember.exists({ channelId, userId }));
 

@@ -62,7 +62,7 @@ describe('Share to Chat & Chat Polish Backend Specification Suite', () => {
       name: 'Creative Head',
       preferredName: 'HeadReviewer',
       email: `head-${salt}@chatshare.com`,
-      role: 'creative_head',
+      role: 'creative_lead',
       status: 'active',
       profileId: testProfile._id,
     });
@@ -77,7 +77,7 @@ describe('Share to Chat & Chat Polish Backend Specification Suite', () => {
     exec = await Person.create({
       name: 'Executive ReadOnly',
       email: `exec-${salt}@chatshare.com`,
-      role: 'executive',
+      role: 'creative_head',
       status: 'active',
       profileId: testProfile._id,
     });
@@ -85,8 +85,8 @@ describe('Share to Chat & Chat Polish Backend Specification Suite', () => {
       name: 'Worker Owner',
       preferredName: 'OwnerVideographer',
       email: `owner-${salt}@chatshare.com`,
-      role: 'team_member',
-      jobRole: 'Videographer',
+      role: 'executive',
+      jobRole: 'Cinematographer',
       status: 'active',
       profileId: testProfile._id,
     });
@@ -94,7 +94,7 @@ describe('Share to Chat & Chat Polish Backend Specification Suite', () => {
       name: 'Worker Other',
       preferredName: 'OtherEditor',
       email: `other-${salt}@chatshare.com`,
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Video Editor',
       status: 'active',
       profileId: testProfile._id,

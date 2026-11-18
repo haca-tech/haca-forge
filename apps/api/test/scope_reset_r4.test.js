@@ -94,7 +94,7 @@ describe('SCOPE RESET R4: Dashboard, Reports, Automation, Journey & Route-Table 
     headUser = await Person.create({
       name: 'R4 Creative Head',
       email: 'head@r4-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       status: 'active',
       profileAccess: [profileHaca._id],
       departmentId: deptCreative._id,
@@ -116,7 +116,7 @@ describe('SCOPE RESET R4: Dashboard, Reports, Automation, Journey & Route-Table 
     memberUser = await Person.create({
       name: 'R4 Specialist Worker',
       email: 'worker@r4-test.com',
-      role: 'team_member',
+      role: 'executive',
       status: 'active',
       profileAccess: [profileHaca._id],
       departmentId: deptContent._id,
@@ -129,7 +129,7 @@ describe('SCOPE RESET R4: Dashboard, Reports, Automation, Journey & Route-Table 
     execUser = await Person.create({
       name: 'R4 Executive Director',
       email: 'exec@r4-test.com',
-      role: 'executive',
+      role: 'creative_head',
       status: 'active',
       profileAccess: [profileHaca._id],
       weeklyCapacityHours: 40,
@@ -167,7 +167,7 @@ describe('SCOPE RESET R4: Dashboard, Reports, Automation, Journey & Route-Table 
         department: 'Video Production',
         departmentId: deptVideo._id,
         jobRole: 'Video Editor',
-        requestedRole: 'team_member',
+        requestedRole: 'executive',
         requestedProfileCodes: ['r4_haca'],
         requestedProfileIds: [profileHaca._id],
         reason: 'Hired as junior video editor',
@@ -179,7 +179,7 @@ describe('SCOPE RESET R4: Dashboard, Reports, Automation, Journey & Route-Table 
       const res = await request(app)
         .post(`/api/admin/access-requests/${newApplicantId}/approve`)
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ role: 'team_member' });
+        .send({ role: 'executive' });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -187,7 +187,7 @@ describe('SCOPE RESET R4: Dashboard, Reports, Automation, Journey & Route-Table 
 
       const createdPerson = await Person.findOne({ email: 'junior.editor@r4-test.com' });
       expect(createdPerson).toBeDefined();
-      expect(createdPerson.role).toBe('team_member');
+      expect(createdPerson.role).toBe('executive');
       expect(createdPerson.status).toBe('active');
     });
 

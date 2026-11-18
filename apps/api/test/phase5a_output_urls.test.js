@@ -81,7 +81,7 @@ describe('Phase 5a: saved output URLs', () => {
       if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
       fs.mkdirSync(UPLOADS, { recursive: true });
       fs.writeFileSync(path.join(UPLOADS, `${salt}.mp4`), 'VIDEO');
-      owner = await Person.create({ name: `P5a owner ${salt}`, email: `owner.${salt}@p5a.test`, role: 'team_member', status: 'active' });
+      owner = await Person.create({ name: `P5a owner ${salt}`, email: `owner.${salt}@p5a.test`, role: 'executive', status: 'active' });
       const admin = await Person.create({ name: `P5a admin ${salt}`, email: `admin.${salt}@p5a.test`, role: 'admin', status: 'active' });
       ownerToken = tokenFor(owner);
       adminToken = tokenFor(admin);

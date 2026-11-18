@@ -93,8 +93,8 @@ describe('Phase 6: Global Filter Bar & Team Dashboard (Screen 2)', () => {
     memberUser = await Person.create({
       name: 'Designer Member P6',
       email: 'member@dashboard-test.com',
-      role: 'team_member',
-      jobRole: 'Designer',
+      role: 'executive',
+      jobRole: 'Graphic Designer',
       departmentId: deptDesign._id,
       profileAccess: [profileAlpha._id],
       status: 'active',

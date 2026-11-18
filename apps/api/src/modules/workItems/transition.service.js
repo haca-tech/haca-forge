@@ -1,6 +1,6 @@
 import { WorkItem } from './model.js';
 import { logActivity } from '../activity/service.js';
-import { BLOCKER_REASONS, LIVE_URL_ERROR, normalizeRole, getAvailableActions, getWorkspaceMode, isLivePostUrl } from '@mmp/shared';
+import { BLOCKER_REASONS, LIVE_URL_ERROR, normalizeRole, getAvailableActions, getWorkspaceMode, isLivePostUrl, APPROVER_ROLES, isApprover, isReadOnlyViewer, isWorker } from '@mmp/shared';
 import { workspacesLocked } from '../../lib/workspaceLock.js';
 import { resolveScope } from '../../lib/scope.js';
 import { Person } from '../people/model.js';
@@ -49,14 +49,14 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
   const ownerIdStr = (workItem.ownerId?._id || workItem.ownerId)?.toString();
   const userRole = normalizeRole(user.role);
 
-  if (userRole === 'executive') {
+  if (isReadOnlyViewer(userRole)) {
     const error = new Error('Executives cannot perform status transitions');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_ACTION';
     throw error;
   }
 
-  if (userRole === 'team_member' && ownerIdStr !== userId) {
+  if (isWorker(userRole) && ownerIdStr !== userId) {
     const error = new Error('You can only update status for work items assigned to you');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_OWNERSHIP';
@@ -109,9 +109,9 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
       error.code = 'FORBIDDEN_SELF_APPROVAL';
       throw error;
     }
-    if (userRole !== 'creative_head' && userRole !== 'admin') {
+    if (!isApprover(userRole) && userRole !== 'admin') {
       const error = new Error(
-        'Review stages can be approved only by Creative Head and Admin. SM Manager and the owner cannot approve.'
+        'Review stages can be approved only by Creative Lead and Admin. SM Manager and the owner cannot approve.'
       );
       error.statusCode = 403;
       error.code = 'FORBIDDEN_APPROVAL';
@@ -123,9 +123,9 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
   const isReopen = isFinishedStep && (toStatus === 'Feedback' || toStatus === 'In Progress');
   const isReviewerRevision = fromStatus === 'Pending' && toStatus === 'Feedback';
 
-  // Reopening a finished step: creative_head and admin only, and never your own work.
-  if (isReopen && ((userRole !== 'creative_head' && userRole !== 'admin') || ownerIdStr === userId)) {
-    const error = new Error('Only a Creative Head or Admin who does not own this step can reopen it');
+  // Reopening a finished step: creative_lead/growth_lead and admin only, and never your own work.
+  if (isReopen && ((!isApprover(userRole) && userRole !== 'admin') || ownerIdStr === userId)) {
+    const error = new Error('Only a Creative Lead or Admin who does not own this step can reopen it');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_REOPEN';
     throw error;
@@ -139,8 +139,8 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
 
   // Requesting a revision follows the same reviewer rule as every other decision path.
   if (isReviewerRevision && !options.reviewDecision) {
-    if (userRole !== 'creative_head' && userRole !== 'admin') {
-      const error = new Error('Only Creative Head or Admin can request revisions');
+    if (!isApprover(userRole) && userRole !== 'admin') {
+      const error = new Error('Only Creative Lead or Admin can request revisions');
       error.statusCode = 403;
       error.code = 'FORBIDDEN_ACTION';
       throw error;
@@ -189,7 +189,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
   // Worker actions guard: A user never gets worker actions on a task they do not own
   // Note: On legacy standalone work items (no stageKey), sm_manager can publish and head can request rework.
   let isWorkerAction = ['start', 'submit_for_approval', 'mark_as_posted', 'mark_blocked'].includes(requiredAction);
-  if (fromStatus === 'Feedback' && toStatus === 'In Progress' && (userRole === 'creative_head' || userRole === 'admin')) {
+  if (fromStatus === 'Feedback' && toStatus === 'In Progress' && (isApprover(userRole) || userRole === 'admin')) {
     isWorkerAction = false;
   }
   if (toStatus === 'Published' && !workItem.stageKey && (userRole === 'sm_manager' || userRole === 'admin')) {
@@ -411,7 +411,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
         recipient: workItem.ownerId?._id || workItem.ownerId,
         type: 'revision_requested',
         title: 'Revision Requested on Stage Deliverable',
-        message: `Creative Head requested a revision on ${workItem.title}. Note: ${comment || 'Please update and resubmit.'}`,
+        message: `Creative Lead requested a revision on ${workItem.title}. Note: ${comment || 'Please update and resubmit.'}`,
         link: `/my-work?id=${workItem._id}`,
         metadata: { workItemId: workItem._id, comment },
       });
@@ -573,9 +573,9 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
       }
     }
 
-    // If review requested (moved to Feedback or Pending), notify Creative Heads
+    // If review requested (moved to Feedback or Pending), notify Creative Leads
     if (isNewSubmission) {
-      const creativeHeads = await Person.find({ role: 'creative_head', status: 'active' });
+      const creativeHeads = await Person.find({ role: { $in: [...APPROVER_ROLES] }, status: 'active' });
       for (const ch of creativeHeads) {
         await createNotification({
           recipient: ch._id,

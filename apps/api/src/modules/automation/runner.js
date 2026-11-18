@@ -8,7 +8,7 @@ import { ActivityEvent } from '../activity/model.js';
 import { enqueueEmail } from '../../lib/queue.js';
 import { isRetiredJob, runRetiredJob } from '../jobs/retired.js';
 import { logger } from '../../lib/logger.js';
-import { hasTimeLabel, istDateKey, overdueDays, stepTimeLabels } from '@mmp/shared';
+import { hasTimeLabel, istDateKey, overdueDays, stepTimeLabels, APPROVER_ROLES } from '@mmp/shared';
 
 // Default reminder rules (Phase 7: the two report-email rules were retired)
 export const DEFAULT_AUTOMATION_RULES = [
@@ -419,7 +419,7 @@ async function runRevisionPatternFlagRule(rule, user) {
 
   let escalatedCount = 0;
   const leaders = await Person.find({
-    role: { $in: ['creative_head', 'admin'] },
+    role: { $in: [...APPROVER_ROLES, 'admin'] },
     status: { $ne: 'suspended' },
   }).lean();
 

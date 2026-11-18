@@ -30,6 +30,8 @@ import {
   isPostableWorkType,
   normalizeWorkType,
   planMonthKey,
+  isApprover,
+  isReadOnlyViewer,
 } from '@mmp/shared';
 import { Avatar } from '../../components/Avatar';
 import {
@@ -170,9 +172,11 @@ export const PlansTab: React.FC<PlansTabProps> = ({
   onIndividualCreateHandled,
 }) => {
   const { user } = useAuth();
-  const isExecutive = user?.role === 'executive';
-  // Plan row review is the Creative Head's alone (PG-3); admin keeps planning and every other permission.
-  const isCreativeHead = user?.role === 'creative_head';
+  const isExecutive = isReadOnlyViewer(user?.role);
+  // Plan row review is the Creative Lead's alone (PG-3); admin keeps planning and every other permission.
+  const isCreativeHead = isApprover(user?.role);
+  // Reviews plan rows: the leads, and admin as a backup.
+  const isRowReviewer = isCreativeHead || user?.role === 'admin';
   const isSMManager = user?.role === 'sm_manager' || user?.role === 'admin';
   const isAdmin = user?.role === 'admin';
 
@@ -256,7 +260,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editingRowComment, setEditingRowComment] = useState<string | null>(null);
 
-  // Creative Head Review State
+  // Creative Lead Review State
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [rowComments, setRowComments] = useState<Record<string, string>>({});
   const [isReviewSubmitting, setIsReviewSubmitting] = useState(false);
@@ -902,7 +906,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
     }
   };
 
-  // Creative Head Review Actions (approve_all, approve_selected, request_changes)
+  // Creative Lead Review Actions (approve_all, approve_selected, request_changes)
   const handleReviewPlan = async (action: 'approve_all' | 'approve_selected' | 'request_changes') => {
     if (!selectedPlan) return;
     setIsReviewSubmitting(true);
@@ -971,7 +975,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
             Calendar Plans Management
           </h2>
           <p className="text-xs text-ui-muted mt-0.5">
-            Build the monthly content calendar, check your spreadsheet before upload, and follow the Creative Head's approval row by row.
+            Build the monthly content calendar, check your spreadsheet before upload, and follow the Creative Lead's approval row by row.
           </p>
         </div>
 
@@ -1210,7 +1214,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
                     <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
                     <div>
                       <div className="font-bold text-rose-900 flex items-center gap-2">
-                        <span>Changes Requested by Creative Head</span>
+                        <span>Changes Requested by Creative Lead</span>
                         <span className="text-[10px] font-semibold bg-rose-200/70 text-rose-800 px-1.5 py-0.2 rounded-full">
                           {(selectedPlan.rows || []).filter((r) => r.rowStatus === 'changes_requested').length} row(s) need rework
                         </span>
@@ -1247,7 +1251,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
                 </p>
               )}
 
-              {/* Action Toolbar for individual plans: SM Manager (Submit/Resubmit) & Creative Head (Review) */}
+              {/* Action Toolbar for individual plans: SM Manager (Submit/Resubmit) & Creative Lead (Review) */}
               {!isExecutive && !isMonthlyPlan && (
                 <div className="mt-4 pt-3 border-t border-ui-line flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
@@ -1297,8 +1301,8 @@ export const PlansTab: React.FC<PlansTabProps> = ({
                       )}
                   </div>
 
-                  {/* Creative Head Review Controls */}
-                  {isCreativeHead && !isMonthlyPlan && (selectedPlan.status === 'Submitted' || (selectedPlan.rows || []).some(r => r.rowStatus === 'submitted')) && (
+                  {/* Creative Lead Review Controls */}
+                  {isRowReviewer && !isMonthlyPlan && (selectedPlan.status === 'Submitted' || (selectedPlan.rows || []).some(r => r.rowStatus === 'submitted')) && (
                     <div className="flex items-center gap-2 flex-wrap bg-amber-50/70 p-2 rounded-xl border border-amber-200/70">
                       <span className="text-[11px] font-bold text-amber-900 mr-1 flex items-center gap-1">
                         <Sparkles className="w-3 h-3 text-amber-600" />
@@ -1338,7 +1342,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
                 <table className="ui-table w-full text-left text-xs">
                   <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                     <tr>
-                      {isCreativeHead && !isMonthlyPlan && (
+                      {isRowReviewer && !isMonthlyPlan && (
                         <th className="p-3 w-8">
                           <input
                             type="checkbox"
@@ -1395,7 +1399,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
                                 : ''
                             }`}
                           >
-                            {isCreativeHead && !isMonthlyPlan && (
+                            {isRowReviewer && !isMonthlyPlan && (
                               <td className="p-3">
                                 <input
                                   type="checkbox"
@@ -1498,7 +1502,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
                               </span>
                             </td>
                             <td className="p-3 max-w-[200px]">
-                              {isCreativeHead && !isMonthlyPlan && row.rowStatus === 'submitted' ? (
+                              {isRowReviewer && !isMonthlyPlan && row.rowStatus === 'submitted' ? (
                                 <input
                                   type="text"
                                   placeholder="Comment for revision..."
@@ -1529,7 +1533,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
                                         <button
                                           onClick={() => handleOpenEditModal(row)}
                                           className="ui-btn status-tint status-changes h-11 px-3"
-                                          title="Rework deliverable based on Creative Head feedback"
+                                          title="Rework deliverable based on Creative Lead feedback"
                                         >
                                           <Edit2 className="w-3 h-3" />
                                           Rework
@@ -2089,7 +2093,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
               <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs">
                 <div className="font-bold text-rose-800 flex items-center gap-1.5 mb-1">
                   <AlertCircle className="w-3.5 h-3.5 text-rose-600 flex-shrink-0" />
-                  Creative Head Feedback / Changes Requested:
+                  Creative Lead Feedback / Changes Requested:
                 </div>
                 <p className="text-rose-700 italic">"{editingRowComment}"</p>
               </div>

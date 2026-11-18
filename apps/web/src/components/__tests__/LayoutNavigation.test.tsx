@@ -59,7 +59,7 @@ describe('Layout Navigation for Canonical Roles', () => {
       _id: 'member-1',
       name: 'Taylor Creator',
       email: 'taylor@haca.test',
-      role: 'team_member',
+      role: 'executive',
     };
 
     render(

@@ -6,7 +6,7 @@ import { Person } from '../people/model.js';
 import { logActivity } from '../activity/service.js';
 import { createNotification } from '../notifications/service.js';
 import { sendMail } from '../../lib/mailer.js';
-import { BLOCKER_DEPENDENCY_REASONS } from '@mmp/shared';
+import { BLOCKER_DEPENDENCY_REASONS, isWorker } from '@mmp/shared';
 import { isTeamMember, participantWorkItemIds, requireParticipant } from '../workItems/access.js';
 
 /**
@@ -44,7 +44,7 @@ export async function createBlocker(data, user) {
   });
 
   const ownerIdStr = workItem.ownerId?._id?.toString() || workItem.ownerId?.toString();
-  if (user.role === 'team_member' && ownerIdStr !== blockerPerson?._id?.toString()) {
+  if (isWorker(user.role) && ownerIdStr !== blockerPerson?._id?.toString()) {
     const error = new Error('You can only mark your own assigned deliverables as blocked');
     error.statusCode = 403;
     throw error;
@@ -317,7 +317,7 @@ export async function listBlockers(filters = {}, user) {
     query.workItemId = new mongoose.Types.ObjectId(filters.workItemId);
   }
 
-  // A team_member sees only blockers on deliverables they participate in.
+  // A executive (worker) sees only blockers on deliverables they participate in.
   if (isTeamMember(user)) {
     const allowed = await participantWorkItemIds(user);
     if (query.workItemId) {

@@ -67,7 +67,7 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
     headUser = await Person.create({
       name: 'Exec Creative Head',
       email: 'head@exec-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       status: 'active',
       profileAccess: [profileAlpha._id, profileBeta._id],
     });
@@ -75,7 +75,7 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
     execUser = await Person.create({
       name: 'Exec Full Leader',
       email: 'exec@exec-test.com',
-      role: 'executive',
+      role: 'creative_head',
       status: 'active',
       phone: '+91 99999 88888',
       profileAccess: [profileAlpha._id, profileBeta._id],
@@ -84,7 +84,7 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
     execRestrictedUser = await Person.create({
       name: 'Exec Restricted',
       email: 'exec.restricted@exec-test.com',
-      role: 'executive',
+      role: 'creative_head',
       status: 'active',
       profileAccess: [profileAlpha._id], // restricted to Alpha only
     });
@@ -102,7 +102,7 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
       name: 'Exec Member',
       email: 'member@exec-test.com',
       phone: '+91 99999 77777',
-      role: 'team_member',
+      role: 'executive',
       status: 'active',
       departmentId: testDept._id,
       reportsToIds: [leadUser._id],
@@ -154,8 +154,8 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
   // Part 1: Schema & Permission Contract
   // -------------------------------------------------------------
   describe('Part 1: Contract & Permissions Snapshot', () => {
-    it('defines executive in ROLE_KEYS with exactly 5 roles', () => {
-      expect(ROLE_KEYS).toEqual(['admin', 'creative_head', 'executive', 'sm_manager', 'team_member']);
+    it('defines the 7 Phase 12b roles, including the read-only creative_head and production_head', () => {
+      expect(ROLE_KEYS).toEqual(['admin', 'creative_head', 'production_head', 'creative_lead', 'growth_lead', 'sm_manager', 'executive']);
     });
 
     it('contains portal.view and people.view in PERMISSION_KEYS', () => {
@@ -163,8 +163,9 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
       expect(PERMISSION_KEYS).toContain('people.view');
     });
 
-    it('grants executive read-only portal permissions snapshot', () => {
-      expect(ROLE_PERMISSIONS.executive).toEqual([
+    it('grants the read-only heads the read-only portal permissions snapshot', () => {
+      expect(ROLE_PERMISSIONS.production_head).toEqual(ROLE_PERMISSIONS.creative_head);
+      expect(ROLE_PERMISSIONS.creative_head).toEqual([
         'portal.view',
         'people.view',
         'analytics.team',
@@ -180,8 +181,8 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
     });
 
     it('excludes executive from public REQUESTABLE_ROLES', () => {
-      expect(REQUESTABLE_ROLES).not.toContain('executive');
-      expect(REQUESTABLE_ROLES).toEqual(['team_member', 'sm_manager']);
+      expect(REQUESTABLE_ROLES).not.toContain('creative_head');
+      expect(REQUESTABLE_ROLES).toEqual(['executive', 'sm_manager']);
     });
   });
 
@@ -349,7 +350,7 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
         .send({
           name: 'Forbidden Person',
           email: 'forbidden@exec-test.com',
-          role: 'team_member',
+          role: 'executive',
         });
       expect(res.status).toBe(403);
     });
@@ -437,12 +438,13 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
       expect(res.status).toBe(403);
     });
 
-    it('POST /api/reports/definitions/:key/generate -> 404 (removed in Phase 7; reports are read only)', async () => {
+    it('POST /api/reports/definitions/:key/generate -> 403 (a read-only head is refused every write first)', async () => {
       const res = await request(app)
         .post('/api/reports/definitions/weekly_marketing/generate')
         .set('Authorization', `Bearer ${execToken}`)
         .send({ sendEmail: false });
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('READ_ONLY_ROLE');
     });
 
     it('POST /api/automation/rules/:id/run -> 404 (removed in Phase 7)', async () => {
@@ -490,7 +492,7 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
   // Part 4: People API Sanitization
   // -------------------------------------------------------------
   describe('Part 4: People API Sanitization', () => {
-    it('omits email and phone for executive on GET /api/people list', async () => {
+    it('shows email to a read-only head on GET /api/people list (Phase 12b: contact details visible)', async () => {
       const res = await request(app)
         .get('/api/people')
         .set('Authorization', `Bearer ${execToken}`);
@@ -500,12 +502,11 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
       expect(items.length).toBeGreaterThan(0);
 
       for (const p of items) {
-        expect(p.email).toBeUndefined();
-        expect(p.phone).toBeUndefined();
+        expect(p.email).toBeTruthy();
       }
     });
 
-    it('omits email and phone for executive on GET /api/people/:id', async () => {
+    it('shows email to a read-only head on GET /api/people/:id (Phase 12b)', async () => {
       const res = await request(app)
         .get(`/api/people/${memberUser._id}`)
         .set('Authorization', `Bearer ${execToken}`);
@@ -513,18 +514,8 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
 
       const person = res.body.data;
       expect(person.name).toBe(memberUser.name);
-      expect(person.email).toBeUndefined();
-      expect(person.phone).toBeUndefined();
+      expect(person.email).toBe(memberUser.email);
 
-      // Ensure nested reportsToIds are also sanitized
-      if (Array.isArray(person.reportsToIds)) {
-        for (const rep of person.reportsToIds) {
-          if (typeof rep === 'object' && rep !== null) {
-            expect(rep.email).toBeUndefined();
-            expect(rep.phone).toBeUndefined();
-          }
-        }
-      }
     });
 
     it('includes email and phone for admin users on GET /api/people', async () => {
@@ -576,7 +567,7 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
           phone: '+91 99999 55555',
           department: 'Executive Board',
           jobRole: 'Managing Director',
-          requestedRole: 'executive',
+          requestedRole: 'creative_head',
           requestedProfileCodes: ['haca'],
           reason: 'Requesting executive portal view credentials',
         });
@@ -591,7 +582,7 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
           { weeklyCapacityHours: 30 },
           headUser
         )
-      ).rejects.toThrow(/Creative Head cannot modify/);
+      ).rejects.toThrow(/a lead cannot modify/);
     });
 
     it('Creative Head CANNOT approve access requests with executive role', async () => {
@@ -611,7 +602,7 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
       const res = await request(app)
         .patch(`/api/admin/access-requests/${req._id}/approve`)
         .set('Authorization', `Bearer ${headToken}`)
-        .send({ assignedRole: 'executive' });
+        .send({ assignedRole: 'creative_head' });
       expect(res.status).toBe(403);
     });
 
@@ -620,14 +611,14 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
         {
           name: 'Created Executive',
           email: 'created.exec@exec-test.com',
-          role: 'executive',
+          role: 'creative_head',
           profileAccess: [profileAlpha._id, profileBeta._id],
         },
         adminUser
       );
 
       expect(newExec).toBeDefined();
-      expect(newExec.role).toBe('executive');
+      expect(newExec.role).toBe('creative_head');
       expect(newExec.status).toBe('active');
     });
   });

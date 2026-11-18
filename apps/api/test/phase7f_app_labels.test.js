@@ -32,7 +32,7 @@ describe('Phase 7f: time labels across the app', () => {
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    for (const [k, r] of [['worker', 'team_member'], ['other', 'team_member'], ['head', 'creative_head'], ['sm', 'sm_manager']]) await make(k, r);
+    for (const [k, r] of [['worker', 'executive'], ['other', 'executive'], ['head', 'creative_lead'], ['sm', 'sm_manager']]) await make(k, r);
     piece = await ContentPiece.create({ planId: new mongoose.Types.ObjectId(), topic: `P7f piece ${salt}`, contentType: 'Reel', pipeline: 'reel_a', postingDate: new Date(Date.now() + 20 * DAY), calendar: 'sm', status: 'In Progress' });
     // Done late (first submitted 2 days after its due date), then an unlocked overdue step,
     // a blocked step, and a locked step past its due date.

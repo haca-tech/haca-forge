@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { ROLE_KEYS, JOB_ROLES, normalizeRole, WORK_PREFERENCES } from '@mmp/shared';
+import { ROLE_KEYS, JOB_ROLES, normalizeRole, WORK_PREFERENCES, WORKER_ROLE } from '@mmp/shared';
 import { disconnectUserSockets } from '../../lib/socketHub.js';
 
 const personSchema = new mongoose.Schema(
@@ -24,7 +24,7 @@ const personSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ROLE_KEYS,
-      default: 'team_member',
+      default: WORKER_ROLE,
       required: true,
       index: true,
       set: (val) => normalizeRole(val),

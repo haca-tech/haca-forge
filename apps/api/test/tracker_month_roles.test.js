@@ -22,7 +22,7 @@ describe('Tracker list: IST month and role scoping', () => {
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    for (const [k, r] of [['admin', 'admin'], ['sm', 'sm_manager'], ['head', 'creative_head'], ['exec', 'executive'], ['writer', 'team_member'], ['editor', 'team_member']]) {
+    for (const [k, r] of [['admin', 'admin'], ['sm', 'sm_manager'], ['head', 'creative_lead'], ['exec', 'creative_head'], ['writer', 'executive'], ['editor', 'executive']]) {
       people[k] = await Person.create({ name: `TRK ${k}`, email: `${k}.${salt}@trk.test`, role: r, status: 'active' });
     }
     const planId = new mongoose.Types.ObjectId();

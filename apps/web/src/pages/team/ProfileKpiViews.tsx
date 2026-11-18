@@ -183,7 +183,7 @@ export const ReviewerCharts: React.FC<{ ch: ReviewerKpis; print?: boolean }> = (
   </div>
 );
 
-/** "Download report": PDF (print layout) and CSV. Shown to admin, creative_head and executive only. */
+/** "Download report": PDF (print layout) and CSV. Shown to admin, creative_lead/growth_lead and creative_head/production_head only. */
 export const DownloadReport: React.FC<{ targetId: string; choice: PeriodChoice; personName: string }> = ({ targetId, choice, personName }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

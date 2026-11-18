@@ -5,7 +5,7 @@ import { Department } from '../departments/model.js';
 import { WorkItem } from '../workItems/model.js';
 import { resolveScope } from '../../lib/scope.js';
 import { logActivity } from '../activity/service.js';
-import { WORK_TYPE_DEPARTMENT_MAP } from '@mmp/shared';
+import { WORK_TYPE_DEPARTMENT_MAP, READ_ONLY_VIEWER_ROLES, isWorker, effectiveStepsFor, WORKER_ROLE, APPROVER_ROLES } from '@mmp/shared';
 import { resolveProfileObjectId } from '../referenceData/service.js';
 
 /**
@@ -109,20 +109,11 @@ export async function recommendAssignee(criteria = {}, user) {
   let targetDepartment = null;
 
   if (effectiveStageKey) {
-    // Stage Work Items: Candidates come from Person.workPreferences
-    candidates = await Person.find({
-      status: 'active',
-      role: { $nin: ['admin', 'executive'] },
-      workPreferences: effectiveStageKey,
-    });
-
-    // Fallback if no member has configured this preference
-    if (candidates.length === 0) {
-      candidates = await Person.find({
-        status: 'active',
-        role: { $nin: ['admin', 'executive'] },
-      });
-    }
+    // Stage Work Items: candidates are the people eligible for the step (job role sets it,
+    // preferences narrow it; Post is SM Managers only). No fallback to ineligible people.
+    candidates = (
+      await Person.find({ status: 'active', role: { $in: [WORKER_ROLE, 'sm_manager'] } })
+    ).filter((person) => effectiveStepsFor(person).includes(effectiveStageKey));
   } else {
     // Standalone Work Items: Candidates come from target department responsible for workType
     if (departmentId && mongoose.Types.ObjectId.isValid(departmentId)) {
@@ -136,7 +127,7 @@ export async function recommendAssignee(criteria = {}, user) {
 
     const deptQuery = {
       status: 'active',
-      role: { $nin: ['admin', 'executive'] },
+      role: { $nin: ['admin', ...READ_ONLY_VIEWER_ROLES, ...APPROVER_ROLES] },
     };
 
     if (targetDepartment) {
@@ -148,7 +139,7 @@ export async function recommendAssignee(criteria = {}, user) {
     if (candidates.length === 0) {
       candidates = await Person.find({
         status: 'active',
-        role: { $nin: ['admin', 'executive'] },
+        role: { $nin: ['admin', ...READ_ONLY_VIEWER_ROLES, ...APPROVER_ROLES] },
       });
     }
   }
@@ -196,8 +187,8 @@ export async function recommendAssignee(criteria = {}, user) {
     if (aOverloaded && !bOverloaded) return 1;
 
     // Prefer creative team members over management/leads
-    const aIsMember = a.person.role === 'team_member';
-    const bIsMember = b.person.role === 'team_member';
+    const aIsMember = isWorker(a.person.role);
+    const bIsMember = isWorker(b.person.role);
     if (aIsMember && !bIsMember) return -1;
     if (!aIsMember && bIsMember) return 1;
 
@@ -320,7 +311,7 @@ export async function getTeamWorkload(filters = {}, user) {
 
   const personQuery = {
     status: 'active',
-    role: { $nin: ['admin', 'executive'] }, // Admin and Executive excluded from operational workload
+    role: { $nin: ['admin', ...READ_ONLY_VIEWER_ROLES, ...APPROVER_ROLES] }, // Admin and Executive excluded from operational workload
   };
 
   if (filters.departmentId && filters.departmentId !== 'all') {

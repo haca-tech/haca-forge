@@ -45,7 +45,7 @@ describe('Workspaces WS4: Ratings in Profiles, Guardrails, and Reports', () => {
     creativeHeadUser = await Person.create({
       name: 'Creative Head WS4',
       email: 'ch@ws4-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       department: 'Creative',
       jobRole: 'Creative Manager (TL)',
       status: 'active',
@@ -67,7 +67,7 @@ describe('Workspaces WS4: Ratings in Profiles, Guardrails, and Reports', () => {
     executiveUser = await Person.create({
       name: 'Executive Viewer WS4',
       email: 'exec@ws4-test.com',
-      role: 'executive',
+      role: 'creative_head',
       department: 'Executive',
       status: 'active',
       authMethod: 'password',
@@ -77,7 +77,7 @@ describe('Workspaces WS4: Ratings in Profiles, Guardrails, and Reports', () => {
     workerAUser = await Person.create({
       name: 'Writer Alice WS4',
       email: 'alice@ws4-test.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Content',
       jobRole: 'Writer',
       status: 'active',
@@ -88,9 +88,9 @@ describe('Workspaces WS4: Ratings in Profiles, Guardrails, and Reports', () => {
     workerBUser = await Person.create({
       name: 'Designer Bob WS4',
       email: 'bob@ws4-test.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Design',
-      jobRole: 'Designer',
+      jobRole: 'Graphic Designer',
       status: 'active',
       authMethod: 'password',
       profileAccess: [profId],
@@ -99,7 +99,7 @@ describe('Workspaces WS4: Ratings in Profiles, Guardrails, and Reports', () => {
     workerUnratedUser = await Person.create({
       name: 'Unrated Worker WS4',
       email: 'unrated@ws4-test.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Content',
       jobRole: 'Writer',
       status: 'active',
@@ -110,7 +110,7 @@ describe('Workspaces WS4: Ratings in Profiles, Guardrails, and Reports', () => {
     workerFewUser = await Person.create({
       name: 'Few Ratings Worker WS4',
       email: 'few@ws4-test.com',
-      role: 'team_member',
+      role: 'executive',
       department: 'Content',
       jobRole: 'Writer',
       status: 'active',

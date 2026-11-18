@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ROLE_KEYS, ROLE_LABELS, JOB_ROLES } from '@mmp/shared';
+import { ROLE_KEYS, ROLE_LABELS, JOB_ROLES, WORKER_ROLE } from '@mmp/shared';
 import { apiFetch } from '../../lib/api';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 
@@ -18,7 +18,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  */
 export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({ onClose, onInvited }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [form, setForm] = useState({ name: '', email: '', role: 'team_member', jobRole: '' });
+  const [form, setForm] = useState({ name: '', email: '', role: WORKER_ROLE as string, jobRole: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

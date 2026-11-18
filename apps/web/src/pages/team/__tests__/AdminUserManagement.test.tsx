@@ -21,12 +21,12 @@ const apiFetch = apiModule.apiFetch as unknown as ReturnType<typeof vi.fn>;
 const useAuth = authContext.useAuth as unknown as ReturnType<typeof vi.fn>;
 
 const ACCOUNT_ACTIONS = ['Change role', 'Reset password', 'Force logout'];
-const NON_ADMIN_ROLES = ['creative_head', 'sm_manager', 'executive', 'team_member'];
+const NON_ADMIN_ROLES = ['creative_lead', 'sm_manager', 'creative_head', 'executive'];
 
 const profile = {
   _id: 'user-1',
   name: 'Test Writer One',
-  role: 'team_member',
+  role: 'executive',
   jobRole: 'Writer',
   status: 'active',
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -107,7 +107,7 @@ describe('Admin user-management actions', () => {
   });
 
   describe('2. Account actions require confirmation', () => {
-    const person = { _id: 'user-1', name: 'Test Writer One', role: 'team_member' };
+    const person = { _id: 'user-1', name: 'Test Writer One', role: 'executive' };
 
     it('change role: shows current and new role and only saves after Confirm', async () => {
       const onDone = vi.fn();
@@ -122,7 +122,7 @@ describe('Admin user-management actions', () => {
       fireEvent.change(within(dialog).getByLabelText('New role'), { target: { value: 'sm_manager' } });
       fireEvent.click(review);
       expect(apiFetch).not.toHaveBeenCalled();
-      expect(within(dialog).getByText('Current role').nextSibling).toHaveTextContent('Team Member');
+      expect(within(dialog).getByText('Current role').nextSibling).toHaveTextContent('Executive');
       expect(within(dialog).getByText('New role').nextSibling).toHaveTextContent('SM Manager');
 
       fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm role change' }));
@@ -157,7 +157,7 @@ describe('Admin user-management actions', () => {
       render(<AdminAccountActions person={person} onDone={vi.fn()} />);
       fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
       const dialog = screen.getByRole('dialog');
-      fireEvent.change(within(dialog).getByLabelText('New role'), { target: { value: 'executive' } });
+      fireEvent.change(within(dialog).getByLabelText('New role'), { target: { value: 'creative_head' } });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Review change' }));
       expect(document.activeElement).toBe(within(dialog).getByLabelText('Confirm the role change'));
       fireEvent.click(within(dialog).getByRole('button', { name: 'Back' }));
@@ -175,7 +175,7 @@ describe('Admin user-management actions', () => {
   });
 
   describe('3. Failed requests show an error and no success', () => {
-    const person = { _id: 'user-1', name: 'Test Writer One', role: 'team_member' };
+    const person = { _id: 'user-1', name: 'Test Writer One', role: 'executive' };
 
     it.each(['Reset password', 'Force logout'])('%s failure keeps the dialog open with an error', async (label) => {
       const onDone = vi.fn();
@@ -196,7 +196,7 @@ describe('Admin user-management actions', () => {
       render(<AdminAccountActions person={person} onDone={onDone} />);
       fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
       const dialog = screen.getByRole('dialog');
-      fireEvent.change(within(dialog).getByLabelText('New role'), { target: { value: 'executive' } });
+      fireEvent.change(within(dialog).getByLabelText('New role'), { target: { value: 'creative_head' } });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Review change' }));
       fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm role change' }));
       expect(await within(dialog).findByRole('alert')).toHaveTextContent('Person not found');
@@ -213,7 +213,7 @@ describe('Admin user-management actions', () => {
       renderProfile();
       fireEvent.click(await screen.findByRole('button', { name: 'Change role' }));
       const dialog = screen.getByRole('dialog');
-      fireEvent.change(within(dialog).getByLabelText('New role'), { target: { value: 'executive' } });
+      fireEvent.change(within(dialog).getByLabelText('New role'), { target: { value: 'creative_head' } });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Review change' }));
       fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm role change' }));
       expect(await within(dialog).findByRole('alert')).toHaveTextContent('Server error');

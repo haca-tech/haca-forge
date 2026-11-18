@@ -1,4 +1,4 @@
-import { getStepStatusLabel } from '@mmp/shared';
+import { getStepStatusLabel, isApprover, isWorker, ROLE_LABELS, type UserRole } from '@mmp/shared';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
@@ -187,9 +187,9 @@ export const TeamDashboardPage: React.FC = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Requirement: team_member is redirected to My Work
+  // Requirement: executive (worker) is redirected to My Work
   useEffect(() => {
-    if (user?.role === 'team_member') {
+    if (isWorker(user?.role)) {
       navigate('/my-work', { replace: true });
     }
   }, [user, navigate]);
@@ -210,27 +210,12 @@ export const TeamDashboardPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (user && user.role !== 'team_member') {
+    if (user && !isWorker(user.role)) {
       fetchDashboard();
     }
   }, [queryParams, user]);
 
-  const getRoleDisplayName = (role?: string) => {
-    switch (role) {
-      case 'admin':
-        return 'Administrator';
-      case 'creative_head':
-        return 'Creative Head';
-      case 'executive':
-        return 'Executive';
-      case 'sm_manager':
-        return 'SM Manager';
-      case 'team_member':
-        return 'Team Member';
-      default:
-        return 'Member';
-    }
-  };
+  const getRoleDisplayName = (role?: string) => ROLE_LABELS[role as UserRole] || 'Member';
 
   // Plan statuses reuse the shared status tones (no colours here).
   const planTone = (status: string): StatusTone => {
@@ -427,14 +412,14 @@ export const TeamDashboardPage: React.FC = () => {
 
       {!isLoading && data && (
         <div className="space-y-8">
-          {/* Waiting for approval (Creative Head / Admin sign-off queue) */}
-          {(user?.role === 'creative_head' || user?.role === 'admin') && (
+          {/* Waiting for approval (Creative Lead / Admin sign-off queue) */}
+          {(isApprover(user?.role) || user?.role === 'admin') && (
             <section className="glass-panel rounded-ui-panel p-5 sm:p-8 space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <FileCheck className="w-5 h-5 text-ui-ink shrink-0" />
                   <div>
-                    <h2 className={sectionTitle}>Waiting for Creative Head approval</h2>
+                    <h2 className={sectionTitle}>Waiting for Creative Lead approval</h2>
                     <span className="text-[13px] text-ui-muted">
                       {data.waitingApproval.totalPending} pending items requiring your sign-off
                     </span>

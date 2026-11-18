@@ -222,7 +222,7 @@ describe('CalendarPage 3 Tabs & Role-based Controls (Scope Reset R3)', () => {
 
   it('Creative Head: monthly plans are reviewed in the grid; individual plans keep their review controls', async () => {
     (authContext.useAuth as any).mockReturnValue({
-      user: { role: 'creative_head', name: 'Claire Head' },
+      user: { role: 'creative_lead', name: 'Claire Head' },
       hasPermission: () => true,
     });
 
@@ -272,7 +272,7 @@ describe('CalendarPage 3 Tabs & Role-based Controls (Scope Reset R3)', () => {
 
   it('displays Executive in read-only mode without mutation controls', async () => {
     (authContext.useAuth as any).mockReturnValue({
-      user: { role: 'executive', name: 'Elena Executive' },
+      user: { role: 'creative_head', name: 'Elena Executive' },
       hasPermission: () => false,
     });
 
@@ -291,7 +291,7 @@ describe('CalendarPage 3 Tabs & Role-based Controls (Scope Reset R3)', () => {
 
   it('displays friendly My Work notice for creative team_member', () => {
     (authContext.useAuth as any).mockReturnValue({
-      user: { role: 'team_member', name: 'Tim Member' },
+      user: { role: 'executive', name: 'Tim Member' },
       hasPermission: () => false,
     });
 

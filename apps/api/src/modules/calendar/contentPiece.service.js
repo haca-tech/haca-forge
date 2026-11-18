@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { markAwaitingReview } from '../workItems/reviewState.js';
 import { evaluateSteps } from '../workItems/timeLabels.js';
-import { hasTimeLabel, projectDelivery, projectTimeLabel, workflowLabel, isMonthKey, monthPeriod, istDateKey } from '@mmp/shared';
+import { hasTimeLabel, projectDelivery, projectTimeLabel, workflowLabel, isMonthKey, monthPeriod, istDateKey, isApprover, isWorker } from '@mmp/shared';
 
 import { ContentPiece } from './contentPiece.model.js';
 import { WorkItem } from '../workItems/model.js';
@@ -24,7 +24,7 @@ export async function listContentPieces(filters = {}, user) {
   const userId = (user?._id || user?.id || user?.userId)?.toString();
 
   const query = {};
-  if (userRole === 'team_member') {
+  if (isWorker(userRole)) {
     // Workers see only content pieces where they own at least one stage
     const myStages = await WorkItem.find({ ownerId: userId, contentPieceId: { $ne: null } }).select('contentPieceId');
     const myPieceIds = myStages.map((s) => s.contentPieceId);
@@ -72,7 +72,7 @@ export async function listContentPieces(filters = {}, user) {
 
   const results = pieces.map((piece) => {
     let stages = stagesByPiece[piece._id.toString()] || [];
-    if (userRole === 'team_member') {
+    if (isWorker(userRole)) {
       stages = stages.filter((s) => (s.ownerId?._id || s.ownerId)?.toString() === userId);
     }
 
@@ -133,7 +133,7 @@ export async function listContentPieces(filters = {}, user) {
       if (s.status === 'Blocked') {
         stageHolder = `Blocked since ${s.updatedAt ? new Date(s.updatedAt).toISOString().slice(0, 10) : 'recent'}`;
       } else if (s.awaitingReview) {
-        stageHolder = 'Creative Head';
+        stageHolder = 'Creative Lead';
       } else if (!s.ownerId) {
         stageHolder = 'SM Manager';
       } else if (s.isLocked) {
@@ -158,7 +158,7 @@ export async function listContentPieces(filters = {}, user) {
       if (activeStage.status === 'Blocked') {
         holder = `Blocked since ${activeStage.updatedAt ? new Date(activeStage.updatedAt).toISOString().slice(0, 10) : 'recent'}`;
       } else if (activeStage.awaitingReview) {
-        holder = 'Creative Head';
+        holder = 'Creative Lead';
       } else if (!activeStage.ownerId) {
         holder = 'SM Manager';
       } else if (activeStage.isLocked) {
@@ -191,7 +191,7 @@ export async function listContentPieces(filters = {}, user) {
     // unstarted step because it read an `assigneeConfirmed` field that is never set.)
     const stepOpen = (s) => !s.isSkipped && s.status !== 'Approved' && s.status !== 'Published';
     const hasNeedsOwner = enrichedStages.some((s) => stepOpen(s) && !s.ownerId);
-    // Waiting for approval: a step submitted and waiting for the Creative Head, by its latest
+    // Waiting for approval: a step submitted and waiting for the Creative Lead, by its latest
     // version. A step that was sent back (changes requested) is not waiting.
     const hasWaitingApproval = enrichedStages.some((s) => s.awaitingReview);
     const hasBlocked = enrichedStages.some((s) => s.status === 'Blocked');
@@ -322,7 +322,7 @@ export async function recommendOwnersForPiece(pieceId, user) {
  */
 export async function assignStages(assignmentList, user) {
   const userRole = normalizeRole(user.role);
-  if (userRole !== 'admin' && userRole !== 'sm_manager' && userRole !== 'creative_head') {
+  if (userRole !== 'admin' && userRole !== 'sm_manager' && !isApprover(userRole)) {
     const error = new Error('You do not have permission to assign stage owners.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_ASSIGNMENT';

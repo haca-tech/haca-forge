@@ -6,7 +6,7 @@ import * as teamController from './controller.js';
 const router = express.Router();
 
 // Middleware: allow access if user has 'team.profile.view' OR is accessing their own profile (:id === req.user._id)
-// If a team_member tries to access someone else's ID, return 404 (strictly anti-harvesting).
+// If a executive (worker) tries to access someone else's ID, return 404 (strictly anti-harvesting).
 function requireProfileAccess(req, res, next) {
   if (!req.user) {
     return res.status(401).json({
@@ -34,7 +34,7 @@ function requireProfileAccess(req, res, next) {
   });
 }
 
-// Roles without 'team.profile.view' (only team_member today) get 404, not 403, for the
+// Roles without 'team.profile.view' (only executive (worker) today) get 404, not 403, for the
 // directory and for another person's records, so the response does not confirm that
 // the resource exists (same anti-harvesting rule as requireProfileAccess). Requests for
 // your own :id fall through to the normal permission check unchanged.
@@ -53,7 +53,7 @@ function notFoundForWorkers(req, res, next) {
 
 router.use(authenticate);
 
-// Directory list - requires team.profile.view (team_member: 404)
+// Directory list - requires team.profile.view (executive (worker): 404)
 router.get('/', notFoundForWorkers, requirePermission('team.profile.view'), teamController.getDirectory);
 
 // Individual Profile Endpoints
@@ -62,7 +62,7 @@ router.get('/:id/overview', requireProfileAccess, teamController.getOverview);
 router.get('/:id/work', requireProfileAccess, teamController.getWork);
 router.get('/:id/performance', requireProfileAccess, teamController.getPerformance);
 // Phase 8: profile KPIs for a period (same access as the profile) and the downloadable
-// report (admin, creative_head and executive only; enforced in the service).
+// report (admin, creative_lead/growth_lead and creative_head/production_head only; enforced in the service).
 router.get('/:id/kpis', requireProfileAccess, teamController.getKpis);
 router.get('/:id/report', requireProfileAccess, teamController.getReport);
 router.get('/:id/ratings', requireProfileAccess, teamController.getRatings);

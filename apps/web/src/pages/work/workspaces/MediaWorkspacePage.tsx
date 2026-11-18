@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../../lib/api';
 import { useAuth } from '../../../context/AuthContext';
 import { ArrowLeft, AlertCircle, ShieldAlert, Lock } from 'lucide-react';
-import { getWorkspaceModeInfo, type WorkspaceMode, getStepStatusLabel } from '@mmp/shared';
+import { getWorkspaceModeInfo, type WorkspaceMode, getStepStatusLabel, canSeeAllReviewText, isApprover } from '@mmp/shared';
 
 import { ShootWorkspace } from './ShootWorkspace';
 import { ShootReviewView } from './ShootReviewView';
@@ -108,7 +108,7 @@ export const MediaWorkspacePage: React.FC = () => {
           id: c._id || c.id,
           content: c.content || c.text,
           authorId: c.authorId?._id || c.authorId?.id || (typeof c.authorId === 'string' ? c.authorId : undefined),
-          authorName: c.authorId?.name || (c.authorRole ? (c.authorRole === 'creative_head' ? 'Creative Head' : 'Editor') : 'Reviewer'),
+          authorName: c.authorId?.name || (c.authorRole ? (isApprover(c.authorRole) ? 'Reviewer' : 'Editor') : 'Reviewer'),
           authorRole: c.authorId?.role || c.authorRole,
           createdAt: c.createdAt,
           timecode: c.anchor?.timecode ?? c.anchor?.seconds,
@@ -407,7 +407,7 @@ export const MediaWorkspacePage: React.FC = () => {
             stageItemId={workItem._id || workItem.id}
             workItemTitle={workItem.title}
             readOnly={true}
-            canSeeThreads={modeInfo.isOwner || ['admin', 'creative_head', 'sm_manager'].includes(String(user?.role))}
+            canSeeThreads={modeInfo.isOwner || canSeeAllReviewText(user?.role)}
             onClose={() => navigate(-1)}
           />
         </div>

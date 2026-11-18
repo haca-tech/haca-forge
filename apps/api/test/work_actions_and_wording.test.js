@@ -22,11 +22,11 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
     const adminId = '660000000000000000000004';
     const execId = '660000000000000000000005';
 
-    const writerUser = { _id: writerId, role: 'team_member', name: 'Ravi' };
-    const headUser = { _id: headId, role: 'creative_head', name: 'Sarah' };
+    const writerUser = { _id: writerId, role: 'executive', name: 'Ravi' };
+    const headUser = { _id: headId, role: 'creative_lead', name: 'Sarah' };
     const smManagerUser = { _id: managerId, role: 'sm_manager', name: 'Alex' };
     const adminUser = { _id: adminId, role: 'admin', name: 'DevAdmin' };
-    const execUser = { _id: execId, role: 'executive', name: 'VP' };
+    const execUser = { _id: execId, role: 'creative_head', name: 'VP' };
 
     it('verifies exact ACTION_LABELS dictionary contains no "Lead" and has strict wording', () => {
       expect(ACTION_LABELS.start).toBe('Start');
@@ -93,7 +93,7 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
       it('refuses worker actions to another team_member even if that user has permission flags', () => {
         const otherMember = {
           _id: '660000000000000000000099',
-          role: 'team_member',
+          role: 'executive',
           name: 'Intruder',
           permissions: ['work.update.own', 'work.update.all', 'work.approve'],
         };
@@ -180,7 +180,7 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
         expect(getActionDisabledReason(headUser, { ownerId: { name: 'Ravi' }, status: 'In Progress', stageKey: 'Content' }))
           .toBe('Waiting for Ravi');
         expect(getActionDisabledReason(writerUser, { ownerId: { name: 'Ravi' }, status: 'Pending', stageKey: 'Content' }))
-          .toBe('Waiting for the Creative Head');
+          .toBe('Waiting for the Creative Lead');
         expect(
           getActionDisabledReason(writerUser, {
             ownerId: { name: 'Ravi' },
@@ -208,14 +208,14 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
       headUser = await Person.create({
         name: 'Head User Test',
         email: 'head.test.actions@example.com',
-        role: 'creative_head',
+        role: 'creative_lead',
         status: 'active',
         profileAccess: [profileDoc._id],
       });
       writerUser = await Person.create({
         name: 'Writer User Test',
         email: 'writer.test.actions@example.com',
-        role: 'team_member',
+        role: 'executive',
         status: 'active',
         profileAccess: [profileDoc._id],
       });
@@ -235,7 +235,7 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
       execUser = await Person.create({
         name: 'Exec Test',
         email: 'exec.test.actions@example.com',
-        role: 'executive',
+        role: 'creative_head',
         status: 'active',
         profileAccess: [profileDoc._id],
       });
@@ -444,14 +444,14 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
       headUser = await Person.create({
         name: 'Del Creative Head',
         email: 'del.head@example.com',
-        role: 'creative_head',
+        role: 'creative_lead',
         status: 'active',
         profileAccess: [profileDoc._id],
       });
       writerUser = await Person.create({
         name: 'Del Writer',
         email: 'del.writer@example.com',
-        role: 'team_member',
+        role: 'executive',
         status: 'active',
         profileAccess: [profileDoc._id],
       });

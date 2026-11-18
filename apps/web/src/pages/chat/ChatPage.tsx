@@ -42,6 +42,8 @@ import {
   ChatMessageType,
   ChannelMemberType,
   ChatReactionEmoji,
+  APPROVER_ROLES,
+  isReadOnlyViewer,
 } from '@mmp/shared';
 
 const ENTER_TO_SEND_KEY = 'haca.chat.enterToSend';
@@ -226,8 +228,8 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const detailsRequestRef = useRef(0);
 
-  const canCreateGroup = !!user && ['admin', 'creative_head', 'sm_manager'].includes(user.role);
-  const isExecutive = user?.role === 'executive';
+  const canCreateGroup = !!user && ['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role);
+  const isExecutive = isReadOnlyViewer(user?.role);
   const isAdmin = user?.role === 'admin';
 
   const myMembership = members.find((m) => String(m.userId ?? m.user?._id ?? '') === String(myId));

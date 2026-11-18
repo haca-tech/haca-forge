@@ -1,8 +1,22 @@
 import jwt from 'jsonwebtoken';
-import { normalizeRole } from '@mmp/shared';
+import { isKnownRole, isReadOnlyViewer, normalizeRole } from '@mmp/shared';
 import { env } from '../config/env.js';
 import { User } from '../modules/people/model.js';
 import { defineAbilityForUser } from '../lib/permissions.js';
+
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/** Writes the read-only heads may still make: their own account only. */
+export function isOwnAccountWrite(req) {
+  const path = `${req.baseUrl || ''}${req.path || ''}`;
+  return (
+    path.startsWith('/api/auth/') ||
+    path === '/api/me' ||
+    path.startsWith('/api/me/') ||
+    path.startsWith('/api/notifications/') ||
+    /^\/api\/chat\/channels\/[^/]+\/(read|mute)$/.test(path)
+  );
+}
 
 export async function authenticate(req, res, next) {
   try {
@@ -66,6 +80,29 @@ export async function authenticate(req, res, next) {
 
     if (user.role) {
       user.role = normalizeRole(user.role);
+    }
+
+    // An account still on a role from before Phase 12b (e.g. team_member) waits for the
+    // migration: no access with a role the app no longer knows.
+    if (!isKnownRole(user.role)) {
+      return res.status(403).json({
+        error: {
+          code: 'ROLE_MIGRATION_PENDING',
+          message: 'Your account is being moved to the new roles. Ask an admin to finish the move.',
+        },
+      });
+    }
+
+    // creative_head and production_head are read-only: every write is refused, except on
+    // their own account (sign-out, password, own profile and settings, notification and
+    // chat read markers).
+    if (isReadOnlyViewer(user.role) && !SAFE_METHODS.has(req.method) && !isOwnAccountWrite(req)) {
+      return res.status(403).json({
+        error: {
+          code: 'READ_ONLY_ROLE',
+          message: 'Your role can view everything but cannot make changes.',
+        },
+      });
     }
 
     req.user = user;

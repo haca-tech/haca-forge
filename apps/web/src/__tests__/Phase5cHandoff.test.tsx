@@ -22,7 +22,7 @@ const DOCS = 'https://docs.google.com/document/d/xyz/edit';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useAuth.mockReturnValue({ user: { _id: 'head-1', role: 'creative_head', name: 'Head' }, hasPermission: () => true });
+  useAuth.mockReturnValue({ user: { _id: 'head-1', role: 'creative_lead', name: 'Head' }, hasPermission: () => true });
 });
 
 describe('DriveLinkInput uses the shared rule', () => {

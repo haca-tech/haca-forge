@@ -65,7 +65,7 @@ describe('WS4: RatingsFeedbackSection Component Tests', () => {
         raterName: 'Creative Head Maya',
         editedLog: [
           {
-            editedBy: { name: 'Creative Head Maya', role: 'creative_head' },
+            editedBy: { name: 'Creative Head Maya', role: 'creative_lead' },
             editedAt: '2026-10-21T08:00:00Z',
             oldScore: 3,
             newScore: 4,

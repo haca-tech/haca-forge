@@ -28,7 +28,7 @@ describe('Phase 7g: profile overdue, blocked and on-time by the shared rules', (
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    for (const [k, r] of [['worker', 'team_member'], ['other', 'team_member'], ['head', 'creative_head']]) await make(k, r);
+    for (const [k, r] of [['worker', 'executive'], ['other', 'executive'], ['head', 'creative_lead']]) await make(k, r);
     await step('onTime', { status: 'Approved', deadline: ago(5), unlockedAt: ago(9), submittedAt: ago(6), approvedAt: ago(5) });
     await step('late', { status: 'Approved', deadline: ago(5), unlockedAt: ago(9), submittedAt: ago(3), approvedAt: ago(2) });
     // Unlocked only after its own due date: left out of the on-time rate.

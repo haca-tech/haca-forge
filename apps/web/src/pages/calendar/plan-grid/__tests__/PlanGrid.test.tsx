@@ -35,10 +35,10 @@ vi.mock('../../../../lib/api', async () => {
 });
 
 const people = [
-  { _id: 'p-writer', name: 'Asha Writer', role: 'team_member', workPreferences: ['Script', 'Content'] },
-  { _id: 'p-editor', name: 'Ravi Editor', role: 'team_member', workPreferences: ['Edit'] },
-  { _id: 'p-designer', name: 'Dia Designer', role: 'team_member', workPreferences: ['Design'] },
-  { _id: 'p-poster', name: 'Pia Poster', role: 'team_member', workPreferences: ['Post'] },
+  { _id: 'p-writer', name: 'Asha Writer', role: 'executive', workPreferences: ['Script', 'Content'] },
+  { _id: 'p-editor', name: 'Ravi Editor', role: 'executive', workPreferences: ['Edit'] },
+  { _id: 'p-designer', name: 'Dia Designer', role: 'executive', workPreferences: ['Design'] },
+  { _id: 'p-poster', name: 'Pia Poster', role: 'executive', workPreferences: ['Post'] },
 ];
 
 const reel: GridRow = {

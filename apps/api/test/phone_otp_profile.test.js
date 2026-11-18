@@ -31,7 +31,7 @@ describe('PHONE OTP VERIFICATION & PROFILE EMAIL LOCK SUITE', () => {
     testWorker = await Person.create({
       name: 'Phone OTP Worker',
       email: 'worker@phone-otp-test.com',
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Writer',
       status: 'active',
       phone: '+919000000001',

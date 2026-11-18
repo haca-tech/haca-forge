@@ -1,4 +1,4 @@
-import { REVIEW_STAGES, normalizeRole } from '@mmp/shared';
+import { REVIEW_STAGES, normalizeRole, isApprover } from '@mmp/shared';
 import { WorkItem } from './model.js';
 import { isFinished } from './access.js';
 import { isHandoverStep } from './handoff.js';
@@ -44,7 +44,7 @@ export async function assertCanReopen(workItem) {
 /** For Work Detail: may this user reopen this step now? */
 export function canReopen(user, item, siblingStages) {
   const role = normalizeRole(user?.role);
-  if (role !== 'creative_head' && role !== 'admin') return false;
+  if (!isApprover(role) && role !== 'admin') return false;
   const userId = String(user?._id || user?.id || user?.userId || '');
   const ownerId = String(item.ownerId?._id || item.ownerId || '');
   if (userId && userId === ownerId) return false;

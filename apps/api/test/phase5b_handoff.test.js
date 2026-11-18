@@ -78,7 +78,7 @@ describe('Phase 5b: asset handoff', () => {
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    for (const [k, r] of [['writer', 'team_member'], ['shooter', 'team_member'], ['editor', 'team_member'], ['poster', 'team_member'], ['designer', 'team_member'], ['copy', 'team_member'], ['outsider', 'team_member'], ['head', 'creative_head'], ['sm', 'sm_manager'], ['exec', 'executive'], ['admin', 'admin']]) await make(k, r);
+    for (const [k, r] of [['writer', 'executive'], ['shooter', 'executive'], ['editor', 'executive'], ['poster', 'executive'], ['designer', 'executive'], ['copy', 'executive'], ['outsider', 'executive'], ['head', 'creative_lead'], ['sm', 'sm_manager'], ['exec', 'creative_head'], ['admin', 'admin']]) await make(k, r);
     files.cutV1 = put('cut-v1.mp4');
     files.cutV2 = put('cut-v2.mp4');
     files.clip = put('clip.mp4');

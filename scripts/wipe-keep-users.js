@@ -53,7 +53,7 @@ export const CANONICAL_REPORT_DEFINITIONS = [
     cadence: 'Weekly',
     scheduleCron: '0 8 * * 1',
     scheduleDisplay: 'Mondays at 08:00 AM',
-    recipients: ['creative_head', 'sm_manager'],
+    recipients: ['creative_lead', 'sm_manager'],
   },
   {
     reportKey: 'monthly_scorecard',
@@ -62,7 +62,7 @@ export const CANONICAL_REPORT_DEFINITIONS = [
     cadence: 'Monthly',
     scheduleCron: '59 23 28-31 * *',
     scheduleDisplay: 'Last day of month at 23:59',
-    recipients: ['creative_head', 'admin'],
+    recipients: ['creative_lead', 'admin'],
   },
   {
     reportKey: 'creative_production',
@@ -71,7 +71,7 @@ export const CANONICAL_REPORT_DEFINITIONS = [
     cadence: 'Weekly',
     scheduleCron: '0 18 * * 5',
     scheduleDisplay: 'Fridays at 18:00 PM',
-    recipients: ['creative_head', 'sm_manager'],
+    recipients: ['creative_lead', 'sm_manager'],
   },
   {
     reportKey: 'team_performance',
@@ -80,7 +80,7 @@ export const CANONICAL_REPORT_DEFINITIONS = [
     cadence: 'Monthly',
     scheduleCron: '0 9 1 * *',
     scheduleDisplay: '1st of each month at 09:00 AM',
-    recipients: ['creative_head', 'sm_manager'],
+    recipients: ['creative_lead', 'sm_manager'],
   },
 ];
 

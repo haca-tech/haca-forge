@@ -15,7 +15,7 @@ import {
   CheckCircle,
   Share2,
 } from 'lucide-react';
-import { ROLE_LABELS, type UserRole } from '@mmp/shared';
+import { ROLE_LABELS, type UserRole, isApprover, isReadOnlyViewer, canSeeAllReviewText } from '@mmp/shared';
 
 import { DocumentViewer, DocumentCommentAnchor } from './DocumentViewer';
 import { VideoPlayerViewer } from './VideoPlayerViewer';
@@ -702,12 +702,12 @@ export const ReviewStudioPage: React.FC = () => {
     activeSubmission?.workItemId?.ownerId
   )?.toString();
   const isOwner = Boolean(ownerId && ownerId === currentUserId);
-  // Same reviewer rule as the API: creative_head and admin decide, never on their own work.
-  const isDecisionRole = user?.role === 'creative_head' || user?.role === 'admin';
+  // Same reviewer rule as the API: creative_lead/growth_lead and admin decide, never on their own work.
+  const isDecisionRole = isApprover(user?.role) || user?.role === 'admin';
   const canDecide = isDecisionRole && !isOwner;
   const canComment = isDecisionRole || isOwner;
-  const isPrivileged = user?.role === 'admin' || user?.role === 'creative_head' || user?.role === 'sm_manager';
-  const canShare = Boolean(isApproved && (isPrivileged || isOwner) && user?.role !== 'executive');
+  const isPrivileged = user?.role === 'admin' || isApprover(user?.role) || user?.role === 'sm_manager';
+  const canShare = Boolean(isApproved && (isPrivileged || isOwner) && !isReadOnlyViewer(user?.role));
 
   const shareAssetType: 'finalCut' | 'designImages' | 'document' =
     viewerType === 'video' ? 'finalCut' :
@@ -893,7 +893,7 @@ export const ReviewStudioPage: React.FC = () => {
               hideHeader={true}
               onStaleDecision={handleStaleDecision}
               readOnly={!canDecide}
-              canSeeThreads={user?.role !== 'executive'}
+              canSeeThreads={canSeeAllReviewText(user?.role)}
               onFinishReview={async () => {
                 const subId = activeSubmission._id || activeSubmission.id;
                 const remaining = queue.filter((item) => (item.id || (item as any)._id) !== subId);

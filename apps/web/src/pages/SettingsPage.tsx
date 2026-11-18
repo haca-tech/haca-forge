@@ -22,6 +22,10 @@ import {
   DateFormatOption,
   TimeFormatOption,
   WeekStartOption,
+  WORKER_ROLE,
+  isApprover,
+  isReadOnlyViewer,
+  isWorker,
 } from '@mmp/shared';
 
 interface SessionItem {
@@ -234,12 +238,12 @@ export const SettingsPage: React.FC = () => {
   };
 
   // Role Category Visibility
-  const role = user?.role || 'team_member';
+  const role = user?.role || WORKER_ROLE;
   const isAdmin = role === 'admin';
-  const isCreativeHead = role === 'creative_head';
+  const isCreativeHead = isApprover(role);
   const isSMManager = role === 'sm_manager';
-  const isExecutive = role === 'executive';
-  const isTeamMember = role === 'team_member';
+  const isExecutive = isReadOnlyViewer(role);
+  const isTeamMember = isWorker(role);
 
   const notificationCategories = [
     {

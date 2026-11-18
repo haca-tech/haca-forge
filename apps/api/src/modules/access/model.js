@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { ACCESS_REQUEST_STATUSES, ROLE_KEYS, REQUESTABLE_ROLES } from '@mmp/shared';
+import { ACCESS_REQUEST_STATUSES, ROLE_KEYS, REQUESTABLE_ROLES, WORKER_ROLE } from '@mmp/shared';
 
 const accessRequestSchema = new mongoose.Schema(
   {
@@ -38,7 +38,7 @@ const accessRequestSchema = new mongoose.Schema(
       type: String,
       enum: REQUESTABLE_ROLES,
       required: true,
-      default: 'team_member',
+      default: WORKER_ROLE,
     },
     reason: {
       type: String,

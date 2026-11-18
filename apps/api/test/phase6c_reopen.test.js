@@ -55,7 +55,7 @@ describe('Phase 6c: reopening a step pauses later steps', () => {
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) await mongoose.connect(env.MONGODB_URI);
-    for (const [k, r] of [['writer', 'team_member'], ['shooter', 'team_member'], ['editor', 'team_member'], ['poster', 'team_member'], ['designer', 'team_member'], ['head', 'creative_head'], ['head2', 'creative_head'], ['admin', 'admin'], ['sm', 'sm_manager']]) await make(k, r);
+    for (const [k, r] of [['writer', 'executive'], ['shooter', 'executive'], ['editor', 'executive'], ['poster', 'executive'], ['designer', 'executive'], ['head', 'creative_lead'], ['head2', 'creative_lead'], ['admin', 'admin'], ['sm', 'sm_manager']]) await make(k, r);
   });
 
   afterAll(async () => {

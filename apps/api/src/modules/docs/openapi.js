@@ -1,3 +1,4 @@
+import { APPROVER_ROLES, READ_ONLY_VIEWER_ROLES, WORKER_ROLE } from '@mmp/shared';
 /**
  * OpenAPI 3.0 Specification for Marketing Workflow & Content Management Portal
  */
@@ -57,7 +58,7 @@ export const openApiSpec = {
           email: { type: 'string', format: 'email' },
           role: {
             type: 'string',
-            enum: ['admin', 'creative_head', 'sm_manager', 'team_member', 'executive'],
+            enum: ['admin', ...APPROVER_ROLES, 'sm_manager', WORKER_ROLE, ...READ_ONLY_VIEWER_ROLES],
           },
           department: { type: 'string' },
           teamId: { type: 'string' },

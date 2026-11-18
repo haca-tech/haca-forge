@@ -1,3 +1,4 @@
+import { READ_ONLY_VIEWER_ROLES, WORKER_ROLE, isWorker } from '@mmp/shared';
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -14,8 +15,10 @@ import { LoginPage } from './pages/LoginPage';
 import { SetPasswordPage } from './pages/SetPasswordPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 
-// Pages team members must not see. They get the not-found state, as on /team/:id.
-const TEAM_MEMBER_HIDDEN: UserRole[] = ['team_member'];
+// My Work is for people who own steps: the read-only heads go to the dashboard.
+const READ_ONLY_TO_DASHBOARD = Object.fromEntries(READ_ONLY_VIEWER_ROLES.map((role) => [role, '/dashboard'])) as Partial<Record<UserRole, string>>;
+// Pages workers must not see. They get the not-found state, as on /team/:id.
+const TEAM_MEMBER_HIDDEN: UserRole[] = [WORKER_ROLE];
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -98,7 +101,7 @@ const ChatPage = React.lazy(() => import('./pages/chat/ChatPage'));
  * RootRedirect: Directs authenticated users according to completion and preferences:
  * 1. If profileCompletedAt is missing/empty -> /welcome
  * 2. If preferences.startPage is set -> 'Home' | 'My Work' | 'Calendar'
- * 3. Default fallback: team_member -> /my-work, all other roles -> /dashboard
+ * 3. Default fallback: executive (worker) -> /my-work, all other roles -> /dashboard
  */
 const RootRedirect: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -124,11 +127,11 @@ const RootRedirect: React.FC = () => {
     return <Navigate to="/calendar" replace />;
   }
   if (startPage === 'Home') {
-    return <Navigate to={user.role === 'team_member' ? '/my-work' : '/dashboard'} replace />;
+    return <Navigate to={isWorker(user.role) ? '/my-work' : '/dashboard'} replace />;
   }
 
   // Role default fallback
-  if (user.role === 'team_member') {
+  if (isWorker(user.role)) {
     return <Navigate to="/my-work" replace />;
   }
 
@@ -169,7 +172,7 @@ export const App: React.FC = () => {
                   path="/my-work"
                   element={
                     // Executives have no work queue: My Work by URL goes to the dashboard (Phase 6).
-                    <ProtectedRoute redirectRoles={{ executive: '/dashboard' }}>
+                    <ProtectedRoute redirectRoles={READ_ONLY_TO_DASHBOARD}>
                       <Layout>
                         <MyWorkPage />
                       </Layout>

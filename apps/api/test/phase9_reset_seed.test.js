@@ -79,7 +79,7 @@ describe('Phase 9: reset and seed on a scratch database', () => {
     const db = scratch.db;
     await db.collection('departments').insertMany(['social_media', 'design', 'video_production', 'seo_content', 'whatsapp', 'performance_marketing', 'tech'].map((code) => ({ code, name: code, type: code, isActive: true })));
     adminId = (await db.collection('users').insertOne({ email: ADMIN_EMAIL, name: 'Admin', role: 'admin', status: 'active', passwordHash: 'keep-me' })).insertedId;
-    await db.collection('users').insertMany([{ email: `old.${salt}@x.local`, role: 'team_member', status: 'active' }, { email: `old2.${salt}@x.local`, role: 'admin', status: 'active' }]);
+    await db.collection('users').insertMany([{ email: `old.${salt}@x.local`, role: 'executive', status: 'active' }, { email: `old2.${salt}@x.local`, role: 'admin', status: 'active' }]);
     await db.collection('sessions').insertMany([{ userId: adminId, token: 'a' }, { userId: new mongoose.Types.ObjectId(), token: 'b' }]);
     await db.collection('workitems').insertMany([{ title: 'w1' }, { title: 'w2' }]);
     await db.collection('priorities').insertMany([{ name: 'High' }, { name: 'Low' }]);
@@ -112,7 +112,7 @@ describe('Phase 9: reset and seed on a scratch database', () => {
     expect(await scratch.db.collection('workitems').countDocuments()).toBe(2);
   });
 
-  it('a confirmed run keeps config and the admin, wipes the rest, and seeds the 12 users', async () => {
+  it('a confirmed run keeps config and the admin, wipes the rest, and seeds the test users', async () => {
     const r = runScript(['--confirm', `--db-name=${SCRATCH_DB}`, `--uploads-dir=${uploadsDir}`, '--skip-queues'], fakePasswords);
     expect(r.status).toBe(0);
     expect(r.stdout + r.stderr).not.toMatch(/Scratch-only-|Scratch-admin-pass/);
@@ -129,7 +129,8 @@ describe('Phase 9: reset and seed on a scratch database', () => {
     expect((await db.collection('sessions').findOne({})).userId.toString()).toBe(adminId.toString());
 
     const users = await db.collection('users').find({ _id: { $ne: adminId } }).toArray();
-    expect(users).toHaveLength(12);
+    // Every seed user has a password in this run, so the two optional ones (Phase 12b) are seeded too.
+    expect(users).toHaveLength(SEED_USERS.length);
     const departments = await db.collection('departments').find({}).toArray();
     for (const cfg of SEED_USERS) {
       const u = users.find((x) => x.email === cfg.email);
@@ -138,11 +139,13 @@ describe('Phase 9: reset and seed on a scratch database', () => {
       expect(departments.find((d) => String(d._id) === String(u.departmentId))?.code ?? null).toBe(cfg.departmentCode);
       expect(await bcrypt.compare(fakePasswords[seedPasswordVar(cfg)], u.passwordHash)).toBe(true);
     }
-    expect(users.find((u) => u.email === 'allrounder@demo.haca.local').workPreferences).toEqual(['Script', 'Shoot', 'Post']);
+    // Phase 12b: the All Rounder prefers every step their job role allows; Post belongs to SM Managers.
+    expect(users.find((u) => u.email === 'allrounder@demo.haca.local').workPreferences).toEqual(['Script', 'Content', 'Shoot', 'Design', 'Edit']);
 
     const team = await db.collection('channels').findOne({ type: 'team', systemSlug: 'team-chat' });
     expect(team).toBeTruthy();
-    expect(await db.collection('channelmembers').countDocuments({ channelId: team._id })).toBe(13);
+    // Every seeded user plus the admin (Phase 12b: the optional users are seeded in this run too).
+    expect(await db.collection('channelmembers').countDocuments({ channelId: team._id })).toBe(SEED_USERS.length + 1);
 
     expect(fs.readdirSync(uploadsDir)).toEqual([]);
   });

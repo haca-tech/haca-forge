@@ -44,7 +44,7 @@ describe('Phase 3: Work Items, Traceability, Transitions & Dynamic Overdue', () 
     headUser = await Person.create({
       name: 'P3 Creative Head',
       email: 'head@p3-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       status: 'active',
       profileAccess: [testProfileAlpha._id, testProfileBeta._id],
     });
@@ -71,8 +71,8 @@ describe('Phase 3: Work Items, Traceability, Transitions & Dynamic Overdue', () 
     memberUser = await Person.create({
       name: 'P3 Team Member A',
       email: 'member@p3-test.com',
-      role: 'team_member',
-      jobRole: 'UI Designer',
+      role: 'executive',
+      jobRole: 'Graphic Designer',
       departmentId: testDept._id,
       reportsToIds: [leadUser._id],
       status: 'active',
@@ -82,7 +82,7 @@ describe('Phase 3: Work Items, Traceability, Transitions & Dynamic Overdue', () 
     otherMemberUser = await Person.create({
       name: 'P3 Other Member B',
       email: 'othermember@p3-test.com',
-      role: 'team_member',
+      role: 'executive',
       jobRole: 'Video Editor',
       status: 'active',
       profileAccess: [testProfileBeta._id],
@@ -241,7 +241,7 @@ describe('Phase 3: Work Items, Traceability, Transitions & Dynamic Overdue', () 
           { toStatus: 'Approved' },
           leadUser
         )
-      ).rejects.toThrow(/Review stages can be approved only by Creative Head and Admin/);
+      ).rejects.toThrow(/Review stages can be approved only by Creative Lead and Admin/);
     });
 
     it('ALLOWS Creative Head to approve deliverable and move to Approved', async () => {
@@ -540,8 +540,8 @@ describe('Phase 3: Work Items, Traceability, Transitions & Dynamic Overdue', () 
       const shooterUser = await Person.create({
         name: 'P3 Shooter Member',
         email: 'shooter@p3-test.com',
-        role: 'team_member',
-        jobRole: 'Videographer',
+        role: 'executive',
+        jobRole: 'Cinematographer',
         status: 'active',
         profileAccess: [testProfileAlpha._id],
       });

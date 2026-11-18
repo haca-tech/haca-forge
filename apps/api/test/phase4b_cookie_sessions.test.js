@@ -34,7 +34,7 @@ describe('Phase 4b: login tokens only in httpOnly cookies', () => {
     user = await Person.create({
       name: 'P4b Cookie User',
       email: `cookie.${salt}@p4b.test`,
-      role: 'team_member',
+      role: 'executive',
       status: 'active',
       passwordHash: await bcrypt.hash(PASSWORD, 10),
     });

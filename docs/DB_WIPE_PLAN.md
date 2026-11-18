@@ -84,18 +84,18 @@ All 13 accounts in the `users` collection represent legitimate workspace actors 
 | Name | Email | Role | Status | Job Role | Work Preferences | Password / Invite State |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **System Administrator** | `admin@hacaforge.com` | `admin` | active | — | — | Password set (from git-ignored .env) |
-| **Test Creative Head** | `creativehead@demo.haca.local` | `creative_head` | active | Creative Manager (TL) | Script, Content, Design, Edit | Password set (from git-ignored .env) |
+| **Test Creative Lead** | `creativehead@demo.haca.local` | `creative_lead` | active | Creative Manager (TL) | Script, Content, Design, Edit | Password set (from git-ignored .env) |
 | **Test SM Manager** | `smmanager@demo.haca.local` | `sm_manager` | active | Social Media Manager | Post | Password set (from git-ignored .env) |
-| **Test Writer One** | `writer1@demo.haca.local` | `team_member` | active | Writer | Content, Script | Password set (from git-ignored .env) |
-| **Test Writer Two** | `writer2@demo.haca.local` | `team_member` | active | Writer | Content, Script | Password set (from git-ignored .env) |
-| **Test Designer One** | `designer1@demo.haca.local` | `team_member` | active | Designer | Design | Password set (from git-ignored .env) |
-| **Test Designer Two** | `designer2@demo.haca.local` | `team_member` | active | Designer | Design | Password set (from git-ignored .env) |
-| **Test Shooter** | `shooter@demo.haca.local` | `team_member` | active | Video Editor | Shoot | Password set (from git-ignored .env) |
-| **Test Editor One** | `editor1@demo.haca.local` | `team_member` | active | Video Editor | Edit | Password set (from git-ignored .env) |
-| **Test Editor Two** | `editor2@demo.haca.local` | `team_member` | active | Video Editor | Edit | Password set (from git-ignored .env) |
-| **Test Poster** | `poster@demo.haca.local` | `team_member` | active | Social Specialist | Post | Password set (from git-ignored .env) |
-| **Test All Rounder** | `allrounder@demo.haca.local` | `team_member` | active | SEO Specialist | — | **Pending Invite / Set-Password** |
-| **Demo Executive Director** | `executive@demo.haca.local` | `executive` | active | — | — | Password set (from git-ignored .env) |
+| **Test Writer One** | `writer1@demo.haca.local` | `executive` | active | Writer | Content, Script | Password set (from git-ignored .env) |
+| **Test Writer Two** | `writer2@demo.haca.local` | `executive` | active | Writer | Content, Script | Password set (from git-ignored .env) |
+| **Test Designer One** | `designer1@demo.haca.local` | `executive` | active | Designer | Design | Password set (from git-ignored .env) |
+| **Test Designer Two** | `designer2@demo.haca.local` | `executive` | active | Designer | Design | Password set (from git-ignored .env) |
+| **Test Shooter** | `shooter@demo.haca.local` | `executive` | active | Video Editor | Shoot | Password set (from git-ignored .env) |
+| **Test Editor One** | `editor1@demo.haca.local` | `executive` | active | Video Editor | Edit | Password set (from git-ignored .env) |
+| **Test Editor Two** | `editor2@demo.haca.local` | `executive` | active | Video Editor | Edit | Password set (from git-ignored .env) |
+| **Test Poster** | `poster@demo.haca.local` | `executive` | active | Social Specialist | Post | Password set (from git-ignored .env) |
+| **Test All Rounder** | `allrounder@demo.haca.local` | `executive` | active | SEO Specialist | — | **Pending Invite / Set-Password** |
+| **Demo Creative Head Director** | `creative_head@demo.haca.local` | `creative_head` | active | — | — | Password set (from git-ignored .env) |
 
 #### Actions on Users:
 1. **Preserve ALL user attributes:** `_id`, `name`, `email`, `role`, `status`, `jobRole`, `departmentId`, `profileAccess`, `workPreferences`, `weeklyCapacityHours`, `reportsToIds`, `skills`, `notificationPreferences`, `passwordHash`, `mustSetPassword`, `resetPasswordTokenHash`, `resetPasswordExpiresAt`.
@@ -135,7 +135,7 @@ All 13 accounts in the `users` collection represent legitimate workspace actors 
   5. `revision_pattern_flag`
   6. `weekly_report`
 * **Current DB State & Flagged Differences:**
-  * Document `overdue_escalation` was renamed by executive test suite to `"Exec Overdue Rule"` with description `"Rule for testing executive read-only behavior"`.
+  * Document `overdue_escalation` was renamed by creative_head test suite to `"Exec Overdue Rule"` with description `"Rule for testing creative_head read-only behavior"`.
   * Documents have stale runtime fields populated (`lastRunAt`, `lastRunStatus: 'success'`, `lastRunDetails`, `lastRunSummary`).
 * **Proposal:** **UPDATE in-place to canonical seed**:
   1. Restore canonical title `"Overdue Deliverable Escalation"`, description, action, trigger, and config.
@@ -149,12 +149,12 @@ All 13 accounts in the `users` collection represent legitimate workspace actors 
 
 #### E. `reportdefinitions` (4 Objective Reports)
 * **What Fresh Seed Contains:** 4 canonical definitions in `apps/api/src/modules/reports/service.js`:
-  1. `weekly_marketing`: recipients `['creative_head', 'sm_manager']`
-  2. `monthly_scorecard`: recipients `['creative_head', 'admin']`
-  3. `creative_production`: recipients `['creative_head', 'sm_manager']`
-  4. `team_performance`: recipients `['creative_head', 'sm_manager']`
+  1. `weekly_marketing`: recipients `['creative_lead', 'sm_manager']`
+  2. `monthly_scorecard`: recipients `['creative_lead', 'admin']`
+  3. `creative_production`: recipients `['creative_lead', 'sm_manager']`
+  4. `team_performance`: recipients `['creative_lead', 'sm_manager']`
 * **Current DB State & Flagged Differences:**
-  * `weekly_marketing` contains stale execution state (`lastGeneratedAt: 2026-10-25...`, `lastGeneratedSummary`) and **orphan recipients** pointing to missing/test users: `["custom.executive@demo.haca.local", "6ade4251173358061b8903c6"]`.
+  * `weekly_marketing` contains stale execution state (`lastGeneratedAt: 2026-10-25...`, `lastGeneratedSummary`) and **orphan recipients** pointing to missing/test users: `["custom.creative_head@demo.haca.local", "6ade4251173358061b8903c6"]`.
   * `monthly_scorecard` contains stale execution state (`lastGeneratedAt: 2026-10-25...`, `lastGeneratedSummary`).
 * **Proposal:** **UPDATE in-place to canonical seed**:
   1. Reset runtime fields:
@@ -162,7 +162,7 @@ All 13 accounts in the `users` collection represent legitimate workspace actors 
      * `lastGeneratedBy: null`
      * `lastGeneratedSummary: null`
      * `latestSnapshot: null`
-  2. Reset `recipients` to canonical roles (`['creative_head', 'sm_manager']`, `['creative_head', 'admin']`), removing all orphan user IDs and test emails.
+  2. Reset `recipients` to canonical roles (`['creative_lead', 'sm_manager']`, `['creative_lead', 'admin']`), removing all orphan user IDs and test emails.
 
 #### F. `settings` (System Settings)
 * **What Fresh Seed Contains:** 1 document (`efficiencyWeights`, `requestersCanSeeWorkerNames`, `requireReasonForHold`, `defaultWeeklyCapacityHours`).

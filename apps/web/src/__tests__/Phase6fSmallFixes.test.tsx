@@ -3,7 +3,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 
-let currentRole = 'executive';
+let currentRole = 'creative_head';
 
 vi.mock('../context/AuthContext', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -36,13 +36,13 @@ const visit = (path: string) => {
 
 describe('My Work by URL', () => {
   it('an executive is redirected to /dashboard', async () => {
-    currentRole = 'executive';
+    currentRole = 'creative_head';
     visit('/my-work');
     await waitFor(() => expect(window.location.pathname).toBe('/dashboard'), { timeout: 5000 });
   });
 
   it('a team member stays on My Work', async () => {
-    currentRole = 'team_member';
+    currentRole = 'executive';
     visit('/my-work');
     await new Promise((r) => setTimeout(r, 50));
     expect(window.location.pathname).toBe('/my-work');

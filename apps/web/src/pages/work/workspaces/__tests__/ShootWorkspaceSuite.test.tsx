@@ -194,7 +194,7 @@ describe('Shoot Workspace & Per-Clip Tools Test Suite', () => {
         authorId: {
           _id: 'user-creative-1',
           name: 'Sarah Jenkins',
-          role: 'creative_head',
+          role: 'creative_lead',
         } as any,
         text: 'Please check the lighting at 0:05, looks a bit harsh on the left side. See https://guide.example.com',
         timeSeconds: 5,
@@ -291,7 +291,7 @@ describe('Shoot Workspace & Per-Clip Tools Test Suite', () => {
       mockCurrentUser = {
         _id: 'user-exec-1',
         name: 'Executive User',
-        role: 'executive',
+        role: 'creative_head',
       };
 
       mockApiFetch.mockResolvedValue({ data: { messages: mockMessages } });
@@ -317,7 +317,7 @@ describe('Shoot Workspace & Per-Clip Tools Test Suite', () => {
       mockCurrentUser = {
         _id: 'user-creative-1',
         name: 'Sarah Jenkins',
-        role: 'creative_head',
+        role: 'creative_lead',
       };
 
       mockApiFetch.mockImplementation(async (url: string, opts?: any) => {
@@ -364,7 +364,7 @@ describe('Shoot Workspace & Per-Clip Tools Test Suite', () => {
       mockCurrentUser = {
         _id: 'user-ch-1',
         name: 'Sarah Jenkins',
-        role: 'creative_head',
+        role: 'creative_lead',
       };
 
       mockApiFetch.mockImplementation(async (url: string) => {
@@ -429,7 +429,7 @@ describe('Shoot Workspace & Per-Clip Tools Test Suite', () => {
       mockCurrentUser = {
         _id: 'user-ch-1',
         name: 'Sarah Jenkins',
-        role: 'creative_head',
+        role: 'creative_lead',
       };
 
       mockApiFetch.mockResolvedValue({
@@ -460,7 +460,7 @@ describe('Shoot Workspace & Per-Clip Tools Test Suite', () => {
       mockCurrentUser = {
         _id: 'user-ch-1',
         name: 'Sarah Jenkins',
-        role: 'creative_head',
+        role: 'creative_lead',
       };
 
       const reshootClips: MediaItemType[] = [

@@ -43,7 +43,7 @@ describe('Phase 1b: Access Request Backend Service & Authorization', () => {
     headUser = await Person.create({
       name: 'Test Creative Head',
       email: 'head@access-test.com',
-      role: 'creative_head',
+      role: 'creative_lead',
       status: 'active',
       profileAccess: [testProfile1._id, testProfile2._id],
     });
@@ -60,7 +60,7 @@ describe('Phase 1b: Access Request Backend Service & Authorization', () => {
     existingUser = await Person.create({
       name: 'Existing Member',
       email: 'existing@access-test.com',
-      role: 'team_member',
+      role: 'executive',
       status: 'active',
     });
   });
@@ -94,7 +94,7 @@ describe('Phase 1b: Access Request Backend Service & Authorization', () => {
         phone: '+1 555 000 1112',
         department: 'SEO & Content',
         jobRole: 'Writer',
-        requestedRole: 'creative_head',
+        requestedRole: 'creative_lead',
         requestedProfileCodes: ['brand_alpha'],
         reason: 'Attempting to self-request creative head privileges',
       })
@@ -109,7 +109,7 @@ describe('Phase 1b: Access Request Backend Service & Authorization', () => {
         phone: '+1 555 000 2222',
         department: 'SEO & Content',
         jobRole: 'Writer',
-        requestedRole: 'team_member',
+        requestedRole: 'executive',
         requestedProfileCodes: ['brand_alpha'],
         reason: 'Applying with already registered email',
       })
@@ -129,7 +129,7 @@ describe('Phase 1b: Access Request Backend Service & Authorization', () => {
       phone: '+1 555 333 4444',
       department: 'SEO & Content',
       jobRole: 'Writer',
-      requestedRole: 'team_member',
+      requestedRole: 'executive',
       requestedProfileCodes: ['brand_alpha', 'brand_beta'],
       reason: 'I will write weekly SEO blog posts and campaign copy.',
     });
@@ -146,7 +146,7 @@ describe('Phase 1b: Access Request Backend Service & Authorization', () => {
         phone: '+1 555 333 4444',
         department: 'SEO & Content',
         jobRole: 'Writer',
-        requestedRole: 'team_member',
+        requestedRole: 'executive',
         requestedProfileCodes: ['brand_alpha'],
         reason: 'Submitting duplicate access application',
       })
@@ -172,7 +172,7 @@ describe('Phase 1b: Access Request Backend Service & Authorization', () => {
     await expect(
       accessService.approveAccessRequest(
         candidateReq._id,
-        { assignedRole: 'team_member', weeklyCapacityHours: 40 },
+        { assignedRole: 'executive', weeklyCapacityHours: 40 },
         headUser
       )
     ).rejects.toMatchObject({
@@ -203,7 +203,7 @@ describe('Phase 1b: Access Request Backend Service & Authorization', () => {
     const approvalResult = await accessService.approveAccessRequest(
       candidateReq._id,
       {
-        assignedRole: 'team_member',
+        assignedRole: 'executive',
         jobRole: 'Writer',
         departmentId: testDept._id.toString(),
         profileAccess: [testProfile1._id.toString()],
@@ -222,7 +222,7 @@ describe('Phase 1b: Access Request Backend Service & Authorization', () => {
       '+resetPasswordTokenHash +resetPasswordExpiresAt'
     );
     expect(createdPerson).toBeDefined();
-    expect(createdPerson.role).toBe('team_member');
+    expect(createdPerson.role).toBe('executive');
     expect(createdPerson.jobRole).toBe('Writer');
     expect(createdPerson.departmentId?.toString()).toBe(testDept._id.toString());
     expect(createdPerson.reportsToIds[0]?.toString()).toBe(leadUser._id.toString());
@@ -255,7 +255,7 @@ describe('Phase 1b: Access Request Backend Service & Authorization', () => {
       phone: '+1 555 999 0001',
       department: 'SEO & Content',
       jobRole: 'Writer',
-      requestedRole: 'team_member',
+      requestedRole: 'executive',
       requestedProfileCodes: ['brand_alpha'],
       reason: 'Incomplete application test',
     });

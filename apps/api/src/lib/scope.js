@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { Person } from '../modules/people/model.js';
-import { normalizeRole } from '@mmp/shared';
+import { normalizeRole, isApprover, isReadOnlyViewer } from '@mmp/shared';
 
 /**
  * Resolves query-level scoping for a given user and optional request filters.
@@ -30,11 +30,11 @@ export async function resolveScope(user, filters = {}) {
 
   let isAllowed = true;
 
-  // Resolve person scope (admin, creative_head, executive, and sm_manager see all; team_member sees self only)
+  // Resolve person scope (admin, creative_lead/growth_lead, creative_head/production_head, and sm_manager see all; executive (worker) sees self only)
   let scopeType = 'self';
   let allowedPersonIds = null; // null represents all people
 
-  if (role === 'admin' || role === 'creative_head' || role === 'executive' || role === 'sm_manager') {
+  if (role === 'admin' || isApprover(role) || isReadOnlyViewer(role) || role === 'sm_manager') {
     scopeType = 'all';
     allowedPersonIds = null; // Full visibility across all people and all work
 
@@ -42,7 +42,7 @@ export async function resolveScope(user, filters = {}) {
       allowedPersonIds = [filters.ownerId.toString()];
     }
   } else {
-    // team_member: self only
+    // executive (worker): self only
     scopeType = 'self';
     allowedPersonIds = [userId];
 
@@ -86,7 +86,7 @@ export async function resolveScope(user, filters = {}) {
 
   const canAccessPerson = (personId) => {
     if (!personId) return false;
-    if (role === 'admin' || role === 'creative_head' || role === 'executive' || role === 'sm_manager') return true;
+    if (role === 'admin' || isApprover(role) || isReadOnlyViewer(role) || role === 'sm_manager') return true;
     if (allowedPersonIds === null) return true;
     return allowedPersonIds.includes(personId.toString());
   };

@@ -33,7 +33,7 @@
 
 *(Note: "Requests" appears as an administrative badge item on the right side of the navigation header adjacent to the user profile, maintaining 8 primary navigation links).*
 
-#### 2. Creative Head (`creative_head`) — Exactly 8 Items
+#### 2. Creative Lead (`creative_lead`) — Exactly 8 Items
 | Menu Label | Icon | Route / URL | Screen Purpose |
 | :--- | :--- | :--- | :--- |
 | **Home** | `LayoutDashboard` | `/dashboard` | Urgent reviews, creative throughput, team output |
@@ -55,16 +55,16 @@
 | **Problems** | `AlertTriangle` | `/issues` | Check publishing blockers & external dependencies |
 | **Reports** | `BarChart3` | `/reports` | Monthly performance scorecard & weekly reports |
 
-#### 4. Executive (`executive`) — Exactly 5 Items (Read-Only)
+#### 4. Creative Head (`creative_head`) — Exactly 5 Items (Read-Only)
 | Menu Label | Icon | Route / URL | Screen Purpose |
 | :--- | :--- | :--- | :--- |
 | **Home** | `LayoutDashboard` | `/dashboard` | High-level marketing throughput & bottlenecks |
 | **Plans** | `CalendarRange` | `/calendar?tab=plans` | Read-only view of approved monthly plans |
 | **Tracker** | `Activity` | `/calendar?tab=tracker` | Read-only delivery progress across schools |
 | **Team load** | `Users` | `/workload` | Team bandwidth & staffing balance overview |
-| **Reports** | `BarChart3` | `/reports` | Executive performance scorecards & weekly digests |
+| **Reports** | `BarChart3` | `/reports` | Creative Head performance scorecards & weekly digests |
 
-#### 5. Team Member / Worker (`team_member`) — Exactly 3 Items (Mobile-First)
+#### 5. Executive / Worker (`executive`) — Exactly 3 Items (Mobile-First)
 | Menu Label | Icon | Route / URL | Screen Purpose |
 | :--- | :--- | :--- | :--- |
 | **My Work** | `CheckSquare` | `/my-work` | Daily assigned tasks, start, submit, blocker |
@@ -77,7 +77,7 @@
 
 ### 1.3 URL & Legacy Screen Mapping
 To maintain 100% backward compatibility with existing tests and bookmarks:
-* `/dashboard` &rarr; Home (redirects `team_member` directly to `/my-work`).
+* `/dashboard` &rarr; Home (redirects `executive` directly to `/my-work`).
 * `/calendar?tab=plans` &rarr; Plans (Plan authoring and plan-level review).
 * `/calendar?tab=tracker` &rarr; Tracker (Content stage tracker).
 * `/calendar?tab=month` &rarr; Calendar Month View.
@@ -95,7 +95,7 @@ To eliminate cognitive friction, internal technical terms are replaced with plai
 
 | Legacy / Technical Term | Standardized Term | Definition & Context |
 | :--- | :--- | :--- |
-| `Feedback` / `Feedback Round` | **Waiting for approval** | The stage requires Creative Head or Admin sign-off. |
+| `Feedback` / `Feedback Round` | **Waiting for approval** | The stage requires Creative Lead or Admin sign-off. |
 | `Work item` | **Task** | A single stage assignment held by a worker (e.g. Script task). |
 | `Content piece` | **Content** | A row in a calendar plan representing a social deliverable. |
 | `Pipeline` / `Workflow` | **Steps** | The sequence of tasks required to produce content (e.g. 4 steps). |
@@ -159,7 +159,7 @@ Every status indicator throughout the application uses a single, immutable color
 | :--- | :--- | :--- |
 | **Not started** | Grey pill (`text-slate-600 bg-slate-100 border-slate-200`) | Task is assigned and unlocked, but worker has not begun. |
 | **In progress** | Blue pill (`text-blue-700 bg-blue-50 border-blue-200`) | Worker has clicked Start and is actively producing the asset. |
-| **Waiting for approval** | Amber pill (`text-amber-800 bg-amber-50 border-amber-200`) | Deliverable stage submitted; awaiting Creative Head sign-off. |
+| **Waiting for approval** | Amber pill (`text-amber-800 bg-amber-50 border-amber-200`) | Deliverable stage submitted; awaiting Creative Lead sign-off. |
 | **Changes requested** | Orange pill (`text-orange-800 bg-orange-50 border-orange-200`) | Reviewer requested revisions; worker must update and resubmit. |
 | **Done** | Green pill (`text-emerald-800 bg-emerald-50 border-emerald-200`) | Stage or content piece has been approved or published. |
 | **Blocked** | Red pill (`text-rose-800 bg-rose-50 border-rose-200`) | Worker flagged an external dependency blocker stopping progress. |
@@ -244,7 +244,7 @@ Every status indicator throughout the application uses a single, immutable color
 
 ---
 
-### b. Plan Review (Creative Head)
+### b. Plan Review (Creative Lead)
 * **Route:** `/calendar?tab=plans` (Review Mode)
 * **Goal:** Review proposed content calendar, approve all or selected rows, or request row-level revisions.
 
@@ -282,7 +282,7 @@ Every status indicator throughout the application uses a single, immutable color
 
 ---
 
-### c. Stage Approval (Creative Head)
+### c. Stage Approval (Creative Lead)
 * **Route:** `/feedback` (Approvals Console)
 * **Goal:** Efficiently inspect submitted deliverables, compare with briefs and past steps, and approve or request revision.
 
@@ -400,7 +400,7 @@ Every home screen displays **"What needs you now"** in the top 5 clickable cards
   5. *Unclassified Revision:* "Campus Story had 3 revisions; root cause unassigned" &rarr; `[ Classify ]`
 * **Small Summary Row:** 3 cards: Active Deliverables (42) &bull; Team Load Average (74%) &bull; On-Time Delivery Rate (91%).
 
-#### 2. Creative Head Home (`/dashboard`)
+#### 2. Creative Lead Home (`/dashboard`)
 * **What needs you now:**
   1. *Plan Sign-Off:* "Tech School November 2026 (28 deliverables ready for review)" &rarr; `[ Review Plan ]`
   2. *Video Review:* "Edit Cut: Robotics Teaser (John Editor)" &rarr; `[ Watch & Approve ]`
@@ -411,14 +411,14 @@ Every home screen displays **"What needs you now"** in the top 5 clickable cards
 
 #### 3. SM Manager Home (`/dashboard`)
 * **What needs you now:**
-  1. *Changes Requested:* "Row 4 in November Plan: Creative Head requested topic revision" &rarr; `[ Edit Row ]`
+  1. *Changes Requested:* "Row 4 in November Plan: Creative Lead requested topic revision" &rarr; `[ Edit Row ]`
   2. *Ready to Post:* "Admissions Open Static approved and ready for publishing today" &rarr; `[ Publish ]`
   3. *Late Stage:* "Video shoot overdue by 1 day (Bob Shooter)" &rarr; `[ Check Status ]`
   4. *Unassigned Step:* "Campus Tour carousel needs a designer" &rarr; `[ Pick Owner ]`
   5. *Upcoming Plan:* "December monthly planning begins in 4 days" &rarr; `[ Start Draft ]`
 * **Small Summary Row:** Published This Month (18/24) &bull; Publishing Velocity (0.8/day) &bull; Scheduled Next 48h (3).
 
-#### 4. Executive Home (`/dashboard`)
+#### 4. Creative Head Home (`/dashboard`)
 * **What needs you now:**
   1. *Digest Available:* "Weekly Marketing Operations Digest generated for HACA" &rarr; `[ View Report ]`
   2. *Performance Alert:* "On-time delivery for Tech School is at 94%" &rarr; `[ View Scorecard ]`
@@ -444,9 +444,9 @@ Every home screen displays **"What needs you now"** in the top 5 clickable cards
 | Name             Email                   Role          Job Role     Department   Preferences   Status   |
 |---------------------------------------------------------------------------------------------------------|
 | Sarah Manager    sarah@demo.haca.local   SM Manager    Manager      Social Media [Post]        Active   |
-| Alex Writer      writer1@demo.haca.local Team Member   Writer       Content      [Co, Sc]      Active   |
-| Tim Designer     tim@demo.haca.local     Team Member   Designer     Design       [De]          Active   |
-| John Editor      john@demo.haca.local    Team Member   Editor       Video        [Ed]          Active   |
+| Alex Writer      writer1@demo.haca.local Executive   Writer       Content      [Co, Sc]      Active   |
+| Tim Designer     tim@demo.haca.local     Executive   Designer     Design       [De]          Active   |
+| John Editor      john@demo.haca.local    Executive   Editor       Video        [Ed]          Active   |
 +---------------------------------------------------------------------------------------------------------+
 ```
 
@@ -454,7 +454,7 @@ Every home screen displays **"What needs you now"** in the top 5 clickable cards
   * *Field 1:* `Full Name` [ Text Input * ]
   * *Field 2:* `Email Address` [ Email Input * ]
   * *Field 3:* `Phone Number` [ Phone Input ]
-  * *Field 4:* `Role` [ Dropdown: admin | creative_head | sm_manager | team_member | executive * ]
+  * *Field 4:* `Role` [ Dropdown: admin | creative_lead | sm_manager | executive | creative_head * ]
   * *Field 5:* `Job Role` [ Dropdown: Writer | Designer | Video Editor | Video Shooter | Social Media Manager | Manager * ]
   * *Field 6:* `Department` [ Dropdown: Design | Video Production | Social Media | SEO & Content | Tech * ]
   * *[ Collapsible: More details ]*

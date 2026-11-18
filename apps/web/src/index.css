@@ -450,11 +450,14 @@ button.glass-card:hover,
   background: var(--role-bg);
   color: var(--role-fg);
 }
-.role-admin         { --role-bg: #e6e2f2; --role-fg: #46376f; }
-.role-creative-head { --role-bg: #f2e3d6; --role-fg: #76401c; }
-.role-sm-manager    { --role-bg: #dce6f6; --role-fg: #23457c; }
-.role-executive     { --role-bg: #e1e5ec; --role-fg: #2b3240; }
-.role-team-member   { --role-bg: #dbeee2; --role-fg: #1e5a3c; }
+/* Phase 12b: 7 roles. creative_head and production_head are read-only leadership; executive = workers. */
+.role-admin           { --role-bg: #e6e2f2; --role-fg: #46376f; }
+.role-creative-head   { --role-bg: #e1e5ec; --role-fg: #2b3240; }
+.role-production-head { --role-bg: #e3e7ee; --role-fg: #33405a; }
+.role-creative-lead   { --role-bg: #f2e3d6; --role-fg: #76401c; }
+.role-growth-lead     { --role-bg: #f3e6cf; --role-fg: #6a4710; }
+.role-sm-manager      { --role-bg: #dce6f6; --role-fg: #23457c; }
+.role-executive       { --role-bg: #dbeee2; --role-fg: #1e5a3c; }
 
 /* Avatar: subtle white ring. Inside the header it keeps its old 1px ring.
    In the components layer so a caller's own ring utility (e.g. ring-4) still wins. */

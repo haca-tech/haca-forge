@@ -20,6 +20,11 @@ import {
   reviewerStats,
   reworkTimeMs,
   workerOnTime,
+  APPROVER_ROLES,
+  READ_ONLY_VIEWER_ROLES,
+  isApprover,
+  isReadOnlyViewer,
+  isWorker,
 } from '@mmp/shared';
 import { Person } from '../people/model.js';
 import { WorkItem } from '../workItems/model.js';
@@ -40,20 +45,20 @@ import { oneRatingPerStep } from '../submissions/ratingsPerStep.js';
 const notFound = () => Object.assign(new Error('Profile not found'), { statusCode: 404, code: 'NOT_FOUND' });
 const forbidden = (message) => Object.assign(new Error(message), { statusCode: 403, code: 'FORBIDDEN' });
 const idOf = (u) => (u?._id || u?.id || u?.userId)?.toString();
-const REPORT_ROLES = ['admin', 'creative_head', 'executive'];
+const REPORT_ROLES = ['admin', ...APPROVER_ROLES, ...READ_ONLY_VIEWER_ROLES];
 const pct = (n, d) => (d ? Math.round((n / d) * 100) : null);
 
 export const canDownloadProfileReport = (actor) => REPORT_ROLES.includes(normalizeRole(actor?.role));
 
-/** Who sees the Creative Head review section: admin, executive, and the Creative Head on their own profile. */
+/** Who sees the Creative Lead review section: admin, creative_head/production_head, and the Creative Lead on their own profile. */
 const canSeeReviewSection = (actor, target) => {
   const role = normalizeRole(actor?.role);
-  return role === 'admin' || role === 'executive' || idOf(actor) === String(target._id);
+  return role === 'admin' || isReadOnlyViewer(role) || idOf(actor) === String(target._id);
 };
 
 function assertProfileAccess(targetId, actor) {
   const role = normalizeRole(actor?.role);
-  if (role === 'team_member' && idOf(actor) !== String(targetId)) throw notFound();
+  if (isWorker(role) && idOf(actor) !== String(targetId)) throw notFound();
 }
 
 /** When a finished step was finished: approval (posting for Post), stored or from history. */
@@ -287,7 +292,7 @@ export async function getProfileKpis(targetId, actor, query = {}, { withSteps = 
   await markAwaitingReview(steps);
   const worker = await workerFigures(steps, period, now);
   if (worker && !withSteps) delete worker.steps;
-  const isCreativeHead = normalizeRole(person.role) === 'creative_head';
+  const isCreativeHead = isApprover(normalizeRole(person.role));
   const creativeHead = isCreativeHead && canSeeReviewSection(actor, person) ? await reviewerFigures(person._id, period, now) : null;
 
   return {
@@ -308,7 +313,7 @@ export async function getProfileKpis(targetId, actor, query = {}, { withSteps = 
   };
 }
 
-/** GET /api/team/:id/report: the same figures plus the step list. admin, creative_head, executive only. */
+/** GET /api/team/:id/report: the same figures plus the step list. admin, creative_lead/growth_lead, creative_head/production_head only. */
 export async function getProfileReport(targetId, actor, query = {}) {
   assertProfileAccess(targetId, actor);
   if (!canDownloadProfileReport(actor)) throw forbidden('Only admin, creative head and executive can download a profile report.');

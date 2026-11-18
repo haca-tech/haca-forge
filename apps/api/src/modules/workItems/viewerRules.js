@@ -1,4 +1,4 @@
-import { normalizeRole } from '@mmp/shared';
+import { normalizeRole, isReadOnlyViewer, isWorker } from '@mmp/shared';
 import { WorkItem } from './model.js';
 import {
   approvedOutputOf,
@@ -26,7 +26,7 @@ function scrubStages(stages, participation) {
   return (stages || []).map((stage) => (canSeeStepOutput(stage, participation) ? stage : omit(stage, STAGE_OUTPUT_FIELDS)));
 }
 
-/** Script text and approved clips attached to Shoot and Edit steps, for a team_member. */
+/** Script text and approved clips attached to Shoot and Edit steps, for a executive (worker). */
 async function scrubEarlierOutputs(result, participation) {
   const stages = result.pieceStages || [];
   if (result.scriptContent !== undefined || result.scriptShotList !== undefined) {
@@ -61,11 +61,7 @@ async function scrubEarlierOutputs(result, participation) {
 /** Applies who-sees-what to a work item before it is sent. Leadership sees it unchanged. */
 export async function applyWorkItemViewerRules(item, user) {
   const role = normalizeRole(user?.role);
-  if (role === 'executive') {
-    const result = omit(item, ['latestFeedback', 'blockerNote']);
-    if (result.rating) result.rating = pick(result.rating, ['_id', 'score', 'createdAt', 'stageKey']);
-    return result;
-  }
+  // Everyone but a worker sees the item unchanged, review text included (Phase 12b).
   if (!isTeamMember(user)) return item;
 
   const participation = await getParticipation(item, user);
@@ -95,7 +91,7 @@ const PRIVATE_ACTIVITY_KEYS = ['text', 'comment', 'note', 'notes', 'feedback', '
 
 /** Activity keeps who did what and when; review text and outputs stay private. */
 export function sanitizeActivities(activities, user, workItem) {
-  if (workItem ? canSeePrivateReview(user, workItem) : normalizeRole(user?.role) !== 'executive') return activities;
+  if (workItem ? canSeePrivateReview(user, workItem) : !isWorker(normalizeRole(user?.role))) return activities;
   return (activities || []).map((event) => {
     const plain = event?.toObject ? event.toObject() : event;
     return { ...plain, metadata: plain.metadata ? omit(plain.metadata, PRIVATE_ACTIVITY_KEYS) : plain.metadata };
@@ -103,7 +99,7 @@ export function sanitizeActivities(activities, user, workItem) {
 }
 
 /**
- * Which versions of a step this team_member may see: all of their own step's versions,
+ * Which versions of a step this executive (worker) may see: all of their own step's versions,
  * otherwise only the approved output of a visible earlier step.
  */
 export async function visibleVersionsFilter(workItem, user) {
@@ -114,7 +110,7 @@ export async function visibleVersionsFilter(workItem, user) {
   return output ? [String(output._id)] : [];
 }
 
-/** Every version a team_member may see across a content piece. */
+/** Every version a executive (worker) may see across a content piece. */
 export async function visibleVersionIdsInPiece(pieceId, user) {
   const steps = await WorkItem.find({ contentPieceId: pieceId }).select('ownerId contentPieceId stageOrder status').lean();
   const ids = [];

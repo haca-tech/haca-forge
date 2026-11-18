@@ -22,7 +22,7 @@ vi.mock('../../../../lib/api', () => ({
 // Mock AuthContext
 vi.mock('../../../../context/AuthContext', () => ({
   useAuth: () => ({
-    user: { id: 'test-user-1', name: 'Test User', role: 'team_member' },
+    user: { id: 'test-user-1', name: 'Test User', role: 'executive' },
     hasPermission: () => true,
   }),
 }));
@@ -154,7 +154,7 @@ describe('Media Workspaces WS3 Component Tests', () => {
               id: 'c-1',
               content: 'Please adjust background music at 0:15',
               authorName: 'Creative Head',
-              authorRole: 'creative_head',
+              authorRole: 'creative_lead',
               timecode: 15,
             },
           ]}
@@ -170,7 +170,7 @@ describe('Media Workspaces WS3 Component Tests', () => {
       expect(screen.getByText(/@00:15/i)).toBeInTheDocument();
 
       // Revision requested banner
-      expect(screen.getByText(/revision requested by creative head/i)).toBeInTheDocument();
+      expect(screen.getByText(/revision requested by creative lead/i)).toBeInTheDocument();
     });
 
     it('renders in read-only mode without upload buttons when readOnly is true', () => {
