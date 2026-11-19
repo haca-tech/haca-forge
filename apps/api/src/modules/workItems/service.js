@@ -401,9 +401,22 @@ function workItemPatchForbidden(message) {
  * - Any other executive (worker): 404, the same response as a missing item or an invalid id.
  * - creative_lead/growth_lead who does not own the step: 403.
  */
+/** The live link is changed only through Edit live link (it keeps the piece and the Post step together). */
+function useEditLiveLink() {
+  const error = new Error('publishedUrl cannot be changed here. Use Edit live link.');
+  error.statusCode = 400;
+  error.code = 'USE_EDIT_LIVE_LINK';
+  error.details = { field: 'publishedUrl' };
+  return error;
+}
+
 export async function assertCanPatchWorkItem(id, body, user) {
   const role = normalizeRole(user.role);
-  if (role === 'admin' || role === 'sm_manager') return;
+  if (role === 'admin' || role === 'sm_manager') {
+    // Access first (others keep their 403/404); then the live link goes through Edit live link.
+    if (body && Object.prototype.hasOwnProperty.call(body, 'publishedUrl')) throw useEditLiveLink();
+    return;
+  }
 
   const isTeamMember = isWorker(role);
   if (isTeamMember && !mongoose.isValidObjectId(id)) throw workItemNotFound();
@@ -475,19 +488,8 @@ export async function updateWorkItem(id, data, user) {
     assertChangedOutputUrl(data.deliverableUrl, workItem.deliverableUrl, 'deliverableUrl');
     workItem.deliverableUrl = data.deliverableUrl;
   }
-  if (data.publishedUrl !== undefined) {
-    const next = String(data.publishedUrl || '').trim();
-    // A new live link must be https; a value saved earlier may be sent back unchanged.
-    // A site homepage is refused too (Published page); records saved earlier are untouched.
-    if (next && next !== (workItem.publishedUrl || '').trim() && !isLivePostUrl(next)) {
-      const error = new Error(`publishedUrl: ${livePostUrlError(next) || LIVE_URL_ERROR}`);
-      error.statusCode = 400;
-      error.code = 'INVALID_LIVE_URL';
-      error.details = { field: 'publishedUrl' };
-      throw error;
-    }
-    workItem.publishedUrl = data.publishedUrl;
-  }
+  // The live link is set by posting (transition) and changed by Edit live link only.
+  if (data.publishedUrl !== undefined) throw useEditLiveLink();
 
   // Content Flow stage fields (Phase 3 delta)
   if (data.contentPieceId !== undefined) workItem.contentPieceId = data.contentPieceId;
@@ -742,7 +744,7 @@ export async function getMyWork(user) {
 
 import { ContentPiece } from '../calendar/contentPiece.model.js';
 import { CalendarPlan } from '../calendar/plan.model.js';
-import { isPostableWorkType, isLivePostUrl, livePostUrlError, LIVE_URL_ERROR } from '@mmp/shared';
+import { isPostableWorkType } from '@mmp/shared';
 import { assertChangedOutputUrl } from '../uploads/outputUrls.js';
 import { buildFromPlan, buildHandoff, buildHandover, outputItems } from './handoff.js';
 import { canReopen } from './reopen.js';

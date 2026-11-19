@@ -385,9 +385,6 @@ describe('Published page API and the site-root rule', () => {
       expect(res.status).toBe(400);
       expect(res.body.error.message).toContain(SITE_ROOT_URL_ERROR);
       expect((await WorkItem.findById(post._id).lean()).status).toBe('In Progress');
-      const edit = await as('sm').patch(`/api/work/${post._id}`, { publishedUrl: 'https://www.youtube.com/' });
-      expect(edit.status).toBe(400);
-      expect(edit.body.error.message).toContain(SITE_ROOT_URL_ERROR);
       const okRes = await as('sm').post(`/api/work/${post._id}/transition`, { toStatus: 'Published', publishedUrl: 'https://www.instagram.com/reel/C8xYz12AbCd/' });
       expect(okRes.status).toBe(200);
     });
@@ -517,6 +514,32 @@ describe('Published page API and the site-root rule', () => {
       const again = await put('admin', 'https://youtu.be/dQw4w9WgXcQ');
       expect(again.body.data.changed).toBe(false);
       expect(await ActivityEvent.countDocuments({ entityId: { $in: [new mongoose.Types.ObjectId(postId), postId] }, action: 'live_link.changed' })).toBe(2);
+    });
+
+    it('the generic PATCH refuses publishedUrl ("Use Edit live link"); others keep their 403; other fields still save', async () => {
+      const before = await WorkItem.findById(postId).lean();
+      for (const [who, body] of [
+        ['sm', { publishedUrl: 'https://www.instagram.com/reel/C9zzzzzzzzz/' }],
+        ['admin', { publishedUrl: 'https://www.instagram.com/reel/C9zzzzzzzzz/' }],
+        ['admin', { publishedUrl: before.publishedUrl }],
+        ['admin', { publishedUrl: '' }],
+        ['admin', { title: 'Renamed', publishedUrl: 'https://youtu.be/dQw4w9WgXcQ' }],
+      ]) {
+        const r = await as(who).patch(`/api/work/${postId}`, body);
+        expect(r.status, `${who} ${JSON.stringify(body)}`).toBe(400);
+        expect(r.body.error.code).toBe('USE_EDIT_LIVE_LINK');
+        expect(r.body.error.message).toContain('Use Edit live link');
+      }
+      // Someone who cannot edit the step at all keeps the access answer (403), as before.
+      expect((await as('editorA').patch(`/api/work/${postId}`, { publishedUrl: 'https://www.instagram.com/reel/C9zzzzzzzzz/' })).status).toBe(403);
+      const after = await WorkItem.findById(postId).lean();
+      expect(after.publishedUrl).toBe(before.publishedUrl);
+      expect(after.title).toBe(before.title);
+      expect((await ContentPiece.findById(pieceId).lean()).liveUrl).toBe(before.publishedUrl);
+      // A PATCH without publishedUrl is unaffected.
+      const ok = await as('admin').patch(`/api/work/${postId}`, { title: `${before.title} (checked)` });
+      expect(ok.status).toBe(200);
+      expect((await WorkItem.findById(postId).lean()).publishedUrl).toBe(before.publishedUrl);
     });
 
     it('a piece not posted yet is 409; an unknown piece 404', async () => {
