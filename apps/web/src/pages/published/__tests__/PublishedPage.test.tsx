@@ -64,6 +64,12 @@ const scrollIntoView = () =>
   act(() => {
     for (const o of observed) o.cb([{ isIntersecting: true, target: o.el } as IntersectionObserverEntry], {} as IntersectionObserver);
   });
+/** The frames' observers register in effects: keep "scrolling into view" until `n` frames have loaded. */
+const scrollUntilFrames = (n: number) =>
+  waitFor(() => {
+    scrollIntoView();
+    expect(document.querySelectorAll('iframe')).toHaveLength(n);
+  });
 
 let location = '';
 const LocationProbe = () => {
@@ -106,7 +112,7 @@ describe('Cards', () => {
     await screen.findByText('Campus reel');
     expect(screen.getByTestId('published-count')).toHaveTextContent('3 posts · March 2034');
     expect(document.querySelectorAll('iframe')).toHaveLength(0); // lazy
-    scrollIntoView();
+    await scrollUntilFrames(2);
     const frames = Array.from(document.querySelectorAll('iframe'));
     expect(frames.map((f) => f.getAttribute('src'))).toEqual([
       'https://www.instagram.com/reel/C8xYz12AbCd/embed',
@@ -184,7 +190,7 @@ describe('Card layout', () => {
     };
     show();
     await screen.findByText('Link');
-    scrollIntoView();
+    await scrollUntilFrames(4);
     const boxes = screen.getAllByTestId('media-box');
     expect(boxes).toHaveLength(5);
     expect(new Set(boxes.map((b) => b.className)).size).toBe(1);
@@ -366,7 +372,7 @@ describe('Live view fixes: final asset fallback, Drive note, Edit live link', ()
     response = { items: [finalReel()], total: 1, page: 1, pages: 1 };
     show();
     await screen.findByText('Homepage reel');
-    scrollIntoView();
+    await scrollUntilFrames(1);
     const frame = document.querySelector('iframe')!;
     expect(frame).toHaveAttribute('src', 'https://drive.google.com/file/d/1FinalCutAbCdEfGh/preview');
     expect(frame.getAttribute('sandbox')).toContain('allow-presentation');
