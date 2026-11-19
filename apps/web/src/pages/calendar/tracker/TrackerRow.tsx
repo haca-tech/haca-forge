@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CalendarClock, ChevronDown, ChevronRight, ExternalLink, Lock, MoreHorizontal, Sparkles } from 'lucide-react';
+import { CalendarClock, ChevronDown, ChevronRight, ExternalLink, Lock, MoreHorizontal, Pencil, Sparkles } from 'lucide-react';
 import { formatShortDate, getCalendarDefinition, getStepStatusLabel } from '@mmp/shared';
 import { Avatar } from '../../../components/Avatar';
 import { TimeLabelChips } from '../../../components/TimeLabelChips';
@@ -32,10 +32,12 @@ interface Props {
   onOpenPerson: (personId: string) => void;
   /** Short owner labels for the rows shown (see ownerLabels); first name when missing. */
   ownerNames?: Map<string, string>;
+  /** SM Manager and admin: correct a posted piece's live link. */
+  onEditLiveLink?: (p: TrackerPiece) => void;
 }
 
 /** One Tracker row: what it is (left), its steps in order (middle), where it stands and actions (right). */
-export const TrackerRow: React.FC<Props> = ({ piece, now = new Date(), canAssign, canManageSteps, onOpenTimeline, onAssign, onChangeDate, onToggleSkip, onOpenPerson, ownerNames }) => {
+export const TrackerRow: React.FC<Props> = ({ piece, now = new Date(), canAssign, canManageSteps, onOpenTimeline, onAssign, onChangeDate, onToggleSkip, onOpenPerson, ownerNames, onEditLiveLink }) => {
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -182,9 +184,16 @@ export const TrackerRow: React.FC<Props> = ({ piece, now = new Date(), canAssign
           </div>
           <span className="text-[13px] text-ui-text" data-testid="tracker-state">{stateLine}</span>
           {piece.liveUrl ? (
-            <a href={piece.liveUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[13px] font-semibold text-ui-ink underline underline-offset-2 self-start min-h-[32px]">
-              Live <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-            </a>
+            <div className="flex items-center gap-1">
+              <a href={piece.liveUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[13px] font-semibold text-ui-ink underline underline-offset-2 self-start min-h-[32px]">
+                Live <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+              </a>
+              {onEditLiveLink && (
+                <button type="button" onClick={() => onEditLiveLink(piece)} className="ui-icon-btn h-11 w-11" aria-label={`Edit live link: ${piece.topic}`} title="Edit live link">
+                  <Pencil className="w-4 h-4" aria-hidden="true" />
+                </button>
+              )}
+            </div>
           ) : (
             <span className="text-[13px] text-ui-muted">Unpublished</span>
           )}

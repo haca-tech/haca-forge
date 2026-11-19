@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ExternalLink, Maximize2, Megaphone, Search, X } from 'lucide-react';
+import { ExternalLink, Maximize2, Megaphone, Pencil, Search, X } from 'lucide-react';
 import {
   CALENDAR_LIST,
   DELIVERABLE_TYPE_KEYS,
@@ -13,6 +13,8 @@ import {
 import { apiFetch } from '../../lib/api';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import { EmbedFrame, safeHref } from './EmbedFrame';
+import { useAuth } from '../../context/AuthContext';
+import { EditLiveLinkDialog, canEditLiveLink } from '../../components/EditLiveLinkDialog';
 
 export interface PublishedItem {
   id: string;
@@ -24,6 +26,8 @@ export interface PublishedItem {
   postedAt: string;
   liveUrl: string;
   embed: EmbedInfo;
+  /** What the card shows: the live post, or the approved final output when the live link does not embed. */
+  preview?: { source: 'live' | 'final'; embed: EmbedInfo; label?: string };
   credits: { step: string; name: string }[];
 }
 interface PublishedResponse {
@@ -86,7 +90,7 @@ const PublishedDialog: React.FC<{ item: PublishedItem; onClose: () => void }> = 
           </button>
         </div>
         <div className={item.embed.aspect === '9:16' ? 'max-w-[340px] mx-auto' : ''}>
-          <EmbedFrame embed={item.embed} liveUrl={item.liveUrl} title={item.title} eager />
+          <EmbedFrame embed={(item.preview || item).embed} caption={item.preview?.label} liveUrl={item.liveUrl} title={item.title} eager />
         </div>
         <Chips item={item} />
         <Credits credits={item.credits} />
@@ -113,6 +117,10 @@ export const PublishedPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<PublishedItem | null>(null);
+  const [editing, setEditing] = useState<PublishedItem | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const { user } = useAuth();
+  const canEdit = canEditLiveLink(user?.role);
   const [qDraft, setQDraft] = useState(f.q);
 
   const apiQuery = useMemo(() => {
@@ -134,7 +142,7 @@ export const PublishedPage: React.FC = () => {
     return () => {
       alive = false;
     };
-  }, [apiQuery]);
+  }, [apiQuery, reloadKey]);
 
   // Search is typed freely and written to the URL after a short pause.
   useEffect(() => setQDraft(f.q), [f.q]);
@@ -228,7 +236,7 @@ export const PublishedPage: React.FC = () => {
         {items.map((item) => (
           <li key={item.id} className="glass-card rounded-ui-card p-3 space-y-2 min-w-0">
             <div className={item.embed.aspect === '9:16' ? 'max-w-[300px] mx-auto' : ''}>
-              <EmbedFrame embed={item.embed} liveUrl={item.liveUrl} title={item.title} />
+              <EmbedFrame embed={(item.preview || item).embed} caption={item.preview?.label} liveUrl={item.liveUrl} title={item.title} />
             </div>
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -239,14 +247,21 @@ export const PublishedPage: React.FC = () => {
                 </h2>
                 <p className="text-xs text-ui-muted">Posted {formatShortDate(item.postedAt)}</p>
               </div>
-              <button type="button" className="ui-icon-btn h-11 w-11 shrink-0" aria-label={`Open larger view: ${item.title}`} onClick={() => setOpen(item)}>
-                <Maximize2 className="w-4 h-4" aria-hidden="true" />
-              </button>
+              <div className="flex shrink-0">
+                {canEdit && (
+                  <button type="button" className="ui-icon-btn h-11 w-11" aria-label={`Edit live link: ${item.title}`} onClick={() => setEditing(item)}>
+                    <Pencil className="w-4 h-4" aria-hidden="true" />
+                  </button>
+                )}
+                <button type="button" className="ui-icon-btn h-11 w-11" aria-label={`Open larger view: ${item.title}`} onClick={() => setOpen(item)}>
+                  <Maximize2 className="w-4 h-4" aria-hidden="true" />
+                </button>
+              </div>
             </div>
             <Chips item={item} />
             <Credits credits={item.credits} />
             {/* An embed can load yet show the site's own "not available" page; the original is always one tap away. */}
-            {item.embed.kind !== 'link' && safeHref(item.liveUrl) && (
+            {(item.preview || item).embed.kind !== 'link' && safeHref(item.liveUrl) && (
               <a
                 href={safeHref(item.liveUrl)!}
                 target="_blank"
@@ -270,6 +285,18 @@ export const PublishedPage: React.FC = () => {
       )}
 
       {open && <PublishedDialog item={open} onClose={() => setOpen(null)} />}
+      {editing && (
+        <EditLiveLinkDialog
+          pieceId={editing.id}
+          title={editing.title}
+          currentUrl={editing.liveUrl}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            setReloadKey((k) => k + 1);
+          }}
+        />
+      )}
     </div>
   );
 };

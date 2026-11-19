@@ -26,6 +26,7 @@ import { ContentPiece } from '../src/modules/calendar/contentPiece.model.js';
 import { WorkItem } from '../src/modules/workItems/model.js';
 import { ActivityEvent } from '../src/modules/activity/model.js';
 import { Notification } from '../src/modules/notifications/model.js';
+import { Submission } from '../src/modules/submissions/model.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../../..');
@@ -80,6 +81,24 @@ describe('toEmbed: official public embeds only', () => {
     expect(toEmbed('https://www.linkedin.com/company/haca').kind).toBe('link');
   });
 
+  it('Google Drive files play through /preview; folders and other Drive pages stay links', () => {
+    const E = 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/preview';
+    ok('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view?usp=sharing', 'drive', E);
+    ok('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp', 'drive', E);
+    ok('https://drive.google.com/open?id=1AbCdEfGhIjKlMnOp', 'drive', E);
+    for (const url of [
+      'https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOp',
+      'https://drive.google.com/drive/u/0/folders/1AbCdEfGhIjKlMnOp',
+      'https://drive.google.com/',
+      'https://drive.google.com/open?id=short',
+      'https://docs.google.com/document/d/1AbCdEfGhIjKlMnOp/edit',
+      'https://drive.google.com.evil.com/file/d/1AbCdEfGhIjKlMnOp/view',
+    ]) {
+      expect(toEmbed(url).kind, url).toBe('link');
+    }
+    expect(embedPreviewText('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view')).toBe('Google Drive file detected');
+  });
+
   it('everything else is a link: other hosts, http, javascript:, credentials, ports and look-alikes', () => {
     for (const url of [
       'https://x.com/haca/status/1',
@@ -127,7 +146,7 @@ describe('toEmbed: official public embeds only', () => {
 
 describe('frame-src policy: one allowlist in every config', () => {
   it('covers the four embed hosts and the hosts the Review Studio viewer already frames', () => {
-    for (const h of ['https://www.instagram.com', 'https://www.youtube-nocookie.com', 'https://www.facebook.com', 'https://www.linkedin.com', 'https://www.youtube.com', 'https://www.figma.com']) {
+    for (const h of ['https://drive.google.com', 'https://www.instagram.com', 'https://www.youtube-nocookie.com', 'https://www.facebook.com', 'https://www.linkedin.com', 'https://www.youtube.com', 'https://www.figma.com']) {
       expect(FRAME_SRC_HOSTS).toContain(h);
     }
     expect(FRAME_SRC_POLICY.startsWith("frame-src 'self' ")).toBe(true);
@@ -158,10 +177,10 @@ describe('Published page API and the site-root rule', () => {
   const dept = new mongoose.Types.ObjectId();
   const istDay = (ymd, hh = '10:00') => new Date(`${ymd}T${hh}:00+05:30`);
 
-  async function piece(key, { topic, type = 'Reel', calendar = 'sm', publishedAt = null, liveUrl = '', flags = {}, steps = [], postStep = null }) {
+  async function piece(key, { topic, type = 'Reel', calendar = 'sm', publishedAt = null, liveUrl = '', flags = {}, steps = [], postStep = null, prefix = TAG }) {
     const p = await ContentPiece.create({
       planId: new mongoose.Types.ObjectId(),
-      topic: `${TAG} ${topic}`,
+      topic: `${prefix} ${topic}`,
       contentType: type,
       pipeline: type === 'Reel' ? 'reel_a' : 'design',
       postingDate: publishedAt || istDay(`${MONTH}-20`),
@@ -176,8 +195,8 @@ describe('Published page API and the site-root rule', () => {
     });
     ids[key] = String(p._id);
     let order = 1;
-    for (const [stageKey, owner, status = 'Approved'] of steps) {
-      await WorkItem.create({
+    for (const [stageKey, owner, status = 'Approved', output] of steps) {
+      const w = await WorkItem.create({
         title: `${TAG} ${topic} ${stageKey}`,
         workType: type,
         stageKey,
@@ -192,16 +211,20 @@ describe('Published page API and the site-root rule', () => {
         calendar,
         ...(stageKey === 'Post' && postStep ? postStep : {}),
       });
+      if (output) {
+        await Submission.create({ workItemId: w._id, stageKey, version: 1, kind: 'link', status: 'approved', submittedById: P[owner]._id, submittedAt: new Date(), linkUrl: output });
+      }
     }
     return p;
   }
 
   const cleanup = async () => {
     const people = (await Person.find({ email: EMAIL }).select('_id').lean()).map((p) => p._id);
-    const pieces = (await ContentPiece.find({ topic: new RegExp(`^${TAG} `) }).select('_id').lean()).map((p) => p._id);
+    const pieces = (await ContentPiece.find({ topic: /^PUB[TF] / }).select('_id').lean()).map((p) => p._id);
     const steps = (await WorkItem.find({ contentPieceId: { $in: pieces } }).select('_id').lean()).map((w) => w._id);
     await ActivityEvent.deleteMany({ entityId: { $in: [...steps, ...steps.map(String), ...pieces, ...pieces.map(String)] } });
     await Notification.deleteMany({ recipient: { $in: people } });
+    await Submission.deleteMany({ workItemId: { $in: steps } });
     await WorkItem.deleteMany({ _id: { $in: steps } });
     await ContentPiece.deleteMany({ _id: { $in: pieces } });
     await Person.deleteMany({ email: EMAIL });
@@ -374,6 +397,135 @@ describe('Published page API and the site-root rule', () => {
       const [item] = (await list('admin', { q: 'Legacy root' })).items;
       expect(item.liveUrl).toBe('https://www.instagram.com/');
       expect(item.embed.kind).toBe('link');
+    });
+  });
+  describe('Final asset fallback when the live link does not embed', () => {
+    const FB = '2034-05';
+    const DRIVE_VIDEO = 'https://drive.google.com/file/d/1FinalCutAbCdEfGh/view?usp=sharing';
+    const DRIVE_DESIGN = 'https://drive.google.com/file/d/1FinalDesignAbCdEf/view';
+    beforeAll(async () => {
+      // A reel posted with a homepage: Script by designerB, Edit (final video) by editorA.
+      await piece('fbReel', {
+        prefix: 'PUBF', topic: 'Homepage reel', publishedAt: istDay(`${FB}-10`), liveUrl: 'https://www.instagram.com/',
+        flags: { needsScript: true, needsShoot: false },
+        steps: [['Script', 'designerB'], ['Edit', 'editorA', 'Approved', DRIVE_VIDEO], ['Post', 'sm', 'Published']],
+      });
+      // A design posted with an unknown link: the Design output is the final design.
+      await piece('fbDesign', {
+        prefix: 'PUBF', topic: 'Partner design', type: 'Static Post', publishedAt: istDay(`${FB}-11`), liveUrl: 'https://example.org/haca/p/1',
+        steps: [['Content', 'editorA'], ['Design', 'designerB', 'Approved', DRIVE_DESIGN], ['Post', 'sm', 'Published']],
+      });
+      // A Drive folder as the final output: nothing to play.
+      await piece('fbFolder', {
+        prefix: 'PUBF', topic: 'Folder design', type: 'Static Post', publishedAt: istDay(`${FB}-12`), liveUrl: 'https://example.org/haca/p/2',
+        steps: [['Design', 'designerB', 'Approved', 'https://drive.google.com/drive/folders/1FolderAbCdEfGhIj'], ['Post', 'sm', 'Published']],
+      });
+      // A live Drive file link embeds directly.
+      await piece('fbLiveDrive', {
+        prefix: 'PUBF', topic: 'Drive live reel', publishedAt: istDay(`${FB}-13`), liveUrl: 'https://drive.google.com/file/d/1LiveDriveAbCdEfG/view',
+        steps: [['Edit', 'editorA', 'Approved', DRIVE_VIDEO], ['Post', 'sm', 'Published']],
+      });
+    }, 60000);
+    const byTitle = async (who) => Object.fromEntries((await list(who, { month: FB, q: 'PUBF' })).items.map((i) => [i.title.replace('PUBF ', ''), i]));
+
+    it('uses the approved Edit output for a reel and the Design output for a post, labelled; Open original stays the live link', async () => {
+      const items = await byTitle('admin');
+      expect(items['Homepage reel'].preview).toEqual({
+        source: 'final', label: 'Final video',
+        embed: { kind: 'drive', embedUrl: 'https://drive.google.com/file/d/1FinalCutAbCdEfGh/preview', aspect: '9:16', label: 'Google Drive file' },
+      });
+      expect(items['Homepage reel'].liveUrl).toBe('https://www.instagram.com/');
+      expect(items['Homepage reel'].embed.kind).toBe('link');
+      expect(items['Partner design'].preview).toMatchObject({ source: 'final', label: 'Final design', embed: { kind: 'drive', aspect: '4:5' } });
+      expect(items['Folder design'].preview).toEqual({ source: 'live', embed: { kind: 'link', label: 'Link' } });
+      expect(items['Drive live reel'].preview).toMatchObject({ source: 'live', embed: { kind: 'drive', embedUrl: 'https://drive.google.com/file/d/1LiveDriveAbCdEfG/preview', aspect: '9:16' } });
+    });
+
+    it('follows the Phase 3 output rules for workers', async () => {
+      // editorA owns the Edit step: sees the final video.
+      expect((await byTitle('editorA'))['Homepage reel'].preview.source).toBe('final');
+      // designerB owned only Script, before Edit: the final video stays hidden.
+      const b = await byTitle('designerB');
+      expect(b['Homepage reel'].preview).toEqual({ source: 'live', embed: { kind: 'link', label: 'Link' } });
+      // designerB owns the Design step of the post: sees the final design; editorA (Content, earlier) does not.
+      expect(b['Partner design'].preview.source).toBe('final');
+      expect((await byTitle('editorA'))['Partner design'].preview.source).toBe('live');
+    });
+  });
+
+  describe('Edit live link', () => {
+    let pieceId;
+    let postId;
+    const POSTED = '2034-06-10';
+    beforeAll(async () => {
+      const p = await piece('editMe', {
+        prefix: 'PUBF', topic: 'Edit me', publishedAt: istDay(POSTED), liveUrl: 'https://www.instagram.com/',
+        steps: [['Edit', 'editorA'], ['Post', 'sm', 'Published']],
+        postStep: { postedAt: istDay(POSTED), publishedUrl: 'https://www.instagram.com/' },
+      });
+      pieceId = String(p._id);
+      postId = String((await WorkItem.findOne({ contentPieceId: p._id, stageKey: 'Post' }).lean())._id);
+    }, 60000);
+    const put = (who, liveUrl) => request(app).put(`/api/published/${pieceId}/live-link`).set('Authorization', `Bearer ${tokens[who]}`).send({ liveUrl });
+
+    it('the leads and workers get 403; the read-only heads get 403 READ_ONLY_ROLE; nothing changes', async () => {
+      for (const who of ['creativeLead', 'growthLead', 'editorA']) {
+        const r = await put(who, 'https://www.instagram.com/reel/C8xYz12AbCd/');
+        expect(r.status, who).toBe(403);
+        expect(r.body.error.code, who).toBe('FORBIDDEN_ROLE');
+      }
+      for (const who of ['creativeHead', 'productionHead']) {
+        const r = await put(who, 'https://www.instagram.com/reel/C8xYz12AbCd/');
+        expect(r.status, who).toBe(403);
+        expect(r.body.error.code, who).toBe('READ_ONLY_ROLE');
+      }
+      expect((await ContentPiece.findById(pieceId).lean()).liveUrl).toBe('https://www.instagram.com/');
+    });
+
+    it('the same rule as posting: a homepage, http or junk is 400', async () => {
+      for (const bad of ['https://www.instagram.com/', 'http://www.instagram.com/reel/C8xYz12AbCd/', 'javascript:alert(1)', '']) {
+        const r = await put('sm', bad);
+        expect(r.status, bad).toBe(400);
+        expect(r.body.error.code).toBe('INVALID_LIVE_URL');
+      }
+      expect((await put('sm', 'https://www.instagram.com/')).body.error.message).toBe(SITE_ROOT_URL_ERROR);
+    });
+
+    it('the SM Manager updates the piece and the Post step together, keeps the posted date, and it is logged', async () => {
+      const r = await put('sm', 'https://www.instagram.com/reel/C8xYz12AbCd/');
+      expect(r.status).toBe(200);
+      expect(r.body.data).toEqual({ liveUrl: 'https://www.instagram.com/reel/C8xYz12AbCd/', changed: true });
+      const p = await ContentPiece.findById(pieceId).lean();
+      const step = await WorkItem.findById(postId).lean();
+      expect(p.liveUrl).toBe('https://www.instagram.com/reel/C8xYz12AbCd/');
+      expect(step.publishedUrl).toBe('https://www.instagram.com/reel/C8xYz12AbCd/');
+      expect(p.publishedAt.toISOString()).toBe(istDay(POSTED).toISOString());
+      expect(step.postedAt.toISOString()).toBe(istDay(POSTED).toISOString());
+      expect(step.status).toBe('Published');
+      const ev = await ActivityEvent.findOne({ entityId: { $in: [step._id, postId] }, action: 'live_link.changed' }).lean();
+      expect(ev.metadata).toMatchObject({ from: 'https://www.instagram.com/', to: 'https://www.instagram.com/reel/C8xYz12AbCd/' });
+      expect(String(ev.actorId)).toBe(String(P.sm._id));
+      // The list now embeds it.
+      const [item] = (await list('admin', { month: '2034-06', q: 'Edit me' })).items;
+      expect(item.embed.kind).toBe('instagram_reel');
+    });
+
+    it('admin may too; the same link again changes nothing', async () => {
+      const r = await put('admin', 'https://youtu.be/dQw4w9WgXcQ');
+      expect(r.status).toBe(200);
+      expect((await ContentPiece.findById(pieceId).lean()).liveUrl).toBe('https://youtu.be/dQw4w9WgXcQ');
+      const again = await put('admin', 'https://youtu.be/dQw4w9WgXcQ');
+      expect(again.body.data.changed).toBe(false);
+      expect(await ActivityEvent.countDocuments({ entityId: { $in: [new mongoose.Types.ObjectId(postId), postId] }, action: 'live_link.changed' })).toBe(2);
+    });
+
+    it('a piece not posted yet is 409; an unknown piece 404', async () => {
+      const p = await piece('notPosted', { prefix: 'PUBF', topic: 'Not posted yet', steps: [['Post', 'sm', 'In Progress']] });
+      const r = await request(app).put(`/api/published/${p._id}/live-link`).set('Authorization', `Bearer ${tokens.sm}`).send({ liveUrl: 'https://www.instagram.com/reel/C8xYz12AbCd/' });
+      expect(r.status).toBe(409);
+      expect(r.body.error.code).toBe('NOT_POSTED');
+      const missing = await request(app).put(`/api/published/${new mongoose.Types.ObjectId()}/live-link`).set('Authorization', `Bearer ${tokens.sm}`).send({ liveUrl: 'https://www.instagram.com/reel/C8xYz12AbCd/' });
+      expect(missing.status).toBe(404);
     });
   });
 });

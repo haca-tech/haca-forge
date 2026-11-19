@@ -10,7 +10,7 @@ const ASPECT: Record<EmbedAspect, string> = { '9:16': '9 / 16', '4:5': '4 / 5', 
 /** What each player needs, nothing more. Video players also get presentation (fullscreen). */
 function sandboxFor(kind: EmbedInfo['kind']): string {
   const base = 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox';
-  return kind === 'youtube' || kind === 'youtube_short' || kind === 'facebook_video' || kind === 'facebook_reel' ? `${base} allow-presentation` : base;
+  return kind === 'youtube' || kind === 'youtube_short' || kind === 'facebook_video' || kind === 'facebook_reel' || kind === 'drive' ? `${base} allow-presentation` : base;
 }
 
 /** An https link we can open safely, else null (never a javascript: or http: href). */
@@ -57,14 +57,19 @@ interface Props {
   title: string;
   /** Load straight away (the larger view), instead of when scrolled into view. */
   eager?: boolean;
+  /** Shown above the frame, e.g. "Final video" when the card falls back to the approved output. */
+  caption?: string;
 }
+
+/** Drive files play only for people the file is shared with. */
+export const DRIVE_NOTE = 'Plays only if the file is shared with you.';
 
 /**
  * An official embed, loaded only when scrolled into view, sandboxed, at a fixed aspect ratio.
  * Frames only an embed URL of the exact shape toEmbed produces; anything else, or an embed
  * that has not loaded in time, shows the link card.
  */
-export const EmbedFrame: React.FC<Props> = ({ embed, liveUrl, title, eager = false }) => {
+export const EmbedFrame: React.FC<Props> = ({ embed, liveUrl, title, eager = false, caption }) => {
   const holder = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(eager);
   const [loaded, setLoaded] = useState(false);
@@ -101,22 +106,26 @@ export const EmbedFrame: React.FC<Props> = ({ embed, liveUrl, title, eager = fal
   if (failed) return <LinkCard liveUrl={liveUrl} reason="The post could not be shown here." />;
 
   return (
-    <div ref={holder} className="w-full rounded-ui-card overflow-hidden bg-white/40 border border-ui-line" style={{ aspectRatio: ASPECT[embed.aspect || '1:1'] }}>
-      {visible ? (
-        <iframe
-          src={embed.embedUrl}
-          title={`${embed.label}: ${title}`}
-          loading="lazy"
-          sandbox={sandboxFor(embed.kind)}
-          referrerPolicy="strict-origin-when-cross-origin"
-          allow="encrypted-media; picture-in-picture; fullscreen"
-          className="w-full h-full border-0"
-          // Browsers fire no error event for a frame; a frame that never loads hits the time limit.
-          onLoad={() => setLoaded(true)}
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center text-xs text-ui-muted">{embed.label}</div>
-      )}
+    <div className="space-y-1">
+      {caption && <p className="text-[11px] font-semibold uppercase tracking-wide text-ui-muted" data-testid="preview-caption">{caption}</p>}
+      <div ref={holder} className="w-full rounded-ui-card overflow-hidden bg-white/40 border border-ui-line" style={{ aspectRatio: ASPECT[embed.aspect || '1:1'] }}>
+        {visible ? (
+          <iframe
+            src={embed.embedUrl}
+            title={`${embed.label}: ${title}`}
+            loading="lazy"
+            sandbox={sandboxFor(embed.kind)}
+            referrerPolicy="strict-origin-when-cross-origin"
+            allow="encrypted-media; picture-in-picture; fullscreen"
+            className="w-full h-full border-0"
+            // Browsers fire no error event for a frame; a frame that never loads hits the time limit.
+            onLoad={() => setLoaded(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-xs text-ui-muted">{embed.label}</div>
+        )}
+      </div>
+      {embed.kind === 'drive' && <p className="text-xs text-ui-muted" data-testid="drive-note">{DRIVE_NOTE}</p>}
     </div>
   );
 };

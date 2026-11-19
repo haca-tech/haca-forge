@@ -53,7 +53,9 @@ import {
   Share2,
   Star,
   FileCheck,
+  Pencil,
 } from 'lucide-react';
+import { EditLiveLinkDialog, canEditLiveLink } from '../../components/EditLiveLinkDialog';
 import { PipelineStepper, type PipelineStageItem } from '../../components/PipelineStepper';
 import { AssetLinks } from '../../components/AssetLinks';
 import { resolveStepBlocker } from '../../lib/blockers';
@@ -197,6 +199,7 @@ export const WorkDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [editingLiveLink, setEditingLiveLink] = useState(false);
 
   const [item, setItem] = useState<WorkItemDetail | null>(null);
   const [activities, setActivities] = useState<ActivityEventItem[]>([]);
@@ -241,7 +244,6 @@ export const WorkDetailPage: React.FC = () => {
   const [editDeadline, setEditDeadline] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editDeliverableUrl, setEditDeliverableUrl] = useState('');
-  const [editPublishedUrl, setEditPublishedUrl] = useState('');
   const [editContentLink, setEditContentLink] = useState('');
   const [editAssetsLink, setEditAssetsLink] = useState('');
   const [copiedContentLink, setCopiedContentLink] = useState(false);
@@ -347,7 +349,6 @@ export const WorkDetailPage: React.FC = () => {
       setEditDeadline(res.data.deadline ? res.data.deadline.slice(0, 10) : '');
       setEditDescription(res.data.description || res.data.brief?.description || '');
       setEditDeliverableUrl(res.data.deliverableUrl || '');
-      setEditPublishedUrl(res.data.publishedUrl || '');
       setEditContentLink(res.data.contentLink || res.data.brief?.contentLink || '');
       setEditAssetsLink(res.data.assetsLink || res.data.brief?.assetsLink || '');
 
@@ -558,7 +559,6 @@ export const WorkDetailPage: React.FC = () => {
           deadline: editDeadline,
           description: editDescription,
           deliverableUrl: editDeliverableUrl,
-          publishedUrl: editPublishedUrl,
           contentLink: editContentLink,
           assetsLink: editAssetsLink,
           brief: {
@@ -1730,9 +1730,18 @@ export const WorkDetailPage: React.FC = () => {
               </div>
 
               <div>
-                <span className="text-[13px] font-medium text-ui-muted block mb-1">
-                  Published Live URL
-                </span>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-[13px] font-medium text-ui-muted block">
+                    Published Live URL
+                  </span>
+                  {/* Edit live link: a posted Post step, SM Manager and admin. Updates the piece too. */}
+                  {item.stageKey === 'Post' && item.status === 'Published' && item.contentPieceId && canEditLiveLink(user?.role) && (
+                    <button type="button" className="ui-btn ui-btn-secondary h-11 gap-1.5" onClick={() => setEditingLiveLink(true)}>
+                      <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                      Edit live link
+                    </button>
+                  )}
+                </div>
                 {item.publishedUrl ? (
                   <a
                     href={item.publishedUrl}
@@ -1936,6 +1945,19 @@ export const WorkDetailPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {editingLiveLink && item.contentPieceId && (
+        <EditLiveLinkDialog
+          pieceId={String((item.contentPieceId as any)?._id || item.contentPieceId)}
+          title={item.title}
+          currentUrl={item.publishedUrl || ''}
+          onClose={() => setEditingLiveLink(false)}
+          onSaved={async () => {
+            setEditingLiveLink(false);
+            await fetchItemData();
+          }}
+        />
       )}
 
       {/* Approve Deliverable Modal (Creative Lead / Admin) */}
@@ -2293,18 +2315,6 @@ export const WorkDetailPage: React.FC = () => {
                   placeholder="https://..."
                   value={editDeliverableUrl}
                   onChange={(e) => setEditDeliverableUrl(e.target.value)}
-                  className="ui-input w-full"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="wd-field-14" className="block text-[13px] font-medium text-ui-muted mb-1.5">Live Published URL</label>
-                <input
-                  id="wd-field-14"
-                  type="url"
-                  placeholder="https://..."
-                  value={editPublishedUrl}
-                  onChange={(e) => setEditPublishedUrl(e.target.value)}
                   className="ui-input w-full"
                 />
               </div>

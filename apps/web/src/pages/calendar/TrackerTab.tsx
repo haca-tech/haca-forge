@@ -8,6 +8,7 @@ import { useDialogFocus } from '../../lib/useDialogFocus';
 import { useAuth } from '../../context/AuthContext';
 import { PersonWorkHistoryDrawer } from '../../components/PersonWorkHistoryDrawer';
 import { TrackerFilterBar } from './tracker/TrackerFilterBar';
+import { EditLiveLinkDialog, canEditLiveLink } from '../../components/EditLiveLinkDialog';
 import { TrackerRow } from './tracker/TrackerRow';
 import {
   apiParams,
@@ -89,6 +90,7 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
   // Users Pool (for manual selection in Assign modal)
   const [allUsers, setAllUsers] = useState<Array<{ _id: string; name: string; email: string; role: string }>>([]);
 
+  const [editingLiveLink, setEditingLiveLink] = useState<TrackerPiece | null>(null);
   const fetchTrackerData = async () => {
     setIsLoading(true);
     setLoadError(null);
@@ -321,9 +323,23 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
               onToggleSkip={handleToggleSkipStage}
               onOpenPerson={setDrawerPersonId}
               ownerNames={ownerNames}
+              onEditLiveLink={canEditLiveLink(user?.role) ? setEditingLiveLink : undefined}
             />
           ))}
         </ul>
+      )}
+
+      {editingLiveLink && (
+        <EditLiveLinkDialog
+          pieceId={editingLiveLink._id}
+          title={editingLiveLink.topic}
+          currentUrl={editingLiveLink.liveUrl || ''}
+          onClose={() => setEditingLiveLink(null)}
+          onSaved={async () => {
+            setEditingLiveLink(null);
+            await fetchTrackerData();
+          }}
+        />
       )}
 
       {/* Assign Stages Modal */}

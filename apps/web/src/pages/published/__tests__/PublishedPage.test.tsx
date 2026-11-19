@@ -8,6 +8,7 @@ import { PublishedPage, type PublishedItem } from '../PublishedPage';
 import { EMBED_LOAD_TIMEOUT_MS, EmbedFrame } from '../EmbedFrame';
 import { StepSubmitDialog } from '../../../components/StepSubmitDialog';
 import { Layout } from '../../../components/Layout';
+import { TrackerRow } from '../../calendar/tracker/TrackerRow';
 
 // Published page: cards with embeds or link cards, filters in the URL, the larger view, the
 // fallback when an embed does not load, the posting dialog's preview line, and the sidebar item.
@@ -21,6 +22,7 @@ vi.mock('../../../lib/api', () => ({
   ApiError: class extends Error {},
   apiFetch: vi.fn(async (url: string, opts: any = {}) => {
     calls.push(opts.method && opts.method !== 'GET' ? `${opts.method} ${url} ${opts.body}` : url);
+    if (url.includes('/live-link')) return { data: { liveUrl: JSON.parse(opts.body).liveUrl, changed: true } };
     if (url.startsWith('/api/published')) return { data: response };
     return { data: [] };
   }),
@@ -275,4 +277,80 @@ describe('Sidebar item "Published", right after Creative Calendar', () => {
       expect(hrefs[cal + 1]).toBe('/published');
     });
   }
+});
+
+describe('Live view fixes: final asset fallback, Drive note, Edit live link', () => {
+  const finalReel = () =>
+    item({
+      id: 'p9',
+      title: 'Homepage reel',
+      liveUrl: 'https://www.instagram.com/',
+      embed: toEmbed('https://www.instagram.com/'),
+      preview: { source: 'final', label: 'Final video', embed: { ...toEmbed('https://drive.google.com/file/d/1FinalCutAbCdEfGh/view'), aspect: '9:16' } },
+    });
+
+  it('a card whose live link does not embed shows the final video, labelled, with the Drive note; Open original stays the live link', async () => {
+    response = { items: [finalReel()], total: 1, page: 1, pages: 1 };
+    show();
+    await screen.findByText('Homepage reel');
+    scrollIntoView();
+    const frame = document.querySelector('iframe')!;
+    expect(frame).toHaveAttribute('src', 'https://drive.google.com/file/d/1FinalCutAbCdEfGh/preview');
+    expect(frame.getAttribute('sandbox')).toContain('allow-presentation');
+    expect(frame.parentElement).toHaveStyle({ aspectRatio: '9 / 16' });
+    expect(screen.getByTestId('preview-caption')).toHaveTextContent('Final video');
+    expect(screen.getByTestId('drive-note')).toHaveTextContent('Plays only if the file is shared with you.');
+    expect(screen.getByRole('link', { name: /Open original/ })).toHaveAttribute('href', 'https://www.instagram.com/');
+  });
+
+  it('without a final asset the card stays a link card', async () => {
+    response = { items: [item({ id: 'p8', title: 'Nothing to show', liveUrl: 'https://example.org/x', embed: toEmbed('https://example.org/x'), preview: { source: 'live', embed: toEmbed('https://example.org/x') } })], total: 1, page: 1, pages: 1 };
+    show();
+    await screen.findByText('Nothing to show');
+    expect(screen.getByTestId('link-card')).toBeInTheDocument();
+    expect(screen.queryByTestId('preview-caption')).not.toBeInTheDocument();
+  });
+
+  for (const [role, canEdit] of [['sm_manager', true], ['admin', true], ['creative_lead', false], ['growth_lead', false], ['creative_head', false], ['production_head', false], ['executive', false]] as const) {
+    it(`Edit live link on the card: ${role} ${canEdit ? 'sees it' : 'does not'}`, async () => {
+      mockUser = { _id: 'u1', role, name: 'User' };
+      show();
+      await screen.findByText('Campus reel');
+      expect(Boolean(screen.queryByRole('button', { name: 'Edit live link: Campus reel' }))).toBe(canEdit);
+    });
+  }
+
+  it('the dialog applies the posting rule and preview line, saves, and reloads the list', async () => {
+    mockUser = { _id: 'u1', role: 'sm_manager', name: 'Sam' };
+    show();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit live link: Partner page' }));
+    const dlg = await screen.findByRole('dialog', { name: 'Edit live link' });
+    const input = within(dlg).getByLabelText('Live post link');
+    expect(input).toHaveValue('https://example.org/haca/post-1');
+    fireEvent.change(input, { target: { value: 'https://www.instagram.com/' } });
+    fireEvent.click(within(dlg).getByRole('button', { name: 'Save link' }));
+    expect(within(dlg).getByText('Paste the link to the post itself, not the site homepage.')).toBeInTheDocument();
+    expect(calls.some((c) => c.startsWith('PUT'))).toBe(false);
+    fireEvent.change(input, { target: { value: 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view' } });
+    expect(within(dlg).getByTestId('embed-preview')).toHaveTextContent('Google Drive file detected');
+    const before = calls.filter((c) => c.startsWith('/api/published')).length;
+    fireEvent.click(within(dlg).getByRole('button', { name: 'Save link' }));
+    await waitFor(() => expect(calls).toContain('PUT /api/published/p3/live-link {"liveUrl":"https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view"}'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(calls.filter((c) => c.startsWith('/api/published')).length).toBe(before + 1));
+  });
+});
+
+describe('Tracker row: Edit live link', () => {
+  const base = { _id: 'pc1', topic: 'Tracker piece', contentType: 'Reel', postingDate: '2034-03-16T00:00:00.000Z', liveUrl: 'https://www.instagram.com/', stages: [] } as any;
+  it('shows the pencil only when the page passes the action (SM Manager and admin)', () => {
+    const onEdit = vi.fn();
+    const props = { piece: base, canAssign: false, canManageSteps: false, onOpenTimeline: vi.fn(), onAssign: vi.fn(), onChangeDate: vi.fn(), onToggleSkip: vi.fn(), onOpenPerson: vi.fn() };
+    const { unmount } = render(<ul><TrackerRow {...props} onEditLiveLink={onEdit} /></ul>);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit live link: Tracker piece' }));
+    expect(onEdit).toHaveBeenCalledWith(base);
+    unmount();
+    render(<ul><TrackerRow {...props} /></ul>);
+    expect(screen.queryByRole('button', { name: /Edit live link/ })).not.toBeInTheDocument();
+  });
 });

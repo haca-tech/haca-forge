@@ -857,6 +857,7 @@ export type EmbedKind =
   | "facebook_reel"
   | "facebook_post"
   | "linkedin"
+  | "drive"
   | "link";
 export type EmbedAspect = "9:16" | "4:5" | "16:9" | "1:1";
 export interface EmbedInfo {
@@ -885,6 +886,7 @@ export const FRAME_SRC_HOSTS = [
   "https://m.youtube.com",
   "https://www.figma.com",
   "https://figma.com",
+  "https://drive.google.com",
 ] as const;
 export const FRAME_SRC_POLICY = `frame-src 'self' ${FRAME_SRC_HOSTS.join(" ")}`;
 
@@ -968,9 +970,20 @@ function linkedinEmbed(u: URL): EmbedInfo | null {
   return { kind: "linkedin", embedUrl: `https://www.linkedin.com/embed/feed/update/urn:li:${type}:${id}`, aspect: "4:5", label: "LinkedIn post" };
 }
 
+const DRIVE_ID = /^[A-Za-z0-9_-]{10,200}$/;
+/** A Drive file (not a folder): /file/d/<id>/... or /open?id=<id>, played through /preview. */
+function driveEmbed(u: URL): EmbedInfo | null {
+  const segs = segmentsOf(u);
+  let id: string | null = null;
+  if (segs[0] === "file" && segs[1] === "d") id = segs[2] || null;
+  else if (segs[0] === "open" && segs.length === 1) id = u.searchParams.get("id");
+  if (!id || !DRIVE_ID.test(id)) return null;
+  return { kind: "drive", embedUrl: `https://drive.google.com/file/d/${id}/preview`, aspect: "16:9", label: "Google Drive file" };
+}
+
 /**
  * The official public embed for a live post link, or { kind: "link" }. Only Instagram,
- * YouTube, Facebook and LinkedIn posts embed; https only, exact hosts (look-alikes such as
+ * YouTube, Facebook and LinkedIn posts and Google Drive files embed; https only, exact hosts (look-alikes such as
  * instagram.com.evil.com are links). Pages must frame only an embedUrl from here.
  */
 export function toEmbed(liveUrl: unknown): EmbedInfo {
@@ -982,6 +995,7 @@ export function toEmbed(liveUrl: unknown): EmbedInfo {
   else if (["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"].includes(host)) out = youtubeEmbed(u, host);
   else if (["facebook.com", "www.facebook.com", "m.facebook.com", "web.facebook.com"].includes(host)) out = facebookEmbed(u);
   else if (host === "linkedin.com" || host === "www.linkedin.com") out = linkedinEmbed(u);
+  else if (host === "drive.google.com") out = driveEmbed(u);
   return out || LINK_EMBED;
 }
 
@@ -990,6 +1004,7 @@ const EMBED_URL_PATTERNS = [
   /^https:\/\/www\.youtube-nocookie\.com\/embed\/[A-Za-z0-9_-]{11}$/,
   /^https:\/\/www\.facebook\.com\/plugins\/(video|post)\.php\?href=https%3A%2F%2Fwww\.facebook\.com%2F[^&#\s]*&show_text=false$/,
   /^https:\/\/www\.linkedin\.com\/embed\/feed\/update\/urn:li:(activity|share|ugcPost):\d{10,25}$/,
+  /^https:\/\/drive\.google\.com\/file\/d\/[A-Za-z0-9_-]{10,200}\/preview$/,
 ];
 /** True only for an embed URL of the shape toEmbed produces (checked again before framing). */
 export function isTrustedEmbedUrl(url: unknown): boolean {

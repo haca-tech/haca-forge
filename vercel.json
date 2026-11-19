@@ -33,7 +33,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "frame-src 'self' https://www.instagram.com https://www.youtube-nocookie.com https://www.facebook.com https://www.linkedin.com https://www.youtube.com https://youtube.com https://m.youtube.com https://www.figma.com https://figma.com"
+          "value": "frame-src 'self' https://www.instagram.com https://www.youtube-nocookie.com https://www.facebook.com https://www.linkedin.com https://www.youtube.com https://youtube.com https://m.youtube.com https://www.figma.com https://figma.com https://drive.google.com"
         }
       ]
     }
