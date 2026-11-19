@@ -146,70 +146,55 @@ describe('Phase 5: Feedback Loops, Revision Flags & Blockers', () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
   };
 
-  describe('Part A: Structured Two-Entry Feedback Rounds', () => {
-    it('allows reviewer to submit Round 1 feedback with "Revision Required"', async () => {
+  // Revisions go through the version (Review Studio and Work Detail both call this).
+  const requestRevision = async (comment) => {
+    const latest = await Submission.findOne({ workItemId: testWorkItem._id }).sort({ version: -1 });
+    return request(app)
+      .post(`/api/submissions/${latest._id}/request-revision`)
+      .set('Authorization', `Bearer ${leadToken}`)
+      .send({ comment, rootCause: 'Brief unclear' });
+  };
+
+  describe('Part A: Feedback-page writes are retired (Review Hub)', () => {
+    it('a reviewer revision on the Feedback route returns 410 and points to Review Studio; nothing changes', async () => {
       await submitNewVersion();
       const res = await request(app)
         .post(`/api/feedback/work-item/${testWorkItem._id}`)
         .set('Authorization', `Bearer ${leadToken}`)
-        .send({
-          round: 1,
-          roundStatus: 'Revision Required',
-          text: 'The font size on slide 3 is too small and brand purple is slightly off-palette.',
-          isResponse: false,
-        });
-
-      expect(res.status).toBe(201);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.round).toBe(1);
-      expect(res.body.data.roundStatus).toBe('Revision Required');
-      expect(res.body.data.isResponse).toBe(false);
-
-      // Verify work item updated to Feedback and revisions incremented
-      const updatedItem = await WorkItem.findById(testWorkItem._id);
-      expect(updatedItem.status).toBe('Feedback');
-      expect(updatedItem.revisions).toBe(1);
+        .send({ round: 1, roundStatus: 'Revision Required', text: 'Slide 3 font is too small.', isResponse: false });
+      expect(res.status).toBe(410);
+      expect(res.body.error?.code || res.body.code).toBe('FEEDBACK_REVISION_RETIRED');
+      const item = await WorkItem.findById(testWorkItem._id);
+      expect(item.revisions).toBe(0);
+      expect(await FeedbackEntry.countDocuments({ workItemId: testWorkItem._id })).toBe(0);
     });
 
     it('prevents non-owner member from submitting owner response', async () => {
       const res = await request(app)
         .post(`/api/feedback/work-item/${testWorkItem._id}`)
         .set('Authorization', `Bearer ${dependencyToken}`) // different member
-        .send({
-          round: 1,
-          text: 'Attempting to respond on behalf of owner',
-          isResponse: true,
-        });
-
+        .send({ round: 1, text: 'Attempting to respond on behalf of owner', isResponse: true });
       // Not on this deliverable, so the item is not confirmed to exist.
       expect(res.status).toBe(404);
     });
 
-    it('allows assigned owner to submit owner response for Round 1', async () => {
+    it('an owner response returns 410 and points to Resubmit', async () => {
       const res = await request(app)
         .post(`/api/feedback/work-item/${testWorkItem._id}`)
         .set('Authorization', `Bearer ${memberToken}`)
-        .send({
-          round: 1,
-          text: 'Understood. Fixed slide 3 typography and calibrated to official #7C3AED purple.',
-          isResponse: true,
-        });
-
-      expect(res.status).toBe(201);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.round).toBe(1);
-      expect(res.body.data.isResponse).toBe(true);
+        .send({ round: 1, text: 'Fixed slide 3.', isResponse: true });
+      expect(res.status).toBe(410);
+      expect(res.body.error?.code || res.body.code).toBe('FEEDBACK_REPLY_RETIRED');
     });
 
-    it('returns grouped rounds and entries in getFeedbackForWorkItem', async () => {
+    it('older entries stay readable, grouped by round', async () => {
+      await FeedbackEntry.create({ workItemId: testWorkItem._id, round: 1, fromPersonId: leadUser._id, roundStatus: 'Revision Required', text: 'Older reviewer note', isResponse: false });
+      await FeedbackEntry.create({ workItemId: testWorkItem._id, round: 1, fromPersonId: memberUser._id, text: 'Older owner reply', isResponse: true });
       const res = await request(app)
         .get(`/api/feedback/work-item/${testWorkItem._id}`)
         .set('Authorization', `Bearer ${memberToken}`);
-
       expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
       expect(res.body.data.rounds).toHaveLength(1);
-      expect(res.body.data.rounds[0].roundNumber).toBe(1);
       expect(res.body.data.rounds[0].reviewerFeedback).not.toBeNull();
       expect(res.body.data.rounds[0].ownerResponse).not.toBeNull();
     });
@@ -218,57 +203,31 @@ describe('Phase 5: Feedback Loops, Revision Flags & Blockers', () => {
       const res = await request(app)
         .post(`/api/feedback/work-item/${testWorkItem._id}`)
         .set('Authorization', `Bearer ${memberToken}`)
-        .send({
-          round: 2,
-          roundStatus: 'Approved',
-          text: 'I approve my own work',
-          isResponse: false,
-        });
-
-      expect(res.status).toBe(409);
+        .send({ round: 2, roundStatus: 'Approved', text: 'I approve my own work', isResponse: false });
+      expect(res.status).toBe(410);
       expect((await WorkItem.findById(testWorkItem._id)).status).not.toBe('Approved');
     });
   });
 
   describe('Part B: Automatic Revision Flagging Engine', () => {
-    it('automatically flags RevisionFlag when revisions reach 4', async () => {
-      // Simulate rounds 2, 3, 4 with "Revision Required"
-      await submitNewVersion();
-      await request(app)
-        .post(`/api/feedback/work-item/${testWorkItem._id}`)
-        .set('Authorization', `Bearer ${leadToken}`)
-        .send({ round: 2, roundStatus: 'Revision Required', text: 'Second round revisions needed', isResponse: false });
+    it('flags the step once it reaches round 4 (the third change request)', async () => {
+      for (const [n, text] of [[1, 'First round revisions needed'], [2, 'Second round revisions needed'], [3, 'Third round: design direction issue']]) {
+        if (n > 1) await submitNewVersion();
+        const res = await requestRevision(text);
+        expect(res.status).toBeLessThan(300);
+        if (n < 3) expect(await RevisionFlag.findOne({ workItemId: testWorkItem._id })).toBeNull();
+      }
 
-      await submitNewVersion();
-      await request(app)
-        .post(`/api/feedback/work-item/${testWorkItem._id}`)
-        .set('Authorization', `Bearer ${leadToken}`)
-        .send({ round: 3, roundStatus: 'Revision Required', text: 'Third round revisions needed', isResponse: false });
-
-      await submitNewVersion();
-      const resRound4 = await request(app)
-        .post(`/api/feedback/work-item/${testWorkItem._id}`)
-        .set('Authorization', `Bearer ${leadToken}`)
-        .send({ round: 4, roundStatus: 'Revision Required', text: 'Fourth round revision: design direction issue', isResponse: false });
-
-      expect(resRound4.status).toBe(201);
-
-      // Verify work item revisions is 4
       const updatedItem = await WorkItem.findById(testWorkItem._id);
-      expect(updatedItem.revisions).toBe(4);
+      expect(updatedItem.revisions).toBe(3);
 
-      // Verify RevisionFlag was automatically created
       const flag = await RevisionFlag.findOne({ workItemId: testWorkItem._id });
       expect(flag).not.toBeNull();
       expect(flag.isFlagged).toBe(true);
-      expect(flag.revisionsCount).toBe(4);
+      expect(flag.revisionsCount).toBe(3);
       expect(flag.rootCause).toBeNull(); // unclassified initially
 
-      // Verify ActivityEvent logged
-      const activity = await ActivityEvent.findOne({
-        entityId: testWorkItem._id,
-        action: 'revision.flagged',
-      });
+      const activity = await ActivityEvent.findOne({ entityId: testWorkItem._id, action: 'revision.flagged' });
       expect(activity).not.toBeNull();
     });
 

@@ -52,7 +52,8 @@ describe('Team Directory and Worker Profile Frontend Suite', () => {
               counts: {
                 inProgress: 2,
                 waitingApproval: 1,
-                late: 0,
+                // An older API might still send a late count; the card must not show it.
+                late: 3,
               },
             },
           ],
@@ -83,6 +84,13 @@ describe('Team Directory and Worker Profile Frontend Suite', () => {
       expect(sortText).toContain('Load');
       expect(sortText).not.toContain('Rating');
       expect(sortText).not.toContain('Speed');
+
+      // No people filter on late work (late work is found by step, in the Tracker).
+      expect(screen.queryByText(/Has Late Work/i)).not.toBeInTheDocument();
+      // No late-step count on the card (it stays on the person's own profile).
+      expect(screen.queryByText(/3 late/)).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Late Deliverables')).not.toBeInTheDocument();
+      expect((apiModule.apiFetch as any).mock.calls.every(([url]: any[]) => !String(url).includes('hasLate'))).toBe(true);
     });
   });
 

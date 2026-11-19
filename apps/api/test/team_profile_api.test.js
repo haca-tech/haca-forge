@@ -247,7 +247,14 @@ describe('Team Directory and Worker Profile API Suite', () => {
       expect(writer.capacityBand).toBe('Healthy');
       expect(writer.counts.inProgress).toBe(1);
       expect(writer.counts.waitingApproval).toBe(1);
-      expect(writer.counts.late).toBe(1);
+      // No late-step count per person in the directory (no people filter on it either);
+      // the person's own profile keeps it.
+      expect('late' in writer.counts).toBe(false);
+      const filtered = await request(app).get('/api/team?search=TP Writer One&hasLate=true').set('Authorization', `Bearer ${headToken}`);
+      expect(filtered.body.data.items.map((i) => i._id)).toEqual(res.body.data.items.map((i) => i._id));
+      const profile = await request(app).get(`/api/team/${worker1._id}`).set('Authorization', `Bearer ${headToken}`);
+      expect(profile.status).toBe(200);
+      expect(profile.body.data.kpis.lateCount).toBe(1);
       expect(writer.currentStep).toBeDefined();
       expect(writer.currentStep.stageKey).toBe('Content');
     });

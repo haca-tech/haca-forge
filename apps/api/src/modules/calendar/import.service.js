@@ -21,6 +21,7 @@ import {
 import { Person } from '../people/model.js';
 import { WorkItem } from '../workItems/model.js';
 import { logger } from '../../lib/logger.js';
+import { pickOwner } from '../../lib/pickOwner.js';
 
 export const TEMPLATE_COLUMNS = [
   { header: 'Posting Date', key: 'postingDate', width: 16 },
@@ -458,21 +459,14 @@ export async function validateImportRows(rawRows) {
     memberWorkload.set(m._id.toString(), pct);
   }
 
-  function pickBestMemberForStage(stageKey) {
-    const eligible = activeMembers.filter((m) => {
-      const prefs = effectiveStepsFor(m);
-      const load = memberWorkload.get(m._id.toString()) || 0;
-      return prefs.includes(stageKey) && load < 85;
+  // The shared owner rule (lib/pickOwner.js), the same as autofill and Recommended Owner.
+  const pickBestMemberForStage = (stageKey) =>
+    pickOwner(activeMembers, {
+      eligible: (m) => effectiveStepsFor(m).includes(stageKey),
+      load: (m) => memberWorkload.get(m._id.toString()) || 0,
+      name: (m) => m.name,
+      id: (m) => m._id,
     });
-
-    if (eligible.length === 0) return null;
-    eligible.sort((a, b) => {
-      const loadA = memberWorkload.get(a._id.toString()) || 0;
-      const loadB = memberWorkload.get(b._id.toString()) || 0;
-      return loadA - loadB;
-    });
-    return eligible[0];
-  }
 
   for (const raw of rawRows) {
     const errors = [];

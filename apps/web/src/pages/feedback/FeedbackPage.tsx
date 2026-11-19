@@ -1,924 +1,539 @@
-import { getStepStatusLabel, isApprover, canDecide } from '@mmp/shared';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useDialogFocus } from '../../lib/useDialogFocus';
-import { displayStatus, statusClass, statusTone } from '../../lib/statusTone';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { apiFetch } from '../../lib/api';
-import { useAuth } from '../../context/AuthContext';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  Flag,
+  History,
+  Inbox,
+  MessageSquare,
+  PauseCircle,
+  PlayCircle,
+  RotateCcw,
+  Search,
+  Send,
+  Sparkles,
+  StickyNote,
+  X,
+} from 'lucide-react';
+import {
+  CALENDAR_LIST,
   CANONICAL_REVISION_ROOT_CAUSES,
+  formatShortDate,
+  formatShortDateTime,
+  isApprover,
+  isReadOnlyViewer,
   type CanonicalRevisionRootCause,
 } from '@mmp/shared';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Sparkles,
-  Search,
-  ChevronRight,
-  Send,
-  Flag,
-  ShieldAlert,
-  X,
-  ExternalLink,
-  MessageSquare,
-  FileSpreadsheet, PauseCircle } from 'lucide-react';
+import { apiFetch } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
+import { useDialogFocus } from '../../lib/useDialogFocus';
+import { TimeLabelChips, type TimeLabel } from '../../components/TimeLabelChips';
+import { StepSubmitDialog } from '../../components/StepSubmitDialog';
 import { PlansApprovalTab } from './PlansApprovalTab';
 import { PauseRequestsTab } from './PauseRequestsTab';
 
-interface FeedbackThreadItem {
-  workItem: {
+/**
+ * Review Hub: an inbox of review rounds and their history. Decisions happen in Review Studio
+ * and Work Detail; owners answer with Start rework and Resubmit link. Leads see the calendars
+ * they decide, admin and the read-only heads see everything (the heads without actions),
+ * workers see their own steps. Read from GET /api/review-hub and its step timeline.
+ */
+
+interface HubItem {
+  workItemId: string;
+  title: string;
+  stageKey: string;
+  type: string;
+  calendar: string;
+  owner: { _id: string; name: string };
+  status: string;
+  reviewState: string | null;
+  statusLabel: string;
+  version: number | null;
+  submittedAt: string | null;
+  decidedAt: string | null;
+  revisions: number;
+  revisionsLabel: string;
+  timeLabels: TimeLabel[];
+  flag: { _id: string; flaggedAt: string; revisionsCount: number } | null;
+}
+interface HubData {
+  viewer: 'lead' | 'admin' | 'viewer' | 'worker';
+  tab: string;
+  tabs: Array<{ key: string; label: string; count: number }>;
+  items: HubItem[];
+}
+interface TimelineEvent {
+  kind: string;
+  at: string;
+  by?: string;
+  version?: number;
+  links?: Array<{ url: string; kind: string }>;
+  note?: string;
+  message?: string;
+  rootCause?: string | null;
+  rating?: number | null;
+  reason?: string;
+  pauseUntil?: string | null;
+  cancelReason?: string;
+  round?: number;
+  revisions?: number;
+  isResponse?: boolean;
+}
+interface Timeline {
+  step: {
     _id: string;
     title: string;
-    workType: string;
-    deadline: string;
+    stageKey: string;
+    type: string;
+    calendar: string;
+    owner: { _id: string; name: string };
     status: string;
+    reviewState: string | null;
+    statusLabel: string;
+    version: number | null;
+    dueDate: string | null;
     revisions: number;
-    profileId?: { _id: string; name: string; code: string };
-    departmentId?: { _id: string; name: string; code: string };
-    ownerId?: { _id: string; name: string; email: string; role: string; jobRole?: string };
-    reviewRequired?: boolean;
-    stageKey?: string;
-    calendar?: string;
+    revisionsLabel: string;
   };
-  latestEntry?: {
-    _id: string;
-    round: number;
-    roundStatus: string;
-    text: string;
-    isResponse: boolean;
-    createdAt: string;
-    fromPersonId?: { _id: string; name: string; role: string };
-  };
-  totalEntries: number;
-  revisions: number;
-  flag?: {
-    _id: string;
-    revisionsCount: number;
-    baselineAvg: number;
-    isFlagged: boolean;
-    flaggedAt: string;
-    rootCause?: string;
-    rootCauseNotes?: string;
-    isOver48HoursUnclassified?: boolean;
-    isEscalated?: boolean;
-    classifiedBy?: { _id: string; name: string; role: string };
-  };
+  mainAction: { kind: 'open_review_studio' | 'classify' | 'start_rework' | 'resubmit' | 'open_work_detail'; href?: string; flagId?: string };
+  events: TimelineEvent[];
 }
 
-interface FeedbackEntryDetail {
-  _id: string;
-  round: number;
-  roundStatus: string;
-  text: string;
-  isResponse: boolean;
-  createdAt: string;
-  fromPersonId?: {
-    _id: string;
-    name: string;
-    email: string;
-    role: string;
-    jobRole?: string;
-  };
-  attachments?: { name: string; url: string; fileType?: string; size?: number }[];
+const calendarName = (key: string) => CALENDAR_LIST.find((c) => c.id === key)?.name || key;
+const TAB_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+  waiting: Clock,
+  changes: MessageSquare,
+  pauses: PauseCircle,
+  plans: Inbox,
+  flagged: Flag,
+  history: History,
+  needs_action: MessageSquare,
+};
+
+/** "3h ago", "2d ago", "just now". */
+export function timeAgo(value: string | null | undefined, now = Date.now()): string {
+  if (!value) return '';
+  const ms = now - new Date(value).getTime();
+  if (ms < 60000) return 'just now';
+  const m = Math.floor(ms / 60000);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }
 
-interface RoundDetail {
-  roundNumber: number;
-  reviewerFeedback: FeedbackEntryDetail | null;
-  ownerResponse: FeedbackEntryDetail | null;
-  status: string;
-  createdAt: string;
+function itemWhen(item: HubItem, tab: string): string {
+  if (tab === 'history') return item.decidedAt ? `approved ${formatShortDate(item.decidedAt)}` : '';
+  if (tab === 'changes' || tab === 'needs_action') return item.decidedAt ? `sent back ${timeAgo(item.decidedAt)}` : '';
+  if (tab === 'flagged') return item.flag ? `flagged ${timeAgo(item.flag.flaggedAt)}` : '';
+  return item.submittedAt ? `submitted ${timeAgo(item.submittedAt)}` : '';
 }
+
+/** One timeline line: what happened, who, and the text when this viewer may read it. */
+function describe(e: TimelineEvent): { icon: React.ComponentType<{ className?: string }>; title: string; body?: string; extra?: React.ReactNode } {
+  const by = e.by ? ` by ${e.by}` : '';
+  switch (e.kind) {
+    case 'submitted':
+      return {
+        icon: Send,
+        title: `Version ${e.version} submitted${by}`,
+        body: e.note,
+        extra: e.links?.length ? (
+          <ul className="space-y-0.5">
+            {e.links.map((l) => (
+              <li key={l.url}>
+                <a href={l.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-ui-ink underline underline-offset-2 break-all">
+                  Open link <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : null,
+      };
+    case 'changes_requested':
+      return { icon: RotateCcw, title: `Changes requested${by} (version ${e.version})`, body: e.message, extra: e.rootCause ? <p className="text-xs text-ui-muted">Root cause: {e.rootCause}</p> : null };
+    case 'rework_started':
+      return { icon: PlayCircle, title: `Rework started${by}` };
+    case 'approved':
+      return {
+        icon: CheckCircle2,
+        title: `Approved${by} (version ${e.version})`,
+        body: e.message,
+        extra: e.rating ? <p className="text-xs text-ui-ink" aria-label={`Rated ${e.rating} out of 5`}>{'★'.repeat(e.rating)}{'☆'.repeat(5 - e.rating)}</p> : null,
+      };
+    case 'reopened':
+      return { icon: RotateCcw, title: `Reopened${by}`, body: e.message };
+    case 'pause_requested':
+      return { icon: PauseCircle, title: `Pause requested${by}: ${e.reason || ''}`, body: e.note, extra: e.pauseUntil ? <p className="text-xs text-ui-muted">Until {e.pauseUntil}</p> : null };
+    case 'pause_approved':
+      return { icon: PauseCircle, title: `Pause approved${by}`, body: e.message };
+    case 'pause_rejected':
+      return { icon: PauseCircle, title: `Pause not approved${by}`, body: e.message };
+    case 'pause_cancelled':
+      return { icon: PauseCircle, title: e.cancelReason === 'cancelled_on_submit' ? 'Pause request withdrawn (step submitted)' : e.cancelReason === 'reassigned' ? 'Pause request cancelled (step reassigned)' : 'Pause request cancelled' };
+    case 'pause_resumed':
+      return { icon: PlayCircle, title: `Resumed${by}` };
+    case 'flagged':
+      return { icon: Flag, title: `Flagged: reached round 4 (${e.revisions} change requests)` };
+    case 'classified':
+      return { icon: Flag, title: `Root cause classified${by}`, body: e.rootCause || undefined };
+    case 'earlier_note':
+      return { icon: StickyNote, title: `Earlier note${by}${e.round ? ` (round ${e.round})` : ''}`, body: e.message };
+    default:
+      return { icon: Clock, title: e.kind };
+  }
+}
+
+/** Classify the root cause of a flagged step (the 7 canonical causes). */
+const ClassifyDialog: React.FC<{ title: string; busy: boolean; onClose: () => void; onSave: (cause: CanonicalRevisionRootCause, notes: string) => void }> = ({ title, busy, onClose, onSave }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useDialogFocus(ref, true, onClose);
+  const [cause, setCause] = useState<CanonicalRevisionRootCause>(CANONICAL_REVISION_ROOT_CAUSES[0]);
+  const [notes, setNotes] = useState('');
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 ui-scrim">
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="classify-title" className="glass-modal w-full max-w-md p-5 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 id="classify-title" className="text-base font-bold text-ui-ink">Classify root cause</h2>
+            <p className="text-sm text-ui-muted break-words">{title}</p>
+          </div>
+          <button type="button" onClick={onClose} className="ui-icon-btn h-11 w-11 shrink-0" aria-label="Close">
+            <X className="w-4 h-4" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="classify-cause" className="block text-[13px] font-medium text-ui-muted">Root cause</label>
+          <select id="classify-cause" className="ui-select h-11 w-full" value={cause} onChange={(e) => setCause(e.target.value as CanonicalRevisionRootCause)}>
+            {CANONICAL_REVISION_ROOT_CAUSES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="classify-notes" className="block text-[13px] font-medium text-ui-muted">Notes (optional)</label>
+          <textarea id="classify-notes" className="ui-input ui-textarea w-full min-h-[72px]" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={onClose} className="ui-btn ui-btn-secondary h-11">Cancel</button>
+          <button type="button" disabled={busy} onClick={() => onSave(cause, notes.trim())} className="ui-btn ui-btn-primary h-11">{busy ? 'Saving…' : 'Save root cause'}</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/** The step's header, its one main action, and its timeline. */
+const DetailPanel: React.FC<{ workItemId: string; onBack: () => void; onChanged: () => void }> = ({ workItemId, onBack, onChanged }) => {
+  const navigate = useNavigate();
+  const [data, setData] = useState<Timeline | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [classifying, setClassifying] = useState(false);
+  const [resubmitting, setResubmitting] = useState(false);
+
+  const load = async () => {
+    setError(null);
+    try {
+      const res = await apiFetch<{ data: Timeline }>(`/api/review-hub/steps/${workItemId}/timeline`);
+      setData(res.data);
+    } catch (err: any) {
+      setError(err?.message || 'Could not load this step.');
+    }
+  };
+  useEffect(() => {
+    setData(null);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workItemId]);
+
+  const run = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+      await load();
+      onChanged();
+    } catch (err: any) {
+      setError(err?.message || 'Something went wrong.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!data) {
+    return (
+      <section className="glass-card p-5" aria-label="Step details">
+        {error ? <p role="alert" className="text-sm text-ui-ink">{error}</p> : <p className="text-sm text-ui-muted">Loading…</p>}
+      </section>
+    );
+  }
+  const { step, mainAction, events } = data;
+  const action = (() => {
+    switch (mainAction.kind) {
+      case 'open_review_studio':
+        return (
+          <button type="button" className="ui-btn ui-btn-primary h-11 gap-1.5" onClick={() => navigate(mainAction.href!)}>
+            <Sparkles className="w-4 h-4" aria-hidden="true" /> Open in Review Studio
+          </button>
+        );
+      case 'classify':
+        return (
+          <button type="button" className="ui-btn ui-btn-primary h-11 gap-1.5" onClick={() => setClassifying(true)}>
+            <Flag className="w-4 h-4" aria-hidden="true" /> Classify root cause
+          </button>
+        );
+      case 'start_rework':
+        return (
+          <button type="button" disabled={busy} className="ui-btn ui-btn-primary h-11 gap-1.5" onClick={() => run(() => apiFetch(`/api/work/${step._id}/transition`, { method: 'POST', body: JSON.stringify({ toStatus: 'In Progress' }) }))}>
+            <PlayCircle className="w-4 h-4" aria-hidden="true" /> Start rework
+          </button>
+        );
+      case 'resubmit':
+        return (
+          <button type="button" className="ui-btn ui-btn-primary h-11 gap-1.5" onClick={() => setResubmitting(true)}>
+            <Send className="w-4 h-4" aria-hidden="true" /> Resubmit link
+          </button>
+        );
+      default:
+        return (
+          <Link to={`/work/${step._id}`} className="ui-btn ui-btn-secondary h-11 gap-1.5">
+            Open Work Detail <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+          </Link>
+        );
+    }
+  })();
+
+  return (
+    <section className="glass-card p-4 sm:p-5 space-y-4 min-w-0" aria-labelledby="hub-detail-title">
+      <button type="button" onClick={onBack} className="lg:hidden inline-flex items-center gap-1 min-h-[44px] text-sm font-semibold text-ui-ink">
+        <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Back to list
+      </button>
+      <header className="space-y-2">
+        <h2 id="hub-detail-title" className="text-base font-bold text-ui-ink break-words">{step.title}</h2>
+        <div className="flex flex-wrap gap-1.5">
+          <span className="status-chip status-not-started text-[11px]">{step.stageKey}</span>
+          <span className="status-chip status-not-started text-[11px]">{step.type}</span>
+          <span className="status-chip status-in-progress text-[11px]">{calendarName(step.calendar)}</span>
+          <span className="status-chip status-waiting text-[11px]" data-testid="hub-status">{step.statusLabel}</span>
+        </div>
+        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+          <div><dt className="text-[11px] text-ui-muted">Owner</dt><dd className="text-ui-ink">{step.owner.name || '—'}</dd></div>
+          <div><dt className="text-[11px] text-ui-muted">Version</dt><dd className="text-ui-ink">{step.version ? `v${step.version}` : '—'}</dd></div>
+          <div><dt className="text-[11px] text-ui-muted">Due</dt><dd className="text-ui-ink">{step.dueDate ? formatShortDate(step.dueDate) : '—'}</dd></div>
+          <div><dt className="text-[11px] text-ui-muted">Revisions</dt><dd className="text-ui-ink" data-testid="hub-revisions">{step.revisionsLabel}</dd></div>
+        </dl>
+      </header>
+      <div className="flex flex-wrap gap-2" data-testid="hub-main-action">{action}</div>
+      {error && <p role="alert" className="p-3 rounded-xl status-tint status-changes text-xs font-semibold">{error}</p>}
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-ui-muted mb-2">Timeline</h3>
+        {events.length === 0 ? (
+          <p className="text-sm text-ui-muted">Nothing has been submitted yet.</p>
+        ) : (
+          <ol className="space-y-3" aria-label="Review timeline">
+            {events.map((e, i) => {
+              const d = describe(e);
+              const Icon = d.icon;
+              return (
+                <li key={i} className="flex gap-3" data-kind={e.kind}>
+                  <span className="mt-0.5 w-7 h-7 rounded-full bg-white/80 border border-ui-line flex items-center justify-center shrink-0">
+                    <Icon className="w-3.5 h-3.5 text-ui-ink" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-sm font-semibold text-ui-ink break-words">{d.title}</p>
+                    <p className="text-[11px] text-ui-muted">{formatShortDateTime(e.at)}</p>
+                    {d.body ? <p className="text-sm text-ui-text whitespace-pre-wrap break-words">{d.body}</p> : null}
+                    {d.extra}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
+      {classifying && mainAction.flagId && (
+        <ClassifyDialog
+          title={step.title}
+          busy={busy}
+          onClose={() => setClassifying(false)}
+          onSave={(cause, notes) => {
+            setClassifying(false);
+            run(() => apiFetch(`/api/revisions/flags/${mainAction.flagId}/classify`, { method: 'POST', body: JSON.stringify({ rootCause: cause, rootCauseNotes: notes }) }));
+          }}
+        />
+      )}
+      {resubmitting && (
+        <StepSubmitDialog
+          step={{ _id: step._id, title: step.title, stageKey: step.stageKey }}
+          resubmit
+          onClose={() => setResubmitting(false)}
+          onDone={async () => {
+            setResubmitting(false);
+            await load();
+            onChanged();
+          }}
+        />
+      )}
+    </section>
+  );
+};
 
 export const FeedbackPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') || '';
+  const q = params.get('q') || '';
+  const calendar = params.get('calendar') || '';
+  const selected = params.get('step') || '';
+  const [data, setData] = useState<HubData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [qDraft, setQDraft] = useState(q);
+  const [reloadKey, setReloadKey] = useState(0);
+  const canOpenStudio = isApprover(user?.role) || user?.role === 'admin';
 
-  const tabParam = searchParams.get('tab');
-  const mainTab: 'plans' | 'stages' | 'pauses' = tabParam === 'plans' ? 'plans' : tabParam === 'pauses' ? 'pauses' : 'stages';
-  const [pauseCount, setPauseCount] = useState<number | null>(null);
-
-  const handleMainTabChange = (t: 'plans' | 'stages' | 'pauses') => {
-    setSearchParams({ tab: t });
-  };
-
-  const [threads, setThreads] = useState<FeedbackThreadItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedWorkItemId, setSelectedWorkItemId] = useState<string | null>(null);
-
-  // Active Thread Details
-  const [activeThread, setActiveThread] = useState<{
-    workItem: FeedbackThreadItem['workItem'];
-    entries: FeedbackEntryDetail[];
-    rounds: RoundDetail[];
-    flag: FeedbackThreadItem['flag'] | null;
-  } | null>(null);
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
-
-  // Filters & Search
-  const [activeTab, setActiveTab] = useState<'all' | 'feedback' | 'flagged' | 'approved'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Submit Review / Response State
-  const [reviewText, setReviewText] = useState('');
-  const [responseText, setResponseText] = useState('');
-  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const [isSubmittingResponse, setIsSubmittingResponse] = useState(false);
-
-  // Root Cause Classification Modal
-  const [isClassifyModalOpen, setIsClassifyModalOpen] = useState(false);
-  const [selectedRootCause, setSelectedRootCause] = useState<CanonicalRevisionRootCause>(CANONICAL_REVISION_ROOT_CAUSES[0]);
-  const [rootCauseNotes, setRootCauseNotes] = useState('');
-  const [isClassifying, setIsClassifying] = useState(false);
-  // Classify modal keyboard behaviour: focus in on open, Escape closes, Tab stays inside, focus returns.
-  const classifyDialogRef = useRef<HTMLDivElement>(null);
-  useDialogFocus(classifyDialogRef, isClassifyModalOpen, () => setIsClassifyModalOpen(false));
-
-  // Fetch all feedback threads
-  const fetchThreads = async () => {
-    setIsLoading(true);
-    try {
-      const res = await apiFetch<{ data: FeedbackThreadItem[] }>('/api/feedback/threads');
-      setThreads(res.data);
-      const queryWorkId = searchParams.get('workItemId');
-      if (queryWorkId && res.data.some((t) => t.workItem._id === queryWorkId)) {
-        setSelectedWorkItemId(queryWorkId);
-      } else if (res.data.length > 0 && !selectedWorkItemId) {
-        setSelectedWorkItemId(res.data[0].workItem._id);
-      }
-    } catch (err) {
-      console.error('Failed to load feedback threads', err);
-    } finally {
-      setIsLoading(false);
+  const setParam = (next: Record<string, string>) => {
+    const out = new URLSearchParams(params);
+    for (const [k, v] of Object.entries(next)) {
+      if (v) out.set(k, v);
+      else out.delete(k);
     }
+    setParams(out, { replace: true });
   };
 
   useEffect(() => {
-    fetchThreads();
-  }, []);
+    let alive = true;
+    const query = new URLSearchParams();
+    if (tab) query.set('tab', tab);
+    if (q) query.set('q', q);
+    if (calendar) query.set('calendar', calendar);
+    apiFetch<{ data: HubData }>(`/api/review-hub${query.toString() ? `?${query}` : ''}`)
+      .then((res) => alive && setData(res.data))
+      .catch((err) => alive && setError(err?.message || 'Could not load the Review Hub.'));
+    return () => {
+      alive = false;
+    };
+  }, [tab, q, calendar, reloadKey]);
 
-  // Fetch selected thread detail
-  const fetchThreadDetail = async (workItemId: string) => {
-    setIsLoadingDetail(true);
-    try {
-      const res = await apiFetch<{
-        data: {
-          workItem: FeedbackThreadItem['workItem'];
-          entries: FeedbackEntryDetail[];
-          rounds: RoundDetail[];
-          flag: FeedbackThreadItem['flag'] | null;
-        };
-      }>(`/api/feedback/work-item/${workItemId}`);
-      setActiveThread(res.data);
-    } catch (err) {
-      console.error('Failed to load thread detail', err);
-    } finally {
-      setIsLoadingDetail(false);
-    }
-  };
-
+  useEffect(() => setQDraft(q), [q]);
   useEffect(() => {
-    if (selectedWorkItemId) {
-      fetchThreadDetail(selectedWorkItemId);
-    }
-  }, [selectedWorkItemId]);
+    if (qDraft === q) return;
+    const t = setTimeout(() => setParam({ q: qDraft, step: '' }), 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qDraft]);
 
-  // Submit Reviewer Entry
-  const handleSubmitReview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedWorkItemId || !reviewText.trim()) return;
-
-    setIsSubmittingReview(true);
-    try {
-      await apiFetch(`/api/feedback/work-item/${selectedWorkItemId}`, {
-        method: 'POST',
-        body: JSON.stringify({
-          roundStatus: 'Revision Required',
-          text: reviewText.trim(),
-          isResponse: false,
-        }),
-      });
-      setReviewText('');
-      await fetchThreadDetail(selectedWorkItemId);
-      await fetchThreads();
-    } catch (err: any) {
-      alert(err.message || 'Failed to submit review');
-    } finally {
-      setIsSubmittingReview(false);
-    }
-  };
-
-  // Submit Owner Response
-  const handleSubmitResponse = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedWorkItemId || !responseText.trim()) return;
-
-    const currentRounds = activeThread?.rounds || [];
-    const latestRoundNum = currentRounds.length > 0 ? currentRounds[currentRounds.length - 1].roundNumber : 1;
-
-    setIsSubmittingResponse(true);
-    try {
-      await apiFetch(`/api/feedback/work-item/${selectedWorkItemId}`, {
-        method: 'POST',
-        body: JSON.stringify({
-          round: latestRoundNum,
-          text: responseText.trim(),
-          isResponse: true,
-        }),
-      });
-      setResponseText('');
-      await fetchThreadDetail(selectedWorkItemId);
-      await fetchThreads();
-    } catch (err: any) {
-      alert(err.message || 'Failed to submit response');
-    } finally {
-      setIsSubmittingResponse(false);
-    }
-  };
-
-  // Classify Root Cause
-  const handleClassifyRootCause = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const flagId = activeThread?.flag?._id;
-    if (!flagId) return;
-
-    setIsClassifying(true);
-    try {
-      await apiFetch(`/api/revisions/flags/${flagId}/classify`, {
-        method: 'POST',
-        body: JSON.stringify({
-          rootCause: selectedRootCause,
-          rootCauseNotes: rootCauseNotes.trim(),
-        }),
-      });
-      setIsClassifyModalOpen(false);
-      setRootCauseNotes('');
-      if (selectedWorkItemId) {
-        await fetchThreadDetail(selectedWorkItemId);
-      }
-      await fetchThreads();
-    } catch (err: any) {
-      alert(err.message || 'Failed to classify root cause');
-    } finally {
-      setIsClassifying(false);
-    }
-  };
-
-  // Filtered Threads (Sorted Oldest First)
-  const filteredThreads = useMemo(() => {
-    const list = threads.filter((t) => {
-      if (activeTab === 'feedback' && t.workItem.status !== 'Feedback' && t.workItem.status !== 'Pending') return false;
-      if (activeTab === 'flagged' && !t.flag) return false;
-      if (activeTab === 'approved' && t.workItem.status !== 'Approved') return false;
-
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchTitle = t.workItem.title.toLowerCase().includes(q);
-        const matchOwner = t.workItem.ownerId?.name.toLowerCase().includes(q);
-        if (!matchTitle && !matchOwner) return false;
-      }
-      return true;
-    });
-
-    return list.sort((a, b) => {
-      const dateA = new Date(a.latestEntry?.createdAt || a.workItem.deadline).getTime();
-      const dateB = new Date(b.latestEntry?.createdAt || b.workItem.deadline).getTime();
-      return dateA - dateB; // Oldest first
-    });
-  }, [threads, activeTab, searchQuery]);
-
-  // Metrics
-  const metrics = useMemo(() => {
-    const totalActive = threads.filter((t) => t.workItem.status === 'Feedback' || t.workItem.status === 'Pending').length;
-    const totalFlagged = threads.filter((t) => t.flag && t.flag.isFlagged).length;
-    const totalEscalated = threads.filter(
-      (t) => t.flag && (t.flag.isEscalated || t.flag.isOver48HoursUnclassified)
-    ).length;
-    const totalApproved = threads.filter((t) => t.workItem.status === 'Approved').length;
-    return { totalActive, totalFlagged, totalEscalated, totalApproved };
-  }, [threads]);
-
-  const isAssignedOwner =
-    activeThread?.workItem.ownerId?._id === user?._id ||
-    activeThread?.workItem.ownerId?._id === (user as any)?.userId;
-
-  // Same reviewer rule as the API: creative_lead/growth_lead and admin, never on their own work.
-  // Phase 13: the lead of the step's calendar (Growth Lead for Ads, Creative Lead otherwise).
-  const canDecideThread = canDecide(user?.role, activeThread?.workItem.calendar || 'sm');
-  const canRequestRevision = canDecideThread && !isAssignedOwner;
-
-  const isReviewerOrAdmin = user?.role === 'admin' || isApprover(user?.role) || user?.role === 'sm_manager';
+  const activeTab = data?.tab || tab;
+  const isListTab = !['pauses', 'plans'].includes(activeTab);
+  const readOnly = isReadOnlyViewer(user?.role);
+  const items = useMemo(() => data?.items || [], [data]);
 
   return (
-    <div className="space-y-6 pb-12 animate-fadeIn">
-      {/* Scope Reset R3 Top Tab Navigation for Creative Lead */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="ui-tabs flex-wrap max-w-full rounded-ui-card">
-        <button
-          type="button"
-          aria-pressed={mainTab === 'plans'}
-          onClick={() => handleMainTabChange('plans')}
-          className={`ui-tab gap-2 ${mainTab === 'plans' ? 'is-active' : ''}`}
-        >
-          <FileSpreadsheet className="w-4 h-4" aria-hidden="true" />
-          Plans waiting for approval
-        </button>
-
-        <button
-          type="button"
-          aria-pressed={mainTab === 'stages'}
-          onClick={() => handleMainTabChange('stages')}
-          className={`ui-tab gap-2 ${mainTab === 'stages' ? 'is-active' : ''}`}
-        >
-          <CheckCircle2 className="w-4 h-4" />
-          Stages waiting for approval
-        </button>
-
-        <button
-          type="button"
-          aria-pressed={mainTab === 'pauses'}
-          onClick={() => handleMainTabChange('pauses')}
-          className={`ui-tab gap-2 ${mainTab === 'pauses' ? 'is-active' : ''}`}
-        >
-          <PauseCircle className="w-4 h-4" aria-hidden="true" />
-          Pause requests{pauseCount ? ` (${pauseCount})` : ''}
-        </button>
+    <div className="space-y-4 pb-12 min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-ui-ink">Review Hub</h1>
+          <p className="text-sm text-ui-muted">
+            {data?.viewer === 'worker'
+              ? 'Your steps in review: what needs you, what waits for a lead, and what is done.'
+              : readOnly
+                ? 'Every review round, read-only.'
+                : 'What waits for a decision, what went back, and what is done. Decide in Review Studio or Work Detail.'}
+          </p>
         </div>
-
-        {isReviewerOrAdmin && (
-          <button
-            type="button"
-            onClick={() => navigate('/feedback/review-studio')}
-            className="ui-btn ui-btn-primary h-11 gap-2 sm:ml-auto"
-          >
-            <Sparkles className="w-4 h-4" aria-hidden="true" />
-            Open Review Studio
+        {canOpenStudio && (
+          <button type="button" onClick={() => navigate('/feedback/review-studio')} className="ui-btn ui-btn-primary h-11 gap-2">
+            <Sparkles className="w-4 h-4" aria-hidden="true" /> Open Review Studio
           </button>
         )}
       </div>
 
-      {mainTab === 'plans' && <PlansApprovalTab />}
-
-      {mainTab === 'pauses' && <PauseRequestsTab onCount={setPauseCount} />}
-
-      {mainTab === 'stages' && (
-        <>
-          {/* Top Cockpit Header */}
-      <div className="space-y-5">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/70 text-ui-text">
-                Review Hub
-              </span>
-              <span className="text-xs text-ui-muted font-medium">Two-Entry Review Rounds</span>
-            </div>
-            <h1 className="text-[28px] sm:text-[32px] leading-tight font-extrabold tracking-[-0.02em] text-ui-ink flex items-center gap-2">
-              <MessageSquare className="w-6 h-6 shrink-0" aria-hidden="true" />
-              Feedback & Revision History
-            </h1>
-            <p className="text-[15px] text-ui-muted mt-1.5 max-w-[70ch]">
-              Structured round-based review threads with reviewer decisions, owner responses, automatic 4th round ceiling flags, and 7-cause root cause analysis.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate('/issues')}
-              className="ui-btn ui-btn-secondary h-11 gap-2"
-            >
-              <ShieldAlert className="w-4 h-4" aria-hidden="true" />
-              <span>Issues & Blockers</span>
+      <div className="ui-tabs flex-wrap max-w-full rounded-ui-card" role="tablist" aria-label="Review Hub tabs">
+        {(data?.tabs || []).map((t) => {
+          const Icon = TAB_ICON[t.key] || Inbox;
+          const active = t.key === activeTab;
+          return (
+            <button key={t.key} type="button" role="tab" aria-selected={active} onClick={() => setParam({ tab: t.key, step: '' })} className={`ui-tab gap-2 ${active ? 'is-active' : ''}`}>
+              <Icon className="w-4 h-4" aria-hidden="true" />
+              {t.label} <span className="tabular-nums" data-testid={`tab-count-${t.key}`}>({t.count})</span>
             </button>
-            <button
-              type="button"
-              onClick={() => navigate('/work')}
-              className="ui-btn ui-btn-secondary h-11 gap-2"
-            >
-              <Sparkles className="w-4 h-4" aria-hidden="true" />
-              <span>All Work Items</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Metric Cards Strip */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="glass-card p-4">
-            <span className="text-[13px] font-medium text-ui-muted flex items-center gap-1.5 mb-1">
-              <span className="w-2 h-2 rounded-full status-dot status-in-progress" aria-hidden="true" />
-              In Feedback
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-ui-ink tabular-nums">{metrics.totalActive}</span>
-              <span className="text-xs text-ui-muted">Deliverables</span>
-            </div>
-          </div>
-          <div className="glass-card p-4">
-            <span className="text-[13px] font-medium text-ui-muted flex items-center gap-1.5 mb-1">
-              <span className="w-2 h-2 rounded-full status-dot status-waiting" aria-hidden="true" />
-              Revision Flags
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-ui-ink tabular-nums">{metrics.totalFlagged}</span>
-              <span className="text-xs text-ui-muted">&ge; 4 revs</span>
-            </div>
-          </div>
-          <div className="glass-card p-4">
-            <span className="text-[13px] font-medium text-ui-muted flex items-center gap-1.5 mb-1">
-              <span className="w-2 h-2 rounded-full status-dot status-changes" aria-hidden="true" />
-              Escalated (&gt;48h)
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-ui-ink tabular-nums">{metrics.totalEscalated}</span>
-              <span className="text-xs text-ui-muted">To Head</span>
-            </div>
-          </div>
-          <div className="glass-card p-4">
-            <span className="text-[13px] font-medium text-ui-muted flex items-center gap-1.5 mb-1">
-              <span className="w-2 h-2 rounded-full status-dot status-approved" aria-hidden="true" />
-              Approved
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-ui-ink tabular-nums">{metrics.totalApproved}</span>
-              <span className="text-xs text-ui-muted">Ready to Publish</span>
-            </div>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
-      {/* Main Split Layout: Left Thread List & Right Active Thread */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Thread List (5 cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          {/* Filter Tabs & Search */}
-          <div className="glass-card p-4 space-y-3">
-            <div className="ui-tabs w-full grid grid-cols-3">
-              <button
-                type="button"
-                aria-pressed={activeTab === 'all'}
-                onClick={() => setActiveTab('all')}
-                className={`ui-tab justify-center px-2 ${activeTab === 'all' ? 'is-active' : ''}`}
-              >
-                All ({threads.length})
-              </button>
-              <button
-                type="button"
-                aria-pressed={activeTab === 'feedback'}
-                onClick={() => setActiveTab('feedback')}
-                className={`ui-tab justify-center px-2 ${activeTab === 'feedback' ? 'is-active' : ''}`}
-              >
-                In Review ({metrics.totalActive})
-              </button>
-              <button
-                type="button"
-                aria-pressed={activeTab === 'flagged'}
-                onClick={() => setActiveTab('flagged')}
-                className={`ui-tab justify-center px-2 ${activeTab === 'flagged' ? 'is-active' : ''}`}
-              >
-                Flagged ({metrics.totalFlagged})
-              </button>
-            </div>
-
+      {isListTab && (
+        <div className="glass-card p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-[1fr_220px] gap-3" role="search" aria-label="Filter the Review Hub">
+          <div className="min-w-0">
+            <label htmlFor="hub-q" className="block text-[12px] font-medium text-ui-muted mb-1">Search</label>
             <div className="relative">
-              <Search className="w-4 h-4 text-ui-muted absolute left-4 top-1/2 -translate-y-1/2" aria-hidden="true" />
-              <input
-                type="text"
-                placeholder="Search title or owner..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label="Search title or owner"
-                className="ui-input w-full pl-10 pr-3"
-              />
+              <Search className="w-4 h-4 text-ui-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
+              <input id="hub-q" type="search" className="ui-input h-11 w-full pl-9" placeholder="Title or owner" value={qDraft} onChange={(e) => setQDraft(e.target.value)} />
             </div>
           </div>
-
-          {/* List of Deliverables */}
-          <div className="space-y-2.5 max-h-[750px] overflow-y-auto pr-1">
-            {isLoading ? (
-              <div className="glass-card p-8 text-center text-xs text-ui-muted">
-                Loading feedback threads...
-              </div>
-            ) : filteredThreads.length === 0 ? (
-              <div className="glass-card p-8 text-center text-xs text-ui-muted">
-                No feedback threads matching filters.
-              </div>
-            ) : (
-              filteredThreads.map((item) => {
-                const isSelected = selectedWorkItemId === item.workItem._id;
-                const hasFlag = Boolean(item.flag);
-                const isEscalated = Boolean(item.flag?.isEscalated || item.flag?.isOver48HoursUnclassified);
-
-                return (
-                  <button
-                    type="button"
-                    key={item.workItem._id}
-                    aria-pressed={isSelected}
-                    onClick={() => setSelectedWorkItemId(item.workItem._id)}
-                    className={`glass-card block w-full text-left p-4 ${
-                      isSelected ? 'outline outline-2 outline-ui-ink' : 'hover:bg-ui-card-hover'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/70 text-ui-text">
-                          {item.workItem.workType}
-                        </span>
-                      </div>
-
-                      {hasFlag && (
-                        <span
-                          className={`status-chip text-[11px] font-semibold px-2 py-0.5 gap-1 ${
-                            isEscalated ? 'status-changes' : 'status-waiting'
-                          }`}
-                        >
-                          <Flag className="w-2.5 h-2.5" aria-hidden="true" />
-                          {isEscalated ? 'Escalated' : 'Flagged'}
-                        </span>
-                      )}
-                    </div>
-
-                    <span className="block text-[13px] font-semibold text-ui-ink line-clamp-1 mb-1">
-                      {item.workItem.title}
-                    </span>
-
-                    <div className="flex items-center justify-between gap-2 text-[11px] text-ui-muted mt-2 pt-2 border-t border-ui-line">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <div className="w-5 h-5 rounded-full bg-ui-ink text-white font-semibold text-[10px] flex items-center justify-center shrink-0" aria-hidden="true">
-                          {item.workItem.ownerId?.name?.charAt(0) || 'U'}
-                        </div>
-                        <span className="font-medium text-ui-text truncate">
-                          {item.workItem.ownerId?.name || 'Unassigned'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`px-2 py-0.5 rounded-full font-semibold text-[11px] ${
-                            item.revisions >= 4 ? 'status-chip status-changes' : 'bg-white/70 text-ui-text'
-                          }`}
-                        >
-                          {item.revisions} {item.revisions === 1 ? 'rev' : 'revs'}
-                        </span>
-                        <ChevronRight className="w-3.5 h-3.5 text-ui-muted" aria-hidden="true" />
-                      </div>
-                    </div>
-                  </button>
-                );
-              })
-            )}
+          <div className="min-w-0">
+            <label htmlFor="hub-calendar" className="block text-[12px] font-medium text-ui-muted mb-1">Calendar</label>
+            <select id="hub-calendar" className="ui-select h-11 w-full" value={calendar} onChange={(e) => setParam({ calendar: e.target.value, step: '' })}>
+              <option value="">All calendars</option>
+              {CALENDAR_LIST.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
           </div>
         </div>
-
-        {/* Right Column: Structured Thread View (7 cols) */}
-        <div className="lg:col-span-7 space-y-4">
-          {isLoadingDetail ? (
-            <div className="glass-card p-12 text-center text-xs text-ui-muted">
-              Loading review thread details...
-            </div>
-          ) : !activeThread ? (
-            <div className="glass-card p-12 text-center text-xs text-ui-muted">
-              Select a deliverable on the left to inspect its structured feedback thread.
-            </div>
-          ) : (
-            <div className="space-y-4 animate-fadeIn">
-              {/* Deliverable Header Card */}
-              <div className="glass-card p-5 space-y-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/70 text-ui-text">
-                        {activeThread.workItem.workType}
-                      </span>
-                    </div>
-                    <h2 className="text-base font-bold text-ui-ink">
-                      {activeThread.workItem.title}
-                    </h2>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/work/${activeThread.workItem._id}`)}
-                    className="ui-btn ui-btn-secondary h-11 gap-1.5 shrink-0"
-                  >
-                    <span>Open Work Detail</span>
-                    <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-ui-line text-xs">
-                  <div>
-                    <span className="text-[11px] text-ui-muted font-medium block">Assigned Owner</span>
-                    <strong className="text-ui-ink">{activeThread.workItem.ownerId?.name || 'Unassigned'}</strong>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-ui-muted font-medium block">Total Revisions</span>
-                    <strong
-                      className={`font-semibold ${
-                        activeThread.workItem.revisions >= 4 ? 'status-chip status-changes px-2 py-0.5' : 'text-ui-ink'
-                      }`}
-                    >
-                      {activeThread.workItem.revisions} cycles
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-ui-muted font-medium block">Status</span>
-                    <span className={`status-chip ${statusClass(statusTone(displayStatus({ status: activeThread.workItem.status, awaitingReview: (activeThread as any).awaitingReview })))} px-2 py-0.5 font-semibold text-[11px]`}>
-                      {getStepStatusLabel(displayStatus({ status: activeThread.workItem.status, awaitingReview: (activeThread as any).awaitingReview }))}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Revision Flag Banner (if flagged) */}
-              {activeThread.flag && (
-                <div
-                  className={`p-4 rounded-ui-card status-tint ${
-                    activeThread.flag.isEscalated || activeThread.flag.isOver48HoursUnclassified
-                      ? 'status-changes'
-                      : 'status-waiting'
-                  }`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/70 text-ui-ink">
-                            Automatic Revision Flag Triggered
-                          </span>
-                          {(activeThread.flag.isEscalated ||
-                            activeThread.flag.isOver48HoursUnclassified) && (
-                            <span className="status-chip status-blocked text-[11px] font-semibold px-2 py-0.5">
-                              Escalated to Marketing Head (&gt;48h unclassified)
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs font-semibold">
-                          Reached round {activeThread.flag.revisionsCount + 1} ({activeThread.flag.revisionsCount} change requests).
-                        </p>
-                        {activeThread.flag.rootCause ? (
-                          <div className="mt-2 text-xs text-ui-text bg-white/80 p-2.5 rounded-xl">
-                            <span className="text-[11px] font-medium text-ui-muted block">
-                              Classified Root Cause:
-                            </span>
-                            <strong>{activeThread.flag.rootCause}</strong>
-                            {activeThread.flag.rootCauseNotes && (
-                              <p className="text-ui-text text-[11px] mt-0.5">
-                                Notes: {activeThread.flag.rootCauseNotes}
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-[11px] mt-1">
-                            Awaiting root cause classification by the step's lead (Growth Lead for Ads, Creative Lead otherwise).
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {!activeThread.flag.rootCause && canDecideThread && (
-                      <button
-                        type="button"
-                        onClick={() => setIsClassifyModalOpen(true)}
-                        className="ui-btn ui-btn-primary h-11 gap-1.5 shrink-0"
-                      >
-                        <Flag className="w-3.5 h-3.5" aria-hidden="true" />
-                        <span>Classify Root Cause</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Rounds List */}
-              <div className="space-y-4">
-                {activeThread.rounds.length === 0 ? (
-                  <div className="glass-card p-8 text-center text-xs text-ui-muted">
-                    No review rounds logged yet. Be the first to submit a review!
-                  </div>
-                ) : (
-                  activeThread.rounds.map((round) => (
-                    <div
-                      key={round.roundNumber}
-                      className="glass-card p-5 space-y-3"
-                    >
-                      {/* Round Header */}
-                      <div className="flex items-center justify-between gap-2 pb-2 border-b border-ui-line">
-                        <span className="text-[13px] font-semibold text-ui-ink">
-                          Round {round.roundNumber}
-                        </span>
-                        <span
-                          className={`status-chip text-[11px] font-semibold px-2.5 py-0.5 ${
-                            round.status === 'Approved' ? 'status-approved' : 'status-waiting'
-                          }`}
-                        >
-                          {round.status}
-                        </span>
-                      </div>
-
-                      {/* Entry 1: Reviewer Feedback */}
-                      {round.reviewerFeedback && (
-                        <div className="p-3.5 rounded-ui-card bg-white/60 text-xs space-y-1.5">
-                          <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-ui-muted">
-                            <span className="font-semibold text-ui-ink flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full bg-ui-ink" aria-hidden="true" />
-                              Reviewer: {round.reviewerFeedback.fromPersonId?.name || 'Reviewer'} (
-                              {round.reviewerFeedback.fromPersonId?.role})
-                            </span>
-                            <span>{new Date(round.reviewerFeedback.createdAt).toLocaleDateString()}</span>
-                          </div>
-                          <p className="text-ui-text whitespace-pre-wrap leading-relaxed break-words">
-                            {round.reviewerFeedback.text}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Entry 2: Owner Response */}
-                      {round.ownerResponse ? (
-                        <div className="p-3.5 rounded-ui-card bg-white border border-ui-line text-xs space-y-1.5 ml-4">
-                          <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-ui-ink font-semibold">
-                            <span className="flex items-center gap-1.5">
-                              <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
-                              Owner Response: {round.ownerResponse.fromPersonId?.name}
-                            </span>
-                            <span className="text-ui-muted font-normal">
-                              {new Date(round.ownerResponse.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <p className="text-ui-text whitespace-pre-wrap leading-relaxed break-words">
-                            {round.ownerResponse.text}
-                          </p>
-                        </div>
-                      ) : (
-                        round.status !== 'Approved' && (
-                          <div className="p-3 rounded-xl bg-white/40 border border-dashed border-ui-line text-[11px] text-ui-muted italic text-center ml-4">
-                            Awaiting owner response for Round {round.roundNumber}...
-                          </div>
-                        )
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Action Forms Accordion: Reviewer or Owner */}
-              <div className="glass-card p-5 space-y-4">
-                <h3 className="text-[13px] font-semibold text-ui-ink flex items-center gap-2">
-                  <Send className="w-4 h-4" aria-hidden="true" />
-                  <span>Submit Thread Update</span>
-                </h3>
-
-                {/* Reviewer Action Form (Creative Lead or Admin) */}
-                {canRequestRevision && (
-                  <form onSubmit={handleSubmitReview} className="space-y-3 pt-2 border-t border-ui-line">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span id="fb-review-label" className="text-xs font-semibold text-ui-ink">
-                        Request a revision (new round)
-                      </span>
-                      <span className="text-xs text-ui-muted">To approve, use Review Studio, where a rating is required.</span>
-                    </div>
-
-                    <textarea
-                      required
-                      rows={3}
-                      placeholder="Write structured feedback with the specific changes needed..."
-                      value={reviewText}
-                      onChange={(e) => setReviewText(e.target.value)}
-                      aria-labelledby="fb-review-label"
-                      className="ui-input ui-textarea w-full"
-                    />
-
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={isSubmittingReview || !reviewText.trim()}
-                        className="ui-btn ui-btn-primary h-11"
-                      >
-                        {isSubmittingReview ? 'Requesting Revision...' : 'Request Revision'}
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {/* Owner Response Form (Assigned Owner or Creative Lead/Admin) */}
-                {(isAssignedOwner || isReviewerOrAdmin) && (
-                  <form onSubmit={handleSubmitResponse} className="space-y-3 pt-3 border-t border-ui-line">
-                    <span id="fb-response-label" className="text-xs font-semibold text-ui-ink block">
-                      Respond to Latest Reviewer Feedback
-                    </span>
-                    <textarea
-                      required
-                      rows={2}
-                      placeholder="Describe changes made, updated deliverable details, or request clarification..."
-                      value={responseText}
-                      onChange={(e) => setResponseText(e.target.value)}
-                      aria-labelledby="fb-response-label"
-                      className="ui-input ui-textarea w-full"
-                    />
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={isSubmittingResponse || !responseText.trim()}
-                        className="ui-btn ui-btn-primary h-11"
-                      >
-                        {isSubmittingResponse ? 'Submitting Response...' : 'Send Owner Response'}
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-        </>
       )}
 
-      {/* Root Cause Classification Modal */}
-      {isClassifyModalOpen && (
-        <div className="fixed inset-0 z-50 ui-scrim flex items-center justify-center p-4">
-          <div
-            ref={classifyDialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="fb-classify-title"
-            className="glass-modal max-w-lg w-full max-h-[92vh] overflow-y-auto p-6"
-          >
-            <div className="flex items-center justify-between gap-3 pb-3 border-b border-ui-line">
-              <div className="flex items-center gap-2">
-                <Flag className="w-5 h-5 text-ui-ink" aria-hidden="true" />
-                <h3 id="fb-classify-title" className="text-base font-bold text-ui-ink">
-                  Classify Revision Root Cause
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsClassifyModalOpen(false)}
-                aria-label="Close"
-                className="ui-icon-btn shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      {error && <p role="alert" className="p-3 status-tint status-changes rounded-xl text-xs font-semibold">{error}</p>}
 
-            <form onSubmit={handleClassifyRootCause} className="space-y-4 mt-4">
-              <div>
-                <label htmlFor="fb-root-cause" className="text-[13px] font-medium text-ui-muted block mb-1.5">
-                  Select 1 of 7 Canonical Root Causes *
-                </label>
-                <select
-                  id="fb-root-cause"
-                  value={selectedRootCause}
-                  onChange={(e) => setSelectedRootCause(e.target.value as CanonicalRevisionRootCause)}
-                  className="ui-select w-full"
-                >
-                  {CANONICAL_REVISION_ROOT_CAUSES.map((cause) => (
-                    <option key={cause} value={cause}>
-                      {cause}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-ui-muted mt-1">
-                  Fixed root causes power operational analytics to reduce repetitive rework cycles.
-                </p>
-              </div>
+      {activeTab === 'pauses' && <PauseRequestsTab onCount={(n) => setData((d) => (d ? { ...d, tabs: d.tabs.map((t) => (t.key === 'pauses' ? { ...t, count: n } : t)) } : d))} />}
+      {activeTab === 'plans' && <PlansApprovalTab />}
 
-              <div>
-                <label htmlFor="fb-root-cause-notes" className="text-[13px] font-medium text-ui-muted block mb-1.5">
-                  Actionable Context & Root Cause Notes
-                </label>
-                <textarea
-                  id="fb-root-cause-notes"
-                  rows={3}
-                  placeholder="e.g. Brief omitted secondary CTA requirement, leading to 2 rounds of rework..."
-                  value={rootCauseNotes}
-                  onChange={(e) => setRootCauseNotes(e.target.value)}
-                  className="ui-input ui-textarea w-full"
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-ui-line">
-                <button
-                  type="button"
-                  onClick={() => setIsClassifyModalOpen(false)}
-                  className="ui-btn ui-btn-secondary h-11"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isClassifying}
-                  className="ui-btn ui-btn-primary h-11"
-                >
-                  {isClassifying ? 'Classifying...' : 'Save Classification'}
-                </button>
-              </div>
-            </form>
+      {isListTab && data && (
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-4 items-start">
+          <div className={`${selected ? 'hidden lg:block' : ''} min-w-0`}>
+            {items.length === 0 ? (
+              <div className="glass-card p-8 text-center text-sm text-ui-muted">Nothing here.</div>
+            ) : (
+              <ul className="space-y-2" aria-label={(data.tabs.find((t) => t.key === activeTab)?.label || 'Steps')}>
+                {items.map((it) => {
+                  const active = it.workItemId === selected;
+                  return (
+                    <li key={it.workItemId}>
+                      <button
+                        type="button"
+                        onClick={() => setParam({ step: it.workItemId })}
+                        aria-current={active ? 'true' : undefined}
+                        className={`w-full text-left glass-card p-3 space-y-1.5 min-w-0 ${active ? 'border-2 border-ui-ink' : ''}`}
+                      >
+                        <span className="block text-sm font-semibold text-ui-ink break-words">{it.title}</span>
+                        <span className="flex flex-wrap gap-1.5">
+                          <span className="status-chip status-not-started text-[11px]">{it.stageKey}</span>
+                          <span className="status-chip status-not-started text-[11px]">{it.type}</span>
+                          <span className="status-chip status-in-progress text-[11px]">{calendarName(it.calendar)}</span>
+                          <TimeLabelChips labels={it.timeLabels} showOnTime={false} />
+                        </span>
+                        <span className="block text-xs text-ui-muted">
+                          {it.owner.name}
+                          {it.version ? ` · v${it.version}` : ''}
+                          {itemWhen(it, activeTab) ? ` · ${itemWhen(it, activeTab)}` : ''}
+                          {` · ${it.revisionsLabel}`}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
+          {selected ? (
+            <DetailPanel workItemId={selected} onBack={() => setParam({ step: '' })} onChanged={() => setReloadKey((k) => k + 1)} />
+          ) : (
+            <div className="hidden lg:block glass-card p-8 text-center text-sm text-ui-muted">Choose a step to see its review timeline.</div>
+          )}
         </div>
       )}
     </div>
   );
 };
+
+export default FeedbackPage;

@@ -227,6 +227,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
               activeMatcher: (p: string) => p.startsWith('/published'),
             },
             {
+              id: 'feedback',
+              label: 'Review Hub',
+              path: '/feedback',
+              description: 'Your steps in review and their history',
+              icon: FileText,
+              show: true,
+              activeMatcher: (p: string) => p.startsWith('/feedback'),
+            },
+            {
               id: 'notifications',
               label: 'Notifications',
               path: '/notifications',
@@ -370,7 +379,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
           },
           {
             id: 'feedback',
-            label: 'Feedback and Revisions',
+            label: 'Review Hub',
             path: '/feedback',
             description: 'Review threads & revision history',
             icon: FileText,
@@ -491,6 +500,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
         { id: 'my-work', icon: CheckSquare, label: 'My Work', path: '/my-work', active: location.pathname.startsWith('/my-work') || location.pathname.startsWith('/todo') },
         { id: 'calendar', icon: Calendar, label: 'Creative Calendar', path: '/calendar', active: location.pathname.startsWith('/calendar') },
         { id: 'published', icon: Megaphone, label: 'Published', path: '/published', active: location.pathname.startsWith('/published') },
+        { id: 'feedback', icon: FileText, label: 'Review Hub', path: '/feedback', active: location.pathname.startsWith('/feedback') },
         { id: 'notifications', icon: Bell, label: 'Notifications', path: '/notifications', active: location.pathname.startsWith('/notifications') },
       ];
     }
@@ -515,7 +525,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
       { id: 'calendar', icon: Calendar, label: 'Creative Calendar', path: '/calendar', active: location.pathname.startsWith('/calendar') },
       { id: 'published', icon: Megaphone, label: 'Published', path: '/published', active: location.pathname.startsWith('/published') },
       { id: 'work', icon: Film, label: 'Work', path: '/work', active: location.pathname === '/work' || location.pathname.startsWith('/work/') },
-      { id: 'feedback', icon: FileText, label: 'Feedback and Revisions', path: '/feedback', active: location.pathname.startsWith('/feedback') },
+      { id: 'feedback', icon: FileText, label: 'Review Hub', path: '/feedback', active: location.pathname.startsWith('/feedback') },
       { id: 'workload', icon: Users, label: 'Team Workload', path: '/workload', active: location.pathname.startsWith('/workload') },
       { id: 'issues', icon: AlertCircle, label: 'Issues and Blockers', path: '/issues', active: location.pathname.startsWith('/issues') },
       { id: 'reports', icon: BarChart3, label: 'Reports', path: '/reports', active: location.pathname.startsWith('/reports') },

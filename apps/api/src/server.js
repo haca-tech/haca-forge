@@ -52,6 +52,7 @@ import submissionRoutes, { attachWorkItemSubmissionRoutes } from "./modules/subm
 import clipsRouter, { attachWorkItemMediaRoutes } from "./modules/media/routes.js";
 import { chatRouter } from "./modules/chat/routes.js";
 import publishedRoutes from "./modules/published/routes.js";
+import reviewHubRoutes from "./modules/reviewHub/routes.js";
 import { setupChatSocket, registerChatSocketIO } from "./modules/chat/socket.js";
 import { ensureAutomationRules } from "./modules/automation/runner.js";
 import { ensureBaselineUsers } from "./modules/people/baselineUsers.js";
@@ -232,6 +233,7 @@ app.use("/api/revisions", revisionsRouter);
 app.use("/api/blockers", blockerRoutes);
 app.use("/api/chat", chatRouter);
 app.use("/api/published", publishedRoutes);
+app.use("/api/review-hub", reviewHubRoutes);
 app.use("/chat", chatRouter);
 
 app.set("io", io);

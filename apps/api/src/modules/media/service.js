@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { flagAfterChangesRequested } from '../feedback/service.js';
 import { assertDecidesOn, calendarOf, decidersFor } from '../workItems/deciders.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -942,6 +943,8 @@ export async function finishShootStepReview(stageItemId, reviewData, user) {
     try {
       applyChangesRequested(workItem);
       await workItem.save();
+      // Round 4 in this cycle flags the step (never fails the decision).
+      await flagAfterChangesRequested(workItem, user);
     } catch (error) {
       await releaseSubmission(submission);
       throw error;

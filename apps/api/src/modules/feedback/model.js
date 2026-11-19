@@ -117,6 +117,23 @@ const revisionFlagSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    // The review cycle this flag belongs to (revisionCycleOf): a reopened step that reaches
+    // round 4 again re-arms this record, and the earlier crossing moves to previousCrossings.
+    cycle: {
+      type: Number,
+      default: 0,
+    },
+    previousCrossings: [
+      {
+        cycle: Number,
+        revisionsCount: Number,
+        flaggedAt: Date,
+        rootCause: String,
+        rootCauseNotes: String,
+        classifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Person' },
+        classifiedAt: Date,
+      },
+    ],
     escalatedAt: {
       type: Date,
       default: null,

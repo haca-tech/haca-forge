@@ -60,6 +60,8 @@ const approve = (s, who = 'head', body = { score: 4 }) => call('post', `/api/sub
 const revise = (s, who = 'head') => call('post', `/api/submissions/${s._id}/request-revision`, who, { comment: 'Please change this' });
 const shoot = (w, who = 'head', body = { score: 4 }) => call('post', `/api/work/${w._id}/shoot-review`, who, body);
 const feedback = (w, who = 'head', roundStatus = 'Revision Required') => call('post', `/api/feedback/work-item/${w._id}`, who, { text: 'A review note', roundStatus });
+// Review Studio / Work Detail: request changes on the step's latest version.
+const reviseLatest = async (w, who = 'head') => revise(await Submission.findOne({ workItemId: w._id }).sort({ version: -1 }), who);
 const move = (w, who, toStatus) => call('post', `/api/work/${w._id}/transition`, who, { toStatus });
 
 /** Everything a decision could have written for this step. */
@@ -256,10 +258,6 @@ describe('Reviewer rule on every decision path', () => {
       await makeSub(w);
       await makeClip(w, 'reshoot_needed');
       return shoot(w, who, { note: 'Reshoot' });
-    },
-    'feedback revision': async (w, who) => {
-      await makeSub(w);
-      return feedback(w, who);
     },
     'transition approve': async (w, who) => move(w, who, 'Approved'),
     'transition revision': async (w, who) => move(w, who, 'Feedback'),
@@ -484,50 +482,31 @@ describe('Shoot review', () => {
   });
 });
 
-describe('Feedback route', () => {
-  it.each(['head', 'admin'])('cannot approve: 409 for %s, with no writes', async (who) => {
+describe('Feedback route (retired by the Review Hub)', () => {
+  it.each([
+    ['head', 'Revision Required', 'FEEDBACK_REVISION_RETIRED'],
+    ['admin', 'Revision Required', 'FEEDBACK_REVISION_RETIRED'],
+    ['head', 'Approved', 'FEEDBACK_REVISION_RETIRED'],
+    ['admin', 'Approved', 'FEEDBACK_REVISION_RETIRED'],
+  ])('%s, %s: 410 with no writes', async (who, roundStatus, code) => {
     const w = await makeStep();
     await makeSub(w);
     const before = await state(w);
-    const res = await feedback(w, who, 'Approved');
-    expect(res.status).toBe(409);
-    expect(res.body.code).toBe('USE_REVIEW_FLOW');
+    const res = await feedback(w, who, roundStatus);
+    expect(res.status).toBe(410);
+    expect(res.body.error?.code ?? res.body.code).toBe(code);
     await expectUnchanged(w, before);
   });
 
-  it('Revision Required decides the latest version', async () => {
+  it('an owner response: 410 pointing to Resubmit, with no writes', async () => {
     const w = await makeStep();
     await makeSub(w);
-    expect((await feedback(w)).status).toBe(201);
-    const after = await state(w);
-    expect(after.step).toMatchObject({ status: 'Feedback', revisions: 1 });
-    expect(after.subs[0].status).toBe('changes_requested');
-    expect(after.entries).toBe(1);
-  });
-
-  it.each(['Approved', 'Published', 'In Progress', 'Not Started'])('Revision Required is refused while the step is %s', async (status) => {
-    const w = await makeStep('Design', status);
-    await makeSub(w);
+    await reviseLatest(w);
     const before = await state(w);
-    expect((await feedback(w)).status).toBe(409);
-    await expectUnchanged(w, before);
-  });
-
-  it('Revision Required is refused with no submission, and twice on one version', async () => {
-    const w = await makeStep();
-    expect((await feedback(w)).status).toBe(409);
-    await makeSub(w);
-    expect((await feedback(w)).status).toBe(201);
-    expect((await feedback(w)).status).toBe(409);
-    expect((await state(w)).step.revisions).toBe(1);
-  });
-
-  it('the owner can still respond', async () => {
-    const w = await makeStep();
-    await makeSub(w);
-    await feedback(w);
     const res = await call('post', `/api/feedback/work-item/${w._id}`, 'owner', { text: 'Updated', isResponse: true, round: 1 });
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(410);
+    expect(res.body.error?.code ?? res.body.code).toBe('FEEDBACK_REPLY_RETIRED');
+    await expectUnchanged(w, before);
   });
 });
 
@@ -617,11 +596,11 @@ describe('Round timing', () => {
   const rounds = async (w) => (await WorkItem.findById(w._id).lean()).rounds;
   const submit = (w, body = { kind: 'video', linkUrl: 'https://drive.google.com/file/d/next' }) => call('post', `/api/work/${w._id}/submit`, 'owner', body);
 
-  it('resubmitting after a Feedback-route revision keeps the earlier submit time', async () => {
+  it('resubmitting after a revision keeps the earlier submit time', async () => {
     const first = new Date(Date.now() - 600000);
     const w = await makeStep('Edit', 'Feedback', { submittedAt: first, rounds: [{ roundNumber: 1, startedAt: new Date(Date.now() - 900000), submittedAt: first, intervals: [] }] });
     await makeSub(w);
-    expect((await feedback(w)).status).toBe(201);
+    expect((await reviseLatest(w)).status).toBe(200);
     // Resubmitting waits for Start rework.
     const early = await submit(w);
     expect(early.status).toBe(409);
@@ -653,7 +632,7 @@ describe('Round timing', () => {
     const first = new Date(Date.now() - 600000);
     const w = await makeStep('Edit', 'Feedback', { submittedAt: first, rounds: [{ roundNumber: 1, startedAt: new Date(Date.now() - 900000), submittedAt: first, intervals: [] }] });
     await makeSub(w);
-    await feedback(w);
+    await reviseLatest(w);
     expect((await move(w, 'owner', 'Pending')).status).toBe(409);
     expect((await move(w, 'owner', 'In Progress')).status).toBe(200);
     expect((await move(w, 'owner', 'Pending')).status).toBe(200);
@@ -697,7 +676,7 @@ describe('An owner cannot withdraw a submission awaiting review', () => {
   it('an owner can move on once the version has been decided', async () => {
     const w = await makeStep('Edit');
     await makeSub(w);
-    await feedback(w);
+    expect((await reviseLatest(w)).status).toBe(200);
     expect((await move(w, 'owner', 'Blocked')).status).not.toBe(409);
   });
 
@@ -914,25 +893,6 @@ describe('Forced failures leave no partial writes', () => {
     vi.spyOn(SubmissionComment, 'create').mockRejectedValueOnce(new Error('forced comment failure'));
     expect((await revise(s)).status).toBe(500);
     await expectUnchanged(w, before);
-  });
-
-  it('feedback revision: the entry write fails', async () => {
-    const w = await makeStep();
-    await makeSub(w);
-    const before = await state(w);
-    vi.spyOn(FeedbackEntry, 'create').mockRejectedValueOnce(new Error('forced entry failure'));
-    expect((await feedback(w)).status).toBe(500);
-    await expectUnchanged(w, before);
-  });
-
-  it('feedback revision: the step save fails, so the entry and the claim are undone', async () => {
-    const w = await makeStep();
-    await makeSub(w);
-    const before = await state(w);
-    vi.spyOn(WorkItem.prototype, 'save').mockRejectedValueOnce(new Error('forced step failure'));
-    expect((await feedback(w)).status).toBe(500);
-    await expectUnchanged(w, before);
-    expect((await feedback(w)).status).toBe(201);
   });
 
   it('a failure after the step is saved does not undo the decision', async () => {

@@ -61,8 +61,9 @@ export async function countAwaitingReview(filter = {}) {
 
 /**
  * The reviewer's message and notes on a version that was sent back, from the records every
- * revision path already writes: the revision event (Review Studio, Work Detail), the feedback
- * entry (Feedback page) or the status event (Shoot clip review). Null when not sent back.
+ * revision path already writes: the revision event (Review Studio, Work Detail) or the status
+ * event (Shoot clip review, transitions); an old Feedback-page entry only as a last fallback.
+ * Null when not sent back.
  */
 export async function revisionNoteFor(workItem, latestSubmission) {
   if (!latestSubmission || latestSubmission.status !== 'changes_requested') return null;
@@ -80,18 +81,6 @@ export async function revisionNoteFor(workItem, latestSubmission) {
     note.createdAt = event.timestamp || event.createdAt || note.createdAt;
   }
   if (!note.text) {
-    const { FeedbackEntry } = await import('../feedback/model.js');
-    const entry = await FeedbackEntry.findOne({ workItemId: workItem._id, isResponse: false, createdAt: { $gte: since } })
-      .sort({ createdAt: -1 })
-      .populate('fromPersonId', 'name')
-      .lean();
-    if (entry) {
-      note.text = entry.text || '';
-      note.reviewer = entry.fromPersonId?.name || note.reviewer;
-      note.createdAt = entry.createdAt;
-    }
-  }
-  if (!note.text) {
     const statusEvent = await ActivityEvent.findOne({
       entityId: { $in: [workItem._id, String(workItem._id)] },
       action: 'work_item.status_changed',
@@ -104,6 +93,19 @@ export async function revisionNoteFor(workItem, latestSubmission) {
     if (statusEvent?.metadata?.comment) {
       note.text = statusEvent.metadata.comment;
       note.reviewer = statusEvent.actorId?.name || note.reviewer;
+    }
+  }
+  // Older Feedback-page entries only when nothing else holds the message.
+  if (!note.text) {
+    const { FeedbackEntry } = await import('../feedback/model.js');
+    const entry = await FeedbackEntry.findOne({ workItemId: workItem._id, isResponse: false, createdAt: { $gte: since } })
+      .sort({ createdAt: -1 })
+      .populate('fromPersonId', 'name')
+      .lean();
+    if (entry) {
+      note.text = entry.text || '';
+      note.reviewer = entry.fromPersonId?.name || note.reviewer;
+      note.createdAt = entry.createdAt;
     }
   }
   if (!note.reviewer && latestSubmission.reviewedById) {

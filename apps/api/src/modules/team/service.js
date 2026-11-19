@@ -46,7 +46,6 @@ export async function getTeamDirectory(query = {}, actor) {
     departmentId,
     status = 'active',
     loadBand,
-    hasLate,
     search,
     sortBy = 'name',
     sortDir = 'asc',
@@ -109,11 +108,8 @@ export async function getTeamDirectory(query = {}, actor) {
 
       const inProgress = openItems.filter((it) => it.status === 'In Progress').length;
       const waitingApproval = openItems.filter((it) => it.awaitingReview).length;
-      const lateItems = openItems.filter((it) => {
-        if (!it.deadline) return false;
-        return new Date(it.deadline) < now;
-      });
-      const late = lateItems.length;
+      // No late-step count per person here: the directory never compares people by lateness.
+      // Each person's own profile shows theirs (lateCount).
 
       // Find 'Now' item: In Progress first, then Feedback, Pending, Blocked
       const currentActiveItem =
@@ -155,20 +151,16 @@ export async function getTeamDirectory(query = {}, actor) {
         counts: {
           inProgress,
           waitingApproval,
-          late,
         },
       };
     })
   );
 
-  // Apply in-memory filters for computed load band and late
+  // Apply the in-memory filter for the computed load band. (No people filter on late work:
+  // late work is found by step, in the Tracker's Overdue and Done late filters.)
   let filtered = enhancedList;
   if (loadBand && loadBand !== 'all') {
     filtered = filtered.filter((p) => p.capacityBand.toLowerCase() === loadBand.toLowerCase());
-  }
-
-  if (hasLate === 'true' || hasLate === true) {
-    filtered = filtered.filter((p) => p.counts.late > 0);
   }
 
   // Whitelist Sorting ONLY: name, department, jobRole, load

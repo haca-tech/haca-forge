@@ -543,10 +543,12 @@ describe('Locked workspaces: link submission, direct Shoot approval, Post link, 
       await revise(a);
       expect(await read(a)).toEqual(expected);
 
-      // 2. Feedback page
+      // 2. Feedback page: retired (410, nothing changes); the same change goes through the version.
       const b = await one('Reel', 'Edit', 'editor');
       await submitLink(b, 'editor', [DRIVE('b')]);
-      expect((await as('head').post(`/api/feedback/work-item/${b._id}`, { text: 'Needs another pass', roundStatus: 'Revision Required' })).status).toBeLessThan(300);
+      expect((await as('head').post(`/api/feedback/work-item/${b._id}`, { text: 'Needs another pass', roundStatus: 'Revision Required' })).status).toBe(410);
+      expect((await fresh(b)).revisions).toBe(0);
+      await revise(b);
       expect(await read(b)).toEqual(expected);
 
       // 3. Shoot clip review (a version with clips)

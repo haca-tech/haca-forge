@@ -2,7 +2,7 @@ import { AutomationRule } from './model.js';
 import { WorkItem } from '../workItems/model.js';
 import { Person } from '../people/model.js';
 import { Blocker } from '../blockers/model.js';
-import { FeedbackEntry, RevisionFlag } from '../feedback/model.js';
+import { RevisionFlag } from '../feedback/model.js';
 import { Notification } from '../notifications/model.js';
 import { ActivityEvent } from '../activity/model.js';
 import { enqueueEmail } from '../../lib/queue.js';
@@ -397,30 +397,22 @@ async function runBlockerDependencyAlertRule(rule, user) {
 async function runRevisionPatternFlagRule(rule, user) {
   const threshold = rule.config?.thresholdRound || 4;
 
-  // Find feedback entries with round >= threshold
-  const highRoundEntries = await FeedbackEntry.find({ round: { $gte: threshold } }).lean();
-  const workItemIds = [...new Set(highRoundEntries.map((e) => String(e.workItemId)))];
+  // Count rounds from the steps themselves (Phase 7: flag at round 4). The same check runs right
+  // after each change request; this catches anything a failed check left behind.
+  const { checkAndCreateRevisionFlag } = await import('../feedback/service.js');
+  const candidates = await WorkItem.find({ revisions: { $gte: threshold - 1 }, isSkipped: { $ne: true }, ownerId: { $ne: null } })
+    .select('title ownerId departmentId calendar revisions rounds')
+    .lean();
 
   let flagsCreated = 0;
 
-  for (const workItemId of workItemIds) {
-    // Check if revision flag already exists
-    const existing = await RevisionFlag.findOne({ workItemId });
-    if (!existing) {
-      const highestRound = Math.max(
-        ...highRoundEntries.filter((e) => String(e.workItemId) === workItemId).map((e) => e.round)
-      );
-
-      await RevisionFlag.create({
-        workItemId,
-        isFlagged: true,
-        roundCount: highestRound,
-        revisionsCount: highestRound,
-        rootCauseStatus: 'Unclassified',
-        notifiedLead: true,
-        flaggedAt: new Date(),
-      });
-      flagsCreated++;
+  for (const step of candidates) {
+    const before = await RevisionFlag.findOne({ workItemId: step._id }).select('flaggedAt cycle').lean();
+    try {
+      const flag = await checkAndCreateRevisionFlag(step, null);
+      if (flag && (!before || String(before.flaggedAt) !== String(flag.flaggedAt))) flagsCreated++;
+    } catch (err) {
+      logger.warn({ err: err.message, workItemId: String(step._id) }, 'Revision flag check failed for a step');
     }
   }
 
@@ -463,7 +455,7 @@ async function runRevisionPatternFlagRule(rule, user) {
 
   return {
     summary: `Scanned revisions: flagged ${flagsCreated} deliverables exceeding round ${threshold}, escalated ${escalatedCount} unclassified flags (>48h).`,
-    affectedCount: workItemIds.length + unclassifiedFlags.length,
+    affectedCount: candidates.length + unclassifiedFlags.length,
     flagsCreated,
     escalatedCount,
   };

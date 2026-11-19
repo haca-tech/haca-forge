@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { flagAfterChangesRequested } from '../feedback/service.js';
 import { assertNotManuallyPaused, clearRequestOnSubmit, finishRequestOnSubmit } from '../workItems/pause.service.js';
 import { calendarOf, decidersFor, decisionCalendarFilter } from '../workItems/deciders.js';
 import mongoose from 'mongoose';
@@ -826,6 +827,8 @@ export async function requestRevision(submissionId, { comment, rootCause }, user
     // 2. The step waits in "Changes requested": no round runs until the owner starts the rework.
     applyChangesRequested(workItem, now);
     await workItem.save();
+    // Round 4 in this cycle flags the step (never fails the decision).
+    await flagAfterChangesRequested(workItem, user);
   } catch (error) {
     if (commentRecord) await SubmissionComment.deleteOne({ _id: commentRecord._id });
     await releaseSubmission(submission);

@@ -54,7 +54,6 @@ interface MemberWorkload {
   availableHours: number;
   workloadPct: number;
   capacityBand: CapacityBand;
-  avgRevisions: number;
   activeItemsCount: number;
   activeWorkItems: ActiveWorkItem[];
 }
@@ -99,7 +98,6 @@ interface RecommendationResponse {
   recommendedMetrics: {
     workloadPct: number;
     capacityBand: CapacityBand;
-    avgRevisions: number;
     allocatedHours: number;
     availableHours: number;
     newWorkloadPct: number;
@@ -511,7 +509,7 @@ export const TeamWorkloadPage: React.FC = () => {
                         </div>
 
                         {/* Stats Row */}
-                        <div className="grid grid-cols-3 gap-2 py-2 px-2.5 rounded-xl bg-white/60 text-[11px] mb-3">
+                        <div className="grid grid-cols-2 gap-2 py-2 px-2.5 rounded-xl bg-white/60 text-[11px] mb-3">
                           <div>
                             <span className="text-ui-muted block font-medium">Active Tasks</span>
                             <strong className="text-slate-800 font-bold">{member.activeItemsCount}</strong>
@@ -519,10 +517,6 @@ export const TeamWorkloadPage: React.FC = () => {
                           <div>
                             <span className="text-ui-muted block font-medium">Available</span>
                             <strong className="text-slate-800 font-bold">{member.availableHours}h</strong>
-                          </div>
-                          <div>
-                            <span className="text-ui-muted block font-medium">Avg Revs</span>
-                            <strong className="text-slate-800 font-bold">{member.avgRevisions}</strong>
                           </div>
                         </div>
                       </div>
@@ -603,7 +597,7 @@ export const TeamWorkloadPage: React.FC = () => {
               Auto-Assignment Recommendation Engine
             </h3>
             <p className="text-xs text-ui-muted mb-4">
-              Algorithmically matches deliverables to team members based on department skills, current workload percentage, and rolling revisions.
+              Algorithmically matches deliverables to team members by eligibility, availability and current workload only.
             </p>
 
             <form onSubmit={handleGetRecommendation} className="space-y-4">

@@ -9,17 +9,18 @@ import {
 } from '@mmp/shared';
 import { Person } from '../people/model.js';
 import { WorkItem } from '../workItems/model.js';
-import { FeedbackEntry } from '../feedback/model.js';
+import { pickOwner } from '../../lib/pickOwner.js';
 
 const OPEN_STATUSES = ['Not Started', 'In Progress', 'Feedback'];
 
 /**
  * Load everything autofill reads from the database, once.
- * Three queries in total, however many rows are being filled:
- * active team members, their open work items, and 90-day revision entries.
+ * Two queries in total, however many rows are being filled:
+ * active team members and their open work items (open hours use `estimatedEffortHrs || 4`).
  *
- * The rules are the same as the per-row version: open hours use
- * `estimatedEffortHrs || 4`, revisions use `avgRevisions || 90-day entries || 0`.
+ * Suggestions use only eligibility (the person's steps), availability (under 85% load)
+ * and workload. Revision history is deliberately not a factor: it must never lower
+ * anyone's chance of being suggested.
  */
 export async function buildAutofillContext() {
   // Workers for the creation steps, SM Managers for Post (Phase 12b). Each person's steps
@@ -36,24 +37,6 @@ export async function buildAutofillContext() {
     openHours.set(k, (openHours.get(k) || 0) + (it.estimatedEffortHrs || 4));
   }
 
-  const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000);
-  const revisions = new Map();
-  try {
-    const entries = await FeedbackEntry.find({
-      'attachments.fromPersonId': { $in: ids },
-      createdAt: { $gte: ninetyDaysAgo },
-    })
-      .select('attachments.fromPersonId')
-      .lean();
-    for (const e of entries) {
-      // Same as countDocuments per person: an entry counts once for each person it names.
-      const named = new Set((e.attachments || []).map((a) => String(a.fromPersonId)));
-      for (const k of named) revisions.set(k, (revisions.get(k) || 0) + 1);
-    }
-  } catch {
-    // Same fallback as before: no revision data counts as 0.
-  }
-
   return {
     candidates: members.map((member) => {
       const k = String(member._id);
@@ -62,7 +45,6 @@ export async function buildAutofillContext() {
         workPreferences: effectiveStepsFor(member),
         capacity: member.weeklyCapacityHours || 40,
         existingHours: openHours.get(k) || 0,
-        revisionsCount: member.avgRevisions || revisions.get(k) || 0,
       };
     }),
   };
@@ -122,31 +104,17 @@ export async function autofillRowPlan({
       workPreferences: c.workPreferences,
       capacity: c.capacity,
       workloadPct: c.capacity > 0 ? Math.round((totalHours / c.capacity) * 100) : 0,
-      revisionsCount: c.revisionsCount,
     };
   });
 
-  // Helper to pick best candidate for a stageKey
-  function pickBestCandidate(stageKey) {
-    // 1. Must hold workPreference
-    const eligible = candidatesData.filter(
-      (c) => c.workPreferences.includes(stageKey) && c.workloadPct < 85
-    );
-
-    if (eligible.length === 0) {
-      return null;
-    }
-
-    // 2. Rank: lowest workload % -> fewest 90d revisions
-    eligible.sort((a, b) => {
-      if (a.workloadPct !== b.workloadPct) {
-        return a.workloadPct - b.workloadPct;
-      }
-      return a.revisionsCount - b.revisionsCount;
+  // The shared owner rule (lib/pickOwner.js): eligible, under 85% load, lowest load, then name.
+  const pickBestCandidate = (stageKey) =>
+    pickOwner(candidatesData, {
+      eligible: (c) => c.workPreferences.includes(stageKey),
+      load: (c) => c.workloadPct,
+      name: (c) => c.member.name,
+      id: (c) => c.member._id,
     });
-
-    return eligible[0];
-  }
 
   const stages = [];
   for (const stageKey of pipelineInfo.stages) {
@@ -167,7 +135,7 @@ export async function autofillRowPlan({
         dueDate,
         ownerSource: 'suggested',
         dueDateSource: 'auto',
-        reason: `Lowest workload (${best.workloadPct}%), ${best.revisionsCount} avg rev`,
+        reason: `Lowest workload (${best.workloadPct}%)`,
       });
       // Increment candidate's draft hours so they aren't double-assigned within the same row
       const stageHours = DEFAULT_STAGE_HOURS[stageKey] || 4;

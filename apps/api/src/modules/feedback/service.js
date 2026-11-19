@@ -1,4 +1,5 @@
 import { FeedbackEntry, RevisionFlag } from './model.js';
+import { logger } from '../../lib/logger.js';
 import { assertDecidesOn, calendarOf, calendarQueryFor, decisionCalendarFilter } from '../workItems/deciders.js';
 import { WorkItem } from '../workItems/model.js';
 import { Person } from '../people/model.js';
@@ -255,77 +256,134 @@ export async function createFeedbackEntry(data, user) {
 }
 
 /**
- * Check and auto-flag revision flag if threshold exceeded
+ * Where the step stands in its current review cycle, from the step itself. A cycle runs from
+ * the step's start (or the round after its last approval, when it was reopened) to now. The
+ * round due is the change requests in this cycle + 1 (Phase 7: flag at round 4, three change
+ * requests). Steps without rounds (older data) count their revisions as one cycle.
+ */
+export function revisionCycleOf(step) {
+  const rounds = Array.isArray(step?.rounds) ? step.rounds : [];
+  if (!rounds.length) {
+    const changeRequests = step?.revisions || 0;
+    return { cycle: 0, changeRequests, round: changeRequests + 1 };
+  }
+  let start = 0;
+  let cycle = 0;
+  rounds.forEach((r, i) => {
+    if (r?.decision === 'approved' && i < rounds.length - 1) {
+      start = i + 1;
+      cycle += 1;
+    }
+  });
+  const changeRequests = rounds.slice(start).filter((r) => r?.decision === 'changes_requested').length;
+  return { cycle, changeRequests, round: changeRequests + 1 };
+}
+
+/**
+ * Flag a step when its current cycle reaches round 4: at most one flag per step per crossing.
+ * A step reopened later that reaches round 4 again is flagged again (the same record is
+ * re-armed; the earlier crossing is kept in previousCrossings). The lead of the step's
+ * calendar and the department's SM Manager are alerted once per crossing.
+ * Callers run this after the decision is saved and never let it fail the decision.
  */
 export async function checkAndCreateRevisionFlag(workItem, actor = null) {
-  const currentRevisions = workItem.revisions || 0;
   const ownerId = workItem.ownerId?._id || workItem.ownerId;
-
   if (!ownerId) return null;
+  const { cycle, changeRequests, round } = revisionCycleOf(workItem);
 
-  // Check if already flagged
-  let flag = await RevisionFlag.findOne({ workItemId: workItem._id });
-  if (flag) {
-    flag.revisionsCount = currentRevisions;
-    await flag.save();
-    return flag;
-  }
-
-  // Phase 7 close-out: flag a step when it reaches round 4 (three change requests, so the
-  // fourth version is due). There is no comparison with the worker's own average.
-  const round = Math.max(currentRevisions + 1, Array.isArray(workItem.rounds) ? workItem.rounds.length : 0);
-  const shouldFlag = round >= REVISION_FLAG_ROUND;
-
-  if (shouldFlag) {
-    flag = await RevisionFlag.create({
-      workItemId: workItem._id,
-      ownerId,
-      revisionsCount: currentRevisions,
-      isFlagged: true,
-      flaggedAt: new Date(),
-    });
-
-    const actorObj =
-      actor && (actor._id || actor.id || actor.userId)
-        ? actor
-        : { _id: ownerId, role: 'system', name: 'Revision Engine' };
-
-    // Log ActivityEvent
-    await logActivity({
-      entityType: 'work_item',
-      entityId: workItem._id,
-      actor: actorObj,
-      action: 'revision.flagged',
-      metadata: {
-        revisionsCount: currentRevisions,
-        round,
-        reason: `Reached round ${round} (${currentRevisions} change requests)`,
-      },
-    });
-
-    // Alert Creative Leads and SM Managers
-    const alertPersons = await Person.find({
-      $or: [
-        { role: deciderRoleFor(calendarOf(workItem)), status: 'active' },
-        { role: 'sm_manager', departmentId: workItem.departmentId, status: 'active' },
-      ],
-    });
-
-    for (const recipient of alertPersons) {
-      await createNotification({
-        recipient: recipient._id,
-        type: 'revision.flagged',
-        title: `Revision Flag Triggered: ${workItem.title}`,
-        message: `"${workItem.title}" reached round ${round} (${currentRevisions} change requests). Root cause classification required.`,
-        link: `/feedback`,
-        metadata: { workItemId: workItem._id, revisionsCount: currentRevisions, round },
-      });
+  const existing = await RevisionFlag.findOne({ workItemId: workItem._id });
+  const sameCrossing = existing && (existing.cycle ?? 0) === cycle;
+  if (sameCrossing) {
+    if (existing.revisionsCount !== changeRequests && round >= REVISION_FLAG_ROUND) {
+      existing.revisionsCount = changeRequests;
+      await existing.save();
     }
+    return existing;
+  }
+  if (round < REVISION_FLAG_ROUND) return existing || null;
 
-    return flag;
+  const now = new Date();
+  let flag;
+  if (existing) {
+    // A new crossing after a reopen: re-arm the record, keeping the earlier crossing.
+    flag = await RevisionFlag.findOneAndUpdate(
+      { _id: existing._id, cycle: existing.cycle ?? 0 },
+      {
+        $push: {
+          previousCrossings: {
+            cycle: existing.cycle ?? 0,
+            revisionsCount: existing.revisionsCount,
+            flaggedAt: existing.flaggedAt,
+            rootCause: existing.rootCause || null,
+            rootCauseNotes: existing.rootCauseNotes || '',
+            classifiedBy: existing.classifiedBy || null,
+            classifiedAt: existing.classifiedAt || null,
+          },
+        },
+        $set: {
+          cycle,
+          ownerId,
+          revisionsCount: changeRequests,
+          isFlagged: true,
+          flaggedAt: now,
+          rootCause: null,
+          rootCauseNotes: '',
+          classifiedBy: null,
+          classifiedAt: null,
+          isEscalated: false,
+          escalatedAt: null,
+        },
+      },
+      { new: true }
+    );
+    if (!flag) return RevisionFlag.findOne({ workItemId: workItem._id }); // another decision re-armed it first
+  } else {
+    try {
+      flag = await RevisionFlag.create({ workItemId: workItem._id, ownerId, revisionsCount: changeRequests, cycle, isFlagged: true, flaggedAt: now });
+    } catch (err) {
+      if (err?.code === 11000) return RevisionFlag.findOne({ workItemId: workItem._id }); // created by a parallel decision
+      throw err;
+    }
   }
 
-  return null;
+  const actorObj =
+    actor && (actor._id || actor.id || actor.userId) ? actor : { _id: ownerId, role: 'system', name: 'Revision Engine' };
+  await logActivity({
+    entityType: 'work_item',
+    entityId: workItem._id,
+    actor: actorObj,
+    action: 'revision.flagged',
+    metadata: { revisionsCount: changeRequests, round, cycle, reason: `Reached round ${round} (${changeRequests} change requests)` },
+  });
+
+  // Alert the lead of the step's calendar and the department's SM Manager, once per crossing.
+  const alertPersons = await Person.find({
+    $or: [
+      { role: deciderRoleFor(calendarOf(workItem)), status: 'active' },
+      ...(workItem.departmentId ? [{ role: 'sm_manager', departmentId: workItem.departmentId, status: 'active' }] : []),
+    ],
+  });
+  for (const recipient of alertPersons) {
+    await createNotification({
+      recipient: recipient._id,
+      type: 'revision.flagged',
+      title: `Revision Flag Triggered: ${workItem.title}`,
+      message: `"${workItem.title}" reached round ${round} (${changeRequests} change requests). Root cause classification required.`,
+      link: `/feedback?tab=flagged&step=${workItem._id}`,
+      metadata: { workItemId: workItem._id, revisionsCount: changeRequests, round, cycle },
+    });
+  }
+  return flag;
+}
+
+/** After a change request is saved (every revision path): flag at round 4, never failing the decision. */
+export async function flagAfterChangesRequested(workItem, actor) {
+  try {
+    return await checkAndCreateRevisionFlag(workItem, actor);
+  } catch (err) {
+    logger.error({ err: err.message, workItemId: String(workItem?._id) }, 'Revision flag check failed; the decision stands');
+    return null;
+  }
 }
 
 /**

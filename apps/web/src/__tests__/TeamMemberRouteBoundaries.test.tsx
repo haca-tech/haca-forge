@@ -36,7 +36,6 @@ import { App } from '../App';
 const ROUTES: Array<{ path: string; heading: RegExp }> = [
   { path: '/reports', heading: /report/i },
   { path: '/workload', heading: /workload/i },
-  { path: '/feedback', heading: /feedback/i },
   { path: '/issues', heading: /issues|blockers/i },
 ];
 
@@ -84,4 +83,12 @@ describe('team_member route boundaries', () => {
       expect(screen.queryByRole('heading', { name: /page not found/i })).not.toBeInTheDocument();
     });
   }
+
+  it('/feedback: a team_member gets the Review Hub for their own steps', async () => {
+    currentRole = 'executive';
+    visit('/feedback');
+    expect(await screen.findByRole('heading', { level: 1, name: /review hub/i }, WAIT)).toBeInTheDocument();
+    expect(apiCalls.some((u) => u.startsWith('/api/review-hub'))).toBe(true);
+    expect(screen.queryByRole('heading', { name: /page not found/i })).not.toBeInTheDocument();
+  });
 });

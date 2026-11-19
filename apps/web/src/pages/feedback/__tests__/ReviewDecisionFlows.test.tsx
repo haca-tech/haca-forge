@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ReviewStudioPage } from '../review-studio/ReviewStudioPage';
-import { FeedbackPage } from '../FeedbackPage';
 import { MyWorkPage } from '../../work/MyWorkPage';
 import { WorkDetailPage } from '../../work/WorkDetailPage';
 import { ShootReviewView } from '../../work/workspaces/ShootReviewView';
@@ -133,36 +132,6 @@ describe('Shoot review', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Approve & Unlock/i }));
     await waitFor(() => expect(onStaleDecision).toHaveBeenCalledWith('This step has already been approved.'));
     expect(window.alert).not.toHaveBeenCalled();
-  });
-});
-
-describe('Feedback page cannot approve', () => {
-  const workItem = { _id: 'w1', title: 'Feedback step', workType: 'Reel', deadline: new Date().toISOString(), status: 'Feedback', revisions: 0, reviewRequired: true, ownerId: { _id: 'owner-1', name: 'Owner', role: 'executive' } };
-  const show = async () => {
-    apiFetch.mockImplementation(async (url: string) => {
-      if (url === '/api/feedback/threads') return { data: [{ workItem, totalEntries: 0, revisions: 0, flag: null }] };
-      if (url === '/api/feedback/work-item/w1') return { data: { workItem, entries: [], rounds: [], flag: null } };
-      return { data: {} };
-    });
-    render(<MemoryRouter initialEntries={['/feedback']}><FeedbackPage /></MemoryRouter>);
-    fireEvent.click(await screen.findByText('Feedback step'));
-  };
-
-  it('has no approve option, and a reviewer can only request a revision', async () => {
-    asHead();
-    await show();
-    fireEvent.change(await screen.findByPlaceholderText(/specific changes needed/i), { target: { value: 'Please trim this' } });
-    expect(screen.queryByRole('radio', { name: /Approved/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Request Revision' }));
-    await waitFor(() => expect(posts('/api/feedback/work-item/w1')).toHaveLength(1));
-    expect(JSON.parse(posts('/api/feedback/work-item/w1')[0][1].body).roundStatus).toBe('Revision Required');
-  });
-
-  it('an sm_manager sees no decision form', async () => {
-    useAuth.mockReturnValue({ user: { _id: 'sm-1', role: 'sm_manager', name: 'SM' }, hasPermission: () => true });
-    await show();
-    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith('/api/feedback/work-item/w1'));
-    expect(screen.queryByRole('button', { name: 'Request Revision' })).not.toBeInTheDocument();
   });
 });
 

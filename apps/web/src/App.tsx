@@ -337,9 +337,7 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Layout>
-                        <RoleBoundary hiddenFor={TEAM_MEMBER_HIDDEN}>
-                          <FeedbackPage />
-                        </RoleBoundary>
+                        <FeedbackPage />
                       </Layout>
                     </ProtectedRoute>
                   }

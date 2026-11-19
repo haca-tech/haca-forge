@@ -673,8 +673,21 @@ export async function getMyWork(user) {
       const note = await revisionNoteFor(item, sentBack);
       if (note) item.latestFeedback = { ...note, reviewer: note.reviewer || 'Creative Lead' };
     } else if (item.status === 'Feedback' && !item.latestSubmissionStatus) {
-      // A step sent back before versions existed: the feedback entry is all there is.
-      try {
+      // A step sent back before versions existed: the status event that sent it back, else the
+      // old Feedback-page entry.
+      const statusEvent = await ActivityEvent.findOne({
+        entityId: { $in: [item._id, String(item._id)] },
+        action: 'work_item.status_changed',
+        toStatus: 'Feedback',
+        'metadata.comment': { $nin: [null, ''] },
+      })
+        .sort({ timestamp: -1 })
+        .populate('actorId', 'name')
+        .lean();
+      if (statusEvent) {
+        item.latestFeedback = { text: statusEvent.metadata.comment, reviewer: statusEvent.actorId?.name || 'Creative Lead', createdAt: statusEvent.timestamp };
+      }
+      if (!item.latestFeedback) try {
         const { FeedbackEntry } = await import('../feedback/model.js');
         const latestEntry = await FeedbackEntry.findOne({ workItemId: item._id, isResponse: false })
           .populate('fromPersonId', 'name role jobRole')

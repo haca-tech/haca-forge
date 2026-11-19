@@ -4,7 +4,6 @@ import {
   Users,
   Search,
   ArrowUpDown,
-  AlertCircle,
   AlertTriangle,
   ChevronRight,
   RefreshCw,
@@ -41,7 +40,6 @@ interface DirectoryMember {
   counts: {
     inProgress: number;
     waitingApproval: number;
-    late: number;
   };
 }
 
@@ -61,7 +59,6 @@ export const TeamDirectoryPage: React.FC = () => {
   const [deptFilter, setDeptFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('active');
   const [bandFilter, setBandFilter] = useState('all');
-  const [hasLateOnly, setHasLateOnly] = useState(false);
 
   // Whitelist Sorting ONLY: name, department, jobRole, load
   const [sortBy, setSortBy] = useState<'name' | 'department' | 'jobRole' | 'load'>('name');
@@ -78,7 +75,6 @@ export const TeamDirectoryPage: React.FC = () => {
       if (deptFilter !== 'all') params.set('departmentId', deptFilter);
       if (statusFilter !== 'all') params.set('status', statusFilter);
       if (bandFilter !== 'all') params.set('loadBand', bandFilter);
-      if (hasLateOnly) params.set('hasLate', 'true');
       params.set('sortBy', sortBy);
       params.set('sortDir', sortDir);
 
@@ -97,7 +93,7 @@ export const TeamDirectoryPage: React.FC = () => {
 
   useEffect(() => {
     fetchDirectory();
-  }, [roleFilter, deptFilter, statusFilter, bandFilter, hasLateOnly, sortBy, sortDir]);
+  }, [roleFilter, deptFilter, statusFilter, bandFilter, sortBy, sortDir]);
 
   // Debounced search
   useEffect(() => {
@@ -290,19 +286,6 @@ export const TeamDirectoryPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Late Only Toggle */}
-            <label className="flex items-center gap-2 min-h-[44px] cursor-pointer text-[13px] font-medium text-ui-text select-none">
-              <input
-                type="checkbox"
-                checked={hasLateOnly}
-                onChange={(e) => setHasLateOnly(e.target.checked)}
-                className="w-4 h-4 rounded text-ui-ink focus:ring-ui-ink border-slate-300"
-              />
-              <span className="flex items-center gap-1 text-ui-ink">
-                <AlertCircle className="w-3.5 h-3.5 text-ui-coral" />
-                Has Late Work Only
-              </span>
-            </label>
           </div>
 
           {/* Whitelist Sorting Dropdown */}
@@ -491,14 +474,6 @@ export const TeamDirectoryPage: React.FC = () => {
                     >
                       {member.counts.waitingApproval} wait
                     </span>
-                    {member.counts.late > 0 && (
-                      <span
-                        title="Late Deliverables"
-                        className="status-chip status-changes px-2 py-0.5 font-semibold"
-                      >
-                        {member.counts.late} late
-                      </span>
-                    )}
                   </div>
 
                   <Link

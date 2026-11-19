@@ -34,7 +34,6 @@ interface AssignRecommendation {
     person: { _id: string; name: string; email: string; jobRole?: string };
     workloadPct: number;
     availableHours: number;
-    avgRevisions: number;
   }>;
 }
 

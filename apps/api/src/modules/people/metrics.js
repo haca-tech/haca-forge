@@ -165,10 +165,27 @@ export async function calculatePersonPerformance(personId, filters = {}, actor =
     ? Number((totalBlockerResolutionHrs / resolvedBlockersCount).toFixed(1))
     : 0;
 
-  // Average feedback turnaround (if reviewer)
-  const feedbackReviews = await FeedbackEntry.find({ fromPersonId: person._id }).lean();
+  // Average review turnaround (if reviewer): from a version's submission to this person's
+  // decision on it (approve or send back). Older Feedback-page entries count only when
+  // there is no version data for this person.
   let totalFeedbackHrs = 0;
   let resolvedFeedbackCount = 0;
+  const { Submission } = await import('../submissions/model.js');
+  const decided = await Submission.find({
+    reviewedById: person._id,
+    version: { $gt: 0 },
+    status: { $in: ['approved', 'changes_requested'] },
+    submittedAt: { $ne: null },
+    reviewedAt: { $ne: null },
+  })
+    .select('submittedAt reviewedAt')
+    .lean();
+  for (const sub of decided) {
+    const hrs = Math.max((new Date(sub.reviewedAt).getTime() - new Date(sub.submittedAt).getTime()) / 3600000, 0.5);
+    totalFeedbackHrs += hrs;
+    resolvedFeedbackCount += 1;
+  }
+  const feedbackReviews = resolvedFeedbackCount ? [] : await FeedbackEntry.find({ fromPersonId: person._id }).lean();
 
   feedbackReviews.forEach((fb) => {
     if (fb.createdAt && fb.resolvedAt) {
@@ -284,7 +301,12 @@ export async function calculateTeamPerformance(filters = {}, actor = null) {
     )
   );
 
-  const validResults = memberResults.filter(Boolean);
+  // A reviewer's turnaround is their own figure (on their own performance view), never
+  // set side by side with other people's, so the team list leaves it out.
+  const validResults = memberResults.filter(Boolean).map((r) => {
+    const { avgFeedbackResponseTimeHrs: _own, ...collaboration } = r.dimensions.collaboration;
+    return { ...r, dimensions: { ...r.dimensions, collaboration } };
+  });
 
   const avgScore = validResults.length > 0
     ? Math.round(validResults.reduce((sum, r) => sum + r.overallScore, 0) / validResults.length)

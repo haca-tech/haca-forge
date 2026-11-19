@@ -399,6 +399,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
   }
 
   // 7. Revision Counter: one revision per reviewer decision, and the owner is told once.
+  let countedRevision = false;
   // The owner's own move back to In Progress (Start rework) is not a revision: the decision
   // that sent the step back already counted it and already notified them.
   if (
@@ -406,6 +407,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
     (fromStatus === 'Pending' && toStatus === 'Feedback')
   ) {
     workItem.revisions = (workItem.revisions || 0) + 1;
+    countedRevision = true;
     workItem.changesRequestedAt = now;
     workItem.decisionAt = now;
     if (roundBeingDecided) {
@@ -527,6 +529,12 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
       await Submission.deleteOne({ _id: createdVersion._id });
     }
     throw error;
+  }
+
+  // A change request decided here (Work Detail fallback): round 4 in this cycle flags the step.
+  if (countedRevision) {
+    const { flagAfterChangesRequested } = await import('../feedback/service.js');
+    await flagAfterChangesRequested(workItem, user);
   }
 
   if (withdrewPause) {

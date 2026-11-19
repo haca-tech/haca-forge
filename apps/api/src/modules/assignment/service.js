@@ -8,6 +8,7 @@ import { resolveScope } from '../../lib/scope.js';
 import { logActivity } from '../activity/service.js';
 import { WORK_TYPE_DEPARTMENT_MAP, READ_ONLY_VIEWER_ROLES, isWorker, effectiveStepsFor, WORKER_ROLE, APPROVER_ROLES } from '@mmp/shared';
 import { resolveProfileObjectId } from '../referenceData/service.js';
+import { compareOwners, isAvailable } from '../../lib/pickOwner.js';
 
 /**
  * Calculate member workload metrics and capacity bands
@@ -39,22 +40,6 @@ export async function calculateMemberWorkloadMetrics(personId, personDoc = null)
     capacityBand = 'High';
   }
 
-  // Rolling 90-day average revisions calculation from completed items
-  const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-  const completedRecentItems = await WorkItem.find({
-    ownerId: person._id,
-    status: { $in: ['Approved', 'Published'] },
-    updatedAt: { $gte: ninetyDaysAgo },
-  }).select('revisions');
-
-  let avgRevisions = 1.0;
-  if (completedRecentItems.length > 0) {
-    const totalRevs = completedRecentItems.reduce((sum, item) => sum + (item.revisions || 0), 0);
-    avgRevisions = Number((totalRevs / completedRecentItems.length).toFixed(1));
-  }
-
   const availableHours = Math.max(0, capacity - allocatedHours);
 
   return {
@@ -75,7 +60,6 @@ export async function calculateMemberWorkloadMetrics(personId, personDoc = null)
     workloadPct,
     capacityBand,
     band: capacityBand,
-    avgRevisions,
     activeItemsCount: openItems.length,
     activeWorkItems: openItems,
   };
@@ -83,8 +67,9 @@ export async function calculateMemberWorkloadMetrics(personId, personDoc = null)
 
 /**
  * Auto-Assignment Recommendation Engine
- * Recommends optimal assignee based on department, workload percentage, rolling revisions, and bandwidth.
- * Never assigns silently. Returns human-readable explainable rationale.
+ * Recommends an assignee from eligibility (step or department), availability and workload only.
+ * Revision history, ratings and speed are deliberately not factors: they must never lower
+ * anyone's chance of being recommended. Never assigns silently; returns a readable rationale.
  */
 export async function recommendAssignee(criteria = {}, user) {
   const {
@@ -174,34 +159,18 @@ export async function recommendAssignee(criteria = {}, user) {
     });
   }
 
-  // 4. Rank Candidates
-  // Order:
-  // a) Non-overloaded first (workloadPct <= 85%)
-  // b) Lowest workload percentage
-  // c) Lowest avgRevisions
-  // d) Earliest availability / highest available hours
+  // 4. Rank candidates: available people first, team members before others, then the shared
+  // owner rule (lib/pickOwner.js: lowest workload %, then name). When nobody is available the
+  // least-loaded person is still shown, with a capacity warning.
+  const byOwnerRule = compareOwners({ load: (c) => c.workloadPct, name: (c) => c.person.name, id: (c) => c.person._id });
   candidatePool.sort((a, b) => {
-    const aOverloaded = a.workloadPct > 85;
-    const bOverloaded = b.workloadPct > 85;
-
-    if (!aOverloaded && bOverloaded) return -1;
-    if (aOverloaded && !bOverloaded) return 1;
-
-    // Prefer creative team members over management/leads
+    const aFree = isAvailable(a.workloadPct);
+    const bFree = isAvailable(b.workloadPct);
+    if (aFree !== bFree) return aFree ? -1 : 1;
     const aIsMember = isWorker(a.person.role);
     const bIsMember = isWorker(b.person.role);
-    if (aIsMember && !bIsMember) return -1;
-    if (!aIsMember && bIsMember) return 1;
-
-    if (a.workloadPct !== b.workloadPct) {
-      return a.workloadPct - b.workloadPct;
-    }
-
-    if (a.avgRevisions !== b.avgRevisions) {
-      return a.avgRevisions - b.avgRevisions;
-    }
-
-    return b.availableHours - a.availableHours;
+    if (aIsMember !== bIsMember) return aIsMember ? -1 : 1;
+    return byOwnerRule(a, b);
   });
 
   const bestCandidate = candidatePool[0];
@@ -209,19 +178,19 @@ export async function recommendAssignee(criteria = {}, user) {
 
   // 5. Generate Explainable Rationale
   let rationale = '';
-  const isOverloadWarning = bestCandidate.workloadPct > 85;
+  const isOverloadWarning = !isAvailable(bestCandidate.workloadPct);
 
   if (effectiveStageKey) {
     if (isOverloadWarning) {
       rationale = `Recommended Owner: ${bestCandidate.person.name} (Capacity Warning: ${bestCandidate.workloadPct}% current workload). All candidates with "${effectiveStageKey}" work preference exceed healthy bandwidth.`;
     } else {
-      rationale = `Recommended Owner: ${bestCandidate.person.name}. Reason: matched work preference "${effectiveStageKey}" + brand access + lowest current workload (${bestCandidate.workloadPct}%) + ${bestCandidate.availableHours}h available bandwidth (avg ${bestCandidate.avgRevisions} revs).`;
+      rationale = `Recommended Owner: ${bestCandidate.person.name}. Reason: matched work preference "${effectiveStageKey}" + brand access + lowest current workload (${bestCandidate.workloadPct}%) + ${bestCandidate.availableHours}h available bandwidth.`;
     }
   } else {
     if (isOverloadWarning) {
       rationale = `Recommended Owner: ${bestCandidate.person.name} (Capacity Warning: ${bestCandidate.workloadPct}% current workload). All candidates in ${deptLabel} exceed healthy bandwidth.`;
     } else {
-      rationale = `Recommended Owner: ${bestCandidate.person.name}. Reason: lowest current workload (${bestCandidate.workloadPct}%) + suitable skill in ${deptLabel} + ${bestCandidate.availableHours}h available bandwidth (avg ${bestCandidate.avgRevisions} revs).`;
+      rationale = `Recommended Owner: ${bestCandidate.person.name}. Reason: lowest current workload (${bestCandidate.workloadPct}%) + suitable skill in ${deptLabel} + ${bestCandidate.availableHours}h available bandwidth.`;
     }
   }
 
@@ -230,7 +199,6 @@ export async function recommendAssignee(criteria = {}, user) {
     recommendedMetrics: {
       workloadPct: bestCandidate.workloadPct,
       capacityBand: bestCandidate.capacityBand,
-      avgRevisions: bestCandidate.avgRevisions,
       allocatedHours: bestCandidate.allocatedHours,
       availableHours: bestCandidate.availableHours,
       newWorkloadPct: bestCandidate.newWorkloadPct,

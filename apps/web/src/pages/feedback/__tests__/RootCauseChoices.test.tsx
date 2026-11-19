@@ -29,12 +29,21 @@ const workItem = {
   reviewRequired: true,
   ownerId: { _id: 'owner-1', name: 'Sample Owner', email: 'o@example.invalid', role: 'executive' },
 };
-const thread = (rootCause: string | null) => ({
-  workItem,
-  totalEntries: 0,
-  revisions: 4,
-  flag: { _id: 'f1', revisionsCount: 4, baselineAvg: 1.5, isFlagged: true, flaggedAt: now, rootCause },
-});
+
+const hubFor = (rootCause: string | null) => (url: string) => {
+  if (url.startsWith('/api/review-hub/steps/w1/timeline')) {
+    return Promise.resolve({
+      data: {
+        step: { _id: 'w1', title: workItem.title, stageKey: 'Edit', type: 'Reel', calendar: 'sm', owner: { _id: 'owner-1', name: 'Sample Owner' }, status: 'In Progress', reviewState: null, statusLabel: 'In Progress', version: 4, dueDate: now, revisions: 3, revisionsLabel: '3 revisions' },
+        mainAction: rootCause ? { kind: 'open_work_detail', href: '/work/w1' } : { kind: 'classify', flagId: 'f1' },
+        events: [{ kind: 'flagged', at: now, revisions: 3 }, ...(rootCause ? [{ kind: 'classified', at: now, by: 'Earlier Lead', rootCause }] : [])],
+      },
+    });
+  }
+  if (url.startsWith('/api/review-hub')) return Promise.resolve({ data: { viewer: 'lead', tab: 'flagged', tabs: [{ key: 'flagged', label: 'Flagged (round 4)', count: rootCause ? 0 : 1 }], items: [] } });
+  return Promise.resolve({ data: [] });
+};
+const renderHub = () => render(<MemoryRouter initialEntries={['/feedback?tab=flagged&step=w1']}><FeedbackPage /></MemoryRouter>);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -67,17 +76,12 @@ describe('Revision root causes: only the 7 canonical values are offered', () => 
     expect(optionValues(within(dialog).getByLabelText(/root cause/i))).toEqual(CANONICAL);
   });
 
-  it('Feedback Classify Root Cause', async () => {
-    apiFetch.mockImplementation((url: string) => {
-      if (url === '/api/feedback/threads') return Promise.resolve({ data: [thread(null)] });
-      if (url === '/api/feedback/work-item/w1') return Promise.resolve({ data: { workItem, entries: [], rounds: [], flag: thread(null).flag } });
-      return Promise.resolve({ data: [] });
-    });
-    render(<MemoryRouter initialEntries={['/feedback']}><FeedbackPage /></MemoryRouter>);
-    fireEvent.click(await screen.findByRole('button', { name: /Root cause test item/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /Classify Root Cause/ }));
-    const dialog = screen.getByRole('dialog', { name: /Classify Revision Root Cause/ });
-    expect(optionValues(within(dialog).getByLabelText(/canonical root causes/i))).toEqual(CANONICAL);
+  it('Review Hub Classify root cause', async () => {
+    apiFetch.mockImplementation(hubFor(null));
+    renderHub();
+    fireEvent.click(await screen.findByRole('button', { name: /Classify root cause/ }));
+    const dialog = screen.getByRole('dialog', { name: /Classify root cause/ });
+    expect(optionValues(within(dialog).getByLabelText(/^root cause$/i))).toEqual(CANONICAL);
   });
 
   it('Issues & Blockers Classify Root Cause', async () => {
@@ -94,16 +98,11 @@ describe('Revision root causes: only the 7 canonical values are offered', () => 
 });
 
 describe('Legacy root causes stay readable', () => {
-  it('Feedback renders a flag saved with a legacy cause, without offering to change it', async () => {
-    apiFetch.mockImplementation((url: string) => {
-      if (url === '/api/feedback/threads') return Promise.resolve({ data: [thread('Script change')] });
-      if (url === '/api/feedback/work-item/w1') return Promise.resolve({ data: { workItem, entries: [], rounds: [], flag: thread('Script change').flag } });
-      return Promise.resolve({ data: [] });
-    });
-    render(<MemoryRouter initialEntries={['/feedback']}><FeedbackPage /></MemoryRouter>);
-    fireEvent.click(await screen.findByRole('button', { name: /Root cause test item/ }));
+  it('Review Hub renders a flag saved with a legacy cause, without offering to change it', async () => {
+    apiFetch.mockImplementation(hubFor('Script change'));
+    renderHub();
     expect(await screen.findByText('Script change')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Classify Root Cause/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Classify root cause/ })).not.toBeInTheDocument();
     // Reading never writes: only GET requests were made.
     expect(apiFetch.mock.calls.every(([, opts]: any[]) => !opts || !opts.method || opts.method === 'GET')).toBe(true);
   });

@@ -52,3 +52,13 @@ export async function listFeedbackThreads(req, res, next) {
     next(err);
   }
 }
+
+/** The old two-entry feedback writes (retired): 410 with where to go instead. Nothing is written. */
+export function retiredFeedbackWrite(req, res) {
+  const isResponse = req.body?.isResponse === true || req.body?.isResponse === 'true';
+  return res.status(410).json({
+    error: isResponse
+      ? { code: 'FEEDBACK_REPLY_RETIRED', message: 'Use Resubmit: click Start rework on the step, then Resubmit link.' }
+      : { code: 'FEEDBACK_REVISION_RETIRED', message: 'Use Review Studio (or Work Detail) to request changes.' },
+  });
+}
