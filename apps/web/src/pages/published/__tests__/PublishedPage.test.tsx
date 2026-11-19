@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { toEmbed } from '@mmp/shared';
 import { PublishedPage, type PublishedItem } from '../PublishedPage';
-import { EMBED_LOAD_TIMEOUT_MS, EmbedFrame } from '../EmbedFrame';
+import { EMBED_LOAD_TIMEOUT_MS, EmbedFrame, instagramEmbedHeight } from '../EmbedFrame';
 import { StepSubmitDialog } from '../../../components/StepSubmitDialog';
 import { Layout } from '../../../components/Layout';
 import { TrackerRow } from '../../calendar/tracker/TrackerRow';
@@ -115,12 +115,13 @@ describe('Cards', () => {
     expect(frames[0]).toHaveAttribute('title', 'Instagram reel: Campus reel');
     expect(frames[0].getAttribute('sandbox')).toBe('allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox');
     expect(frames[1].getAttribute('sandbox')).toContain('allow-presentation');
-    expect(frames[0].parentElement).toHaveStyle({ aspectRatio: '9 / 16' });
-    // The unknown site is a link card that opens in a new tab.
+    // Frames never scroll inside; the YouTube player sits at its aspect ratio in the box.
+    expect(frames.every((f) => f.getAttribute('scrolling') === 'no')).toBe(true);
+    expect(frames[1].parentElement).toHaveStyle({ aspectRatio: '0.5625' });
+    // The unknown site is a link card: the host centred in the box, with no button of its own.
     const card = screen.getByTestId('link-card');
     expect(card).toHaveTextContent('example.org');
-    expect(within(card).getByRole('link', { name: /Open original/ })).toHaveAttribute('href', 'https://example.org/haca/post-1');
-    expect(within(card).getByRole('link', { name: /Open original/ })).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(within(card).queryByRole('link')).not.toBeInTheDocument();
     // Every card, embedded or not, links to the original (an embed may show the site's own error page).
     const opens = screen.getAllByRole('link', { name: /Open original/ }).map((a) => a.getAttribute('href'));
     expect(opens.sort()).toEqual(['https://example.org/haca/post-1', 'https://www.instagram.com/reel/C8xYz12AbCd/', 'https://youtube.com/shorts/dQw4w9WgXcQ']);
@@ -146,6 +147,78 @@ describe('Cards', () => {
     render(<EmbedFrame embed={{ kind: 'link', label: 'Link' }} liveUrl="javascript:alert(1)" title="X" />);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.getByText('No link to open.')).toBeInTheDocument();
+  });
+});
+
+describe('Card layout', () => {
+  it('one "Open original" per card, last in the card, opening the live link in a new tab', async () => {
+    show();
+    await screen.findByText('Campus reel');
+    const cards = within(screen.getByRole('list', { name: 'Published posts' })).getAllByRole('listitem').filter((li) => li.parentElement?.getAttribute('aria-label') === 'Published posts');
+    expect(cards).toHaveLength(3);
+    for (const li of cards) {
+      const opens = within(li).getAllByRole('link', { name: /Open original/ });
+      expect(opens).toHaveLength(1);
+      expect(li.lastElementChild).toBe(opens[0]);
+      expect(opens[0]).toHaveAttribute('target', '_blank');
+      expect(opens[0]).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(opens[0].className).toContain('mt-auto');
+      // The card is a flex column, so the footer sits at the bottom of a stretched card.
+      expect(li.className).toMatch(/flex flex-col/);
+      expect(li.className).toContain('h-full');
+    }
+  });
+
+  it('every kind fills the same fixed media box: Instagram, YouTube, Drive, final asset and link card', async () => {
+    response = {
+      items: [
+        item({}),
+        item({ id: 'p2', title: 'Short', liveUrl: 'https://youtube.com/shorts/dQw4w9WgXcQ', embed: toEmbed('https://youtube.com/shorts/dQw4w9WgXcQ') }),
+        item({ id: 'p3', title: 'Drive', liveUrl: 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view', embed: toEmbed('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view') }),
+        item({ id: 'p4', title: 'Final', liveUrl: 'https://www.instagram.com/', embed: toEmbed('https://www.instagram.com/'), preview: { source: 'final', label: 'Final video', embed: { ...toEmbed('https://drive.google.com/file/d/1FinalCutAbCdEfGh/view'), aspect: '9:16' } } }),
+        item({ id: 'p5', title: 'Link', liveUrl: 'https://example.org/x', embed: toEmbed('https://example.org/x') }),
+      ],
+      total: 5,
+      page: 1,
+      pages: 1,
+    };
+    show();
+    await screen.findByText('Link');
+    scrollIntoView();
+    const boxes = screen.getAllByTestId('media-box');
+    expect(boxes).toHaveLength(5);
+    expect(new Set(boxes.map((b) => b.className)).size).toBe(1);
+    expect(boxes[0].className).toContain('h-[480px] sm:h-[520px] xl:h-[560px]');
+    expect(boxes[0].className).toContain('overflow-hidden');
+    // Each box holds exactly one thing: a frame, or the link card.
+    expect(boxes.map((b) => (b.querySelector('iframe') ? 'frame' : b.querySelector('[data-testid="link-card"]') ? 'link' : '?'))).toEqual(['frame', 'frame', 'frame', 'frame', 'link']);
+    expect(document.querySelectorAll('iframe[scrolling="no"]')).toHaveLength(4);
+  });
+
+  it('Instagram is sized to its full embed height for the box width, and follows the height Instagram reports', async () => {
+    expect(instagramEmbedHeight(400)).toBe(54 + 500 + 212);
+    expect(instagramEmbedHeight(900)).toBe(instagramEmbedHeight(540)); // Instagram embeds are at most 540px wide
+    render(<EmbedFrame embed={toEmbed('https://www.instagram.com/p/C8xYz12AbCd/')} liveUrl="https://www.instagram.com/p/C8xYz12AbCd/" title="Post" eager />);
+    const frame = document.querySelector('iframe')!;
+    expect(frame.getAttribute('scrolling')).toBe('no');
+    expect(frame.style.height).toBe(`${instagramEmbedHeight(360)}px`);
+    // A measure message from another window is ignored; Instagram's own frame sets the height.
+    act(() => {
+      window.dispatchEvent(new MessageEvent('message', { origin: 'https://evil.example', data: JSON.stringify({ type: 'MEASURE', details: { height: 999 } }) }));
+    });
+    expect(frame.style.height).toBe(`${instagramEmbedHeight(360)}px`);
+    act(() => {
+      window.dispatchEvent(new MessageEvent('message', { origin: 'https://www.instagram.com', source: frame.contentWindow, data: JSON.stringify({ type: 'MEASURE', details: { height: 812 } }) }));
+    });
+    expect(frame.style.height).toBe('812px');
+  });
+
+  it('the larger view uses the same media rules at a larger size', async () => {
+    show();
+    fireEvent.click(await screen.findByRole('button', { name: 'Open larger view: Campus reel' }));
+    const dlg = await screen.findByRole('dialog', { name: 'Campus reel' });
+    expect(within(dlg).getByTestId('media-box').className).toContain('h-[min(78vh,720px)]');
+    expect(within(dlg).getByTitle('Instagram reel: Campus reel')).toHaveAttribute('scrolling', 'no');
   });
 });
 
@@ -297,7 +370,7 @@ describe('Live view fixes: final asset fallback, Drive note, Edit live link', ()
     const frame = document.querySelector('iframe')!;
     expect(frame).toHaveAttribute('src', 'https://drive.google.com/file/d/1FinalCutAbCdEfGh/preview');
     expect(frame.getAttribute('sandbox')).toContain('allow-presentation');
-    expect(frame.parentElement).toHaveStyle({ aspectRatio: '9 / 16' });
+    expect(frame.parentElement).toHaveStyle({ aspectRatio: '0.5625' });
     expect(screen.getByTestId('preview-caption')).toHaveTextContent('Final video');
     expect(screen.getByTestId('drive-note')).toHaveTextContent('Plays only if the file is shared with you.');
     expect(screen.getByRole('link', { name: /Open original/ })).toHaveAttribute('href', 'https://www.instagram.com/');

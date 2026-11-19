@@ -1,11 +1,28 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ExternalLink, Link2 } from 'lucide-react';
+import { Link2 } from 'lucide-react';
 import { isTrustedEmbedUrl, type EmbedAspect, type EmbedInfo } from '@mmp/shared';
 
 /** How long an embed may take to load before the link card is shown instead. */
 export const EMBED_LOAD_TIMEOUT_MS = 10000;
 
-const ASPECT: Record<EmbedAspect, string> = { '9:16': '9 / 16', '4:5': '4 / 5', '16:9': '16 / 9', '1:1': '1 / 1' };
+/**
+ * The media box: the same fixed height on every card, whatever it holds (an embed, a Drive or
+ * final-asset preview, or a link card): 480px on a phone, 520px on a tablet, 560px on a desktop.
+ * The larger view uses a taller box. Rounded, clipped, and its own stacking context, so a frame
+ * never paints outside it (or over the page header).
+ */
+export const MEDIA_BOX_HEIGHT = { card: 'h-[480px] sm:h-[520px] xl:h-[560px]', large: 'h-[min(78vh,720px)]' } as const;
+export type MediaSize = keyof typeof MEDIA_BOX_HEIGHT;
+
+/** Width over height for each aspect. */
+const RATIO: Record<EmbedAspect, number> = { '9:16': 9 / 16, '4:5': 4 / 5, '16:9': 16 / 9, '1:1': 1 };
+
+/** Instagram's embed is at most 540px wide; its full height is the header, the 4:5 media and the footer. */
+const IG_MAX_WIDTH = 540;
+export function instagramEmbedHeight(width: number): number {
+  const w = Math.max(240, Math.min(IG_MAX_WIDTH, Math.round(width)));
+  return Math.round(54 + w * 1.25 + 212);
+}
 
 /** What each player needs, nothing more. Video players also get presentation (fullscreen). */
 function sandboxFor(kind: EmbedInfo['kind']): string {
@@ -31,25 +48,27 @@ function hostOf(url: string): string {
   }
 }
 
-/** The fallback: the site and "Open original ↗". */
-export const LinkCard: React.FC<{ liveUrl: string; reason?: string }> = ({ liveUrl, reason }) => {
-  const href = safeHref(liveUrl);
-  return (
-    <div className="w-full aspect-[4/3] rounded-ui-card border border-ui-line bg-white/60 flex flex-col items-center justify-center gap-2 p-4 text-center" data-testid="link-card">
-      <Link2 className="w-6 h-6 text-ui-muted" aria-hidden="true" />
-      <p className="text-sm font-semibold text-ui-ink break-all">{hostOf(liveUrl) || 'Link'}</p>
-      {reason && <p className="text-xs text-ui-muted">{reason}</p>}
-      {href ? (
-        <a href={href} target="_blank" rel="noopener noreferrer" className="ui-btn ui-btn-secondary h-11 gap-1.5">
-          Open original <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-          <span className="sr-only">(opens in a new tab)</span>
-        </a>
-      ) : (
-        <p className="text-xs text-ui-muted">No link to open.</p>
-      )}
-    </div>
-  );
-};
+/** The fixed-height box every preview fills. */
+export const MediaBox: React.FC<{ size?: MediaSize; children: React.ReactNode; boxRef?: React.Ref<HTMLDivElement> }> = ({ size = 'card', children, boxRef }) => (
+  <div
+    ref={boxRef}
+    data-testid="media-box"
+    className={`relative isolate w-full overflow-hidden rounded-ui-card border border-ui-line bg-white/40 ${MEDIA_BOX_HEIGHT[size]}`}
+    style={{ containerType: 'size' }}
+  >
+    {children}
+  </div>
+);
+
+/** The fallback: the site's name, centred in the box. The card footer has "Open original". */
+export const LinkCard: React.FC<{ liveUrl: string; reason?: string }> = ({ liveUrl, reason }) => (
+  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center bg-white/60" data-testid="link-card">
+    <Link2 className="w-7 h-7 text-ui-muted" aria-hidden="true" />
+    <p className="text-sm font-semibold text-ui-ink break-all">{hostOf(liveUrl) || 'Link'}</p>
+    {reason && <p className="text-xs text-ui-muted">{reason}</p>}
+    {!safeHref(liveUrl) && <p className="text-xs text-ui-muted">No link to open.</p>}
+  </div>
+);
 
 interface Props {
   embed: EmbedInfo;
@@ -57,24 +76,31 @@ interface Props {
   title: string;
   /** Load straight away (the larger view), instead of when scrolled into view. */
   eager?: boolean;
-  /** Shown above the frame, e.g. "Final video" when the card falls back to the approved output. */
+  /** Shown under the box, e.g. "Final video" when the card falls back to the approved output. */
   caption?: string;
+  size?: MediaSize;
 }
 
 /** Drive files play only for people the file is shared with. */
 export const DRIVE_NOTE = 'Plays only if the file is shared with you.';
 
 /**
- * An official embed, loaded only when scrolled into view, sandboxed, at a fixed aspect ratio.
- * Frames only an embed URL of the exact shape toEmbed produces; anything else, or an embed
- * that has not loaded in time, shows the link card.
+ * An official embed in the fixed media box, loaded only when scrolled into view, sandboxed,
+ * never scrolling inside. Instagram is sized to its full embed height for the box width, centred,
+ * with anything taller clipped at the bottom; the other players are centred at their aspect
+ * ratio. Frames only an embed URL of the exact shape toEmbed produces; anything else, or an
+ * embed that has not loaded in time, shows the link card.
  */
-export const EmbedFrame: React.FC<Props> = ({ embed, liveUrl, title, eager = false, caption }) => {
+export const EmbedFrame: React.FC<Props> = ({ embed, liveUrl, title, eager = false, caption, size = 'card' }) => {
   const holder = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLIFrameElement>(null);
   const [visible, setVisible] = useState(eager);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [boxWidth, setBoxWidth] = useState(360);
+  const [igHeight, setIgHeight] = useState<number | null>(null);
   const trusted = embed.kind !== 'link' && isTrustedEmbedUrl(embed.embedUrl);
+  const isInstagram = embed.kind === 'instagram_reel' || embed.kind === 'instagram_post';
 
   useEffect(() => {
     if (!trusted || visible) return;
@@ -102,30 +128,90 @@ export const EmbedFrame: React.FC<Props> = ({ embed, liveUrl, title, eager = fal
     return () => clearTimeout(t);
   }, [visible, loaded, failed, trusted]);
 
-  if (!trusted) return <LinkCard liveUrl={liveUrl} />;
-  if (failed) return <LinkCard liveUrl={liveUrl} reason="The post could not be shown here." />;
+  // Instagram: follow the box width, and take the height Instagram reports for its own frame.
+  useEffect(() => {
+    if (!isInstagram) return;
+    const el = holder.current;
+    if (!el) return;
+    setBoxWidth(el.clientWidth || 360);
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setBoxWidth(el.clientWidth || 360));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isInstagram]);
+  useEffect(() => {
+    if (!isInstagram) return;
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== 'https://www.instagram.com' || e.source !== frameRef.current?.contentWindow) return;
+      try {
+        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        const h = Number(data?.details?.height);
+        if (data?.type === 'MEASURE' && h > 200 && h < 4000) setIgHeight(Math.round(h));
+      } catch {
+        // Not a measure message.
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [isInstagram]);
+
+  const below = (
+    <>
+      {caption && <p className="text-[11px] font-semibold uppercase tracking-wide text-ui-muted" data-testid="preview-caption">{caption}</p>}
+      {trusted && !failed && embed.kind === 'drive' && <p className="text-xs text-ui-muted" data-testid="drive-note">{DRIVE_NOTE}</p>}
+    </>
+  );
+
+  if (!trusted || failed) {
+    return (
+      <>
+        <MediaBox size={size}>
+          <LinkCard liveUrl={liveUrl} reason={failed ? 'The post could not be shown here.' : undefined} />
+        </MediaBox>
+        {below}
+      </>
+    );
+  }
+
+  const frameProps = {
+    ref: frameRef,
+    src: embed.embedUrl,
+    title: `${embed.label}: ${title}`,
+    loading: 'lazy' as const,
+    sandbox: sandboxFor(embed.kind),
+    referrerPolicy: 'strict-origin-when-cross-origin' as const,
+    allow: 'encrypted-media; picture-in-picture; fullscreen',
+    scrolling: 'no',
+    // Browsers fire no error event for a frame; a frame that never loads hits the time limit.
+    onLoad: () => setLoaded(true),
+  };
+  const ratio = RATIO[embed.aspect || '1:1'];
 
   return (
-    <div className="space-y-1">
-      {caption && <p className="text-[11px] font-semibold uppercase tracking-wide text-ui-muted" data-testid="preview-caption">{caption}</p>}
-      <div ref={holder} className="w-full rounded-ui-card overflow-hidden bg-white/40 border border-ui-line" style={{ aspectRatio: ASPECT[embed.aspect || '1:1'] }}>
-        {visible ? (
-          <iframe
-            src={embed.embedUrl}
-            title={`${embed.label}: ${title}`}
-            loading="lazy"
-            sandbox={sandboxFor(embed.kind)}
-            referrerPolicy="strict-origin-when-cross-origin"
-            allow="encrypted-media; picture-in-picture; fullscreen"
-            className="w-full h-full border-0"
-            // Browsers fire no error event for a frame; a frame that never loads hits the time limit.
-            onLoad={() => setLoaded(true)}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-xs text-ui-muted">{embed.label}</div>
-        )}
-      </div>
-      {embed.kind === 'drive' && <p className="text-xs text-ui-muted" data-testid="drive-note">{DRIVE_NOTE}</p>}
-    </div>
+    <>
+      <MediaBox size={size} boxRef={holder}>
+        {/* "safe center": centred when it fits, top-aligned (clipped at the bottom) when taller. */}
+        <div className="absolute inset-0 flex justify-center" style={{ alignItems: 'safe center' }} data-testid="media-stage">
+          {!visible ? (
+            <div className="self-center text-xs text-ui-muted">{embed.label}</div>
+          ) : isInstagram ? (
+            <iframe
+              {...frameProps}
+              className="block shrink-0 border-0 bg-white"
+              style={{ width: `${Math.min(IG_MAX_WIDTH, boxWidth)}px`, height: `${igHeight ?? instagramEmbedHeight(boxWidth)}px` }}
+            />
+          ) : (
+            <div
+              className="shrink-0"
+              data-testid="media-aspect"
+              style={{ aspectRatio: String(ratio), width: `min(100cqw, calc(100cqh * ${ratio}))` }}
+            >
+              <iframe {...frameProps} className="block w-full h-full border-0" />
+            </div>
+          )}
+        </div>
+      </MediaBox>
+      {below}
+    </>
   );
 };

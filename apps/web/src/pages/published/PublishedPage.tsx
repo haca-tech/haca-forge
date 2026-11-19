@@ -89,9 +89,7 @@ const PublishedDialog: React.FC<{ item: PublishedItem; onClose: () => void }> = 
             <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
-        <div className={item.embed.aspect === '9:16' ? 'max-w-[340px] mx-auto' : ''}>
-          <EmbedFrame embed={(item.preview || item).embed} caption={item.preview?.label} liveUrl={item.liveUrl} title={item.title} eager />
-        </div>
+        <EmbedFrame embed={(item.preview || item).embed} caption={item.preview?.label} liveUrl={item.liveUrl} title={item.title} eager size="large" />
         <Chips item={item} />
         <Credits credits={item.credits} />
         {href && (
@@ -232,16 +230,16 @@ export const PublishedPage: React.FC = () => {
         </div>
       )}
 
-      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4" aria-label="Published posts">
+      {/* Cards in a row stretch to the same height: 1 column on a phone, 2 on a tablet, 3–4 on a desktop. */}
+      <ul className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 items-stretch" aria-label="Published posts">
         {items.map((item) => (
-          <li key={item.id} className="glass-card rounded-ui-card p-3 space-y-2 min-w-0">
-            <div className={item.embed.aspect === '9:16' ? 'max-w-[300px] mx-auto' : ''}>
-              <EmbedFrame embed={(item.preview || item).embed} caption={item.preview?.label} liveUrl={item.liveUrl} title={item.title} />
-            </div>
+          <li key={item.id} className="glass-card rounded-ui-card p-3 flex flex-col gap-2 min-w-0 h-full">
+            <EmbedFrame embed={(item.preview || item).embed} caption={item.preview?.label} liveUrl={item.liveUrl} title={item.title} />
+            {/* Title (up to 2 lines) with the edit and expand buttons on its first line. */}
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-ui-ink break-words">
-                  <button type="button" className="text-left hover:underline min-h-[24px]" onClick={() => setOpen(item)}>
+              <div className="min-w-0 pt-3">
+                <h2 className="text-sm font-semibold leading-5 text-ui-ink break-words line-clamp-2">
+                  <button type="button" className="text-left hover:underline" title={item.title} onClick={() => setOpen(item)}>
                     {item.title}
                   </button>
                 </h2>
@@ -260,13 +258,13 @@ export const PublishedPage: React.FC = () => {
             </div>
             <Chips item={item} />
             <Credits credits={item.credits} />
-            {/* An embed can load yet show the site's own "not available" page; the original is always one tap away. */}
-            {(item.preview || item).embed.kind !== 'link' && safeHref(item.liveUrl) && (
+            {/* The card's only "Open original", pinned to the bottom (an embed can load yet show the site's own "not available" page). */}
+            {safeHref(item.liveUrl) && (
               <a
                 href={safeHref(item.liveUrl)!}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 min-h-[44px] text-xs font-semibold text-ui-ink underline underline-offset-2"
+                className="mt-auto self-start inline-flex items-center gap-1 min-h-[44px] text-xs font-semibold text-ui-ink underline underline-offset-2"
               >
                 Open original <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
                 <span className="sr-only">(opens in a new tab): {item.title}</span>
