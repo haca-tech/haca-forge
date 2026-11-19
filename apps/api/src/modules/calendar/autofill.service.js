@@ -1,53 +1,45 @@
 import {
   getPipelineForContent,
   calculateStageDueDate,
-  DEFAULT_STAGE_HOURS,
   isPostableWorkType,
   normalizeWorkType,
   WORKER_ROLE,
   effectiveStepsFor,
+  pickOwner,
+  withPlannedStep,
 } from '@mmp/shared';
 import { Person } from '../people/model.js';
-import { WorkItem } from '../workItems/model.js';
-import { pickOwner } from '../../lib/pickOwner.js';
-
-const OPEN_STATUSES = ['Not Started', 'In Progress', 'Feedback'];
+import { ownerCandidates } from '../workload/service.js';
 
 /**
- * Load everything autofill reads from the database, once.
- * Two queries in total, however many rows are being filled:
- * active team members and their open work items (open hours use `estimatedEffortHrs || 4`).
+ * Load everything autofill reads from the database, once, however many rows are filled:
+ * active workers and SM Managers with their open steps (step counts, no hours).
  *
- * Suggestions use only eligibility (the person's steps), availability (under 85% load)
- * and workload. Revision history is deliberately not a factor: it must never lower
- * anyone's chance of being suggested.
+ * Suggestions use the shared owner rule (pickOwner): eligible (the person's steps; Post is
+ * SM Managers only), fewest due in the step's 7-day window, fewest in progress, name, id.
+ * Revision history, ratings and speed are never factors.
  */
 export async function buildAutofillContext() {
-  // Workers for the creation steps, SM Managers for Post (Phase 12b). Each person's steps
-  // come from their job role, narrowed by their preferences (effectiveStepsFor).
   const members = await Person.find({ role: { $in: [WORKER_ROLE, 'sm_manager'] }, status: 'active' }).lean();
-  const ids = members.map((m) => m._id);
-
-  const openItems = await WorkItem.find({ ownerId: { $in: ids }, status: { $in: OPEN_STATUSES } })
-    .select('ownerId estimatedEffortHrs')
-    .lean();
-  const openHours = new Map();
-  for (const it of openItems) {
-    const k = String(it.ownerId);
-    openHours.set(k, (openHours.get(k) || 0) + (it.estimatedEffortHrs || 4));
-  }
-
+  const owners = await ownerCandidates(members);
   return {
-    candidates: members.map((member) => {
-      const k = String(member._id);
-      return {
-        member,
-        workPreferences: effectiveStepsFor(member),
-        capacity: member.weeklyCapacityHours || 40,
-        existingHours: openHours.get(k) || 0,
-      };
-    }),
+    candidates: owners.map((c) => ({ ...c, member: c.person, workPreferences: effectiveStepsFor(c.person) })),
   };
+}
+
+/**
+ * Steps already planned in this plan or run but not yet created as steps: each row's
+ * stage owners with their due dates. Rows whose steps exist are already counted.
+ */
+function plannedStepsFrom(rows) {
+  const planned = [];
+  for (const r of rows || []) {
+    if (r?.stagesGenerated) continue;
+    for (const st of Array.isArray(r?.stagePlan) ? r.stagePlan : []) {
+      if (st?.ownerId) planned.push({ ownerId: String(st.ownerId._id || st.ownerId), dueDate: st.dueDate || null });
+    }
+  }
+  return planned;
 }
 
 /**
@@ -58,7 +50,7 @@ export async function buildAutofillContext() {
  * @param {Date|string} input.postingDate Final posting date (F)
  * @param {boolean} [input.needsScript=false]
  * @param {boolean} [input.needsShoot=false]
- * @param {Array} [input.currentPlanRows=[]] Other rows in the same plan to include in draft load
+ * @param {Array} [input.currentPlanRows=[]] Other rows in the same plan (or run): their owners count
  * @param {Object} [input.context] From buildAutofillContext(); pass it when filling many rows
  * @returns {Promise<{ pipeline: string, hasPostStage: boolean, stages: Array, suggestedPostingOwner: Object|null }>}
  */
@@ -74,6 +66,7 @@ export async function autofillRowPlan({
   const ctx = context || (await buildAutofillContext());
   const normType = normalizeWorkType(type || 'Static Post');
   const finalDate = postingDate ? new Date(postingDate) : new Date();
+  const now = new Date();
 
   const pipelineInfo = getPipelineForContent({
     contentType: normType,
@@ -82,87 +75,63 @@ export async function autofillRowPlan({
     needsContent: needsContent !== false,
   });
 
-  // Calculate draft hours per person from other rows in current plan (in row order)
-  const draftHoursPerPerson = new Map();
-  for (const r of currentPlanRows) {
-    const rStages = Array.isArray(r.stagePlan) ? r.stagePlan : [];
-    for (const st of rStages) {
-      if (st.ownerId) {
-        const idStr = String(st.ownerId._id || st.ownerId);
-        const hrs = DEFAULT_STAGE_HOURS[st.stageKey] || 4;
-        draftHoursPerPerson.set(idStr, (draftHoursPerPerson.get(idStr) || 0) + hrs);
-      }
-    }
+  // A fresh copy per row: the plan's other rows count as planned steps, and each pick in
+  // this row is added before the next, so work spreads across the run.
+  let candidates = [...ctx.candidates];
+  for (const ps of plannedStepsFrom(currentPlanRows)) {
+    candidates = candidates.map((c) => (c.id === ps.ownerId ? withPlannedStep(c, ps.dueDate) : c));
   }
-
-  // Fresh per-row copy: the within-row increment below must not leak to the next row.
-  const candidatesData = ctx.candidates.map((c) => {
-    const draftHours = draftHoursPerPerson.get(c.member._id.toString()) || 0;
-    const totalHours = c.existingHours + draftHours;
-    return {
-      member: c.member,
-      workPreferences: c.workPreferences,
-      capacity: c.capacity,
-      workloadPct: c.capacity > 0 ? Math.round((totalHours / c.capacity) * 100) : 0,
-    };
-  });
-
-  // The shared owner rule (lib/pickOwner.js): eligible, under 85% load, lowest load, then name.
-  const pickBestCandidate = (stageKey) =>
-    pickOwner(candidatesData, {
-      eligible: (c) => c.workPreferences.includes(stageKey),
-      load: (c) => c.workloadPct,
-      name: (c) => c.member.name,
-      id: (c) => c.member._id,
-    });
+  const pickFor = (stageKey, dueDate) => {
+    const pick = pickOwner(candidates, { targetDue: dueDate, now, eligible: (c) => c.workPreferences.includes(stageKey) });
+    if (pick) candidates = candidates.map((c) => (c.id === pick.candidate.id ? withPlannedStep(c, dueDate) : c));
+    return pick;
+  };
 
   const stages = [];
   for (const stageKey of pipelineInfo.stages) {
-    const dueDate = calculateStageDueDate(
-      finalDate,
-      pipelineInfo.pipeline,
-      stageKey,
-      pipelineInfo.hasPostStage
+    const dueDate = calculateStageDueDate(finalDate, pipelineInfo.pipeline, stageKey, pipelineInfo.hasPostStage);
+    const pick = pickFor(stageKey, dueDate);
+    stages.push(
+      pick
+        ? {
+            stageKey,
+            ownerId: pick.candidate.id,
+            ownerName: pick.candidate.name,
+            dueDate,
+            ownerSource: 'suggested',
+            dueDateSource: 'auto',
+            reason: pick.reason,
+            overLimit: pick.overLimit,
+            warning: pick.warning,
+          }
+        : {
+            stageKey,
+            ownerId: null,
+            ownerName: null,
+            dueDate,
+            ownerSource: 'suggested',
+            dueDateSource: 'auto',
+            reason: 'No eligible person for this step',
+            overLimit: false,
+            warning: null,
+          },
     );
-
-    const best = pickBestCandidate(stageKey);
-
-    if (best) {
-      stages.push({
-        stageKey,
-        ownerId: best.member._id.toString(),
-        ownerName: best.member.name,
-        dueDate,
-        ownerSource: 'suggested',
-        dueDateSource: 'auto',
-        reason: `Lowest workload (${best.workloadPct}%)`,
-      });
-      // Increment candidate's draft hours so they aren't double-assigned within the same row
-      const stageHours = DEFAULT_STAGE_HOURS[stageKey] || 4;
-      best.workloadPct += Math.round((stageHours / best.capacity) * 100);
-    } else {
-      stages.push({
-        stageKey,
-        ownerId: null,
-        ownerName: null,
-        dueDate,
-        ownerSource: 'suggested',
-        dueDateSource: 'auto',
-        reason: 'No available person with this role',
-      });
-    }
   }
 
-  // If postable, also suggest posting owner
+  // If postable, also suggest posting owner (Post: SM Managers only, by eligibility).
   let suggestedPostingOwner = null;
   if (isPostableWorkType(normType)) {
-    const postCandidate = pickBestCandidate('Post');
-    if (postCandidate) {
+    const postStage = stages.find((s) => s.stageKey === 'Post');
+    const postPick = postStage?.ownerId
+      ? { candidate: candidates.find((c) => c.id === postStage.ownerId), reason: postStage.reason, warning: postStage.warning }
+      : pickFor('Post', finalDate);
+    if (postPick?.candidate) {
       suggestedPostingOwner = {
-        _id: postCandidate.member._id.toString(),
-        name: postCandidate.member.name,
-        email: postCandidate.member.email,
-        reason: `Lowest workload (${postCandidate.workloadPct}%)`,
+        _id: postPick.candidate.id,
+        name: postPick.candidate.name,
+        email: postPick.candidate.member?.email,
+        reason: postPick.reason,
+        warning: postPick.warning || null,
       };
     }
   }

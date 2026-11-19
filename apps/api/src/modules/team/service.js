@@ -10,6 +10,7 @@ import { WorkItem } from '../workItems/model.js';
 import { Rating } from '../submissions/model.js';
 import { ActivityEvent } from '../activity/model.js';
 import { PersonChangeAudit } from './audit.model.js';
+import { workloadByPerson, workloadOfPerson } from '../workload/service.js';
 import { evaluateSteps } from '../workItems/timeLabels.js';
 import { oneRatingPerStep } from '../submissions/ratingsPerStep.js';
 import { Session } from '../auth/session.model.js';
@@ -18,6 +19,7 @@ import { getRatingsSummary } from '../submissions/service.js';
 import { disconnectUserSockets } from '../../lib/socketHub.js';
 import { calculateIndividualWorkMeasures, formatDuration, normalizeRole, ROLE_LABELS, submittedWorkTimeMs, hasTimeLabel, workerOnTime, ratingAverage, isFirstPassApproval, isFirstPassCandidate, ROLE_KEYS, APPROVER_ROLES, isApprover, isReadOnlyViewer, isWorker, canSeeContactDetails,
   decisionCalendarsFor,
+  istDateKey,
 } from '@mmp/shared';
 
 /**
@@ -83,6 +85,8 @@ export async function getTeamDirectory(query = {}, actor) {
     .lean();
 
   const now = new Date();
+  // Workload (step counts), one definition everywhere.
+  const workloads = await workloadByPerson(people, now);
 
   // Enhance each person with operational load, active counts, and current step
   const enhancedList = await Promise.all(
@@ -145,8 +149,10 @@ export async function getTeamDirectory(query = {}, actor) {
         department: person.departmentId || null,
         status: person.status,
         weeklyCapacityHours: capacity,
+        // Deprecated (hours based), kept for one release while a screen still reads them.
         loadPct,
         capacityBand: band,
+        workload: workloads.get(String(person._id)),
         currentStep,
         counts: {
           inProgress,
@@ -160,18 +166,18 @@ export async function getTeamDirectory(query = {}, actor) {
   // late work is found by step, in the Tracker's Overdue and Done late filters.)
   let filtered = enhancedList;
   if (loadBand && loadBand !== 'all') {
-    filtered = filtered.filter((p) => p.capacityBand.toLowerCase() === loadBand.toLowerCase());
+    const want = String(loadBand).toLowerCase();
+    filtered = ['available', 'busy', 'over'].includes(want)
+      ? filtered.filter((p) => String(p.workload?.band || '').toLowerCase() === want)
+      : filtered.filter((p) => p.capacityBand.toLowerCase() === want);
   }
 
-  // Whitelist Sorting ONLY: name, department, jobRole, load
-  const allowedSortKeys = ['name', 'department', 'jobRole', 'load'];
+  // Whitelist sorting: name, department, jobRole. Never by load (workload is not a ranking).
+  const allowedSortKeys = ['name', 'department', 'jobRole'];
   const effectiveSortKey = allowedSortKeys.includes(sortBy) ? sortBy : 'name';
   const multiplier = sortDir === 'desc' ? -1 : 1;
 
   filtered.sort((a, b) => {
-    if (effectiveSortKey === 'load') {
-      return (a.loadPct - b.loadPct) * multiplier;
-    }
     if (effectiveSortKey === 'department') {
       const deptA = a.department?.name || '';
       const deptB = b.department?.name || '';
@@ -241,6 +247,7 @@ export async function getPersonBaseProfile(targetPersonId, actor) {
 
   const inProgress = openItems.filter((it) => it.status === 'In Progress').length;
   const waitingApproval = openItems.filter((it) => it.awaitingReview).length;
+  const workload = await workloadOfPerson(person, now);
 
   // Completed steps for on-time rate
   const completedItems = await WorkItem.find({
@@ -289,9 +296,12 @@ export async function getPersonBaseProfile(targetPersonId, actor) {
     email: hideContact ? null : person.email,
     phone: hideContact ? null : person.phone || '',
     whatsappNumber: hideContact ? null : person.whatsappNumber || '',
+    activeStepLimit: workload.limit,
     kpis: {
+      // Deprecated (hours based), kept for one release while a screen still reads them.
       loadPct,
       capacityBand,
+      workload,
       inProgressCount: inProgress,
       waitingApprovalCount: waitingApproval,
       lateCount: late,
@@ -413,8 +423,18 @@ export async function getPersonOverview(targetPersonId, actor, query = {}) {
       ((weekStart - new Date(weekStart.getFullYear(), 0, 1)) / 86400000 + 1) / 7
     );
 
+    // Steps due that week (IST days), any status except skipped: the workload trend.
+    const startKey = istDateKey(weekStart);
+    const endKey = istDateKey(weekEnd);
+    const stepsDue = allAssigned.filter((it) => {
+      if (it.isSkipped) return false;
+      const key = istDateKey(it.dueDate || it.deadline);
+      return Boolean(key) && key >= startKey && key <= endKey;
+    }).length;
+
     loadTrend.push({
       weekLabel: `W${weekNumber}`,
+      stepsDue,
       weekNumber,
       year: weekStart.getFullYear(),
       startDate: weekStart.toISOString(),
@@ -927,8 +947,20 @@ export async function updatePersonDetails(targetPersonId, updates, actor) {
     if (eligiblePrefs !== undefined) updates = { ...updates, workPreferences: eligiblePrefs };
   }
 
+  // Active-step limit (workload): admin and the leads, a whole number from 1 to 20.
+  if (updates.activeStepLimit !== undefined) {
+    const limit = Number(updates.activeStepLimit);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 20) {
+      const error = new Error('The limit must be a whole number from 1 to 20.');
+      error.code = 'INVALID_LIMIT';
+      error.statusCode = 400;
+      throw error;
+    }
+    updates = { ...updates, activeStepLimit: limit };
+  }
+
   // Audit log tracking for operational fields
-  const trackedFields = ['jobRole', 'departmentId', 'workPreferences', 'weeklyCapacityHours'];
+  const trackedFields = ['jobRole', 'departmentId', 'workPreferences', 'weeklyCapacityHours', 'activeStepLimit'];
   const auditEntries = [];
 
   for (const field of trackedFields) {

@@ -6,13 +6,14 @@ import {
   STAGE_KEYS,
   VALIDATION_ERROR_CODES,
   VALIDATION_WARNING_CODES,
-  DEFAULT_STAGE_HOURS,
+  pickOwner,
+  withPlannedStep,
   sourceVideoLinkError,
   WORKER_ROLE,
   effectiveStepsFor,
 } from '@mmp/shared';
 import { Person } from '../people/model.js';
-import { WorkItem } from '../workItems/model.js';
+import { ownerCandidates } from '../workload/service.js';
 
 /**
  * Standard start-of-day for comparison
@@ -70,7 +71,8 @@ export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting =
   const rowSignatures = new Map();
 
   // Accumulate draft hours per person to detect workload saturation warnings
-  const personAllocatedDraftHours = new Map();
+  // Each person's planned steps in these rows (due date, row), for the over-limit warning.
+  const plannedByPerson = new Map();
 
   // Validate each row
   for (let idx = 0; idx < rows.length; idx++) {
@@ -296,10 +298,12 @@ export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting =
             }
           }
 
-          // Accumulate hours for workload saturation warning
-          const stageHours = DEFAULT_STAGE_HOURS[st.stageKey] || 4;
-          const currentHours = personAllocatedDraftHours.get(ownerIdStr) || 0;
-          personAllocatedDraftHours.set(ownerIdStr, currentHours + stageHours);
+          // Planned step for the over-limit warning (rows whose steps exist are already counted).
+          if (!row.stagesGenerated) {
+            const list = plannedByPerson.get(ownerIdStr) || [];
+            list.push({ dueDate: st.dueDate || null, rowNum, topic });
+            plannedByPerson.set(ownerIdStr, list);
+          }
         }
       }
     }
@@ -321,28 +325,27 @@ export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting =
     }
   }
 
-  // Warning 2: Workload Saturation (> 85%)
-  for (const [personId, draftHours] of personAllocatedDraftHours.entries()) {
-    const member = membersById.get(personId);
-    if (member) {
-      const capacity = member.weeklyCapacityHours || 40;
-      // Get existing open work hours
-      const openItems = await WorkItem.find({
-        ownerId: member._id,
-        status: { $in: ['Not Started', 'In Progress', 'Feedback'] },
-      }).select('estimatedEffortHrs').lean();
-      const existingHours = openItems.reduce((acc, it) => acc + (it.estimatedEffortHrs || 4), 0);
-      const totalHours = existingHours + draftHours;
-      const totalPct = capacity > 0 ? Math.round((totalHours / capacity) * 100) : 0;
-
-      if (totalPct >= 85) {
-        warnings.push({
-          rowNumber: 0,
-          topic: 'Team Load',
-          field: 'stagePlan.ownerId',
-          code: VALIDATION_WARNING_CODES.WORKLOAD_SATURATION,
-          message: `${member.name} will reach ${totalPct}% workload with these assignments (>= 85%).`,
-        });
+  // Warning 2: over the active-step limit, from the shared owner rule (pickOwner), the same
+  // warning autofill and Recommended Owner give. One warning per person and week.
+  if (plannedByPerson.size > 0) {
+    const people = [...plannedByPerson.keys()].map((id) => membersById.get(id)).filter(Boolean);
+    const candidates = await ownerCandidates(people);
+    for (let candidate of candidates) {
+      const seen = new Set();
+      const planned = [...(plannedByPerson.get(candidate.id) || [])].sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
+      for (const p of planned) {
+        const pick = pickOwner([candidate], { targetDue: p.dueDate });
+        if (pick?.warning && !seen.has(pick.warning)) {
+          seen.add(pick.warning);
+          warnings.push({
+            rowNumber: p.rowNum,
+            topic: p.topic,
+            field: 'stagePlan.ownerId',
+            code: VALIDATION_WARNING_CODES.WORKLOAD_SATURATION,
+            message: pick.warning,
+          });
+        }
+        candidate = withPlannedStep(candidate, p.dueDate);
       }
     }
   }

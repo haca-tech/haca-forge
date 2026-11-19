@@ -17,7 +17,7 @@ const personChangeAuditSchema = new mongoose.Schema(
     field: {
       type: String,
       required: true,
-      enum: ['jobRole', 'departmentId', 'workPreferences', 'weeklyCapacityHours'],
+      enum: ['jobRole', 'departmentId', 'workPreferences', 'weeklyCapacityHours', 'activeStepLimit'],
     },
     oldValue: {
       type: mongoose.Schema.Types.Mixed,

@@ -23,7 +23,6 @@ import { calculatePersonPerformance, calculateTeamPerformance } from '../src/mod
 import { revisionNoteFor } from '../src/modules/workItems/reviewState.js';
 import { revisionsLabel } from '../src/modules/reviewHub/service.js';
 import { recommendAssignee, calculateMemberWorkloadMetrics } from '../src/modules/assignment/service.js';
-import { pickOwner, compareOwners } from '../src/lib/pickOwner.js';
 
 const EMAIL = /@review-hub-test\.com$/;
 const TAG = 'RHUBT';
@@ -221,7 +220,7 @@ describe('Review Hub', () => {
       expect(await Submission.countDocuments({ submittedById: P[first]._id, status: 'changes_requested' })).toBe(5);
       const after = await suggest();
       expect(after).toEqual(before);
-      expect(after.reason).toBe(`Lowest workload (${before.reason.match(/\((\d+)%\)/)[1]}%)`);
+      expect(after.reason).toMatch(/^Fewest due /);
       expect((await pair()).candidates.every((c) => !('revisionsCount' in c))).toBe(true);
     });
 
@@ -249,25 +248,11 @@ describe('Review Hub', () => {
       expect(after.candidatePool.every((c) => !('avgRevisions' in c))).toBe(true);
     });
 
-    it('pickOwner: one rule for every suggestion (eligible, under 85%, lowest load, then name, then id)', () => {
-      const read = { load: (c) => c.pct, name: (c) => c.name, id: (c) => c.id, eligible: (c) => c.ok };
-      const people = [
-        { id: '5', name: 'zed', pct: 10, ok: true },
-        { id: '4', name: 'Amy', pct: 10, ok: true },
-        { id: '3', name: 'amy', pct: 10, ok: true },
-        { id: '2', name: 'Bo', pct: 5, ok: false },
-        { id: '1', name: 'Cy', pct: 85, ok: true },
-      ];
-      expect(pickOwner(people, read).id).toBe('3'); // Bo not eligible, Cy not available; Amy/amy tie by name, then id
-      expect(pickOwner(people.slice(0, 1).concat(people.slice(4)), read).id).toBe('5');
-      expect(pickOwner([people[4]], read)).toBeNull();
-      expect([...people].reverse().sort(compareOwners(read)).map((p) => p.id)).toEqual(['2', '3', '4', '5', '1']);
-    });
-
     it('Recommended Owner, autofill and import agree on the same person', async () => {
-      const rec = await recommendAssignee({ stageKey: 'Edit', estimatedEffortHrs: 4 }, P.admin);
       const plan = await autofillRowPlan({ type: 'Reel', postingDate: new Date(Date.now() + 10 * 86400000) });
-      expect(plan.stages.find((st) => st.stageKey === 'Edit').ownerId).toBe(String(rec.recommendedPerson._id));
+      const edit = plan.stages.find((st) => st.stageKey === 'Edit');
+      const rec = await recommendAssignee({ stageKey: 'Edit', deadline: edit.dueDate }, P.admin);
+      expect(edit.ownerId).toBe(String(rec.recommendedPerson._id));
     });
 
     it('reviewer turnaround: submit to decision on the versions the person decided', async () => {

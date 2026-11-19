@@ -1135,12 +1135,8 @@ export async function generateStagesForApprovedRow(piece, user) {
           },
           user
         );
-        if (
-          rec &&
-          rec.recommendedPerson &&
-          !rec.isOverloadWarning &&
-          (rec.recommendedMetrics?.workloadPct ?? 0) < 85
-        ) {
+        // Over-limit picks are still recommended (the warning shows where it is used).
+        if (rec && rec.recommendedPerson) {
           stageItem.recommendedOwnerId = rec.recommendedPerson._id;
           await stageItem.save();
         }

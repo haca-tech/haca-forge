@@ -7,6 +7,18 @@ import { logActivity } from '../activity/service.js';
 import { syncUserTeamChatMembership } from '../chat/service.js';
 import { normalizeRole, APPROVER_ROLES, READ_ONLY_VIEWER_ROLES, WORKER_ROLE, isApprover, isReadOnlyViewer, isWorker, canSeeContactDetails } from '@mmp/shared';
 
+/** Active-step limit (workload): a whole number from 1 to 20, else 400. */
+function validLimit(value) {
+  const limit = Number(value);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 20) {
+    const error = new Error('The limit must be a whole number from 1 to 20.');
+    error.code = 'INVALID_LIMIT';
+    error.statusCode = 400;
+    throw error;
+  }
+  return limit;
+}
+
 export async function listPeople({ actor, filters = {}, excludeAdmin = false }) {
   const scope = await resolveScope(actor, filters);
   if (!scope.isAllowed) {
@@ -211,7 +223,7 @@ export async function updatePerson(id, updates, actor) {
     }
 
     if (updates.email || updates.password || updates.name) {
-      const error = new Error('Forbidden: a lead can only edit operational fields (department, jobRole, workPreferences, weeklyCapacityHours)');
+      const error = new Error('Forbidden: a lead can only edit operational fields (department, jobRole, workPreferences, weeklyCapacityHours, activeStepLimit)');
       error.code = 'FORBIDDEN';
       error.statusCode = 403;
       throw error;
@@ -222,6 +234,7 @@ export async function updatePerson(id, updates, actor) {
     if (updates.jobRole !== undefined) target.jobRole = updates.jobRole;
     if (updates.reportsToIds !== undefined) target.reportsToIds = updates.reportsToIds;
     if (updates.weeklyCapacityHours !== undefined) target.weeklyCapacityHours = updates.weeklyCapacityHours;
+    if (updates.activeStepLimit !== undefined) target.activeStepLimit = validLimit(updates.activeStepLimit);
     if (eligiblePrefs !== undefined) target.workPreferences = eligiblePrefs;
   } else if (actorRole === 'admin') {
     // Admin has full control
@@ -233,6 +246,7 @@ export async function updatePerson(id, updates, actor) {
     if (updates.departmentId !== undefined) target.departmentId = updates.departmentId;
     if (updates.reportsToIds !== undefined) target.reportsToIds = updates.reportsToIds;
     if (updates.weeklyCapacityHours !== undefined) target.weeklyCapacityHours = updates.weeklyCapacityHours;
+    if (updates.activeStepLimit !== undefined) target.activeStepLimit = validLimit(updates.activeStepLimit);
     if (eligiblePrefs !== undefined) target.workPreferences = eligiblePrefs;
 
     if (updates.password) {

@@ -246,8 +246,9 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
       expect(rec.recommendedPerson._id.toString()).toBe(memberDesignA._id.toString());
       expect(rec.isOverloadWarning).toBe(false);
       expect(rec.rationale).toContain('Designer Alice');
-      expect(rec.rationale).toContain('lowest current workload (25%)');
-      expect(rec.rationale).toContain('available bandwidth');
+      // Step counts, not hours or percentages (Simple workload).
+      expect(rec.rationale).toMatch(/Fewest due this week \(\d+\), \d+ in progress/);
+      expect(rec.rationale).not.toMatch(/%|h|hours|bandwidth/);
     });
 
     it('strictly excludes admin users from candidate recommendation pool', async () => {
@@ -277,50 +278,34 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
       expect(rec.recommendedPerson).toBeDefined();
     });
 
-    it('flags overload warning when all available candidates are overloaded', async () => {
-      // Overload memberDesignA as well
-      const tempTask1 = await WorkItem.create({
-        profileId: profileHaca._id,
-        title: 'Alice Overload Task',
-        workType: 'Ad Creative',
-        departmentId: deptDesign._id,
-        ownerId: memberDesignA._id,
-        deadline: new Date('2026-11-20'),
-        estimatedEffortHrs: 30, // Now 10 + 30 = 40h = 100%
-        status: 'In Progress',
-        priority: 'High',
-        createdBy: leadUser._id,
-      });
-
-      // Overload leadUser as well so all candidates in dept are > 85%
-      const tempTask2 = await WorkItem.create({
-        profileId: profileHaca._id,
-        title: 'Lead Overload Task',
-        workType: 'Ad Creative',
-        departmentId: deptDesign._id,
-        ownerId: leadUser._id,
-        deadline: new Date('2026-11-20'),
-        estimatedEffortHrs: 40, // 40h = 100%
-        status: 'In Progress',
-        priority: 'High',
-        createdBy: leadUser._id,
-      });
-
-      const rec = await recommendAssignee(
-        {
-          departmentId: deptDesign._id.toString(),
+    it('still names someone, with an over-limit warning, when everyone is over their limit', async () => {
+      const criteria = { departmentId: deptDesign._id.toString(), workType: 'Ad Creative', profileId: profileHaca._id.toString() };
+      const pool = (await recommendAssignee(criteria, leadUser)).candidatePool.map((c) => c.person._id);
+      // Everyone in the pool: limit 1 and one step due tomorrow, so this step takes them over.
+      await Person.updateMany({ _id: { $in: pool } }, { $set: { activeStepLimit: 1 } });
+      const temp = await WorkItem.insertMany(
+        pool.map((id) => ({
+          profileId: profileHaca._id,
+          title: 'Over limit task',
           workType: 'Ad Creative',
-          profileId: profileHaca._id.toString(),
-          estimatedEffortHrs: 8,
-        },
-        leadUser
+          departmentId: deptDesign._id,
+          ownerId: id,
+          deadline: new Date(Date.now() + 86400000),
+          dueDate: new Date(Date.now() + 86400000),
+          status: 'In Progress',
+          priority: 'High',
+          createdBy: leadUser._id,
+        }))
       );
 
+      const rec = await recommendAssignee(criteria, leadUser);
+      expect(rec.recommendedPerson).toBeDefined();
       expect(rec.isOverloadWarning).toBe(true);
-      expect(rec.rationale).toContain('Capacity Warning');
+      expect(rec.overLimitWarning).toMatch(/^Over limit: .+ has \d+ due this week\.$/);
+      expect(rec.rationale).toContain(rec.overLimitWarning);
 
-      // Cleanup temp tasks
-      await WorkItem.deleteMany({ _id: { $in: [tempTask1._id, tempTask2._id] } });
+      await WorkItem.deleteMany({ _id: { $in: temp.map((t) => t._id) } });
+      await Person.updateMany({ _id: { $in: pool } }, { $unset: { activeStepLimit: 1 } });
     });
   });
 
@@ -497,7 +482,6 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
       expect(rec.stageKey).toBe('Edit');
       expect(rec.recommendedPerson.name).toBe('Editor Emma');
       expect(rec.rationale).toContain('matched work preference "Edit"');
-      expect(rec.rationale).toContain('brand access');
 
       // The candidate pool must contain Emma (has Edit preference) and NOT Alice (only Design/Content)
       const candidateNames = rec.candidatePool.map((c) => c.person.name);

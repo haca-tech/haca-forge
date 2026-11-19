@@ -6,9 +6,9 @@ import { Department } from '../departments/model.js';
 import { WorkItem } from '../workItems/model.js';
 import { resolveScope } from '../../lib/scope.js';
 import { logActivity } from '../activity/service.js';
-import { WORK_TYPE_DEPARTMENT_MAP, READ_ONLY_VIEWER_ROLES, isWorker, effectiveStepsFor, WORKER_ROLE, APPROVER_ROLES } from '@mmp/shared';
+import { WORK_TYPE_DEPARTMENT_MAP, READ_ONLY_VIEWER_ROLES, isWorker, effectiveStepsFor, WORKER_ROLE, APPROVER_ROLES, workloadFor } from '@mmp/shared';
 import { resolveProfileObjectId } from '../referenceData/service.js';
-import { compareOwners, isAvailable } from '../../lib/pickOwner.js';
+import { ownerCandidates, pickOwner } from '../workload/service.js';
 
 /**
  * Calculate member workload metrics and capacity bands
@@ -67,9 +67,11 @@ export async function calculateMemberWorkloadMetrics(personId, personDoc = null)
 
 /**
  * Auto-Assignment Recommendation Engine
- * Recommends an assignee from eligibility (step or department), availability and workload only.
- * Revision history, ratings and speed are deliberately not factors: they must never lower
- * anyone's chance of being recommended. Never assigns silently; returns a readable rationale.
+ * Recommends an assignee with the shared owner rule (pickOwner in @mmp/shared): eligible
+ * (step or department), team members first, then fewest steps due in the target step's
+ * 7-day window, fewest in progress, name, id. Nobody is left out for load: when everyone is
+ * over their limit the pick still comes back, with an over-limit warning. Revision history,
+ * ratings and speed are never factors. Never assigns silently; returns a readable rationale.
  */
 export async function recommendAssignee(criteria = {}, user) {
   const {
@@ -83,12 +85,14 @@ export async function recommendAssignee(criteria = {}, user) {
 
   let effectiveStageKey = stageKey || null;
 
-  // Infer stageKey from existing work item if provided
+  let targetDue = deadline || null;
+  // Infer stageKey (and the due date) from existing work item if provided
   if (workItemId && mongoose.Types.ObjectId.isValid(workItemId)) {
     const item = await WorkItem.findById(workItemId);
     if (item && !effectiveStageKey && item.stageKey) {
       effectiveStageKey = item.stageKey;
     }
+    if (item && !targetDue) targetDue = item.dueDate || item.deadline || null;
   }
 
   let candidates = [];
@@ -143,67 +147,50 @@ export async function recommendAssignee(criteria = {}, user) {
     };
   }
 
-  // 3. Compute Metrics for each candidate
-  const candidatePool = [];
-  for (const candidate of candidates) {
-    const metrics = await calculateMemberWorkloadMetrics(candidate._id, candidate);
-
-    // Can fit test
-    const newWorkloadPct = Math.round(((metrics.allocatedHours + estimatedEffortHrs) / metrics.capacity) * 100);
-    const canAccommodate = metrics.availableHours >= estimatedEffortHrs;
-
-    candidatePool.push({
-      ...metrics,
-      newWorkloadPct,
-      canAccommodate,
-    });
-  }
-
-  // 4. Rank candidates: available people first, team members before others, then the shared
-  // owner rule (lib/pickOwner.js: lowest workload %, then name). When nobody is available the
-  // least-loaded person is still shown, with a capacity warning.
-  const byOwnerRule = compareOwners({ load: (c) => c.workloadPct, name: (c) => c.person.name, id: (c) => c.person._id });
-  candidatePool.sort((a, b) => {
-    const aFree = isAvailable(a.workloadPct);
-    const bFree = isAvailable(b.workloadPct);
-    if (aFree !== bFree) return aFree ? -1 : 1;
-    const aIsMember = isWorker(a.person.role);
-    const bIsMember = isWorker(b.person.role);
-    if (aIsMember !== bIsMember) return aIsMember ? -1 : 1;
-    return byOwnerRule(a, b);
-  });
-
-  const bestCandidate = candidatePool[0];
+  // 3. Workload (step counts) for each candidate, then the shared owner rule.
+  const now = new Date();
+  const owners = await ownerCandidates(candidates);
+  const members = owners.filter((c) => isWorker(c.person.role));
+  const pick = pickOwner(members, { targetDue, now }) || pickOwner(owners, { targetDue, now });
+  const best = pick.candidate;
   const deptLabel = targetDepartment ? targetDepartment.name : 'Marketing Operations';
 
-  // 5. Generate Explainable Rationale
-  let rationale = '';
-  const isOverloadWarning = !isAvailable(bestCandidate.workloadPct);
-
-  if (effectiveStageKey) {
-    if (isOverloadWarning) {
-      rationale = `Recommended Owner: ${bestCandidate.person.name} (Capacity Warning: ${bestCandidate.workloadPct}% current workload). All candidates with "${effectiveStageKey}" work preference exceed healthy bandwidth.`;
-    } else {
-      rationale = `Recommended Owner: ${bestCandidate.person.name}. Reason: matched work preference "${effectiveStageKey}" + brand access + lowest current workload (${bestCandidate.workloadPct}%) + ${bestCandidate.availableHours}h available bandwidth.`;
-    }
-  } else {
-    if (isOverloadWarning) {
-      rationale = `Recommended Owner: ${bestCandidate.person.name} (Capacity Warning: ${bestCandidate.workloadPct}% current workload). All candidates in ${deptLabel} exceed healthy bandwidth.`;
-    } else {
-      rationale = `Recommended Owner: ${bestCandidate.person.name}. Reason: lowest current workload (${bestCandidate.workloadPct}%) + suitable skill in ${deptLabel} + ${bestCandidate.availableHours}h available bandwidth.`;
-    }
+  // The pool, by name (never ranked by load). Hours-based fields are deprecated, kept for
+  // one release while a screen still reads them.
+  const candidatePool = [];
+  for (const c of [...owners].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'en', { sensitivity: 'base' }))) {
+    const legacy = await calculateMemberWorkloadMetrics(c.person._id, c.person);
+    candidatePool.push({
+      ...legacy,
+      newWorkloadPct: Math.round(((legacy.allocatedHours + estimatedEffortHrs) / legacy.capacity) * 100),
+      canAccommodate: legacy.availableHours >= estimatedEffortHrs,
+      workload: workloadFor(c, c.steps, now),
+      recommended: c.id === best.id,
+    });
   }
+  const bestEntry = candidatePool.find((c) => c.recommended);
+
+  // 4. Explainable rationale
+  const isOverloadWarning = pick.overLimit;
+  const why = effectiveStageKey ? `matched work preference "${effectiveStageKey}"` : `suitable skill in ${deptLabel}`;
+  const rationale = `Recommended Owner: ${best.name}. Reason: ${why}; ${pick.reason}.${pick.warning ? ` ${pick.warning}` : ''}`;
 
   return {
-    recommendedPerson: bestCandidate.person,
+    recommendedPerson: bestEntry.person,
     recommendedMetrics: {
-      workloadPct: bestCandidate.workloadPct,
-      capacityBand: bestCandidate.capacityBand,
-      allocatedHours: bestCandidate.allocatedHours,
-      availableHours: bestCandidate.availableHours,
-      newWorkloadPct: bestCandidate.newWorkloadPct,
+      ...bestEntry.workload,
+      dueInWindow: pick.dueInWindow,
+      overLimit: pick.overLimit,
+      // Deprecated (hours based), kept for one release.
+      workloadPct: bestEntry.workloadPct,
+      capacityBand: bestEntry.capacityBand,
+      allocatedHours: bestEntry.allocatedHours,
+      availableHours: bestEntry.availableHours,
+      newWorkloadPct: bestEntry.newWorkloadPct,
     },
     rationale,
+    reason: pick.reason,
+    overLimitWarning: pick.warning,
     stageKey: effectiveStageKey,
     department: targetDepartment,
     candidatePool,
@@ -288,7 +275,8 @@ export async function getTeamWorkload(filters = {}, user) {
     personQuery.departmentId = filters.departmentId;
   }
 
-  if (scope.allowedPersonIds && scope.allowedPersonIds.length > 0) {
+  // An empty list means nobody (not everybody).
+  if (scope.allowedPersonIds) {
     personQuery._id = { $in: scope.allowedPersonIds };
   }
 
@@ -373,8 +361,8 @@ export async function getTeamWorkload(filters = {}, user) {
         group.totalCapacityHours > 0
           ? Math.round((group.totalAllocatedHours / group.totalCapacityHours) * 100)
           : 0;
-      // Sort members by workload descending
-      group.members.sort((a, b) => b.workloadPct - a.workloadPct);
+      // By name: workload is a planning tool, never a ranking.
+      group.members.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'en', { sensitivity: 'base' }));
       departmentsResult.push(group);
     }
   }

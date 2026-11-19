@@ -11,7 +11,7 @@ import { ActivityEvent } from '../activity/model.js';
 import { sendMail, templates } from '../../lib/mailer.js';
 import { createNotification } from '../notifications/service.js';
 import { logger } from '../../lib/logger.js';
-import { normalizeRole, isApprover, isReadOnlyViewer, isWorker } from '@mmp/shared';
+import { normalizeRole, isApprover, isReadOnlyViewer, isWorker, activeStepLimitOf } from '@mmp/shared';
 import { AccessRequest } from '../access/model.js';
 import { CalendarPlan } from '../calendar/plan.model.js';
 import { WorkItem } from '../workItems/model.js';
@@ -86,8 +86,11 @@ export async function getProfile(userId) {
       ownerId: userId,
       status: { $nin: ['Approved', 'Published'] },
     }).catch(() => 0);
+    const { workloadOfPerson } = await import('../workload/service.js');
+    const workload = await workloadOfPerson(user).catch(() => null);
     rolePanelData = {
-      memberMetrics: { myCurrentStepsCount, capacityBand: 'Balanced', onTimeRate: 100 },
+      // capacityBand is the real band now (Available, Busy or Over), from workloadFor.
+      memberMetrics: { myCurrentStepsCount, capacityBand: workload?.band || 'Available', workload, onTimeRate: 100 },
     };
   }
 
@@ -112,6 +115,7 @@ export async function getProfile(userId) {
     about: user.about || '',
     skills: Array.isArray(user.skills) ? user.skills : [],
     weeklyCapacityHours: user.weeklyCapacityHours || user.capacity || 40,
+    activeStepLimit: activeStepLimitOf(user),
     workPreferences: Array.isArray(user.workPreferences) ? user.workPreferences : [],
     rolePanelData,
     preferences: user.preferences || {

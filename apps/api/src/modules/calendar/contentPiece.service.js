@@ -282,8 +282,8 @@ export async function listContentPieces(filters = {}, user) {
 }
 
 /**
- * Recommend owners for stages of a content piece
- * Excludes overloaded members (workload >= 85%)
+ * Recommend owners for stages of a content piece (the shared owner rule). Nobody is left
+ * out for load: an over-limit pick is still recommended, with its warning.
  */
 export async function recommendOwnersForPiece(pieceId, user) {
   const piece = await ContentPiece.findById(pieceId);
@@ -310,15 +310,8 @@ export async function recommendOwnersForPiece(pieceId, user) {
       user
     );
 
-    // Overload guard: if recommended candidate workload >= 85%, strictly exclude
-    let recommendedPerson = rec?.recommendedPerson || null;
-    const workloadPct = rec?.recommendedMetrics?.workloadPct ?? 0;
-    let rationale = rec?.rationale || 'Needs owner';
-
-    if (recommendedPerson && (workloadPct >= 85 || rec?.isOverloadWarning)) {
-      recommendedPerson = null;
-      rationale = 'All candidates with matching work preference are currently overloaded (>=85%). Needs owner.';
-    }
+    const recommendedPerson = rec?.recommendedPerson || null;
+    const rationale = rec?.rationale || 'Needs owner';
 
     recommendations.push({
       workItemId: st._id,
@@ -327,7 +320,10 @@ export async function recommendOwnersForPiece(pieceId, user) {
       currentOwner: st.ownerId,
       recommendedPerson,
       rationale,
-      candidatePool: (rec?.candidatePool || []).filter((c) => c.workloadPct < 85),
+      reason: rec?.reason || null,
+      overLimitWarning: rec?.overLimitWarning || null,
+      recommendedWorkload: recommendedPerson ? rec.recommendedMetrics : null,
+      candidatePool: rec?.candidatePool || [],
     });
   }
 

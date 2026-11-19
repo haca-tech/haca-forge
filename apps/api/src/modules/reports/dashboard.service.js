@@ -8,6 +8,7 @@ import { ActivityEvent } from '../activity/model.js';
 import { CalendarPlan } from '../calendar/plan.model.js';
 import { ContentPiece } from '../calendar/contentPiece.model.js';
 import { calculateMemberWorkloadMetrics } from '../assignment/service.js';
+import { workloadByPerson, bandCounts as workloadBandCounts } from '../workload/service.js';
 import { resolveScope } from '../../lib/scope.js';
 import { derivePlanStatus, WORKER_ROLE, isWorker } from '@mmp/shared';
 
@@ -254,7 +255,7 @@ export async function getDashboardOverview(filters = {}, user) {
   }
 
   const activePeople = await Person.find(personQuery)
-    .select('_id name email role jobRole departmentId weeklyCapacityHours')
+    .select('_id name email role jobRole departmentId weeklyCapacityHours activeStepLimit')
     .populate('departmentId', 'name code')
     .lean();
 
@@ -298,8 +299,12 @@ export async function getDashboardOverview(filters = {}, user) {
   const avgWorkloadPct =
     activePeople.length > 0 ? Math.round(sumWorkloadPct / activePeople.length) : 0;
 
+  // Workload (step counts): band summary for the dashboard chips.
+  const workloads = await workloadByPerson(activePeople);
   const workloadSnapshot = {
     totalMembers: activePeople.length,
+    bands: workloadBandCounts([...workloads.values()]),
+    // Deprecated (hours based), kept for one release while a screen still reads them.
     avgWorkloadPct,
     bandCounts: {
       healthy: healthyCount,

@@ -44,7 +44,7 @@ import dashboardRoutes from "./modules/reports/dashboard.routes.js";
 import docsRoutes from "./modules/docs/routes.js";
 import workItemRoutes from "./modules/workItems/routes.js";
 import assignmentRoutes from "./modules/assignment/routes.js";
-import * as assignmentController from "./modules/assignment/controller.js";
+import workloadRoutes from "./modules/workload/routes.js";
 import { feedbackRouter, revisionsRouter } from "./modules/feedback/routes.js";
 import blockerRoutes from "./modules/blockers/routes.js";
 import teamRoutes from "./modules/team/routes.js";
@@ -227,7 +227,7 @@ app.use("/api/todo", (req, res, next) => {
   workItemRoutes(req, res, next);
 });
 app.use("/api/assignment", assignmentRoutes);
-app.use("/api/workload", authenticate, assignmentController.getTeamWorkload);
+app.use("/api/workload", workloadRoutes);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/revisions", revisionsRouter);
 app.use("/api/blockers", blockerRoutes);

@@ -25,6 +25,7 @@ import {
   STAGE_KEYS,
   REVIEW_STAGES,
   STAGE_DUE_OFFSETS,
+  effectiveStepsFor,
 } from '@mmp/shared';
 import { setWorkspacesLockedForTests } from '../src/lib/workspaceLock.js';
 
@@ -723,7 +724,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
   // 5. ASSIGNMENT ENGINE, WORKLOAD & OVERRIDE LOGGING
   // ==========================================================================
   describe('5. Assignment Engine & Workload', () => {
-    it('recommends owners matching workPreferences and excludes members >= 85% capacity', async () => {
+    it('recommends owners matching workPreferences; an over-limit pick is still recommended, with a warning', async () => {
       const plan = await CalendarPlan.create({
         code: `PLAN-R3-ASGN-${Date.now()}`,
         title: 'R3 Assignment Test Plan',
@@ -763,25 +764,28 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
       expect(recRes.status).toBe(200);
       const recs = recRes.body.data;
       expect(recs.length).toBe(1);
-      // Dan Designer holds 'Design' preference and capacity is healthy (<85%)
+      // Dan Designer holds 'Design' preference and has nothing due
       expect(recs[0].recommendedPerson.email).toBe('designer@r3-test.com');
 
-      // Now overload all designers in department (allocated hours >= 35 / 40 -> > 85%)
-      const allDesigners = await Person.find({ departmentId: designDept._id, role: 'executive' });
+      // Now put every Design-eligible person over their limit: limit 1 and a step due in the
+      // stage's 7-day window.
+      const allDesigners = (await Person.find({ status: 'active', role: { $in: ['executive', 'sm_manager'] } })).filter((p) => effectiveStepsFor(p).includes('Design'));
+      await Person.updateMany({ _id: { $in: allDesigners.map((d) => d._id) } }, { $set: { activeStepLimit: 1 } });
       for (const d of allDesigners) {
         await WorkItem.create({
           title: `R3 Heavy Workload ${d._id}`,
           workType: 'Static Post',
           departmentId: designDept._id,
           ownerId: d._id,
-          deadline: new Date(Date.now() + 5 * 86400000),
+          deadline: new Date(Date.now() + 8 * 86400000),
+          dueDate: new Date(Date.now() + 8 * 86400000),
           estimatedEffortHrs: 38,
           status: 'In Progress',
           profileId: hacaProfile._id,
         });
       }
 
-      // Re-query recommendations: Overloaded candidate is strictly excluded -> "Needs owner"
+      // Re-query: nobody is excluded for load; the pick comes with the over-limit warning.
       const overloadRecRes = await request(app)
         .post('/api/content-pieces/recommend-owners')
         .set('Authorization', `Bearer ${smToken}`)
@@ -789,8 +793,10 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
 
       expect(overloadRecRes.status).toBe(200);
       const overloadedRecs = overloadRecRes.body.data;
-      expect(overloadedRecs[0].recommendedPerson).toBeNull();
-      expect(overloadedRecs[0].rationale).toContain('Needs owner');
+      expect(overloadedRecs[0].recommendedPerson).not.toBeNull();
+      expect(overloadedRecs[0].overLimitWarning).toMatch(/^Over limit: .+ has 2 due in the week to /);
+      expect(overloadedRecs[0].rationale).not.toContain('Needs owner');
+      await Person.updateMany({ _id: { $in: allDesigners.map((d) => d._id) } }, { $unset: { activeStepLimit: 1 } });
     });
 
     it('SM Manager assigns stage across departments with override logging', async () => {

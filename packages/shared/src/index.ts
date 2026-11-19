@@ -1360,6 +1360,7 @@ export const personOperationalUpdateSchema = z.object({
   jobRole: z.enum(JOB_ROLES).optional().nullable(),
   reportsToIds: z.array(z.string()).optional(),
   weeklyCapacityHours: z.number().min(0).max(80).optional(),
+  activeStepLimit: z.number().int().min(1).max(20).optional(),
   workPreferences: z.array(z.enum(WORK_PREFERENCES)).optional(),
 });
 export type PersonOperationalUpdateInput = z.infer<

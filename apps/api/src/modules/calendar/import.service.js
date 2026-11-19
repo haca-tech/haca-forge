@@ -1,11 +1,10 @@
 import ExcelJS from 'exceljs';
-import { parsePriorityInput, WORKER_ROLE, effectiveStepsFor } from '@mmp/shared';
+import { parsePriorityInput, WORKER_ROLE, effectiveStepsFor, pickOwner, withPlannedStep } from '@mmp/shared';
 import {
   WORK_TYPES,
   normalizeWorkType,
   getPipelineForContent,
   calculateStageDueDate,
-  DEFAULT_STAGE_HOURS,
   isPostableWorkType,
   STAGE_DUE_OFFSETS,
   DELIVERABLE_TYPE_KEYS,
@@ -21,7 +20,7 @@ import {
 import { Person } from '../people/model.js';
 import { WorkItem } from '../workItems/model.js';
 import { logger } from '../../lib/logger.js';
-import { pickOwner } from '../../lib/pickOwner.js';
+import { ownerCandidates } from '../workload/service.js';
 
 export const TEMPLATE_COLUMNS = [
   { header: 'Posting Date', key: 'postingDate', width: 16 },
@@ -446,27 +445,16 @@ export async function validateImportRows(rawRows) {
     return { member: r.empty ? null : membersById.get(r.id) };
   }
 
-  // Pre-calculate workload per member
-  const memberWorkload = new Map();
-  for (const m of activeMembers) {
-    const openItems = await WorkItem.find({
-      ownerId: m._id,
-      status: { $in: ['Not Started', 'In Progress', 'Feedback'] },
-    }).select('estimatedEffortHrs').lean();
-    const totalHours = openItems.reduce((acc, it) => acc + (it.estimatedEffortHrs || 4), 0);
-    const capacity = m.weeklyCapacityHours || 40;
-    const pct = capacity > 0 ? Math.round((totalHours / capacity) * 100) : 0;
-    memberWorkload.set(m._id.toString(), pct);
-  }
-
-  // The shared owner rule (lib/pickOwner.js), the same as autofill and Recommended Owner.
-  const pickBestMemberForStage = (stageKey) =>
-    pickOwner(activeMembers, {
-      eligible: (m) => effectiveStepsFor(m).includes(stageKey),
-      load: (m) => memberWorkload.get(m._id.toString()) || 0,
-      name: (m) => m.name,
-      id: (m) => m._id,
-    });
+  // Workload (step counts) per member, read once; each suggestion in this import is added
+  // as a planned step so later rows spread across people. The shared owner rule (pickOwner),
+  // the same as autofill and Recommended Owner.
+  let importCandidates = (await ownerCandidates(activeMembers.filter((m) => m.role !== 'admin'))).map((c) => ({ ...c, member: c.person }));
+  const pickBestMemberForStage = (stageKey, dueDate) => {
+    const pick = pickOwner(importCandidates, { targetDue: dueDate, eligible: (c) => effectiveStepsFor(c.member).includes(stageKey) });
+    if (!pick) return null;
+    importCandidates = importCandidates.map((c) => (c.id === pick.candidate.id ? withPlannedStep(c, dueDate) : c));
+    return { member: pick.candidate.member, reason: pick.reason, warning: pick.warning };
+  };
 
   for (const raw of rawRows) {
     const errors = [];
@@ -598,15 +586,18 @@ export async function validateImportRows(rawRows) {
             errors.push(`Owner "${input.owner}" for ${stageKey} is not an active team member`);
           }
         } else {
-          // Autofill owner
-          const best = pickBestMemberForStage(stageKey);
+          // Autofill owner, for the step's own due date (the file's deadline, or the usual one)
+          const typed = input.deadline && String(input.deadline).trim() ? new Date(input.deadline) : null;
+          const targetDue = typed && !isNaN(typed.getTime()) ? typed : calculateStageDueDate(postingDate, pipelineInfo.pipeline, stageKey, pipelineInfo.hasPostStage);
+          const best = pickBestMemberForStage(stageKey, targetDue);
           if (best) {
-            ownerId = best._id.toString();
-            ownerName = best.name;
+            ownerId = best.member._id.toString();
+            ownerName = best.member.name;
             ownerSource = 'suggested';
-            ownerReason = `Lowest workload (${memberWorkload.get(best._id.toString()) || 0}%)`;
+            ownerReason = best.reason;
+            if (best.warning) warnings.push(best.warning);
           } else {
-            ownerReason = 'No available person with this role';
+            ownerReason = 'No eligible person for this step';
           }
         }
 
@@ -677,10 +668,10 @@ export async function validateImportRows(rawRows) {
             errors.push(`Posting owner "${raw.postingOwner}" not found or not active`);
           }
         } else {
-          const bestPost = pickBestMemberForStage('Post');
+          const bestPost = pickBestMemberForStage('Post', postingDate);
           if (bestPost) {
-            postingOwnerId = bestPost._id.toString();
-            postingOwnerName = bestPost.name;
+            postingOwnerId = bestPost.member._id.toString();
+            postingOwnerName = bestPost.member.name;
             isPostingOwnerSuggested = true;
           }
         }

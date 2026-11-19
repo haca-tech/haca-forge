@@ -46,11 +46,19 @@ const personSchema = new mongoose.Schema(
         index: true,
       },
     ],
+    // Stored but no longer used: workload counts steps, not hours.
     weeklyCapacityHours: {
       type: Number,
       default: 40,
       min: 0,
       max: 168,
+    },
+    // Workload: how many steps due in a week this person can take. No default is stored;
+    // a missing value means the shared default (DEFAULT_ACTIVE_STEP_LIMIT, 4).
+    activeStepLimit: {
+      type: Number,
+      min: 1,
+      max: 20,
     },
     workPreferences: {
       type: [String],
