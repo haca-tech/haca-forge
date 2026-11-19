@@ -1,6 +1,85 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after the Published live view fixes):** 1973 passing, 0 failing: API 1551 (75 files), web 422 (51 files). Typecheck 0 errors; web build clean.
+**Current test count (after Pause work with lead approval):** 2009 passing, 0 failing: API 1573 (76 files), web 436 (52 files). Typecheck 0 errors; web build clean.
+
+## Pause work with lead approval (Status: COMPLETE; committed locally, not pushed)
+
+Gate in the working tree before the commit: typecheck 0 errors, web build clean, API 1573/1573 (76 files), web 436/436 (52 files).
+
+- `37f8a6c` Pause work with lead approval.
+
+### Decisions applied
+1. The shared calculator merges overlapping intervals, so time paused for two reasons at once is subtracted once. Read-only check on the real database: 0 of 57 steps change; only 1 step has intervals at all, and none overlap.
+2. Status stays In Progress; "Paused" comes from `pauseState` (`requested` or `paused`).
+3. Working days: Monday to Saturday (IST), one shared constant (`WORKING_DAYS_IST`), no holiday list.
+4. Reminders run as an hourly rule in the worker, through BullMQ or its in-memory fallback when Redis is down. Nothing is sent when the worker process is not running. Each run that sends something is logged.
+5. Unblocking, and any move back to In Progress, closes only blocked and waiting intervals. Before, it closed every open interval, which also ended a reopen pause early.
+6. Resume: the owner, any lead who decides that calendar, or admin.
+- **Reassignment:** a pending request is cancelled and the old owner is told. A paused step stays paused, and the new owner can resume it.
+- **Overdue:** a paused step can still go overdue (due dates never change). A "Paused" label shows next to Overdue.
+- **Plan move to or from Ads:** decisions follow the step's current calendar, and the new calendar's lead is told about pending requests.
+
+### What changed
+- **Data (additive only):**
+  - a new `PauseRequest` collection, one record per request (pending, cancelled, rejected, approved, resumed), with at most one pending per step;
+  - on the step, `pauseState`, and a new interval kind `manual_pause` on both the step and the current round;
+  - a new automation rule record, `pause_reminders`.
+- **API:**
+  - `POST /api/work/:id/pause-request` (owner): reason Urgent task or Other, a required note, an optional urgent step (one of their own open steps) and an optional future "pause until" date.
+  - `POST .../pause-request/cancel` (owner, pending only).
+  - `POST .../pause-request/decide`: the lead of the step's calendar (`canDecide`), admin as backup, never the requester. The other lead gets 403 `WRONG_CALENDAR`. If the step is no longer In Progress, unlocked and not reopen-paused at decision time, the answer is 409.
+  - `POST /api/work/:id/resume`.
+  - `GET /api/work/pause-requests`: leads see their calendars, admin and the read-only heads see all, others see their own.
+  - Every write is a conditional update. History is kept as `work_item.pause_requested`, `_cancelled`, `_approved`, `_rejected` and `_resumed` events.
+- **Pause interval:**
+  - An approved pause opens a `manual_pause` interval at the approval time, so time keeps counting while a request is pending. Resume closes it.
+  - The reopen logic ignores this kind, and resume touches only this kind.
+- **Guards while paused:** submit-link, every transition and new blockers return 409 `STEP_MANUALLY_PAUSED`. `getAvailableActions` hides the work actions.
+- **Notifications:**
+  - a request goes to the deciding lead(s);
+  - a decision goes to the worker, and an approval also to the SM Manager;
+  - a resume goes to the lead(s) and the SM Manager, not the person who resumed.
+- **Reminders:** on a working day from 09:00 IST, the lead is reminded once about a request still undecided since an earlier working day. The worker is reminded once on the morning of the "pause until" date. Pauses never end automatically.
+- **Web:**
+  - My Work and Work Detail: Request pause (dialog), a "Pause requested" banner with Cancel or the lead's Approve and Reject, a "Paused" banner with reason, until-date and Resume, and a note when the last request was not approved.
+  - Work Detail: "Paused N times · total" (not a score).
+  - Feedback page: a "Pause requests" tab.
+  - Tracker: a "Paused" or "Pause requested" chip with the reason as its tooltip, and both states in the Status filter.
+  - A "Paused" time label next to Overdue.
+  - Interval lists in profiles and the Tracker label the kinds ("Paused (approved)").
+  - Read-only roles see the state without actions.
+
+### Tests
+- New `apps/api/test/pause_requests.test.js` (21):
+  - merging blocked, reopen and manual pause overlaps (work and rework time); working days;
+  - requests only while In Progress; one pending at a time; cancel; bad input;
+  - right lead, wrong lead 403, worker, read-only head and SM Manager refused, admin allowed, self-decision blocked;
+  - 409 at decision time;
+  - time keeps counting while pending and after rejection, stops from approval, and counts again after resume;
+  - reopen and manual pauses on the same step don't end each other; unblocking leaves other kinds open;
+  - paused guards; resume rights;
+  - history and notification counts (each person once);
+  - the lead reminder (Sunday and before 09:00 skipped, sent once) and the pause-until reminder;
+  - reassignment; a plan moved to Ads; the lead list per calendar; the Work Detail payload with Overdue and Paused; the Tracker payload.
+- New `apps/web/src/components/__tests__/PauseControls.test.tsx` (12):
+  - the request dialog (note required, urgent step picker, payload) and banners;
+  - Approve and Reject with an optional message; the read-only view;
+  - the Feedback tab;
+  - actions hidden while paused; Paused next to Overdue; the Tracker chip, tooltip and filters.
+- Updated: `phase7b_retired_jobs` (the default rules now include `pause_reminders`).
+
+### Browser check
+Disposable `marketing_portal_uicheck` (5 test-only users; an SM step and an Ads step in progress per run). API on :8093, web on :5301, at 1440 and 390 px: **43 of 43 checks passed**.
+1. The worker asks for a pause on Work Detail and sees "Pause requested" with Cancel.
+2. The Creative Lead sees only the SM request on the Pause requests tab and rejects it with a message.
+3. The worker sees the message and asks again.
+4. The Creative Lead approves on Work Detail.
+5. The worker sees Paused with the reason, the Paused label and no Submit link, resumes, sees "Paused 1 time", then submits ("Waiting for approval").
+6. On the Ads step, the worker asks from My Work. The Creative Lead has no decision buttons. The Growth Lead sees only the Ads request and approves it.
+7. The Tracker's "Paused" filter shows the step with its reason as tooltip.
+No page scroll, page errors, 5xx or alert dialogs. Two script issues were fixed during the check: a selector using the step title where My Work shows the topic, and the script not waiting for the approval request to finish. The disposable database was dropped and the servers stopped.
+
+The real database was not touched by these checks. Changes in it today come from the owner using the running app: an Edit live link, approvals and ratings, one pending pause request by an executive account, and the `pause_reminders` rule record inserted by the running app's scheduler (additive).
 
 ## Published page: live view fixes (Status: COMPLETE; committed locally, not pushed)
 
