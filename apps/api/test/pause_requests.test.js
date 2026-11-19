@@ -411,6 +411,48 @@ describe('Pause work with lead approval', () => {
     });
   });
 
+  describe('Submitting withdraws a pending request', () => {
+    const withdrawn = (who, w) => notes(who, { type: 'pause_withdrawn', 'metadata.workItemId': w._id });
+
+    it('submit-link: the request is cancelled "on submit", logged, and the lead told once', async () => {
+      const w = await step('worker');
+      await ask('worker', w);
+      const sub = await as('worker').post(`/api/work/${w._id}/submit-link`, { links: ['https://drive.google.com/file/d/pause-submit/view'] });
+      expect(sub.status).toBe(201);
+      const s = await fresh(w);
+      expect(s.status).toBe('Feedback');
+      expect(s.pauseState).toBeNull();
+      const r = await PauseRequest.findOne({ workItemId: w._id }).lean();
+      expect(r).toMatchObject({ status: 'cancelled', cancelReason: 'cancelled_on_submit' });
+      const ev = await ActivityEvent.findOne({ entityId: { $in: [w._id, String(w._id)] }, action: 'work_item.pause_cancelled' }).lean();
+      expect(ev.metadata.cancelReason).toBe('cancelled_on_submit');
+      expect(await withdrawn('creativeLead', w)).toBe(1);
+      expect(await withdrawn('growthLead', w)).toBe(0);
+      expect(await withdrawn('worker', w)).toBe(0);
+      // Nothing left to decide.
+      expect((await decide('creativeLead', w, 'approve')).body.error.code).toBe('NOT_PENDING');
+    });
+
+    it('posting a Post step withdraws it too (Ads: the Growth Lead is told)', async () => {
+      const post = await step('sm', { stageKey: 'Post', calendar: 'ads', reviewRequired: false });
+      expect((await ask('sm', post)).status).toBe(201);
+      const res = await as('sm').post(`/api/work/${post._id}/transition`, { toStatus: 'Published', publishedUrl: 'https://www.instagram.com/reel/C8xYz12AbCd/' });
+      expect(res.status).toBe(200);
+      expect((await fresh(post)).pauseState).toBeNull();
+      expect((await PauseRequest.findOne({ workItemId: post._id }).lean()).cancelReason).toBe('cancelled_on_submit');
+      expect(await withdrawn('growthLead', post)).toBe(1);
+      expect(await withdrawn('creativeLead', post)).toBe(0);
+    });
+
+    it('a submit without a pending request changes no request and tells nobody', async () => {
+      const w = await step('worker');
+      const before = await Notification.countDocuments({ type: 'pause_withdrawn', 'metadata.workItemId': w._id });
+      expect((await as('worker').post(`/api/work/${w._id}/submit-link`, { links: ['https://drive.google.com/file/d/pause-none/view'] })).status).toBe(201);
+      expect(await PauseRequest.countDocuments({ workItemId: w._id })).toBe(0);
+      expect(await Notification.countDocuments({ type: 'pause_withdrawn', 'metadata.workItemId': w._id })).toBe(before);
+    });
+  });
+
   describe('Reassignment and plan moves', () => {
     it('reassigning cancels a pending request and tells the old owner; a paused step stays paused for the new owner', async () => {
       const w = await step('worker');

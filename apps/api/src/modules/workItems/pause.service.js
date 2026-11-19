@@ -171,6 +171,39 @@ export async function cancelPauseRequest(id, user, { reason = 'cancelled_by_owne
   return request.toObject();
 }
 
+/**
+ * Submitting withdraws a pending request. Call before the step is saved: the request's
+ * "requested" state is cleared in that same step write. Returns true when there was one.
+ */
+export function clearRequestOnSubmit(step) {
+  if (step?.pauseState !== 'requested') return false;
+  step.pauseState = null;
+  return true;
+}
+
+/** After the submit is saved: close the request record, log it and tell the lead it was withdrawn. */
+export async function finishRequestOnSubmit(step, user) {
+  const request = await PauseRequest.findOneAndUpdate(
+    { workItemId: step._id, status: 'pending' },
+    { $set: { status: 'cancelled', cancelledAt: new Date(), cancelReason: 'cancelled_on_submit' } },
+    { new: true }
+  );
+  if (!request) return null;
+  await logPause(step, user, 'pause_cancelled', { requestId: request._id, cancelReason: 'cancelled_on_submit' });
+  await notifyAll(
+    await decidersFor(calendarOf(step)),
+    {
+      type: 'pause_withdrawn',
+      title: 'Pause request withdrawn',
+      message: `"${step.title}" was submitted, so its pause request was withdrawn.`,
+      link: `/work/${step._id}`,
+      metadata: { workItemId: step._id, pauseRequestId: request._id },
+    },
+    userIdOf(user)
+  );
+  return request;
+}
+
 // ---------------------------------------------------------------- decide
 
 export async function decidePauseRequest(id, body = {}, user) {

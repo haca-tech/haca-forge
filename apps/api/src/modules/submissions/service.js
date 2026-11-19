@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { assertNotManuallyPaused } from '../workItems/pause.service.js';
+import { assertNotManuallyPaused, clearRequestOnSubmit, finishRequestOnSubmit } from '../workItems/pause.service.js';
 import { calendarOf, decidersFor, decisionCalendarFilter } from '../workItems/deciders.js';
 import mongoose from 'mongoose';
 import { Submission, SubmissionComment, Rating, EditorLock } from './model.js';
@@ -329,6 +329,7 @@ export async function saveSubmittedVersion({ workItem, user, fields, toStatus = 
     versionToken: crypto.randomUUID(),
   });
 
+  let withdrewPause = false;
   try {
     // 'Feedback' with a submitted latest version is "Waiting for approval".
     workItem.status = toStatus;
@@ -342,11 +343,14 @@ export async function saveSubmittedVersion({ workItem, user, fields, toStatus = 
     if (fields.fileUrl || fields.linkUrl) {
       workItem.deliverableUrl = fields.fileUrl || fields.linkUrl;
     }
+    // A pending pause request is withdrawn by submitting (cleared in this same step write).
+    withdrewPause = clearRequestOnSubmit(workItem);
     await workItem.save();
   } catch (error) {
     await Submission.deleteOne({ _id: newSubmission._id });
     throw error;
   }
+  if (withdrewPause) await afterDecision('the pause request withdrawal', () => finishRequestOnSubmit(workItem, user));
 
   await afterDecision('the submission event', () =>
     logActivity({

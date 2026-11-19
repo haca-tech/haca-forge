@@ -1,5 +1,5 @@
 import { WorkItem } from './model.js';
-import { assertNotManuallyPaused } from './pause.service.js';
+import { assertNotManuallyPaused, clearRequestOnSubmit, finishRequestOnSubmit } from './pause.service.js';
 
 /** Intervals a move back to In Progress may end. A reopen pause and an approved pause end only by their own logic. */
 const UNBLOCK_KINDS = ['blocked', 'pending'];
@@ -517,6 +517,8 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
   }
 
   workItem.status = toStatus;
+  // Submitting (or posting) withdraws a pending pause request, in this same step write.
+  const withdrewPause = (isOwnerSubmission || toStatus === 'Published') && clearRequestOnSubmit(workItem);
   try {
     await workItem.save();
   } catch (error) {
@@ -525,6 +527,14 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
       await Submission.deleteOne({ _id: createdVersion._id });
     }
     throw error;
+  }
+
+  if (withdrewPause) {
+    try {
+      await finishRequestOnSubmit(workItem, user);
+    } catch (err) {
+      // The step is already saved without its request; the owner can still cancel the record.
+    }
   }
 
   // Blocking always leaves a blocker record (remembering the status before), and leaving
