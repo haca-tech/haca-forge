@@ -1,6 +1,54 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after the Published page):** 1954 passing, 0 failing: API 1543 (75 files), web 411 (51 files). Typecheck 0 errors; web build clean.
+**Current test count (after the Published live view fixes):** 1973 passing, 0 failing: API 1551 (75 files), web 422 (51 files). Typecheck 0 errors; web build clean.
+
+## Published page: live view fixes (Status: COMPLETE; committed locally, not pushed)
+
+- `82125a6` Published page: Edit live link, Drive preview, final asset fallback. Gate in the working tree: typecheck 0 errors, web build clean, web 422/422 (51 files), API 1551/1551 (75 files).
+  - The first full API run had one timeout. `phase12b_roles` "GET team directory" took 85 s against its 60 s limit under parallel load; it passed alone (33/33) and in a clean full rerun.
+
+### Step 1 findings
+- **Editing a posted live link:** `PATCH /api/work/:id` let the SM Manager and admin change the Post step's `publishedUrl`, with the posting rule. It did not touch `ContentPiece.liveUrl` (which the Tracker and Published page read) and logged only a generic update.
+  - In the UI this was the "Live Published URL" field in Work Detail's Edit details. My first Step 1 note missed that field; it is corrected here.
+- **Final output:** `handoff.js` reads each finished step's approved version (`approvedOutputOf`) and its links (`outputItems`, each upload, drive or link). The Phase 3 rule (`canSeeStepOutput`): a worker sees their own step's output, plus approved outputs of finished steps before their furthest step.
+
+### What changed
+- **Edit live link:** `PUT /api/published/:pieceId/live-link`.
+  - SM Manager and admin only. The leads and workers get 403 `FORBIDDEN_ROLE`; the read-only heads get 403 `READ_ONLY_ROLE`.
+  - Same rule as posting (https, not a homepage). Updates `ContentPiece.liveUrl` and the Post step's `publishedUrl` together and keeps the posted date.
+  - Logs `live_link.changed` on the Post step with the old and new link. The same link again changes nothing; a piece not posted yet is 409.
+  - Offered on the Published card (pencil), on Work Detail of a posted Post step (Links and files tab, next to the live URL) and on the Tracker row (next to "Live"). The dialog shows the `toEmbed` preview line.
+  - The Edit details field that changed only the step is removed. The generic PATCH still accepts `publishedUrl`, unchanged.
+- **Drive preview:** `toEmbed` turns `drive.google.com/file/d/<id>/...` and `drive.google.com/open?id=<id>` into `https://drive.google.com/file/d/<id>/preview` (kind `drive`). Folders, other Drive pages, Docs and look-alike hosts stay links.
+  - `https://drive.google.com` is added to `FRAME_SRC_HOSTS` (vercel.json, Vite, helmet; the sync test covers it).
+  - Drive frames carry "Plays only if the file is shared with you."
+- **Final asset fallback:** when the live link doesn't embed, the card shows the piece's approved final output: Edit for reels, Design for posts, its first Drive file.
+  - It is labelled "Final video" or "Final design", upright for reels (9:16) and 4:5 for designs.
+  - It follows the Phase 3 output rules: leadership always; a worker only for their own step or a step before their furthest one.
+  - "Open original ↗" still points to the live link. Each item now carries `preview: { source: 'live' | 'final', embed, label? }`.
+
+### Tests
+- `apps/api/test/published_page.test.js` (now 28):
+  - Drive file, open?id, folder and other Drive links, and the preview text;
+  - drive.google.com in the frame list;
+  - final video and final design, labels and aspect ratios; a Drive folder output gives no preview; a live Drive link embeds directly; the Phase 3 rules for workers;
+  - Edit live link: the leads and workers 403, the read-only heads `READ_ONLY_ROLE`; homepage, http and junk 400; both fields updated with the posted date kept and the history logged; admin allowed; the same link changes nothing; not posted 409; unknown 404.
+- `apps/web/src/pages/published/__tests__/PublishedPage.test.tsx` (now 31):
+  - the fallback card (final video frame, caption, Drive note, Open original to the live link); a link card when there is no final asset;
+  - the edit pencil for exactly the SM Manager and admin;
+  - the dialog: homepage refused, preview line, save and reload;
+  - the Tracker row pencil.
+
+### Browser check
+Disposable `marketing_portal_uicheck`: 4 test-only users; posted reels linking to an Instagram reel, a Drive file and a homepage with an approved Drive final video; two homepage pieces to correct. API on :8093, web on :5301 with the frame-src header. SM Manager, Creative Lead and a worker, at 1440 and 390 px: **43 of 43 checks passed**.
+- The Instagram reel embeds. The Drive file plays through /preview with its note.
+- The homepage piece shows the "Final video" from its Edit step, while "Open original" stays on the live link.
+- Edit live link on the card refuses a homepage, shows "YouTube Short detected", saves, and the card then embeds the short.
+- The SM Manager sees Edit live link on Work Detail (Links and files) and on the Tracker rows. The Edit details field is gone.
+- The Creative Lead and the worker see no edit control. The worker sees the final video of their own Edit step.
+- No CSP blocks, page scroll, page errors, 5xx or alert dialogs.
+
+The made-up Drive file ids show Google's own "file does not exist" page inside the frame, as expected. The disposable database was dropped and the servers stopped. The real database is unchanged: 15 users, 57 steps, 16 rows, no `live_link.changed` events, and the 3 homepage links as they were (fix them with Edit live link).
 
 ## Published page: live deliverables showcase (Status: COMPLETE; committed locally, not pushed)
 
