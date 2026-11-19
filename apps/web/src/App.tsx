@@ -58,6 +58,9 @@ const WorkDetailPage = React.lazy(() =>
 const WritingStudioPage = React.lazy(() =>
   import('./pages/work/writing-studio/WritingStudioPage').then((m) => ({ default: m.WritingStudioPage }))
 );
+const PublishedPage = React.lazy(() =>
+  import('./pages/published/PublishedPage').then((m) => ({ default: m.PublishedPage }))
+);
 const ReviewStudioPage = React.lazy(() =>
   import('./pages/feedback/review-studio/ReviewStudioPage').then((m) => ({ default: m.ReviewStudioPage }))
 );
@@ -187,6 +190,18 @@ export const App: React.FC = () => {
                     <ProtectedRoute>
                       <Layout>
                         <CalendarPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Published: posted deliverables with their live posts (every role; workers see their own pieces). */}
+                <Route
+                  path="/published"
+                  element={
+                    <ProtectedRoute>
+                      <Layout>
+                        <PublishedPage />
                       </Layout>
                     </ProtectedRoute>
                   }

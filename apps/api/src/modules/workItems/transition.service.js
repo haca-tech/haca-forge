@@ -1,7 +1,7 @@
 import { WorkItem } from './model.js';
 import { assertDecidesOn, calendarOf, decidersFor } from './deciders.js';
 import { logActivity } from '../activity/service.js';
-import { BLOCKER_REASONS, LIVE_URL_ERROR, normalizeRole, getAvailableActions, getWorkspaceMode, isLivePostUrl, APPROVER_ROLES, isApprover, isReadOnlyViewer, isWorker } from '@mmp/shared';
+import { BLOCKER_REASONS, LIVE_URL_ERROR, normalizeRole, getAvailableActions, getWorkspaceMode, isLivePostUrl, livePostUrlError, APPROVER_ROLES, isApprover, isReadOnlyViewer, isWorker } from '@mmp/shared';
 import { workspacesLocked } from '../../lib/workspaceLock.js';
 import { resolveScope } from '../../lib/scope.js';
 import { Person } from '../people/model.js';
@@ -351,14 +351,15 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
   const isPosting = toStatus === 'Published' && workItem.stageKey === 'Post';
   const newPublishedUrl = typeof publishedUrl === 'string' ? publishedUrl.trim() : '';
   if (newPublishedUrl && newPublishedUrl !== (workItem.publishedUrl || '').trim() && !isLivePostUrl(newPublishedUrl)) {
-    const error = new Error(`publishedUrl: ${LIVE_URL_ERROR}`);
+    const error = new Error(`publishedUrl: ${livePostUrlError(newPublishedUrl) || LIVE_URL_ERROR}`);
     error.statusCode = 400;
     error.code = 'INVALID_LIVE_URL';
     error.details = { field: 'publishedUrl' };
     throw error;
   }
+  // Posting needs a post link: https, and not a site homepage (Published page).
   if (isPosting && !isLivePostUrl(newPublishedUrl || workItem.publishedUrl)) {
-    const error = new Error(LIVE_URL_ERROR);
+    const error = new Error(livePostUrlError(newPublishedUrl || workItem.publishedUrl) || LIVE_URL_ERROR);
     error.statusCode = 400;
     error.code = newPublishedUrl || workItem.publishedUrl ? 'INVALID_LIVE_URL' : 'LIVE_URL_REQUIRED';
     error.details = { field: 'publishedUrl' };

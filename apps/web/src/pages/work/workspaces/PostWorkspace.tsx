@@ -14,7 +14,7 @@ import {
 import { ResumableUploadTask } from '../../../lib/uploadManager';
 import { AssetLinks, AssetItem } from '../../../components/AssetLinks';
 import { DriveLinkInput, driveLinkError } from '../../../components/DriveLinkInput';
-import { LIVE_URL_ERROR, isLivePostUrl } from '@mmp/shared';
+import { LIVE_URL_ERROR, isLivePostUrl, livePostUrlError } from '@mmp/shared';
 
 interface PostWorkspaceProps {
   workItem: {
@@ -118,7 +118,7 @@ export const PostWorkspace: React.FC<PostWorkspaceProps> = ({
     }
     // The shared live link rule (the same function the API uses).
     if (!isLivePostUrl(publishedUrl.trim())) {
-      setErrorMsg(LIVE_URL_ERROR);
+      setErrorMsg(livePostUrlError(publishedUrl.trim()) || LIVE_URL_ERROR);
       return;
     }
 

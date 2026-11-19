@@ -6,7 +6,8 @@ import {
   LIVE_URL_ERROR,
   MAX_SUBMIT_LINKS,
   isDriveLink,
-  isLivePostUrl,
+  embedPreviewText,
+  livePostUrlError,
   stepAllowsManyLinks,
 } from '@mmp/shared';
 import { apiFetch } from '../lib/api';
@@ -48,7 +49,7 @@ export const StepSubmitDialog: React.FC<StepSubmitDialogProps> = ({ step, resubm
   const linkError = (value: string): string | null => {
     const v = value.trim();
     if (!v) return isPost ? LIVE_URL_ERROR : 'Enter a link.';
-    if (isPost) return isLivePostUrl(v) ? null : LIVE_URL_ERROR;
+    if (isPost) return livePostUrlError(v);
     return isDriveLink(v) ? null : DRIVE_LINK_ERROR;
   };
   const filled = links.map((l) => l.trim()).filter(Boolean);
@@ -148,6 +149,12 @@ export const StepSubmitDialog: React.FC<StepSubmitDialogProps> = ({ step, resubm
                   {rowError && (
                     <p id={`${id}-error`} role="alert" className="text-xs text-red-700">
                       {rowError}
+                    </p>
+                  )}
+                  {/* Published page: say whether the post will embed, once the link is valid. */}
+                  {isPost && !rowError && !livePostUrlError(value) && (
+                    <p data-testid="embed-preview" aria-live="polite" className="text-xs text-ui-muted">
+                      {embedPreviewText(value.trim())}
                     </p>
                   )}
                 </div>

@@ -10,7 +10,7 @@ import jwt from "jsonwebtoken";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { normalizeRole } from "@mmp/shared";
+import { normalizeRole, FRAME_SRC_HOSTS } from "@mmp/shared";
 
 const __serverFilename = fileURLToPath(import.meta.url);
 const __serverDirname = path.dirname(__serverFilename);
@@ -51,6 +51,7 @@ import teamRoutes from "./modules/team/routes.js";
 import submissionRoutes, { attachWorkItemSubmissionRoutes } from "./modules/submissions/routes.js";
 import clipsRouter, { attachWorkItemMediaRoutes } from "./modules/media/routes.js";
 import { chatRouter } from "./modules/chat/routes.js";
+import publishedRoutes from "./modules/published/routes.js";
 import { setupChatSocket, registerChatSocketIO } from "./modules/chat/socket.js";
 import { ensureAutomationRules } from "./modules/automation/runner.js";
 import { ensureBaselineUsers } from "./modules/people/baselineUsers.js";
@@ -72,7 +73,12 @@ app.set("trust proxy", 1);
 // 2. Security headers
 app.use(
   helmet({
-    contentSecurityPolicy: env.NODE_ENV === "production" ? undefined : false,
+    // Production: helmet's default policy, with frame-src set to the same embed allowlist as
+    // the web app (vercel.json, Vite). Dev keeps CSP off on API responses, as before.
+    contentSecurityPolicy:
+      env.NODE_ENV === "production"
+        ? { directives: { frameSrc: ["'self'", ...FRAME_SRC_HOSTS] } }
+        : false,
     crossOriginEmbedderPolicy: false,
   }),
 );
@@ -225,6 +231,7 @@ app.use("/api/feedback", feedbackRouter);
 app.use("/api/revisions", revisionsRouter);
 app.use("/api/blockers", blockerRoutes);
 app.use("/api/chat", chatRouter);
+app.use("/api/published", publishedRoutes);
 app.use("/chat", chatRouter);
 
 app.set("io", io);

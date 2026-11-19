@@ -819,16 +819,187 @@ export const stepLinkSubmitSchema = z.object({
 export type StepLinkSubmitInput = z.infer<typeof stepLinkSubmitSchema>;
 
 export const LIVE_URL_ERROR = "Enter the live post link, starting with https://";
+/** A site homepage is not a post (Published page). */
+export const SITE_ROOT_URL_ERROR = "Paste the link to the post itself, not the site homepage.";
 
-/** The live link of a published post: https on any host, with no credentials. */
-export function isLivePostUrl(url: unknown): boolean {
-  if (typeof url !== "string") return false;
+/**
+ * What is wrong with a live post link, or null when it is fine: https on any host, no
+ * credentials, and a path beyond "/" (a site homepage is not a post).
+ */
+export function livePostUrlError(url: unknown): string | null {
+  if (typeof url !== "string" || !url.trim()) return LIVE_URL_ERROR;
+  let parsed: URL;
   try {
-    const parsed = new URL(url.trim());
-    return parsed.protocol === "https:" && Boolean(parsed.hostname) && !parsed.username && !parsed.password;
+    parsed = new URL(url.trim());
   } catch {
-    return false;
+    return LIVE_URL_ERROR;
   }
+  if (parsed.protocol !== "https:" || !parsed.hostname || parsed.username || parsed.password) return LIVE_URL_ERROR;
+  if (parsed.pathname === "" || parsed.pathname === "/") return SITE_ROOT_URL_ERROR;
+  return null;
+}
+
+/** The live link of a published post (see livePostUrlError). */
+export function isLivePostUrl(url: unknown): boolean {
+  return livePostUrlError(url) === null;
+}
+
+// ==========================================
+// Published page: official public embeds (no API keys)
+// ==========================================
+
+export type EmbedKind =
+  | "instagram_reel"
+  | "instagram_post"
+  | "youtube"
+  | "youtube_short"
+  | "facebook_video"
+  | "facebook_reel"
+  | "facebook_post"
+  | "linkedin"
+  | "link";
+export type EmbedAspect = "9:16" | "4:5" | "16:9" | "1:1";
+export interface EmbedInfo {
+  kind: EmbedKind;
+  /** Only for an embeddable post: the official embed URL. Never set for kind "link". */
+  embedUrl?: string;
+  aspect?: EmbedAspect;
+  /** "Instagram reel", "YouTube Short", ... or "Link". */
+  label: string;
+}
+
+const LINK_EMBED: EmbedInfo = { kind: "link", label: "Link" };
+
+/**
+ * Hosts the web app may frame (CSP frame-src). The four embed hosts, plus the hosts the
+ * Review Studio link viewer already frames (YouTube and Figma embeds). Kept in step with
+ * vercel.json, the Vite dev server and helmet by a test.
+ */
+export const FRAME_SRC_HOSTS = [
+  "https://www.instagram.com",
+  "https://www.youtube-nocookie.com",
+  "https://www.facebook.com",
+  "https://www.linkedin.com",
+  "https://www.youtube.com",
+  "https://youtube.com",
+  "https://m.youtube.com",
+  "https://www.figma.com",
+  "https://figma.com",
+] as const;
+export const FRAME_SRC_POLICY = `frame-src 'self' ${FRAME_SRC_HOSTS.join(" ")}`;
+
+function parseHttps(raw: unknown): URL | null {
+  if (typeof raw !== "string") return null;
+  const text = raw.trim();
+  if (!text) return null;
+  try {
+    const u = new URL(text);
+    if (u.protocol !== "https:" || u.username || u.password || u.port) return null;
+    return u;
+  } catch {
+    return null;
+  }
+}
+const segmentsOf = (u: URL) => u.pathname.split("/").filter(Boolean);
+const YT_ID = /^[A-Za-z0-9_-]{11}$/;
+const IG_CODE = /^[A-Za-z0-9_-]{5,64}$/;
+const FB_ID = /^\d{5,25}$/;
+
+function instagramEmbed(u: URL): EmbedInfo | null {
+  const segs = segmentsOf(u);
+  // /p/<code>, /reel/<code>, /reels/<code>, /tv/<code>, also /<username>/p/<code>
+  for (const i of [0, 1]) {
+    const type = segs[i];
+    const code = segs[i + 1];
+    if (!type || !code || !IG_CODE.test(code)) continue;
+    if (type === "p") return { kind: "instagram_post", embedUrl: `https://www.instagram.com/p/${code}/embed`, aspect: "4:5", label: "Instagram post" };
+    if (type === "reel" || type === "reels") return { kind: "instagram_reel", embedUrl: `https://www.instagram.com/reel/${code}/embed`, aspect: "9:16", label: "Instagram reel" };
+    if (type === "tv") return { kind: "instagram_reel", embedUrl: `https://www.instagram.com/tv/${code}/embed`, aspect: "9:16", label: "Instagram video" };
+  }
+  return null;
+}
+
+function youtubeEmbed(u: URL, host: string): EmbedInfo | null {
+  const segs = segmentsOf(u);
+  let id: string | null = null;
+  let short = false;
+  if (host === "youtu.be") id = segs[0] || null;
+  else if (segs[0] === "watch") id = u.searchParams.get("v");
+  else if (segs[0] === "shorts") {
+    id = segs[1] || null;
+    short = true;
+  } else if (segs[0] === "embed" || segs[0] === "live") id = segs[1] || null;
+  if (!id || !YT_ID.test(id)) return null;
+  return short
+    ? { kind: "youtube_short", embedUrl: `https://www.youtube-nocookie.com/embed/${id}`, aspect: "9:16", label: "YouTube Short" }
+    : { kind: "youtube", embedUrl: `https://www.youtube-nocookie.com/embed/${id}`, aspect: "16:9", label: "YouTube video" };
+}
+
+function facebookEmbed(u: URL): EmbedInfo | null {
+  const segs = segmentsOf(u);
+  const canonical = `https://www.facebook.com${u.pathname}${u.search}`;
+  const plugin = (kind: "video" | "post") =>
+    `https://www.facebook.com/plugins/${kind}.php?href=${encodeURIComponent(canonical)}&show_text=false`;
+  // Videos: /<page>/videos/<id>, /videos/<id>, /watch?v=<id>, /reel/<id>
+  const v = segs.indexOf("videos");
+  if (v >= 0 && FB_ID.test(segs[v + 1] || "")) return { kind: "facebook_video", embedUrl: plugin("video"), aspect: "16:9", label: "Facebook video" };
+  if (segs[0] === "watch" && FB_ID.test(u.searchParams.get("v") || "")) return { kind: "facebook_video", embedUrl: plugin("video"), aspect: "16:9", label: "Facebook video" };
+  if (segs[0] === "reel" && FB_ID.test(segs[1] || "")) return { kind: "facebook_reel", embedUrl: plugin("video"), aspect: "9:16", label: "Facebook reel" };
+  // Posts: /<page>/posts/<id>, /permalink.php?story_fbid=..., /photo?fbid=..., /photo.php?fbid=...
+  const p = segs.indexOf("posts");
+  if (p >= 1 && /^[A-Za-z0-9_-]{5,80}$/.test(segs[p + 1] || "")) return { kind: "facebook_post", embedUrl: plugin("post"), aspect: "1:1", label: "Facebook post" };
+  if (segs[0] === "permalink.php" && u.searchParams.get("story_fbid")) return { kind: "facebook_post", embedUrl: plugin("post"), aspect: "1:1", label: "Facebook post" };
+  if ((segs[0] === "photo" || segs[0] === "photo.php") && FB_ID.test(u.searchParams.get("fbid") || "")) return { kind: "facebook_post", embedUrl: plugin("post"), aspect: "1:1", label: "Facebook post" };
+  return null;
+}
+
+function linkedinEmbed(u: URL): EmbedInfo | null {
+  let path: string;
+  try {
+    path = decodeURIComponent(u.pathname);
+  } catch {
+    return null;
+  }
+  const urn = /urn:li:(activity|share|ugcPost):(\d{10,25})(?!\d)/.exec(path);
+  const activity = /[-/]activity-(\d{10,25})(?!\d)/.exec(path);
+  const type = urn ? urn[1] : activity ? "activity" : null;
+  const id = urn ? urn[2] : activity ? activity[1] : null;
+  if (!type || !id) return null;
+  return { kind: "linkedin", embedUrl: `https://www.linkedin.com/embed/feed/update/urn:li:${type}:${id}`, aspect: "4:5", label: "LinkedIn post" };
+}
+
+/**
+ * The official public embed for a live post link, or { kind: "link" }. Only Instagram,
+ * YouTube, Facebook and LinkedIn posts embed; https only, exact hosts (look-alikes such as
+ * instagram.com.evil.com are links). Pages must frame only an embedUrl from here.
+ */
+export function toEmbed(liveUrl: unknown): EmbedInfo {
+  const u = parseHttps(liveUrl);
+  if (!u) return LINK_EMBED;
+  const host = u.hostname.toLowerCase();
+  let out: EmbedInfo | null = null;
+  if (host === "instagram.com" || host === "www.instagram.com") out = instagramEmbed(u);
+  else if (["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"].includes(host)) out = youtubeEmbed(u, host);
+  else if (["facebook.com", "www.facebook.com", "m.facebook.com", "web.facebook.com"].includes(host)) out = facebookEmbed(u);
+  else if (host === "linkedin.com" || host === "www.linkedin.com") out = linkedinEmbed(u);
+  return out || LINK_EMBED;
+}
+
+const EMBED_URL_PATTERNS = [
+  /^https:\/\/www\.instagram\.com\/(p|reel|tv)\/[A-Za-z0-9_-]{5,64}\/embed$/,
+  /^https:\/\/www\.youtube-nocookie\.com\/embed\/[A-Za-z0-9_-]{11}$/,
+  /^https:\/\/www\.facebook\.com\/plugins\/(video|post)\.php\?href=https%3A%2F%2Fwww\.facebook\.com%2F[^&#\s]*&show_text=false$/,
+  /^https:\/\/www\.linkedin\.com\/embed\/feed\/update\/urn:li:(activity|share|ugcPost):\d{10,25}$/,
+];
+/** True only for an embed URL of the shape toEmbed produces (checked again before framing). */
+export function isTrustedEmbedUrl(url: unknown): boolean {
+  return typeof url === "string" && EMBED_URL_PATTERNS.some((re) => re.test(url));
+}
+
+/** The preview line in the posting dialog: "Instagram reel detected" or "Will show as a link". */
+export function embedPreviewText(liveUrl: unknown): string {
+  const e = toEmbed(liveUrl);
+  return e.kind === "link" ? "Will show as a link" : `${e.label} detected`;
 }
 
 /**

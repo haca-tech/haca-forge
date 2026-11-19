@@ -21,6 +21,7 @@ import {
   Bell,
   MessageSquare,
   ChevronDown,
+  Megaphone,
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { NotificationCenter } from './NotificationCenter';
@@ -217,6 +218,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
               activeMatcher: (p: string) => p.startsWith('/calendar'),
             },
             {
+              id: 'published',
+              label: 'Published',
+              path: '/published',
+              description: 'Posted deliverables with their live posts',
+              icon: Megaphone,
+              show: true,
+              activeMatcher: (p: string) => p.startsWith('/published'),
+            },
+            {
               id: 'notifications',
               label: 'Notifications',
               path: '/notifications',
@@ -253,6 +263,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
               icon: Calendar,
               show: true,
               activeMatcher: (p: string) => p.startsWith('/calendar'),
+            },
+            {
+              id: 'published',
+              label: 'Published',
+              path: '/published',
+              description: 'Posted deliverables with their live posts',
+              icon: Megaphone,
+              show: true,
+              activeMatcher: (p: string) => p.startsWith('/published'),
             },
             {
               id: 'work-items',
@@ -330,6 +349,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
             icon: Calendar,
             show: true,
             activeMatcher: (p: string) => p.startsWith('/calendar'),
+          },
+          {
+            id: 'published',
+            label: 'Published',
+            path: '/published',
+            description: 'Posted deliverables with their live posts',
+            icon: Megaphone,
+            show: true,
+            activeMatcher: (p: string) => p.startsWith('/published'),
           },
           {
             id: 'work-items',
@@ -462,6 +490,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
       return [
         { id: 'my-work', icon: CheckSquare, label: 'My Work', path: '/my-work', active: location.pathname.startsWith('/my-work') || location.pathname.startsWith('/todo') },
         { id: 'calendar', icon: Calendar, label: 'Creative Calendar', path: '/calendar', active: location.pathname.startsWith('/calendar') },
+        { id: 'published', icon: Megaphone, label: 'Published', path: '/published', active: location.pathname.startsWith('/published') },
         { id: 'notifications', icon: Bell, label: 'Notifications', path: '/notifications', active: location.pathname.startsWith('/notifications') },
       ];
     }
@@ -471,6 +500,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
         { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', active: isLandingActive },
         { id: 'my-work', icon: CheckSquare, label: 'My Work', path: '/my-work', active: location.pathname.startsWith('/my-work') || location.pathname.startsWith('/todo') },
         { id: 'calendar', icon: Calendar, label: 'Creative Calendar', path: '/calendar', active: location.pathname.startsWith('/calendar') },
+        { id: 'published', icon: Megaphone, label: 'Published', path: '/published', active: location.pathname.startsWith('/published') },
         { id: 'work', icon: Film, label: 'Work', path: '/work', active: location.pathname === '/work' || location.pathname.startsWith('/work/') },
         { id: 'workload', icon: Users, label: 'Team Workload', path: '/workload', active: location.pathname.startsWith('/workload') },
         { id: 'issues', icon: AlertCircle, label: 'Issues and Blockers', path: '/issues', active: location.pathname.startsWith('/issues') },
@@ -483,6 +513,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
     const items: SidebarItem[] = [
       { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', active: isLandingActive },
       { id: 'calendar', icon: Calendar, label: 'Creative Calendar', path: '/calendar', active: location.pathname.startsWith('/calendar') },
+      { id: 'published', icon: Megaphone, label: 'Published', path: '/published', active: location.pathname.startsWith('/published') },
       { id: 'work', icon: Film, label: 'Work', path: '/work', active: location.pathname === '/work' || location.pathname.startsWith('/work/') },
       { id: 'feedback', icon: FileText, label: 'Feedback and Revisions', path: '/feedback', active: location.pathname.startsWith('/feedback') },
       { id: 'workload', icon: Users, label: 'Team Workload', path: '/workload', active: location.pathname.startsWith('/workload') },

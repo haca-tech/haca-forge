@@ -1,10 +1,16 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { FRAME_SRC_POLICY } from '@mmp/shared';
+
+// Frames the app may load (Published page embeds, Review Studio link viewer). Same policy as
+// vercel.json (production) and helmet.
+const securityHeaders = { 'Content-Security-Policy': FRAME_SRC_POLICY };
 
 export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    headers: securityHeaders,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8080',
@@ -38,6 +44,9 @@ export default defineConfig({
         secure: false,
       },
     },
+  },
+  preview: {
+    headers: securityHeaders,
   },
   build: {
     chunkSizeWarningLimit: 800,

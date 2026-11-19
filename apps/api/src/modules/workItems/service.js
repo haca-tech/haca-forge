@@ -478,8 +478,9 @@ export async function updateWorkItem(id, data, user) {
   if (data.publishedUrl !== undefined) {
     const next = String(data.publishedUrl || '').trim();
     // A new live link must be https; a value saved earlier may be sent back unchanged.
+    // A site homepage is refused too (Published page); records saved earlier are untouched.
     if (next && next !== (workItem.publishedUrl || '').trim() && !isLivePostUrl(next)) {
-      const error = new Error(`publishedUrl: ${LIVE_URL_ERROR}`);
+      const error = new Error(`publishedUrl: ${livePostUrlError(next) || LIVE_URL_ERROR}`);
       error.statusCode = 400;
       error.code = 'INVALID_LIVE_URL';
       error.details = { field: 'publishedUrl' };
@@ -741,7 +742,7 @@ export async function getMyWork(user) {
 
 import { ContentPiece } from '../calendar/contentPiece.model.js';
 import { CalendarPlan } from '../calendar/plan.model.js';
-import { isPostableWorkType, isLivePostUrl, LIVE_URL_ERROR } from '@mmp/shared';
+import { isPostableWorkType, isLivePostUrl, livePostUrlError, LIVE_URL_ERROR } from '@mmp/shared';
 import { assertChangedOutputUrl } from '../uploads/outputUrls.js';
 import { buildFromPlan, buildHandoff, buildHandover, outputItems } from './handoff.js';
 import { canReopen } from './reopen.js';
