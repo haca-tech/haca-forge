@@ -1526,6 +1526,12 @@ export async function movePlanCalendar(id, newCalendar, user) {
   // Update all child content pieces and work items
   await ContentPiece.updateMany({ planId: plan._id }, { $set: { calendar: newCalendar } });
   await WorkItem.updateMany({ calendarPlanId: plan._id }, { $set: { calendar: newCalendar } });
+  // Pending pause requests follow the steps to the new calendar's lead, like reviews do.
+  if (oldCalendar !== newCalendar) {
+    const { afterCalendarMove } = await import('../workItems/pause.service.js');
+    const ids = (await WorkItem.find({ calendarPlanId: plan._id, pauseState: 'requested' }).select('_id').lean()).map((w) => w._id);
+    if (ids.length) await afterCalendarMove(ids);
+  }
 
   // Log activity
   await logActivity({

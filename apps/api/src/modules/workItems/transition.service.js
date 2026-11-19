@@ -1,4 +1,8 @@
 import { WorkItem } from './model.js';
+import { assertNotManuallyPaused } from './pause.service.js';
+
+/** Intervals a move back to In Progress may end. A reopen pause and an approved pause end only by their own logic. */
+const UNBLOCK_KINDS = ['blocked', 'pending'];
 import { assertDecidesOn, calendarOf, decidersFor } from './deciders.js';
 import { logActivity } from '../activity/service.js';
 import { BLOCKER_REASONS, LIVE_URL_ERROR, normalizeRole, getAvailableActions, getWorkspaceMode, isLivePostUrl, livePostUrlError, APPROVER_ROLES, isApprover, isReadOnlyViewer, isWorker } from '@mmp/shared';
@@ -79,6 +83,9 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
     error.code = 'INVALID_TRANSITION';
     throw error;
   }
+
+  // A step paused with the lead's approval does nothing until it is resumed.
+  assertNotManuallyPaused(workItem);
 
   // 3. Central Role & Ownership Authorization Guard
   const { actions, isOwner } = getAvailableActions(user, workItem);
@@ -287,19 +294,20 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
       curRound.intervals.push(blockedInterval);
     }
   } else if (fromStatus === 'Blocked') {
-    // Clear blocker reason once unblocked and close open intervals
+    // Clear blocker reason once unblocked and close the open blocked/waiting intervals only:
+    // a reopen pause or an approved pause has its own end.
     workItem.blockerReason = null;
     workItem.blockerNote = '';
     if (Array.isArray(workItem.intervals)) {
       for (const iv of workItem.intervals) {
-        if (!iv.endedAt) iv.endedAt = now;
+        if (!iv.endedAt && UNBLOCK_KINDS.includes(iv.kind)) iv.endedAt = now;
       }
     }
     if (workItem.rounds && workItem.rounds.length > 0) {
       const curRound = workItem.rounds[workItem.rounds.length - 1];
       if (Array.isArray(curRound?.intervals)) {
         for (const iv of curRound.intervals) {
-          if (!iv.endedAt) iv.endedAt = now;
+          if (!iv.endedAt && UNBLOCK_KINDS.includes(iv.kind)) iv.endedAt = now;
         }
       }
     }
@@ -313,10 +321,10 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
     if (!workItem.startedAt) {
       workItem.startedAt = now;
     }
-    // Close any lingering open interval
+    // Close any lingering blocked/waiting interval (not a reopen pause or an approved pause)
     if (Array.isArray(workItem.intervals)) {
       for (const iv of workItem.intervals) {
-        if (!iv.endedAt) iv.endedAt = now;
+        if (!iv.endedAt && UNBLOCK_KINDS.includes(iv.kind)) iv.endedAt = now;
       }
     }
     if (!workItem.rounds || workItem.rounds.length === 0) {
@@ -337,7 +345,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
         });
       } else if (curRound && Array.isArray(curRound.intervals)) {
         for (const iv of curRound.intervals) {
-          if (!iv.endedAt) iv.endedAt = now;
+          if (!iv.endedAt && UNBLOCK_KINDS.includes(iv.kind)) iv.endedAt = now;
         }
       }
     }

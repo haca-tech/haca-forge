@@ -9,7 +9,7 @@ import {
 import { apiFetch } from '../lib/api';
 import { displayStatus, statusClass, statusTone } from '../lib/statusTone';
 import { Avatar } from './Avatar';
-import { formatDuration, getStepStatusLabel, reworkTimeMs, type WorkItemIndividualMeasures } from '@mmp/shared';
+import { formatDuration, getStepStatusLabel, reworkTimeMs, type WorkItemIndividualMeasures, INTERVAL_KIND_LABELS, PAUSE_REASON_LABELS } from '@mmp/shared';
 
 export interface PersonWorkHistoryData {
   person: {
@@ -453,13 +453,13 @@ export const PersonWorkHistoryView: React.FC<PersonWorkHistoryViewProps> = ({
             {/* Intervals Log (Blocked / Pending) */}
             <div className="space-y-2">
               <span className="font-bold text-slate-700 block text-xs uppercase tracking-wider">
-                Paused Intervals (Blocked / Pending)
+                Paused intervals (blocked, waiting, paused)
               </span>
               {Array.isArray(selectedTimelineItem.intervals) && selectedTimelineItem.intervals.length > 0 ? (
                 selectedTimelineItem.intervals.map((iv: any, idx: number) => (
                   <div key={idx} className="p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-rose-700 uppercase text-[10px]">{iv.kind}</span>
+                      <span className="font-bold text-rose-700 uppercase text-[10px]">{(INTERVAL_KIND_LABELS as Record<string, string>)[iv.kind] || iv.kind}</span>
                       <span className="text-[10px] text-slate-500">
                         {iv.endedAt ? 'Resolved' : 'Active'}
                       </span>
@@ -467,12 +467,12 @@ export const PersonWorkHistoryView: React.FC<PersonWorkHistoryViewProps> = ({
                     <div className="text-[11px] text-slate-600">
                       {new Date(iv.startedAt).toLocaleTimeString()} → {iv.endedAt ? new Date(iv.endedAt).toLocaleTimeString() : 'ongoing'}
                     </div>
-                    {iv.reason && <p className="text-[11px] font-medium text-slate-700">Reason: {iv.reason}</p>}
+                    {iv.reason && <p className="text-[11px] font-medium text-slate-700">Reason: {(PAUSE_REASON_LABELS as Record<string, string>)[iv.reason] || iv.reason}</p>}
                     {iv.note && <p className="text-[11px] text-slate-500 italic">Note: {iv.note}</p>}
                   </div>
                 ))
               ) : (
-                <p className="text-xs text-slate-400 italic">No blocked or pending intervals paused work time.</p>
+                <p className="text-xs text-slate-400 italic">No blocked, waiting or paused time.</p>
               )}
             </div>
 

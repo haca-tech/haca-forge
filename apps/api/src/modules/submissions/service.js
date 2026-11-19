@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { assertNotManuallyPaused } from '../workItems/pause.service.js';
 import { calendarOf, decidersFor, decisionCalendarFilter } from '../workItems/deciders.js';
 import mongoose from 'mongoose';
 import { Submission, SubmissionComment, Rating, EditorLock } from './model.js';
@@ -436,6 +437,7 @@ export async function submitStepLinks(workItemId, { links, note }, user) {
   }
   if (workItem.isSkipped) throw submitError(409, 'STEP_SKIPPED', 'This step was skipped.');
   if (workItem.isLocked) throw submitError(409, 'STEP_LOCKED', 'This step is locked until the previous step is approved.');
+  assertNotManuallyPaused(workItem);
 
   if (workItem.status === 'Not Started') {
     throw submitError(400, 'MUST_START_BEFORE_SUBMIT', 'You must start this work item before submitting deliverables');

@@ -16,6 +16,7 @@ import {
   runRevisionPatternFlagJob,
   runWeeklyReportJob,
   runMonthEndReportJob,
+  runPauseRemindersJob,
 } from './modules/jobs/processors.js';
 import { removeRetiredSchedules } from './modules/jobs/retired.js';
 import { fileURLToPath } from 'url';
@@ -74,6 +75,8 @@ export async function startWorker() {
           case 'revision_pattern_flag':
           case 'revision-pattern-flag':
             return runRevisionPatternFlagJob(job);
+          case 'pause_reminders':
+            return runPauseRemindersJob(job);
           case 'weekly_report':
           case 'weekly-report':
             return runWeeklyReportJob(job);
@@ -136,7 +139,17 @@ export async function startWorker() {
         }
       );
 
-      logger.info('BullMQ repeatable jobs registered for 4 reminder rules');
+      // 5. Pause request reminders: hourly (sends only on working days from 09:00 IST, once each)
+      await scheduledJobsQueue.add(
+        'pause_reminders',
+        {},
+        {
+          repeat: { pattern: '0 * * * *' },
+          removeOnComplete: true,
+        }
+      );
+
+      logger.info('BullMQ repeatable jobs registered for 5 reminder rules');
     }
   } else {
     logger.info('Running in lightweight standalone worker mode (in-memory interval scheduler)');
@@ -147,6 +160,7 @@ export async function startWorker() {
     runTodoEscalationJob().catch((err) => logger.warn({ err: err.message }, 'Initial todo check warning'));
     runBlockerAlertsJob().catch((err) => logger.warn({ err: err.message }, 'Initial blocker check warning'));
     runRevisionPatternFlagJob().catch((err) => logger.warn({ err: err.message }, 'Initial revision pattern check warning'));
+    runPauseRemindersJob().catch((err) => logger.warn({ err: err.message }, 'Initial pause reminder check warning'));
 
     // Check overdue deliverables every 15 minutes
     const overdueInterval = setInterval(() => {
@@ -168,7 +182,12 @@ export async function startWorker() {
       runRevisionPatternFlagJob().catch((err) => logger.error({ err: err.message }, 'Revision pattern error'));
     }, 60 * 60 * 1000);
 
-    inMemoryIntervals.push(overdueInterval, todoInterval, blockerInterval, revisionInterval);
+    // Pause request reminders every 60 minutes (Redis down: same scan, in memory)
+    const pauseInterval = setInterval(() => {
+      runPauseRemindersJob().catch((err) => logger.error({ err: err.message }, 'Pause reminder error'));
+    }, 60 * 60 * 1000);
+
+    inMemoryIntervals.push(overdueInterval, todoInterval, blockerInterval, revisionInterval, pauseInterval);
   }
 
   logger.info('✅ Marketing Portal Background Worker running and ready');

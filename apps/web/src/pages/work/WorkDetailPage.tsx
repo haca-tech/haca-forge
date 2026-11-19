@@ -56,6 +56,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { EditLiveLinkDialog, canEditLiveLink } from '../../components/EditLiveLinkDialog';
+import { PausePanel, type PauseInfo } from '../../components/pause/PauseControls';
 import { PipelineStepper, type PipelineStageItem } from '../../components/PipelineStepper';
 import { AssetLinks } from '../../components/AssetLinks';
 import { resolveStepBlocker } from '../../lib/blockers';
@@ -79,6 +80,9 @@ interface WorkItemDetail {
   canReopen?: boolean;
   /** Phase 6: earlier steps being redone that this step is paused for. */
   pausedBy?: string[];
+  /** Pause with lead approval (state, request, numbers, what this viewer may do). */
+  pauseState?: 'requested' | 'paused' | null;
+  pause?: PauseInfo | null;
   /** Approved files of a finished non-postable Design step (sm_manager, creative_lead/growth_lead and admin only). */
   handover?: {
     approvedAt?: string | null;
@@ -773,6 +777,12 @@ export const WorkDetailPage: React.FC = () => {
         {item.pausedBy && item.pausedBy.length > 0 && (
           <div className="mt-3 p-3 rounded-xl status-tint status-waiting text-xs font-semibold" role="status" data-testid="step-paused">
             Paused: an earlier step is being redone. This step continues when it is approved again.
+          </div>
+        )}
+
+        {item.pause && (item.pause.state || item.pause.canRequest || item.pause.count > 0 || item.pause.lastRejected) && (
+          <div className="mt-3">
+            <PausePanel stepId={item._id} stepTitle={item.title} pause={item.pause} showStats onChanged={fetchItemData} />
           </div>
         )}
 

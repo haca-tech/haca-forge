@@ -2130,6 +2130,8 @@ export interface WorkActionStageContext {
     status?: string;
   } | null;
   pieceStages?: any[];
+  /** "paused" while a lead-approved pause runs: no work actions until it is resumed. */
+  pauseState?: string | null;
 }
 
 export interface WorkActionPieceContext {
@@ -2233,6 +2235,13 @@ export function getAvailableActions(
     if (status === "Not Started" && !stage.startedAt) {
       actions.push("delete");
     }
+  }
+
+  // A paused step (pause with lead approval) takes no work actions until it is resumed.
+  if (stage.pauseState === "paused") {
+    const blockedWhilePaused: WorkActionKey[] = ["start", "submit_for_approval", "mark_as_posted", "mark_blocked", "resolve_blocker", "request_help", "skip_step"] as WorkActionKey[];
+    for (let i = actions.length - 1; i >= 0; i--) if (blockedWhilePaused.includes(actions[i])) actions.splice(i, 1);
+    if (actions.length === 0) return { actions, isOwner, reason: "This step is paused. Resume it to continue." };
   }
 
   // 4. Compute reason if no actions available for viewer
@@ -3047,7 +3056,18 @@ export interface ChatChannelTypeDetail {
 // 15. Individual Tracking & Worker Timing Engine
 // ==========================================
 
-export type IntervalKind = "blocked" | "pending";
+/**
+ * Non-working time on a step. "paused" is the reopen pause (Phase 6); "manual_pause" is a
+ * pause the step's lead approved (pause requests). Each is opened and closed only by its own
+ * logic; the work-time calculator subtracts them all, merged, so overlaps count once.
+ */
+export type IntervalKind = "blocked" | "pending" | "paused" | "manual_pause";
+export const INTERVAL_KIND_LABELS: Record<IntervalKind, string> = {
+  blocked: "Blocked",
+  pending: "Waiting",
+  paused: "Paused (earlier step redone)",
+  manual_pause: "Paused (approved)",
+};
 
 export interface WorkInterval {
   kind: IntervalKind;
@@ -3159,9 +3179,45 @@ export function formatOverdue(days: number): string {
 }
 
 /**
- * Calculates sum of paused interval durations (blocked or pending) within a time window.
+ * Non-working time inside a window: every interval (blocked, waiting, reopen pause, approved
+ * pause) clipped to the window and merged first, so time that was paused for two reasons at
+ * once is subtracted once. An open interval runs to the end of the window.
  */
 export function calculateIntervalDurationInWindow(
+  intervals: WorkInterval[] = [],
+  windowStart: Date,
+  windowEnd: Date
+): number {
+  const winStart = windowStart.getTime();
+  const winEnd = windowEnd.getTime();
+  const spans: Array<[number, number]> = [];
+  for (const interval of intervals || []) {
+    if (!interval || !interval.startedAt) continue;
+    const intStart = new Date(interval.startedAt).getTime();
+    const intEnd = interval.endedAt ? new Date(interval.endedAt).getTime() : winEnd;
+    const start = Math.max(winStart, intStart);
+    const end = Math.min(winEnd, intEnd);
+    if (end > start) spans.push([start, end]);
+  }
+  spans.sort((a, b) => a[0] - b[0]);
+  let pausedMs = 0;
+  let curStart = -Infinity;
+  let curEnd = -Infinity;
+  for (const [start, end] of spans) {
+    if (start > curEnd) {
+      if (curEnd > curStart) pausedMs += curEnd - curStart;
+      curStart = start;
+      curEnd = end;
+    } else if (end > curEnd) {
+      curEnd = end;
+    }
+  }
+  if (curEnd > curStart) pausedMs += curEnd - curStart;
+  return pausedMs;
+}
+
+/** The same sum without merging (each interval counted in full): the rule before merging, for comparisons. */
+export function calculateIntervalDurationInWindowUnmerged(
   intervals: WorkInterval[] = [],
   windowStart: Date,
   windowEnd: Date
@@ -3169,22 +3225,59 @@ export function calculateIntervalDurationInWindow(
   let pausedMs = 0;
   const winStart = windowStart.getTime();
   const winEnd = windowEnd.getTime();
-
-  for (const interval of intervals) {
+  for (const interval of intervals || []) {
     if (!interval || !interval.startedAt) continue;
     const intStart = new Date(interval.startedAt).getTime();
     const intEnd = interval.endedAt ? new Date(interval.endedAt).getTime() : winEnd;
-
     const overlapStart = Math.max(winStart, intStart);
     const overlapEnd = Math.min(winEnd, intEnd);
-
-    if (overlapEnd > overlapStart) {
-      pausedMs += overlapEnd - overlapStart;
-    }
+    if (overlapEnd > overlapStart) pausedMs += overlapEnd - overlapStart;
   }
-
   return pausedMs;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Working days and pause requests
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Working days in IST: Monday to Saturday (0 = Sunday). No holiday list for now. */
+export const WORKING_DAYS_IST: readonly number[] = [1, 2, 3, 4, 5, 6];
+/** Reminders go out from this hour (IST) on the day they are due. */
+export const REMINDER_HOUR_IST = 9;
+
+/** Weekday (0 = Sunday) of an IST date key YYYY-MM-DD. */
+function weekdayOfKey(key: string): number {
+  return new Date(`${key}T00:00:00Z`).getUTCDay();
+}
+function addDaysToKey(key: string, days: number): string {
+  const d = new Date(`${key}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+export function isWorkingDayIST(value: DateLike): boolean {
+  const key = istDateKey(value);
+  return Boolean(key) && WORKING_DAYS_IST.includes(weekdayOfKey(key as string));
+}
+/** The first working day (IST) after the IST day of `value`, as YYYY-MM-DD. */
+export function nextWorkingDayKeyIST(value: DateLike): string | null {
+  const key = istDateKey(value);
+  if (!key) return null;
+  let next = addDaysToKey(key, 1);
+  for (let i = 0; i < 7 && !WORKING_DAYS_IST.includes(weekdayOfKey(next)); i++) next = addDaysToKey(next, 1);
+  return next;
+}
+/** The hour (0-23) of `value` in IST. */
+export function istHour(value: DateLike): number {
+  const d = new Date(value as string | Date | number);
+  return Number(new Intl.DateTimeFormat("en-GB", { timeZone: APP_TIME_ZONE, hour: "2-digit", hourCycle: "h23" }).format(d));
+}
+
+export const PAUSE_REASONS = ["urgent_task", "other"] as const;
+export type PauseReason = (typeof PAUSE_REASONS)[number];
+export const PAUSE_REASON_LABELS: Record<PauseReason, string> = { urgent_task: "Urgent task", other: "Other" };
+/** A step's pause state (status stays In Progress; "Paused" is shown from this). */
+export type PauseState = "requested" | "paused" | null;
+export const PAUSE_NOTE_MAX = 300;
 
 /**
  * Comprehensive Individual Timing & Measures Calculator
@@ -3871,6 +3964,8 @@ export interface TimedStep {
   revisions?: number | null;
   rounds?: Array<{ startedAt?: DateLike; submittedAt?: DateLike; decision?: string | null; intervals?: unknown[] }> | null;
   intervals?: unknown[] | null;
+  /** "paused" while a lead-approved pause is running. */
+  pauseState?: string | null;
 }
 
 export const isFinishedStepStatus = (status?: string | null) => status === "Approved" || status === "Published";
@@ -3896,7 +3991,8 @@ export type StepTimeLabelKind =
   | "done_on_time"
   | "late_earlier_step"
   | "waiting_earlier_step_late"
-  | "blocked";
+  | "blocked"
+  | "paused";
 
 export interface StepTimeLabel {
   kind: StepTimeLabelKind;
@@ -3953,6 +4049,8 @@ export function stepTimeLabels(
     const days = Math.max(0, istDayDiff(now, opts.blockedSince) ?? 0);
     labels.push({ kind: "blocked", text: days === 0 ? "Blocked today" : `Blocked ${dayWord(days)}`, days });
   }
+  // A paused step keeps its due date, so it can still go overdue; "Paused" says why.
+  if (!finished && step.pauseState === "paused") labels.push({ kind: "paused", text: "Paused" });
   return labels;
 }
 

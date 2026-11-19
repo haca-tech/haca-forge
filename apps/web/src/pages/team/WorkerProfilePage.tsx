@@ -1,4 +1,4 @@
-import { getStepStatusLabel, isApprover, isReadOnlyViewer, isWorker } from '@mmp/shared';
+import { getStepStatusLabel, isApprover, isReadOnlyViewer, isWorker, INTERVAL_KIND_LABELS, PAUSE_REASON_LABELS } from '@mmp/shared';
 import React, { useState, useEffect, useRef } from 'react';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
@@ -1216,10 +1216,10 @@ export const WorkerProfilePage: React.FC = () => {
 
                         {item.intervals?.length > 0 && (
                           <div className="pt-2">
-                            <span className="font-semibold text-xs text-ui-ink block">Paused Intervals (Blocked / Pending):</span>
+                            <span className="font-semibold text-xs text-ui-ink block">Paused intervals:</span>
                             {item.intervals.map((iv: any, idx: number) => (
                               <div key={idx} className="text-[10px] text-ui-muted">
-                                • {iv.kind.toUpperCase()}: {iv.reason || 'No reason'} ({formatDuration(new Date(iv.endedAt || Date.now()).getTime() - new Date(iv.startedAt).getTime())})
+                                • {(INTERVAL_KIND_LABELS as Record<string, string>)[iv.kind] || iv.kind}: {(PAUSE_REASON_LABELS as Record<string, string>)[iv.reason] || iv.reason || 'No reason'} ({formatDuration(new Date(iv.endedAt || Date.now()).getTime() - new Date(iv.startedAt).getTime())})
                               </div>
                             ))}
                           </div>

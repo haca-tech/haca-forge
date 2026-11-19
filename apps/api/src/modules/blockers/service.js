@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { assertNotManuallyPaused } from '../workItems/pause.service.js';
 import { Blocker } from './model.js';
 import { recordBlocker, openBlockedInterval, closeIntervals, statusAfterBlocker } from './lifecycle.js';
 import { WorkItem } from '../workItems/model.js';
@@ -37,6 +38,8 @@ export async function createBlocker(data, user) {
     error.statusCode = 404;
     throw error;
   }
+  // A paused step is resumed before anything else happens to it.
+  assertNotManuallyPaused(workItem);
 
   const userId = (user._id || user.id || user.userId)?.toString();
   const blockerPerson = await Person.findOne({

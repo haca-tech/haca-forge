@@ -157,12 +157,20 @@ const workItemSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    // Interval logs for non-working states (Blocked, Pending)
+    // Pause with lead approval: "requested" while a request waits, "paused" while an approved
+    // pause runs (status stays In Progress; the open manual_pause interval stops work time).
+    pauseState: {
+      type: String,
+      enum: ['requested', 'paused', null],
+      default: null,
+      index: true,
+    },
+    // Interval logs for non-working states (Blocked, Pending, paused, manual_pause)
     intervals: [
       {
         kind: {
           type: String,
-          enum: ['blocked', 'pending', 'paused'],
+          enum: ['blocked', 'pending', 'paused', 'manual_pause'],
           required: true,
         },
         startedAt: {
@@ -213,7 +221,7 @@ const workItemSchema = new mongoose.Schema(
           {
             kind: {
               type: String,
-              enum: ['blocked', 'pending', 'paused'],
+              enum: ['blocked', 'pending', 'paused', 'manual_pause'],
             },
             startedAt: Date,
             endedAt: Date,

@@ -22,6 +22,8 @@ router.param('stageItemId', workItemParam);
 router.get('/my-work', requirePermission('work.update.own'), workItemController.getMyWork);
 router.get('/calendar', requireAnyPermission('work.request', 'work.update.own', 'portal.view'), workItemController.getCalendarWorkItems);
 router.get('/todo', requireAnyPermission('work.request', 'work.update.own', 'portal.view'), workItemController.getTodoItems);
+// Pause requests waiting for a decision (leads: their calendars; admin and read-only heads: all; others: their own).
+router.get('/pause-requests', workItemController.listPauseRequests);
 
 // Work Items CRUD & Queries
 router.get('/', requireAnyPermission('work.request', 'work.update.own', 'portal.view'), workItemController.listWorkItems);
@@ -52,5 +54,12 @@ router.post(
 );
 
 router.delete('/:id', requirePermission('work.create'), workItemController.deleteWorkItem);
+
+// Pause with lead approval (rules in pause.service.js: owner requests and cancels; the step's lead decides;
+// the owner, the lead or admin resumes).
+router.post('/:id/pause-request', workItemController.requestPause);
+router.post('/:id/pause-request/cancel', workItemController.cancelPauseRequest);
+router.post('/:id/pause-request/decide', workItemController.decidePauseRequest);
+router.post('/:id/resume', workItemController.resumeStep);
 
 export default router;

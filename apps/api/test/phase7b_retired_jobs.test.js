@@ -44,7 +44,7 @@ describe('Phase 7b: retired report jobs and rule records', () => {
 
     it('they are no longer default rules', () => {
       const keys = DEFAULT_AUTOMATION_RULES.map((r) => r.ruleKey);
-      expect(keys).toEqual(['overdue_escalation', 'todo_escalation', 'blocker_dependency_alert', 'revision_pattern_flag']);
+      expect(keys).toEqual(['overdue_escalation', 'todo_escalation', 'blocker_dependency_alert', 'revision_pattern_flag', 'pause_reminders']);
     });
   });
 

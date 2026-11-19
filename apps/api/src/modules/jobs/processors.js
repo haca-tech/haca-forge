@@ -53,3 +53,8 @@ export async function runRecurringRequestsJob(job) {
 export async function runCapacityGapJob(job) {
   return { processed: 0, status: 'retired' };
 }
+
+export async function runPauseRemindersJob(job) {
+  logger.info({ jobId: job?.id }, '[BullMQ] Running Pause Request Reminders');
+  return executeAutomationRule('pause_reminders', null);
+}

@@ -56,6 +56,17 @@ export const DEFAULT_AUTOMATION_RULES = [
     active: true,
     config: { thresholdRound: 4 },
   },
+  {
+    ruleKey: 'pause_reminders',
+    name: 'Pause Request Reminders',
+    description: 'On working days (Mon–Sat, IST) from 09:00: reminds the lead of the step once about a pause request still undecided since an earlier working day, and reminds the worker once on the morning of their "pause until" date. Pauses never end automatically.',
+    trigger: 'scheduled',
+    schedule: 'Hourly check',
+    cronExpression: '0 * * * *',
+    action: 'Remind the lead about an undecided pause request; remind the worker to resume',
+    active: true,
+    config: {},
+  },
 ];
 
 /**
@@ -116,6 +127,11 @@ export async function executeAutomationRule(ruleKey, user = null, options = {}) 
       case 'revision_pattern_flag':
         result = await runRevisionPatternFlagRule(rule, user);
         break;
+      case 'pause_reminders': {
+        const { runPauseReminders } = await import('../workItems/pause.service.js');
+        result = await runPauseReminders(options.now || new Date());
+        break;
+      }
       default:
         throw new Error(`No runner implemented for ruleKey: ${ruleKey}`);
     }

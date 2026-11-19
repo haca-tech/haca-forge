@@ -121,7 +121,18 @@ export const TrackerRow: React.FC<Props> = ({ piece, now = new Date(), canAssign
           <span className="status-chip status-changes text-[11px] self-start">Needs owner</span>
         )}
         <span className="text-[12px] text-ui-muted">Due {formatShortDate(st.dueDate, now) || '—'}</span>
-        <TimeLabelChips labels={st.timeLabels} showOnTime={false} />
+        {/* Pause with lead approval: the reason in the tooltip (and for screen readers). */}
+        {(st.pauseState === 'paused' || st.pauseState === 'requested') && (
+          <span
+            className={`status-chip ${st.pauseState === 'paused' ? 'status-waiting' : 'status-not-started'} text-[11px] self-start`}
+            title={String(st.pauseReason || '') || undefined}
+            data-testid="tracker-pause-chip"
+          >
+            {st.pauseState === 'paused' ? 'Paused' : 'Pause requested'}
+            {st.pauseReason ? <span className="sr-only">: {String(st.pauseReason)}</span> : null}
+          </span>
+        )}
+        <TimeLabelChips labels={(st.timeLabels || []).filter((l) => l.kind !== 'paused')} showOnTime={false} />
       </div>
     );
   };

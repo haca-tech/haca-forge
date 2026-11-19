@@ -21,9 +21,9 @@ import {
   X,
   ExternalLink,
   MessageSquare,
-  FileSpreadsheet,
-} from 'lucide-react';
+  FileSpreadsheet, PauseCircle } from 'lucide-react';
 import { PlansApprovalTab } from './PlansApprovalTab';
+import { PauseRequestsTab } from './PauseRequestsTab';
 
 interface FeedbackThreadItem {
   workItem: {
@@ -96,9 +96,10 @@ export const FeedbackPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tabParam = searchParams.get('tab');
-  const mainTab: 'plans' | 'stages' = tabParam === 'plans' ? 'plans' : 'stages';
+  const mainTab: 'plans' | 'stages' | 'pauses' = tabParam === 'plans' ? 'plans' : tabParam === 'pauses' ? 'pauses' : 'stages';
+  const [pauseCount, setPauseCount] = useState<number | null>(null);
 
-  const handleMainTabChange = (t: 'plans' | 'stages') => {
+  const handleMainTabChange = (t: 'plans' | 'stages' | 'pauses') => {
     setSearchParams({ tab: t });
   };
 
@@ -333,6 +334,16 @@ export const FeedbackPage: React.FC = () => {
           <CheckCircle2 className="w-4 h-4" />
           Stages waiting for approval
         </button>
+
+        <button
+          type="button"
+          aria-pressed={mainTab === 'pauses'}
+          onClick={() => handleMainTabChange('pauses')}
+          className={`ui-tab gap-2 ${mainTab === 'pauses' ? 'is-active' : ''}`}
+        >
+          <PauseCircle className="w-4 h-4" aria-hidden="true" />
+          Pause requests{pauseCount ? ` (${pauseCount})` : ''}
+        </button>
         </div>
 
         {isReviewerOrAdmin && (
@@ -348,6 +359,8 @@ export const FeedbackPage: React.FC = () => {
       </div>
 
       {mainTab === 'plans' && <PlansApprovalTab />}
+
+      {mainTab === 'pauses' && <PauseRequestsTab onCount={setPauseCount} />}
 
       {mainTab === 'stages' && (
         <>

@@ -1,4 +1,5 @@
 import * as workItemService from './service.js';
+import * as pauseService from './pause.service.js';
 import * as transitionService from './transition.service.js';
 import { applyWorkItemViewerRules } from './viewerRules.js';
 
@@ -113,3 +114,17 @@ export async function getWorkItemActivities(req, res, next) {
     next(error);
   }
 }
+
+// Pause with lead approval
+const wrap = (fn, status = 200) => async (req, res, next) => {
+  try {
+    res.status(status).json({ data: await fn(req) });
+  } catch (error) {
+    next(error);
+  }
+};
+export const requestPause = wrap((req) => pauseService.requestPause(req.params.id, req.body, req.user), 201);
+export const cancelPauseRequest = wrap((req) => pauseService.cancelPauseRequest(req.params.id, req.user));
+export const decidePauseRequest = wrap((req) => pauseService.decidePauseRequest(req.params.id, req.body, req.user));
+export const resumeStep = wrap((req) => pauseService.resumeStep(req.params.id, req.user));
+export const listPauseRequests = wrap((req) => pauseService.listPauseRequests(req.user));

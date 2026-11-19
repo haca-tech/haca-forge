@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { afterOwnerChange } from '../workItems/pause.service.js';
 import { AssignmentOverride } from './model.js';
 import { Person } from '../people/model.js';
 import { Department } from '../departments/model.js';
@@ -283,6 +284,7 @@ export async function recordAssignmentOverride(data, user) {
   // Update workItem owner to chosen person
   workItem.ownerId = chosenPersonId;
   await workItem.save();
+  await afterOwnerChange([workItem._id], user);
 
   // Audit activity
   await logActivity({

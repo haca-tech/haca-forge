@@ -14,6 +14,8 @@ const TONE: Record<string, string> = {
   late_earlier_step: 'status-waiting',
   waiting_earlier_step_late: 'status-waiting',
   done_on_time: 'status-approved',
+  // Paused with the lead's approval (shown next to Overdue: the due date does not change).
+  paused: 'status-waiting',
 };
 
 /**

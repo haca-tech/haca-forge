@@ -47,7 +47,10 @@ export interface TrackerStage {
   postedAt?: string | null;
   updatedAt?: string | null;
   timeLabels?: TimeLabel[];
-  intervals?: Array<{ startedAt: string; endedAt?: string | null }>;
+  intervals?: Array<{ kind?: string; startedAt: string; endedAt?: string | null }>;
+  /** Pause with lead approval, and its reason (chip tooltip). */
+  pauseState?: 'requested' | 'paused' | null;
+  pauseReason?: string;
   [key: string]: unknown;
 }
 
@@ -78,6 +81,8 @@ export interface TrackerPiece {
   hasBlocked: boolean;
   hasOverdue: boolean;
   hasDoneLate?: boolean;
+  hasPaused?: boolean;
+  hasPauseRequested?: boolean;
   projectLabel?: { kind: string; text: string; days: number } | null;
   waitingFormatted?: string;
   workTimeFormatted?: string;
@@ -98,6 +103,8 @@ export const TRACKER_STATUSES = [
   { value: 'needs_owner', label: 'Needs owner' },
   { value: 'waiting_approval', label: 'Waiting for approval' },
   { value: 'not_approved', label: 'Not approved yet' },
+  { value: 'paused', label: 'Paused' },
+  { value: 'pause_requested', label: 'Pause requested' },
 ] as const;
 export type TrackerStatus = (typeof TRACKER_STATUSES)[number]['value'];
 
@@ -248,6 +255,10 @@ export function matchesStatus(p: TrackerPiece, status: string): boolean {
       return Boolean(p.hasWaitingApproval);
     case 'not_approved':
       return isNotApproved(p);
+    case 'paused':
+      return Boolean(p.hasPaused) || p.stages.some((s) => s.pauseState === 'paused');
+    case 'pause_requested':
+      return Boolean(p.hasPauseRequested) || p.stages.some((s) => s.pauseState === 'requested');
     default:
       return true;
   }

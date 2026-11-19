@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { PausePanel, type PauseInfo } from '../../components/pause/PauseControls';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
 import { TimeLabelChips, type TimeLabel } from '../../components/TimeLabelChips';
@@ -63,6 +64,9 @@ interface WorkItemSummary {
   blockerNote?: string;
   deliverableUrl?: string;
   publishedUrl?: string;
+  /** Pause with lead approval. */
+  pauseState?: 'requested' | 'paused' | null;
+  pause?: PauseInfo | null;
   description?: string;
   brief?: {
     description?: string;
@@ -611,6 +615,13 @@ export const MyWorkPage: React.FC = () => {
                 <span>Blocked: {item.blockerReason}</span>
               </div>
               {item.blockerNote && <p className="text-xs mt-0.5">{item.blockerNote}</p>}
+            </div>
+          )}
+
+          {/* Pause with lead approval: Request pause, Pause requested (Cancel), Paused (Resume). */}
+          {item.pause && (item.pause.state || item.pause.canRequest || item.pause.lastRejected) && (
+            <div className="mt-3">
+              <PausePanel stepId={item._id} stepTitle={item.title} pause={item.pause} onChanged={fetchMyWork} />
             </div>
           )}
         </div>

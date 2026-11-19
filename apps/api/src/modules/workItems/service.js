@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { afterOwnerChange, pauseInfoFor } from './pause.service.js';
 import { WorkItem } from './model.js';
 import { Department } from '../departments/model.js';
 import { resolveScope } from '../../lib/scope.js';
@@ -365,6 +366,8 @@ export async function getWorkItemById(id, user) {
   // Phase 7: computed time labels (Overdue, Done late, Late: earlier step, Blocked, ...).
   // The viewer rules keep them for the owner and leadership only.
   await attachTimeLabels([result]);
+  // Pause with lead approval: state, request, numbers and what this viewer may do.
+  result.pause = await pauseInfoFor(result, user);
 
   // A finished non-postable Design step is handed over: its approved files, with download,
   // for the SM manager, creative head and admin.
@@ -466,10 +469,12 @@ export async function updateWorkItem(id, data, user) {
   if (data.title) workItem.title = data.title.trim();
   if (data.workType) workItem.workType = normalizeWorkType(data.workType) || data.workType;
   if (data.departmentId) workItem.departmentId = data.departmentId;
+  let ownerChanged = false;
   if (data.ownerId !== undefined) {
     if (data.ownerId?.toString() !== workItem.ownerId?.toString()) {
       workItem.ownerId = data.ownerId;
       workItem.assignedAt = data.ownerId ? new Date() : null;
+      ownerChanged = true;
     }
   }
   if (data.deadline) {
@@ -532,6 +537,8 @@ export async function updateWorkItem(id, data, user) {
   }
 
   await workItem.save();
+  // Reassigned: the old owner's pending pause request is cancelled (a paused step stays paused).
+  if (ownerChanged) await afterOwnerChange([workItem._id], user);
 
   if (workItem.contentPieceId && (data.isSkipped !== undefined || data.isLocked !== undefined)) {
     const { reconcileContentPieceStageLocks } = await import('./transition.service.js');
@@ -685,6 +692,8 @@ export async function getMyWork(user) {
     }
 
     const isCompleted = item.status === 'Approved' || item.status === 'Published' || item.status === 'Done';
+    // Pause with lead approval (Request pause, Pause requested, Paused banners).
+    if (!isCompleted && (item.pauseState || item.status === 'In Progress')) item.pause = await pauseInfoFor(item, user);
     if (isCompleted) {
       completed.push(item);
       continue;

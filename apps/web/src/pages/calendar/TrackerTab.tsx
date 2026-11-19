@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Table, Sparkles, X, Check } from 'lucide-react';
-import { formatShortDate, formatShortDateTime, getStepStatusLabel, isApprover, isReadOnlyViewer, isWorker } from '@mmp/shared';
+import { formatShortDate, formatShortDateTime, getStepStatusLabel, isApprover, isReadOnlyViewer, isWorker, INTERVAL_KIND_LABELS, PAUSE_REASON_LABELS } from '@mmp/shared';
 import { withDisplayStatus } from '../../lib/statusTone';
 import { apiFetch } from '../../lib/api';
 import { useDialogFocus } from '../../lib/useDialogFocus';
@@ -676,13 +676,13 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
                   {Array.isArray(st.intervals) && st.intervals.length > 0 && (
                     <div className="space-y-1 pt-1">
                       <span className="text-[10px] font-bold text-ui-muted block">
-                        Paused Intervals ({st.intervals.length})
+                        Paused intervals ({st.intervals.length})
                       </span>
                       {st.intervals.map((iv: any, idx: number) => (
                         <div key={idx} className="text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-slate-100 flex items-center justify-between">
-                          <span className="font-bold text-rose-700">{iv.kind}</span>
+                          <span className="font-bold text-rose-700">{(INTERVAL_KIND_LABELS as Record<string, string>)[iv.kind] || iv.kind}</span>
                           <span>{formatShortDateTime(iv.startedAt)} → {iv.endedAt ? formatShortDateTime(iv.endedAt) : 'ongoing'}</span>
-                          {iv.reason && <span className="text-ui-muted">({iv.reason})</span>}
+                          {iv.reason && <span className="text-ui-muted">({(PAUSE_REASON_LABELS as Record<string, string>)[iv.reason] || iv.reason})</span>}
                         </div>
                       ))}
                     </div>

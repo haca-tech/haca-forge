@@ -1,4 +1,5 @@
 import { eligiblePreferencesForUpdate } from '../people/eligibility.js';
+import { afterOwnerChange } from '../workItems/pause.service.js';
 import { calendarQueryFor } from '../workItems/deciders.js';
 import mongoose from 'mongoose';
 import { countAwaitingReview, markAwaitingReview } from '../workItems/reviewState.js';
@@ -1021,12 +1022,15 @@ export async function reassignSteps(sourcePersonId, { targetPersonId, workItemId
     query.status = { $nin: ['Approved', 'Published'] };
   }
 
+  const movingIds = (await WorkItem.find(query).select('_id').lean()).map((w) => w._id);
   const result = await WorkItem.updateMany(query, {
     $set: {
       ownerId: targetPerson._id,
       assignedAt: new Date(),
     },
   });
+  // Pending pause requests of the old owner are cancelled; paused steps stay paused.
+  await afterOwnerChange(movingIds, actor);
 
   await logActivity({
     entityType: 'person',
