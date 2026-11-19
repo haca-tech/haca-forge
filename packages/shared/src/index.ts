@@ -4347,3 +4347,196 @@ export function reviewQueueAge(
   const oldest = Math.min(...times);
   return { waiting: (waiting || []).length, oldestMs: Math.max(0, new Date(now as string).getTime() - oldest), oldestSubmittedAt: new Date(oldest) };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Simple workload: step counts, no hours or percentages. One definition everywhere
+// (workload page, dashboard, profiles, autofill, import, Recommended Owner).
+// Days are IST calendar days; "this week" is today and the next 6 days, plus overdue.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Active-step limit when a person has none set. */
+export const DEFAULT_ACTIVE_STEP_LIMIT = 4;
+/** Due this week at or below this is "Available". */
+export const WORKLOAD_AVAILABLE_MAX = 2;
+export const WORKLOAD_WINDOW_DAYS = 7;
+
+export const SIMPLE_WORKLOAD_BANDS = ["Available", "Busy", "Over"] as const;
+export type SimpleWorkloadBand = (typeof SIMPLE_WORKLOAD_BANDS)[number];
+
+/** A step as workload reads it. `dueDate` falls back to `deadline`. */
+export interface WorkloadStep {
+  status?: string | null;
+  isLocked?: boolean | null;
+  isSkipped?: boolean | null;
+  dueDate?: DateLike;
+  deadline?: DateLike;
+  /** Status of the step's latest version (submission), when it has one. */
+  latestVersionStatus?: string | null;
+  revisions?: number | null;
+}
+
+export interface Workload {
+  inProgress: number;
+  dueThisWeek: number;
+  limit: number;
+  band: SimpleWorkloadBand;
+  /** Earliest due date (IST, YYYY-MM-DD) among the steps the owner has to act on, overdue included; or null. */
+  nextDue: string | null;
+}
+
+/** The person's limit: a positive whole number, or the default. */
+export function activeStepLimitOf(person: { activeStepLimit?: number | null } | null | undefined): number {
+  const v = Number(person?.activeStepLimit);
+  return Number.isInteger(v) && v > 0 ? v : DEFAULT_ACTIVE_STEP_LIMIT;
+}
+
+/** Over the limit first; otherwise Available (2 or fewer) or Busy. */
+export function workloadBand(dueThisWeek: number, limit: number = DEFAULT_ACTIVE_STEP_LIMIT): SimpleWorkloadBand {
+  if (dueThisWeek > limit) return "Over";
+  if (dueThisWeek <= WORKLOAD_AVAILABLE_MAX) return "Available";
+  return "Busy";
+}
+
+const stepDueKey = (s: WorkloadStep) => istDateKey(s.dueDate ?? s.deadline);
+
+/**
+ * True when the owner has something to do on the step: Not Started and unlocked,
+ * In Progress (rework and paused included), Blocked, or Feedback with changes requested.
+ * Waiting for review, Pending, Approved, Published, skipped and locked steps do not count.
+ */
+export function ownerHasWork(s: WorkloadStep): boolean {
+  if (!s || s.isSkipped || s.isLocked) return false;
+  switch (s.status) {
+    case "Not Started":
+    case "In Progress":
+    case "Blocked":
+      return true;
+    case "Feedback":
+      return stepReviewState("Feedback", s.latestVersionStatus ?? null, Number(s.revisions) || 0) === "changes_requested";
+    default:
+      return false;
+  }
+}
+
+/** Steps the owner has to act on, due up to `endKey` and (unless overdue counts) from `startKey`. */
+function countDue(steps: WorkloadStep[], startKey: string, endKey: string, includeOverdue: boolean): number {
+  let n = 0;
+  for (const s of steps || []) {
+    if (!ownerHasWork(s)) continue;
+    const key = stepDueKey(s);
+    if (!key || key > endKey) continue;
+    if (!includeOverdue && key < startKey) continue;
+    n += 1;
+  }
+  return n;
+}
+
+const inProgressCount = (steps: WorkloadStep[]) => (steps || []).filter((s) => s && !s.isSkipped && s.status === "In Progress").length;
+
+/**
+ * One person's workload from their steps.
+ * - inProgress: steps with status In Progress (rework and paused included), not skipped.
+ * - dueThisWeek: steps the owner has to act on, due from today to today + 6 (IST), overdue included.
+ */
+export function workloadFor(
+  person: { activeStepLimit?: number | null } | null | undefined,
+  steps: WorkloadStep[],
+  now: DateLike = new Date(),
+): Workload {
+  const todayKey = istDateKey(now) as string;
+  const endKey = addDaysToKey(todayKey, WORKLOAD_WINDOW_DAYS - 1);
+  const list = steps || [];
+  const dueThisWeek = countDue(list, todayKey, endKey, true);
+  let nextDue: string | null = null;
+  for (const s of list) {
+    if (!ownerHasWork(s)) continue;
+    const key = stepDueKey(s);
+    if (key && (!nextDue || key < nextDue)) nextDue = key;
+  }
+  const limit = activeStepLimitOf(person);
+  return { inProgress: inProgressCount(list), dueThisWeek, limit, band: workloadBand(dueThisWeek, limit), nextDue };
+}
+
+/** A person suggestions can choose from, with their open steps. */
+export interface OwnerCandidate {
+  id: string;
+  name: string;
+  activeStepLimit?: number | null;
+  steps: WorkloadStep[];
+}
+
+export interface OwnerPick<C extends OwnerCandidate = OwnerCandidate> {
+  candidate: C;
+  /** Steps due in the target step's window before this pick. */
+  dueInWindow: number;
+  inProgress: number;
+  limit: number;
+  /** True when this step takes them above their limit; they are still picked. */
+  overLimit: boolean;
+  /** Why this person, for a tooltip. */
+  reason: string;
+  /** "Over limit: Ashwin has 5 due this week." when overLimit, else null. */
+  warning: string | null;
+}
+
+/**
+ * The target step's 7-day window: the 7 IST days ending on its due date. With no due date,
+ * or a due date within the current week, it is this week (today to today + 6, overdue included).
+ */
+export function targetWindow(targetDue: DateLike, now: DateLike = new Date()): { startKey: string; endKey: string; thisWeek: boolean } {
+  const todayKey = istDateKey(now) as string;
+  const thisWeekEnd = addDaysToKey(todayKey, WORKLOAD_WINDOW_DAYS - 1);
+  const dueKey = istDateKey(targetDue);
+  if (!dueKey || dueKey <= thisWeekEnd) return { startKey: todayKey, endKey: thisWeekEnd, thisWeek: true };
+  return { startKey: addDaysToKey(dueKey, -(WORKLOAD_WINDOW_DAYS - 1)), endKey: dueKey, thisWeek: false };
+}
+
+const firstNameOf = (name: string) => String(name || "").trim().split(/\s+/)[0] || String(name || "");
+
+/**
+ * The one owner rule for every suggestion (autofill, import, Recommended Owner):
+ * eligible, then fewest due in the target step's 7-day window, then fewest in progress,
+ * then name, then id. Nobody is excluded for load: an over-limit pick is still returned,
+ * with a warning. Returns null only when nobody is eligible.
+ *
+ * To spread work across a run, replace the picked candidate with `withPlannedStep(...)`
+ * before the next call.
+ */
+export function pickOwner<C extends OwnerCandidate>(
+  candidates: C[],
+  opts: { targetDue?: DateLike; now?: DateLike; eligible?: (c: C) => boolean } = {},
+): OwnerPick<C> | null {
+  const now = opts.now ?? new Date();
+  const eligible = opts.eligible ?? (() => true);
+  const win = targetWindow(opts.targetDue, now);
+  const scored = (candidates || [])
+    .filter((c) => c && eligible(c))
+    .map((c) => ({ c, due: countDue(c.steps, win.startKey, win.endKey, win.thisWeek), inProgress: inProgressCount(c.steps), limit: activeStepLimitOf(c) }));
+  if (scored.length === 0) return null;
+  scored.sort(
+    (a, b) =>
+      a.due - b.due ||
+      a.inProgress - b.inProgress ||
+      String(a.c.name || "").localeCompare(String(b.c.name || ""), "en", { sensitivity: "base" }) ||
+      String(a.c.id).localeCompare(String(b.c.id)),
+  );
+  const best = scored[0];
+  const after = best.due + 1;
+  const overLimit = after > best.limit;
+  const when = win.thisWeek ? "this week" : `in the week to ${formatShortDate(`${win.endKey}T12:00:00+05:30`, new Date(now as string | number | Date))}`;
+  return {
+    candidate: best.c,
+    dueInWindow: best.due,
+    inProgress: best.inProgress,
+    limit: best.limit,
+    overLimit,
+    reason: `Fewest due ${when} (${best.due}), ${best.inProgress} in progress`,
+    warning: overLimit ? `Over limit: ${firstNameOf(best.c.name)} has ${after} due ${when}.` : null,
+  };
+}
+
+/** The candidate with one more planned step (Not Started, unlocked) due on `dueDate`. */
+export function withPlannedStep<C extends OwnerCandidate>(candidate: C, dueDate: DateLike): C {
+  const due = dueDate instanceof Date ? dueDate.toISOString() : dueDate;
+  return { ...candidate, steps: [...(candidate.steps || []), { status: "Not Started", isLocked: false, dueDate: due }] };
+}
