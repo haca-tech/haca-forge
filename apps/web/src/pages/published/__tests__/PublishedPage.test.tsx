@@ -119,6 +119,9 @@ describe('Cards', () => {
     expect(card).toHaveTextContent('example.org');
     expect(within(card).getByRole('link', { name: /Open original/ })).toHaveAttribute('href', 'https://example.org/haca/post-1');
     expect(within(card).getByRole('link', { name: /Open original/ })).toHaveAttribute('rel', 'noopener noreferrer');
+    // Every card, embedded or not, links to the original (an embed may show the site's own error page).
+    const opens = screen.getAllByRole('link', { name: /Open original/ }).map((a) => a.getAttribute('href'));
+    expect(opens.sort()).toEqual(['https://example.org/haca/post-1', 'https://www.instagram.com/reel/C8xYz12AbCd/', 'https://youtube.com/shorts/dQw4w9WgXcQ']);
   });
 
   it('chips, posted date and credits; nothing counted or sorted by person', async () => {

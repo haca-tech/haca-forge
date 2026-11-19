@@ -245,6 +245,18 @@ export const PublishedPage: React.FC = () => {
             </div>
             <Chips item={item} />
             <Credits credits={item.credits} />
+            {/* An embed can load yet show the site's own "not available" page; the original is always one tap away. */}
+            {item.embed.kind !== 'link' && safeHref(item.liveUrl) && (
+              <a
+                href={safeHref(item.liveUrl)!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 min-h-[44px] text-xs font-semibold text-ui-ink underline underline-offset-2"
+              >
+                Open original <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                <span className="sr-only">(opens in a new tab): {item.title}</span>
+              </a>
+            )}
           </li>
         ))}
       </ul>
