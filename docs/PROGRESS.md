@@ -1,6 +1,38 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Pause work with lead approval):** 2009 passing, 0 failing: API 1573 (76 files), web 436 (52 files). Typecheck 0 errors; web build clean.
+**Current test count (after Review Hub):** 2031 passing, 0 failing: API 1585 (77 files), web 446 (54 files). Typecheck 0 errors; web build clean.
+
+## Review Hub redesign (Status: COMPLETE; committed locally, not pushed)
+
+Gate in the working tree before the commit: typecheck 0 errors, web build clean, API 1585/1585, web 446/446.
+
+- `404aa81` Review Hub: inbox and timeline; round-4 flags on every revision path.
+
+### Decisions applied (Option 1)
+1. Round-4 flags come from the shared changes-requested step, so Review Studio, Work Detail (version and transition paths) and Shoot review all flag. Rounds are counted from the step, per cycle (a cycle starts after an approval that was later reopened).
+2. One flag per step per round-4 crossing; a later reopen that reaches round 4 again re-arms the same flag and keeps the earlier crossing in `previousCrossings`. A flag write failure is logged and never fails the decision. The hourly rule scans steps with 3+ change requests and runs the same check.
+3. Readers switched to real data, older FeedbackEntry records only as a fallback: autofill (now removed, see below), reviewer turnaround (submit to decision on versions the person decided), reviewer notes (revision event, then status event, then older entry).
+4. `POST /api/feedback/work-item/:id` and `POST /api/feedback` return 410 (`FEEDBACK_REVISION_RETIRED` "Use Review Studio", `FEEDBACK_REPLY_RETIRED` "Use Resubmit"). FeedbackEntry data is kept and still readable.
+
+### Figures that changed on the real database (read-only check)
+- FeedbackEntry: 0 records, so note texts do not change.
+- Reviewer turnaround: Creative Lead 3.2 h (default) → 1.7 h (16 decisions). It is now the lead's own figure only: removed from the team performance list.
+
+### Review Hub (`/feedback`)
+- `GET /api/review-hub` (tabs with counts; leads by the calendars they decide, admin and the read-only heads all, workers their own steps) and `GET /api/review-hub/steps/:id/timeline`.
+- Lead tabs: Waiting for review, Changes requested, Pause requests, Plan approvals, Flagged (round 4), History. Worker tabs: Needs my action, Waiting for review, History. Oldest waiting first; search (title or owner) and calendar filter in the URL.
+- Detail panel: header (title, step, owner, status, version, due, "N revisions"), one main action (Open in Review Studio, Classify root cause, Start rework, Resubmit link, or Open Work Detail; read-only heads always Open Work Detail), and an oldest-first timeline (submitted, changes requested with root cause, rework started, pause events, approved with rating, reopened, flagged, classified, earlier notes). Private text follows the Phase 3 rules.
+- Old forms ("Submit Thread Update", "Request a revision (new round)", "Respond to Latest Reviewer Feedback") and the "Two-Entry" wording are gone. Workers now have a "Review Hub" item in the sidebar.
+
+### Fairness in suggestions (added in this phase)
+- Autofill and Recommended Owner no longer use revision history (autofill used it as a tie-break; Recommended Owner as its third sort key and in its reason text).
+- One shared rule, `apps/api/src/lib/pickOwner.js`, for autofill, import and Recommended Owner: eligible, under 85% load, lowest load, then name, then id. Recommended Owner keeps team members first and still names the least-loaded person with a capacity warning when nobody is available. (Workload definitions still differ between these; the next phase unifies them.)
+- Team Workload page: no "Avg Revs"; the API no longer computes it. Team directory: no "Has late work" filter and no late count on the cards (the person's profile keeps it).
+- Fixed: the hourly round-4 rule referenced a removed variable.
+
+### Browser check (disposable `marketing_portal_uicheck`, API :8093, web :5301)
+- Creative Lead, Growth Lead, a worker and the Creative Head at desktop (1440) and phone (390) width: 58/58 checks (tabs and counts per role and calendar, main actions, history timeline order and rating, Classify on the flagged step, no old forms, worker nav item, no horizontal scroll).
+- Before and after screenshots in the session scratchpad (`uicheck/shots_hub`). Database dropped, servers stopped; the real `marketing_portal` counts and latest update times are unchanged.
 
 ## Pause work with lead approval (Status: COMPLETE; committed locally, not pushed)
 
