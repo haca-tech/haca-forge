@@ -459,10 +459,51 @@ export async function afterCalendarMove(workItemIds) {
  * from 09:00: one reminder to the lead(s) for a request still undecided since an earlier
  * working day, and one reminder to the worker on the morning of their "pause until" date.
  */
+/**
+ * Every hourly run: a request still pending on a step that is no longer In Progress (submitted,
+ * posted, blocked, finished; for example one left behind before submitting withdrew requests)
+ * is cancelled as "cancelled_on_submit", logged on the step, and the lead is told once.
+ */
+export async function cancelStalePauseRequests() {
+  let cancelled = 0;
+  for (const r of await PauseRequest.find({ status: 'pending' }).lean()) {
+    const step = await WorkItem.findById(r.workItemId).select('title status calendar pauseState').lean();
+    if (step && step.status === 'In Progress') continue;
+    const done = await PauseRequest.findOneAndUpdate(
+      { _id: r._id, status: 'pending' },
+      { $set: { status: 'cancelled', cancelledAt: new Date(), cancelReason: 'cancelled_on_submit' } },
+      { new: true }
+    );
+    if (!done) continue;
+    cancelled++;
+    if (!step) continue;
+    await WorkItem.updateOne({ _id: step._id, pauseState: 'requested' }, { $set: { pauseState: null } });
+    // The owner's submit (or other move) is what ended it; the hourly job only tidied up.
+    await logActivity({
+      entityType: 'work_item',
+      entityId: step._id,
+      actor: { _id: r.ownerId },
+      action: 'work_item.pause_cancelled',
+      metadata: { requestId: r._id, cancelReason: 'cancelled_on_submit', by: 'pause_reminders', stepStatus: step.status },
+    });
+    await notifyAll(await decidersFor(calendarOf(step)), {
+      type: 'pause_withdrawn',
+      title: 'Pause request withdrawn',
+      message: `"${step.title}" is no longer In Progress (${step.status}), so its pause request was withdrawn.`,
+      link: `/work/${step._id}`,
+      metadata: { workItemId: step._id, pauseRequestId: r._id },
+    }, idOf(r.ownerId));
+  }
+  if (cancelled) logger.info({ cancelled }, 'Stale pause requests cancelled');
+  return cancelled;
+}
+
 export async function runPauseReminders(now = new Date()) {
   const today = istDateKey(now);
+  // Tidy-up runs every hour; reminders only on working days from 09:00 IST.
+  const staleCancelled = await cancelStalePauseRequests();
   if (!isWorkingDayIST(now) || istHour(now) < REMINDER_HOUR_IST) {
-    return { summary: 'Not a reminder time (working days from 09:00 IST).', leadReminders: 0, untilReminders: 0 };
+    return { summary: `Not a reminder time (working days from 09:00 IST). Cancelled ${staleCancelled} stale requests.`, leadReminders: 0, untilReminders: 0, staleCancelled };
   }
   let leadReminders = 0;
   for (const r of await PauseRequest.find({ status: 'pending', leadRemindedAt: null }).lean()) {
@@ -498,5 +539,11 @@ export async function runPauseReminders(now = new Date()) {
     untilReminders++;
   }
   if (leadReminders || untilReminders) logger.info({ leadReminders, untilReminders }, 'Pause reminders sent');
-  return { summary: `Sent ${leadReminders} lead reminders and ${untilReminders} resume reminders.`, leadReminders, untilReminders, affectedCount: leadReminders + untilReminders };
+  return {
+    summary: `Sent ${leadReminders} lead reminders and ${untilReminders} resume reminders; cancelled ${staleCancelled} stale requests.`,
+    leadReminders,
+    untilReminders,
+    staleCancelled,
+    affectedCount: leadReminders + untilReminders + staleCancelled,
+  };
 }

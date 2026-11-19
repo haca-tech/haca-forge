@@ -59,7 +59,7 @@ export const DEFAULT_AUTOMATION_RULES = [
   {
     ruleKey: 'pause_reminders',
     name: 'Pause Request Reminders',
-    description: 'On working days (Mon–Sat, IST) from 09:00: reminds the lead of the step once about a pause request still undecided since an earlier working day, and reminds the worker once on the morning of their "pause until" date. Pauses never end automatically.',
+    description: 'On working days (Mon–Sat, IST) from 09:00: reminds the lead of the step once about a pause request still undecided since an earlier working day, and reminds the worker once on the morning of their "pause until" date. Pauses never end automatically. Every hour it also cancels a request still pending on a step that is no longer In Progress, telling the lead once.',
     trigger: 'scheduled',
     schedule: 'Hourly check',
     cronExpression: '0 * * * *',

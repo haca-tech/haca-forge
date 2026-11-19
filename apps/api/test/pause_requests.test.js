@@ -444,6 +444,28 @@ describe('Pause work with lead approval', () => {
       expect(await withdrawn('creativeLead', post)).toBe(0);
     });
 
+    it('the hourly job cancels a request left pending on a step no longer In Progress, and tells the lead once', async () => {
+      const stale = await step('worker');
+      const live = await step('worker');
+      await ask('worker', stale);
+      await ask('worker', live);
+      // Submitted before submitting withdrew requests (or the second write failed): still pending.
+      await WorkItem.updateOne({ _id: stale._id }, { $set: { status: 'Feedback' } });
+      const sunday = new Date('2034-01-08T06:00:00Z'); // runs every hour, not only on working days
+      await runPauseReminders(sunday);
+      await runPauseReminders(sunday);
+      const r = await PauseRequest.findOne({ workItemId: stale._id }).lean();
+      expect(r).toMatchObject({ status: 'cancelled', cancelReason: 'cancelled_on_submit' });
+      expect((await fresh(stale)).pauseState).toBeNull();
+      expect(await withdrawn('creativeLead', stale)).toBe(1);
+      expect(await withdrawn('worker', stale)).toBe(0);
+      const ev = await ActivityEvent.findOne({ entityId: { $in: [stale._id, String(stale._id)] }, action: 'work_item.pause_cancelled' }).lean();
+      expect(ev.metadata).toMatchObject({ cancelReason: 'cancelled_on_submit', by: 'pause_reminders', stepStatus: 'Feedback' });
+      // A request on a step still In Progress is left alone.
+      expect((await PauseRequest.findOne({ workItemId: live._id }).lean()).status).toBe('pending');
+      expect((await fresh(live)).pauseState).toBe('requested');
+    });
+
     it('a submit without a pending request changes no request and tells nobody', async () => {
       const w = await step('worker');
       const before = await Notification.countDocuments({ type: 'pause_withdrawn', 'metadata.workItemId': w._id });
