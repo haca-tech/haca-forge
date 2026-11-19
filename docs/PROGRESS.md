@@ -1,6 +1,62 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Phase 13):** 1914 passing, 0 failing: API 1523 (74 files), web 391 (50 files). Typecheck 0 errors; web build clean.
+**Current test count (after the Published page):** 1954 passing, 0 failing: API 1543 (75 files), web 411 (51 files). Typecheck 0 errors; web build clean.
+
+## Published page: live deliverables showcase (Status: COMPLETE; committed locally, not pushed)
+
+Each commit gated in the working tree (typecheck, web build, all tests).
+
+- `8fd86bf` Published page: live deliverables showcase. Gate: typecheck 0 errors, web build clean, API 1543/1543 (75 files), web 411/411 (51 files).
+- `6d58030` Published page: Open original on every card. Gate: typecheck 0 errors, web build clean, web 411/411; API code unchanged since the run above.
+
+### Decisions applied
+1. Workers get the sidebar item and see only pieces they owned a step on.
+2. frame-src allowlist on the web app (vercel.json for production, the Vite dev and preview servers) and in helmet's production policy.
+3. Posted date: the piece's `publishedAt`, else its Post step's `postedAt` (the live link likewise: piece `liveUrl`, else the step's `publishedUrl`).
+4. No change to existing records.
+
+### Frames in the web app (checked before adding the policy)
+One iframe existed: the Review Studio link viewer (`LinkOpenerViewer.tsx`), which frames a link containing `youtube.com/embed` or `figma.com/embed`. There are no `srcDoc`, `<object>` or `<embed>` frames, no frames created in code, and no frames in print views (the report and profile prints use `window.print()` on the page itself; blobs are downloads). Final `frame-src` (`FRAME_SRC_POLICY` in `@mmp/shared`): `'self' https://www.instagram.com https://www.youtube-nocookie.com https://www.facebook.com https://www.linkedin.com https://www.youtube.com https://youtube.com https://m.youtube.com https://www.figma.com https://figma.com`. Before this, the web app sent no CSP, so any site could be framed. Helmet still keeps CSP off on API responses in dev, as before. A test keeps vercel.json, Vite and helmet on the shared list.
+
+### What changed
+- **API:** `GET /api/published` (read-only) returns posted pieces newest first. Filters: month (posted date in IST), calendar, type, workflow and search, plus paging (24 per page, at most 60). Each item: id, title, type, workflow and its label, calendar, posted date, live link, embed info, and credits (each finished step and its owner's name only). Malformed filters return 400 `INVALID_FILTER`. Leadership, admin and the SM Manager see every piece; a worker sees only pieces where they owned a step, and no filter widens that. No contact details.
+- **Embeds:** `toEmbed(liveUrl)` in `@mmp/shared` gives the official public embed URL:
+  - Instagram `/p/`, `/reel/`, `/reels/`, `/tv/`, also under a username;
+  - YouTube watch, shorts, embed, live and youtu.be, served from youtube-nocookie;
+  - Facebook videos, reels and posts, through the plugin URLs;
+  - LinkedIn activity, share and ugcPost ids.
+  Everything else is `{ kind: 'link' }`: http, `javascript:`, credentials, ports and look-alike hosts. The page frames only URLs that pass `isTrustedEmbedUrl` (the exact shapes `toEmbed` produces). Frames load when scrolled into view, are sandboxed (scripts, same-origin, popups; plus presentation for video players), have a fixed aspect ratio (9:16 reels and shorts, 4:5 Instagram posts and LinkedIn, 16:9 video, 1:1 Facebook posts) and a title. A frame that has not loaded within 10 seconds becomes the link card.
+- **Page:** `/published`, sidebar item "Published" right after Creative Calendar for every role. A filter bar like the Tracker's, with every filter kept in the URL; the month defaults to this month, with "All" for every month. Result count, empty state "Nothing published yet for this month", card grid (1 column on a phone, up to 4 on a wide screen) showing the embed or a link card, title, type and workflow chip, calendar chip, "Posted 16 Nov", credits and "Open original ↗". The title or the expand button opens a larger view with the embed and "Open original ↗" in a new tab. Nothing is sorted, grouped or counted by person.
+- **Posting rule:** a site homepage (no path beyond "/") is refused on the web and the API with "Paste the link to the post itself, not the site homepage." (`livePostUrlError`, `isLivePostUrl`). The posting dialog shows "Instagram reel detected" or "Will show as a link" once the link is valid. Records saved earlier are untouched.
+- **Limitation:** a page cannot see inside another site's frame. An embed of a private or deleted post can load and show the site's own "not available" page; only a frame that never loads falls back to the link card. That is why every card also links to the original.
+- **Real data:** 3 posted pieces, all with a site root as the live link (2 instagram.com, 1 drive.google.com). They show as link cards and were not changed.
+
+### Tests
+- New `apps/api/test/published_page.test.js` (21):
+  - `toEmbed` for every host and URL form; links for other hosts, http, `javascript:`, data, credentials, ports and look-alikes (`instagram.com.evil.com`, `evil.com/www.instagram.com/...`);
+  - `isTrustedEmbedUrl`; the preview text;
+  - the frame policy in vercel.json, Vite and helmet;
+  - access for all 6 leadership roles and the SM Manager; workers limited to their own pieces, with filters unable to widen it;
+  - item shape and credits; the Post step fallback; a late-night IST date counted in the right month; no contact details;
+  - every filter and paging; 400s and 401; another route unchanged for workers;
+  - the homepage refused on posting and on edit; an old homepage record left as it is and listed as a link card.
+- New `apps/web/src/pages/published/__tests__/PublishedPage.test.tsx` (20):
+  - lazy, sandboxed, titled frames at the right aspect ratio; the link card; "Open original" on every card;
+  - never framing an untrusted URL; no href for `javascript:`; the fallback after the time limit while a loaded frame stays;
+  - the larger view and the title opening it;
+  - filters read from and written to the URL; search; the empty state;
+  - the posting dialog's preview line and homepage refusal;
+  - the sidebar item for all 7 roles, right after Creative Calendar.
+
+### Browser check
+Disposable `marketing_portal_uicheck` (6 test-only users; 4 posted pieces linking to an Instagram reel, a YouTube Short, a LinkedIn post and an unknown site; one Post step waiting to be posted). API on :8093 and web on :5301 (served with the same frame-src header), proxied only to the disposable database. Creative Lead, SM Manager and a worker, at 1440 and 390 px: **89 of 89 checks passed**.
+- The sidebar item; every piece for leadership, and only their own two pieces for the worker; newest first; no contact details.
+- The three embeds framed with the official embed URLs, sandboxed and titled, with no CSP blocks; the unknown site as a link card.
+- The larger view with "Open original" in a new tab; the calendar filter in the URL, surviving a reload; the empty month.
+- Posting dialog: the homepage refused with the message; "Instagram reel detected" and "Will show as a link".
+- No page scroll, page errors, 5xx or alert dialogs.
+
+On the live internet the YouTube frame played the video. The made-up Instagram and LinkedIn ids showed those sites' own "not available" pages inside their frames, which is the limitation above. The disposable database was dropped and the servers stopped. The real database is unchanged by this work: 15 users, 57 steps, 16 rows, 3 plans, and the 3 live links as they were. Between Phase 13 and this work its counts rose (57 steps, 108 notifications, 136 activity events). Those are the owner's own actions in the app on 18 November, 22:42–22:55 IST: approving Ads plan rows, whole-plan Request changes, a resubmit, approval.
 
 ## Phase 13: Approval routing by calendar and plan row Request changes (Status: COMPLETE; committed locally, not pushed)
 
