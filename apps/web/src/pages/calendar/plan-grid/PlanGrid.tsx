@@ -28,7 +28,7 @@ import { PlanGridConfirmDialog } from './PlanGridConfirmDialog';
 import { PlanChangesDialog } from './PlanRowChangeRequest';
 import { PlanGridPasteDialog } from './PlanGridPasteDialog';
 import { useMediaQuery } from './useMediaQuery';
-import { ownerOptionLabel, useTeamWorkload } from '../../../lib/workload';
+import { BAND_DOT, ownerOptionLabel, useTeamWorkload } from '../../../lib/workload';
 import { OWNER_FIELD_BY_STAGE, PLANNING_COLUMNS, PROGRESS_COLUMNS, STAGE_LABEL, stageForColumn, type PlanCol, type PlanColGroup } from './columns';
 import { STATUS_STAGE, rowCanBeDeleted, type GridCellInput, type GridData, type GridLine, type GridRow, type GridRowResult, type GridSaveResponse } from './types';
 
@@ -793,15 +793,26 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
       // Same rule as the Add Row form: owners hold the step in their work preferences.
       const options = people.filter((p) => p.workPreferences.includes(stage) || p._id === value);
       const typedName = line.draft[field] !== undefined ? String(line.draft[field]) : '';
+      const emptyLabel = typedName ? `“${typedName}” (not matched)` : 'Auto-assign';
+      // Closed, the cell shows only the band dot and the name so it fits the column; the open
+      // list keeps the full label ("N due this week"). The select's own text is hidden under it.
+      const chosen = options.find((p) => p._id === value);
+      const chosenLoad = chosen ? teamWorkload.get(String(chosen._id)) : undefined;
+      const closedLabel = chosen ? `${chosenLoad ? `${BAND_DOT[chosenLoad.band]} ` : ''}${chosen.name}` : emptyLabel;
       return (
         <div>
           <div className="flex flex-wrap items-center gap-1">
-            <select {...common} className={`ui-select h-11 w-full min-w-[9rem] flex-1${invalidCls}`} value={value} onChange={(e) => commit(line, e.target.value ? { [`${field}Id`]: e.target.value } : { [field]: '' })}>
-              <option value="">{typedName ? `“${typedName}” (not matched)` : 'Auto-assign'}</option>
-              {options.map((p) => (
-                <option key={p._id} value={p._id}>{ownerOptionLabel(p.name, teamWorkload.get(String(p._id)))}</option>
-              ))}
-            </select>
+            <div className="relative w-full min-w-[9rem] flex-1">
+              <select {...common} className={`ui-select h-11 w-full text-transparent${invalidCls}`} value={value} onChange={(e) => commit(line, e.target.value ? { [`${field}Id`]: e.target.value } : { [field]: '' })}>
+                <option value="" className="text-ui-ink">{emptyLabel}</option>
+                {options.map((p) => (
+                  <option key={p._id} value={p._id} className="text-ui-ink">{ownerOptionLabel(p.name, teamWorkload.get(String(p._id)))}</option>
+                ))}
+              </select>
+              <span aria-hidden="true" data-testid="owner-closed-label" className="pointer-events-none absolute inset-y-0 left-0 right-10 flex items-center pl-4 text-[0.8125rem] text-ui-ink">
+                <span className="truncate">{closedLabel}</span>
+              </span>
+            </div>
             {value && source === 'suggested' && draftId === undefined && (
               <span className="status-chip status-not-started text-[11px] shrink-0" title={`Suggested by autofill${why ? `: ${why}` : ''}. Pick a person to fix it.`} data-testid="auto-chip">
                 Auto

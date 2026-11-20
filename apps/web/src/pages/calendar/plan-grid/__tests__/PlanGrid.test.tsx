@@ -388,7 +388,11 @@ describe('Grid basics kept from PG-2', () => {
     await waitFor(() => expect(within(select).getByRole('option', { name: /Ravi Editor/ }).textContent).toBe('Ravi Editor — 🔴 5 due this week · over limit'));
     // Over-limit people stay selectable.
     expect(within(select).getByRole('option', { name: /Ravi Editor/ })).not.toBeDisabled();
-    const cell = select.closest('div')!;
+    // Closed, the cell shows only the band dot and the name (it fits the column).
+    const closed = select.parentElement!.querySelector('[data-testid="owner-closed-label"]')!;
+    expect(closed.textContent).toBe('🔴 Ravi Editor');
+    expect(closed.textContent).not.toMatch(/due this week/);
+    const cell = select.parentElement!.parentElement!;
     expect(within(cell).getByTestId('auto-chip')).toHaveAttribute('title', 'Suggested by autofill: Fewest due this week (4), 2 in progress. Pick a person to fix it.');
     expect(within(cell).getByTestId('over-limit-chip')).toHaveAttribute('title', 'Over limit: Ravi has 5 due this week.');
     workloadPeople = [];
