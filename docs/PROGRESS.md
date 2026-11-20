@@ -1,6 +1,33 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Review Hub):** 2031 passing, 0 failing: API 1585 (77 files), web 446 (54 files). Typecheck 0 errors; web build clean.
+**Current test count (after Simple workload):** 2067 passing, 0 failing: API 1615 (79 files), web 452 (54 files). Typecheck 0 errors; web build clean.
+
+## Simple workload: step counts (Status: COMPLETE; committed locally, not pushed)
+
+Gate per commit: typecheck 0 errors, web build clean, all tests passing (A: API 1598, web 446; B: API 1615, web 446; C: API 1615, web 452).
+
+- `d1ee41a` A: shared `workloadFor`, bands and `pickOwner` (@mmp/shared).
+- `45eb18e` B: API and suggestions on step counts.
+- `1f5e07f` C: screens; old hours/percentage fields removed from the API.
+- `e5e771c` Plan grid: owner-cell chips wrap under the select (found in the browser check).
+
+### Rules
+- In progress: the person's steps with status In Progress (rework and paused included).
+- Due this week: steps the owner has to act on (Not Started and unlocked, In Progress, Blocked, Feedback with changes requested), due today to today + 6 in IST, overdue included. Waiting for review, Pending, Approved, Published, skipped and locked steps do not count.
+- Limit: `activeStepLimit` per person, default 4 (no default stored; missing means 4), 1 to 20, set by admin and both leads (403 for others, audited).
+- Bands: Available (2 or fewer due), Busy (up to the limit), Over (above it). No hours or percentages anywhere in workload.
+- `pickOwner` (autofill, import, Recommended Owner): eligible, fewest due in the target step's 7-day window, fewest in progress, name, id. No 85% rule; an over-limit pick is still made with "Over limit: <name> has N due this week." Autofill counts steps already planned in the plan or run, so work spreads. Post stays with SM Managers; Recommended Owner keeps team members first.
+- Workload is a planning tool: lists sort by name; the directory's load sort is gone. Workers see only their own numbers.
+
+### What changed
+- API: `GET /api/workload` (bands, people, jobRoles, canEditLimit), `GET /api/workload/:id/steps`, `PUT /api/workload/:id/limit`; the limit also through `PATCH /api/team/:id` and the people update. Plan validation's "Workload saturation ≥85%" became the over-limit warning. Tracker recommendations and generated steps keep over-limit picks. Directory, profile (steps due per week), dashboard (band counts) and My Profile (real band) use `workloadFor`. Old hours fields had no reader left and were removed.
+- Plan rows: suggested owners store `ownerReason` and `ownerWarning` (optional, written on save only; existing rows untouched).
+- Web: Team Workload page rebuilt (band chips that filter, job role / band / search in the URL, rows by name with counts, next due, band and a limit pencil, side panel of open steps, cards on phones; "Suggest an owner" kept without effort hours). Owner dropdowns (plan grid, row panel, Tracker Assign, plan form, profile reassign) show a band dot and "N due this week"; over-limit is marked but selectable. The grid's Auto chip shows the reason and an Over limit chip when over. Profile, dashboard and My Profile show counts and bands. Effort hours removed from Edit details, My Work, the Calendar and access approvals; stored effort and capacity values stay unused.
+- Differences from the spec (approved): Work Detail's Edit details has no owner field, so it only lost the effort field; the Workload page's unsaved "override" section was removed.
+
+### Browser check (disposable `marketing_portal_uicheck`, 6 workers, 2 plans; desktop 1440 and phone 390)
+- 45/45 checks: workload chips, filters, side panel, limit edit (pencil, saved, reset), workers see only their own row and get 403 on limits; plan grid Auto on the 10-row plan (work spread, reasons on every Auto chip, over-limit chips when every worker's limit was 1); Tracker Assign options with load; profile and dashboard counts with no hours; own profile without "Optimal"; Work Detail without effort; regression: a plan created, submitted and approved, and one Reel's Edit submitted, approved and its Post published.
+- Before and after screenshots in the session scratchpad (`uicheck/shots_wl`). Database dropped, servers stopped; the real `marketing_portal` was unchanged during the check (real-app sign-ins earlier the same morning changed sessions and last-login times; nothing from the checks).
 
 ## Review Hub redesign (Status: COMPLETE; committed locally, not pushed)
 
