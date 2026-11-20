@@ -4568,3 +4568,278 @@ export function withPlannedStep<C extends OwnerCandidate>(candidate: C, dueDate:
   const due = dueDate instanceof Date ? dueDate.toISOString() : dueDate;
   return { ...candidate, steps: [...(candidate.steps || []), { status: "Not Started", isLocked: false, dueDate: due }] };
 }
+
+// ==========================================
+// Access v2 (Phase B): permission catalog, system roles, workflow config, resolver.
+// Nothing in the app uses this yet; the parity test proves it matches the current rules
+// for every role × action × calendar × owner/non-owner. Phase C switches the app to it.
+// ==========================================
+
+export const PERMISSION_AREAS = ["Planning", "Production", "Review", "Publishing", "Team", "Reports", "Chat", "Admin", "Settings"] as const;
+export type PermissionArea = (typeof PERMISSION_AREAS)[number];
+
+/**
+ * Which workflow-config list a calendar-scoped permission is routed by: the person must be in
+ * that list for the calendar (admin always is). Unrouted permissions are not calendar-scoped.
+ */
+export type PermissionRouting = "reviewers" | "planApprovers" | "posters";
+
+export interface PermissionDef {
+  key: string;
+  area: PermissionArea;
+  label: string;
+  description: string;
+  calendarScoped: boolean;
+  routedBy?: PermissionRouting;
+}
+
+/** Catalog v2. `portal.view` is split into work.view_all, calendar.view, feedback.view_all and assignment.view. */
+export const PERMISSION_CATALOG = [
+  // Planning
+  { key: "calendar.view", area: "Planning", label: "View plans", description: "Read calendar plans, rows and the Tracker (was part of portal.view).", calendarScoped: false },
+  { key: "calendar.plan", area: "Planning", label: "Plan", description: "Create, edit and submit plans and rows.", calendarScoped: false },
+  { key: "calendar.approve", area: "Planning", label: "Approve plans", description: "Approve or send back plans and rows on their calendars.", calendarScoped: true, routedBy: "planApprovers" },
+  { key: "assignment.view", area: "Planning", label: "View assignments", description: "Read owner recommendations and assignment data (was part of portal.view).", calendarScoped: false },
+  { key: "assignment.override", area: "Planning", label: "Assign owners", description: "Assign or override step owners and reschedule pieces.", calendarScoped: false },
+  { key: "people.assign", area: "Planning", label: "Assign people", description: "Pick people for work.", calendarScoped: false },
+  // Production
+  { key: "work.view_all", area: "Production", label: "View all work", description: "Read every step and blocker, not only your own (was part of portal.view).", calendarScoped: false },
+  { key: "work.create", area: "Production", label: "Create work", description: "Create standalone work items and uploads.", calendarScoped: false },
+  { key: "work.request", area: "Production", label: "Request work", description: "Request work and read your own items.", calendarScoped: false },
+  { key: "work.update.own", area: "Production", label: "Update own work", description: "Start, submit and update steps you own.", calendarScoped: false },
+  { key: "work.manage_steps", area: "Production", label: "Manage steps", description: "Change a step's owner or date, skip steps.", calendarScoped: false },
+  { key: "blocker.resolve.any", area: "Production", label: "Resolve any blocker", description: "Resolve or remind on blockers of steps you do not own.", calendarScoped: false },
+  // Review
+  { key: "review.decide", area: "Review", label: "Review", description: "Approve, request changes, rate, reopen and decide pauses on steps of your calendars (never your own).", calendarScoped: true, routedBy: "reviewers" },
+  { key: "review.read_all", area: "Review", label: "Read all review text", description: "Read revision notes, ratings and clip threads on others' steps.", calendarScoped: false },
+  { key: "feedback.view_all", area: "Review", label: "View feedback", description: "Read feedback and revision flags (was part of portal.view).", calendarScoped: false },
+  { key: "feedback.give", area: "Review", label: "Give feedback", description: "Write feedback on others' work.", calendarScoped: false },
+  { key: "feedback.respond", area: "Review", label: "Respond to feedback", description: "Reply to feedback on your work.", calendarScoped: false },
+  { key: "revision.classify", area: "Review", label: "Classify revisions", description: "Set the root cause of flagged revisions on your calendars.", calendarScoped: true, routedBy: "reviewers" },
+  // Publishing
+  { key: "publish.post", area: "Publishing", label: "Post", description: "Own Post steps and mark pieces posted.", calendarScoped: true, routedBy: "posters" },
+  { key: "publish.edit_live_link", area: "Publishing", label: "Edit live links", description: "Correct the live link of a posted piece.", calendarScoped: false },
+  // Team
+  { key: "people.view", area: "Team", label: "View people", description: "Read the people directory.", calendarScoped: false },
+  { key: "people.manage_operational", area: "Team", label: "Manage operational fields", description: "Edit job role, preferences, capacity and department.", calendarScoped: false },
+  { key: "team.profile.view", area: "Team", label: "View profiles", description: "Open team profiles.", calendarScoped: false },
+  { key: "team.profile.report", area: "Team", label: "Profile reports", description: "View and download a person's profile report.", calendarScoped: false },
+  // Reports
+  { key: "analytics.team", area: "Reports", label: "Team analytics", description: "Dashboards and team metrics.", calendarScoped: false },
+  { key: "report.view", area: "Reports", label: "View reports", description: "Live reports.", calendarScoped: false },
+  { key: "report.configure", area: "Reports", label: "Configure reports", description: "Report settings (admin).", calendarScoped: false },
+  // Chat
+  { key: "chat.use", area: "Chat", label: "Chat", description: "Send messages and join channels.", calendarScoped: false },
+  { key: "chat.read", area: "Chat", label: "Read chat", description: "Read channels without writing (read-only roles).", calendarScoped: false },
+  { key: "chat.group.create", area: "Chat", label: "Create groups", description: "Create group channels.", calendarScoped: false },
+  { key: "chat.moderate", area: "Chat", label: "Moderate", description: "Pin messages in any channel you are in.", calendarScoped: false },
+  { key: "chat.mention_all", area: "Chat", label: "Mention @everyone", description: "Use @everyone.", calendarScoped: false },
+  { key: "chat.share_asset", area: "Chat", label: "Share any asset", description: "Share outputs you do not own to chat.", calendarScoped: false },
+  { key: "chat.revoke_share", area: "Chat", label: "Revoke any share", description: "Revoke a share someone else made.", calendarScoped: false },
+  { key: "chat.manage_groups", area: "Chat", label: "Manage any group", description: "Edit, archive and manage members of groups you do not own.", calendarScoped: false },
+  // Admin
+  { key: "user.approve", area: "Admin", label: "Approve access", description: "Approve access requests.", calendarScoped: false },
+  { key: "user.manage", area: "Admin", label: "Manage users", description: "Invite, edit and suspend users.", calendarScoped: false },
+  { key: "automation.manage", area: "Admin", label: "Automation", description: "Automation rules (admin).", calendarScoped: false },
+  // Settings
+  { key: "settings.manage", area: "Settings", label: "Settings", description: "Departments and API docs (admin).", calendarScoped: false },
+  { key: "settings.access.manage", area: "Settings", label: "Roles & access", description: "Assign roles and calendar scope; set reviewers, approvers and posters.", calendarScoped: false },
+] as const satisfies readonly PermissionDef[];
+
+export type PermissionKeyV2 = (typeof PERMISSION_CATALOG)[number]["key"];
+export const PERMISSION_KEYS_V2 = PERMISSION_CATALOG.map((p) => p.key) as PermissionKeyV2[];
+const PERMISSION_DEF = new Map<string, PermissionDef>(PERMISSION_CATALOG.map((p) => [p.key, p as PermissionDef]));
+export const permissionDef = (key: string): PermissionDef | undefined => PERMISSION_DEF.get(key);
+
+/**
+ * Where portal.view was used in a route guard, the key that replaces it there, by API module.
+ * In each guard the replacement's holders equal portal.view's, or the guard already lists a key
+ * whose holders include them, so every guard admits exactly the same roles (parity test).
+ */
+export const PORTAL_VIEW_SPLIT: Record<string, PermissionKeyV2> = {
+  workItems: "work.view_all",
+  blockers: "work.view_all",
+  calendar: "calendar.view",
+  feedback: "feedback.view_all",
+  assignment: "assignment.view",
+  people: "people.view",
+  reports: "report.view",
+};
+
+/**
+ * Permissions that can never be used on your own work (no self-approval). Classifying a flag on
+ * your own step is allowed today (feedback/service.js:418 has no owner check); kept for parity.
+ */
+export const SELF_FORBIDDEN_PERMISSIONS: readonly string[] = ["review.decide"];
+
+export type DataScope = "all" | "own";
+export interface SystemRoleDef {
+  key: UserRole;
+  /** Every key for admin (locked; never limited by calendar). */
+  permissions: readonly string[];
+  /** "own": sees only work they take part in; others' contact details hidden (fixed rules). */
+  dataScope: DataScope;
+  /** Every write refused except on their own account. */
+  readOnly: boolean;
+  /** Can own steps (workload, autofill, assignment candidates). */
+  takesSteps: boolean;
+  locked: boolean;
+}
+
+const V2_VIEWER: PermissionKeyV2[] = [
+  "calendar.view", "work.view_all", "feedback.view_all", "assignment.view",
+  "people.view", "analytics.team", "report.view", "chat.read", "team.profile.view",
+  "review.read_all", "team.profile.report",
+];
+const V2_LEAD: PermissionKeyV2[] = [
+  "calendar.view", "work.view_all", "feedback.view_all", "assignment.view",
+  "people.view", "people.assign", "calendar.approve", "feedback.give", "feedback.respond", "revision.classify",
+  "assignment.override", "work.update.own", "analytics.team", "report.view",
+  "chat.use", "chat.group.create", "chat.moderate", "team.profile.view",
+  "review.decide", "review.read_all", "people.manage_operational", "team.profile.report",
+  "chat.mention_all", "chat.share_asset", "chat.revoke_share",
+];
+
+/** The 7 fixed system roles (no custom roles). Mirrors ROLE_PERMISSIONS plus the hard-coded role rules. */
+export const SYSTEM_ROLES: Record<UserRole, SystemRoleDef> = {
+  admin: { key: "admin", permissions: [...PERMISSION_KEYS_V2], dataScope: "all", readOnly: false, takesSteps: false, locked: true },
+  creative_head: { key: "creative_head", permissions: V2_VIEWER, dataScope: "all", readOnly: true, takesSteps: false, locked: false },
+  production_head: { key: "production_head", permissions: V2_VIEWER, dataScope: "all", readOnly: true, takesSteps: false, locked: false },
+  creative_lead: { key: "creative_lead", permissions: V2_LEAD, dataScope: "all", readOnly: false, takesSteps: false, locked: false },
+  growth_lead: { key: "growth_lead", permissions: V2_LEAD, dataScope: "all", readOnly: false, takesSteps: false, locked: false },
+  sm_manager: {
+    key: "sm_manager",
+    permissions: [
+      "calendar.view", "calendar.plan", "work.create", "assignment.override", "work.update.own", "feedback.respond",
+      "analytics.team", "report.view", "people.view", "chat.use", "chat.group.create", "chat.moderate", "team.profile.view",
+      "work.manage_steps", "blocker.resolve.any", "publish.post", "publish.edit_live_link", "review.read_all",
+      "chat.mention_all", "chat.share_asset",
+    ],
+    dataScope: "all",
+    readOnly: false,
+    takesSteps: true,
+    locked: false,
+  },
+  executive: { key: "executive", permissions: ["work.update.own", "work.request", "feedback.respond", "chat.use"], dataScope: "own", readOnly: false, takesSteps: true, locked: false },
+};
+
+/** People for a workflow slot: by role and/or by named user ids. */
+export interface AccessAudience {
+  roles: string[];
+  userIds: string[];
+}
+export interface WorkflowConfigShape {
+  calendar: string;
+  reviewers: AccessAudience;
+  planApprovers: AccessAudience;
+  posters: AccessAudience;
+  /** Used when no active primary resolves (fixed rule 12): any active admin plus optional named people. */
+  fallbackApprovers: AccessAudience;
+  version?: number;
+}
+export const WORKFLOW_SLOTS = ["reviewers", "planApprovers", "posters", "fallbackApprovers"] as const;
+export type WorkflowSlot = (typeof WORKFLOW_SLOTS)[number];
+
+/** Today's rules as config: Ads → Growth Lead, others → Creative Lead; posters SM Manager; fallback admin. */
+export function defaultWorkflowConfig(calendar: string | null | undefined): WorkflowConfigShape {
+  const cal = calendar || "sm";
+  const lead = deciderRoleFor(cal);
+  return {
+    calendar: cal,
+    reviewers: { roles: [lead], userIds: [] },
+    planApprovers: { roles: [lead], userIds: [] },
+    posters: { roles: ["sm_manager"], userIds: [] },
+    fallbackApprovers: { roles: ["admin"], userIds: [] },
+    version: 0,
+  };
+}
+
+export interface AccessUser {
+  _id?: unknown;
+  id?: unknown;
+  userId?: unknown;
+  role?: string | null;
+  status?: string | null;
+  jobRole?: string | null;
+  /** Optional per-person calendar limit (decisions and queues only). */
+  calendarScope?: string[] | null;
+}
+const accessUserId = (u: AccessUser | null | undefined) => String((u?.userId as any) || (u?._id as any) || (u?.id as any) || "");
+const idString = (v: unknown) => String((v as any)?._id || v || "");
+
+export const systemRoleOf = (user: AccessUser | null | undefined): SystemRoleDef | undefined =>
+  (SYSTEM_ROLES as Record<string, SystemRoleDef>)[String(user?.role || "")];
+
+export function audienceIncludes(audience: AccessAudience | null | undefined, user: AccessUser | null | undefined): boolean {
+  if (!audience || !user) return false;
+  const id = accessUserId(user);
+  return (audience.roles || []).includes(String(user.role || "")) || (Boolean(id) && (audience.userIds || []).map(String).includes(id));
+}
+
+/** The calendar is inside the person's calendar limit (no limit = every calendar; admin is never limited). */
+export function withinCalendarScope(user: AccessUser | null | undefined, calendar: string | null | undefined): boolean {
+  if (!user || user.role === "admin") return true;
+  const scope = user.calendarScope;
+  return !scope || scope.length === 0 || scope.includes(calendar || "sm");
+}
+
+export interface CanContext {
+  calendar?: string | null;
+  ownerId?: unknown;
+}
+
+/**
+ * The resolver. True when the user's system role holds the permission. For a calendar-scoped
+ * permission checked with a calendar, the user must also be in that calendar's routing list
+ * (reviewers / planApprovers / posters) and inside their calendar limit. Admin is locked: every
+ * permission on every calendar. Nobody passes a self-forbidden permission on their own work.
+ */
+export function can(user: AccessUser | null | undefined, permission: string, ctx: CanContext = {}, config?: WorkflowConfigShape | null): boolean {
+  const role = systemRoleOf(user);
+  if (!role || user?.status === "suspended") return false;
+  const owner = ctx.ownerId === undefined || ctx.ownerId === null ? "" : idString(ctx.ownerId);
+  if (owner && owner === accessUserId(user) && SELF_FORBIDDEN_PERMISSIONS.includes(permission)) return false;
+  if (role.locked) return true;
+  if (!role.permissions.includes(permission)) return false;
+  const def = permissionDef(permission);
+  if (def?.routedBy && ctx.calendar !== undefined) {
+    const cal = ctx.calendar || "sm";
+    if (!withinCalendarScope(user, cal)) return false;
+    const cfg = config && config.calendar === cal ? config : defaultWorkflowConfig(cal);
+    return audienceIncludes(cfg[def.routedBy], user);
+  }
+  return true;
+}
+
+/** The calendars this user reviews on (queues). Admin: all. */
+export function decisionCalendars(user: AccessUser | null | undefined, configs?: Partial<Record<string, WorkflowConfigShape>>): string[] {
+  if (!systemRoleOf(user) || user?.status === "suspended") return [];
+  return CALENDAR_KEYS.filter((cal) => can(user, "review.decide", { calendar: cal }, configs?.[cal] || null));
+}
+
+export const dataScopeOf = (user: AccessUser | null | undefined): DataScope | null => systemRoleOf(user)?.dataScope ?? null;
+export const isReadOnlyRole = (user: AccessUser | null | undefined): boolean => Boolean(systemRoleOf(user)?.readOnly);
+export const takesSteps = (user: AccessUser | null | undefined): boolean => Boolean(systemRoleOf(user)?.takesSteps);
+/** Fixed rule: "own"-scope roles never see others' contact details. */
+export const seesContactDetails = (user: AccessUser | null | undefined): boolean => dataScopeOf(user) === "all";
+
+/**
+ * Can this person own this step? Post: a poster for the step's calendar. Other steps: an own-scope
+ * role that takes steps, by job role (JOB_ROLE_STEP_ELIGIBILITY). Preferences narrow it elsewhere.
+ */
+export function stepEligibility(
+  user: AccessUser | null | undefined,
+  step: { stageKey?: string | null; calendar?: string | null },
+  config?: WorkflowConfigShape | null
+): boolean {
+  const role = systemRoleOf(user);
+  if (!role || !role.takesSteps || user?.status === "suspended") return false;
+  const stage = String(step?.stageKey || "");
+  const cal = step?.calendar || "sm";
+  if (stage === "Post") {
+    const cfg = config && config.calendar === cal ? config : defaultWorkflowConfig(cal);
+    return audienceIncludes(cfg.posters, user) && withinCalendarScope(user, cal);
+  }
+  if (role.dataScope !== "own") return false;
+  return ((JOB_ROLE_STEP_ELIGIBILITY as Record<string, string[]>)[String(user?.jobRole || "")] || []).includes(stage);
+}

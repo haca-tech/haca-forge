@@ -1,6 +1,39 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Quick role sign-in and Switch account):** 2133 passing, 0 failing, 0 skipped: API 1636 (82 files), web 497 (61 files). Typecheck 0 errors; web build clean.
+**Current test count (after Access Phase B):** 2149 passing, 0 failing, 0 skipped: API 1652 (85 files), web 497 (61 files). Typecheck 0 errors; web build clean.
+
+## Access Phase B: catalog v2, models, seed, resolver, parity (Status: COMPLETE; committed locally, not pushed)
+
+Scope (approved, smaller version): B moves every rule into one resolver with no behaviour change; C switches the API, web and sockets to it (plus web refresh on access change, last-admin guard in the UI flow, notifications to every SM Manager); D adds one admin page (role and calendar scope per person; reviewer, plan approver, poster and fallback per calendar). No permission-ticking page, no custom roles, no step-list or offset editing, review never switched off.
+
+### Built (nothing in the app reads it yet)
+- `@mmp/shared` (end of `index.ts`): `PERMISSION_CATALOG` (key, area, label, description, calendarScoped, routedBy), 40 keys in 9 areas. `portal.view` is split into `work.view_all`, `calendar.view`, `feedback.view_all`, `assignment.view` (`PORTAL_VIEW_SPLIT` per API module). New: `review.decide`, `review.read_all`, `publish.post`, `publish.edit_live_link`, `blocker.resolve.any`, `people.manage_operational`, `team.profile.report`, `chat.mention_all`, `settings.access.manage`, `settings.manage`, plus four needed for exact parity: `work.manage_steps` (change owner/date/skip: SM and admin, not the leads who hold `assignment.override`), `chat.share_asset`, `chat.revoke_share`, `chat.manage_groups`.
+- `SYSTEM_ROLES`: the 7 fixed roles (permissions, dataScope, readOnly, takesSteps; admin locked). `defaultWorkflowConfig(calendar)`: today's rules. Pure resolver: `can(user, permission, { calendar, ownerId }, config)`, `decisionCalendars`, `stepEligibility`, `seesContactDetails`, `isReadOnlyRole`, `takesSteps`, `dataScopeOf`. Only `review.decide` is self-forbidden: classifying a flag on your own step is allowed today (feedback/service.js:418), kept for parity.
+- API: `WorkflowConfig` (one per calendar: reviewers, planApprovers, posters, fallbackApprovers as roles and/or user ids; version bumps on change; cache cleared on change), `AccessChange` (history; written from Phase D), `Person.calendarScope` (optional, unset by default, so existing records are unchanged).
+- `src/lib/accessResolver.js`: `can`, `decisionCalendars`, `stepEligibility`, `reviewersFor`, `planApproversFor`, `postersFor` (people and the default poster), `recipientsFor(event, item)` for submission.ready, plan.submitted, revision.flagged, revision.flag_escalated, step.needs_owner, step.overdue_manager, access.requested. Reads configs through a cache (cleared on change, 5 s TTL); a calendar without a stored config uses the default. Fallback (fixed rule 12): every active admin plus named people when no primary is active.
+- Correction to the Phase A report: `plan.service.js:508,880` is not a notification; it is the default Post owner of new rows (first active SM Manager). `postersFor().defaultPoster` keeps it.
+- Fixed rule at the model level: the last active admin cannot be demoted, suspended or deleted through `save`, `updateOne`, `updateMany`, `findOneAndUpdate`, `deleteOne`, `findOneAndDelete` (409 `LAST_ADMIN`). `deleteMany` (clean-up) and raw collection writes are not guarded.
+- `scripts/seed-workflow-config.js`: dry run by default; `--confirm` required; local databases only (refuses SRV and non-local hosts, and NODE_ENV=production); backs up `workflowconfigs` to `apps/api/backups/` (git-ignored) first; creates only missing configs; a second run changes nothing. A dry run disables automatic collection and index creation, so it writes nothing at all.
+
+### Dry run on the real database (not confirmed)
+```
+DRY RUN (add --confirm to write): database "marketing_portal"
+  sm                     CREATE reviewers=role:creative_lead; planApprovers=role:creative_lead; posters=role:sm_manager; fallback=role:admin
+  sales                  CREATE reviewers=role:creative_lead; planApprovers=role:creative_lead; posters=role:sm_manager; fallback=role:admin
+  ads                    CREATE reviewers=role:growth_lead; planApprovers=role:growth_lead; posters=role:sm_manager; fallback=role:admin
+  academics_management   CREATE reviewers=role:creative_lead; planApprovers=role:creative_lead; posters=role:sm_manager; fallback=role:admin
+  other                  CREATE reviewers=role:creative_lead; planApprovers=role:creative_lead; posters=role:sm_manager; fallback=role:admin
+  5 to create, 0 kept. Nothing else is changed.
+```
+- Incident: the first dry run created an empty `workflowconfigs` collection with its unique index in `marketing_portal` (Mongoose builds indexes when a model loads; no documents). It was dropped right after (checked empty first), and the script now turns off automatic collection and index creation; a re-run left no new collection.
+
+### Tests
+- `access_parity.test.js` (permanent): every v1 key × 7 roles; every API route guard (scanned from the route files, portal.view split by module) × 7 roles; 19 decision actions × 7 roles × 5 calendars × owner/non-owner (1,330 checks); scope.js and decisionCalendarsFor; eligibility for every role × job role × stage × calendar; routing on the test database (reviewers, plan approvers, posters, default poster, all 7 recipient events, eligibility, can) with no stored config and with the seeded configs; a changed config (named reviewer, version bump, cache, fallback). 100% equal.
+- `workflow_seed.test.js`: dry run writes nothing (not even the collection); refuses SRV, non-local and mixed hosts and production; `--confirm` backs up and creates the 5 configs; a second run changes nothing.
+- `access_fixed_rules.test.js`: an admin who is not a DM member gets 403 on its messages and details (the member reads it); nobody decides on their own work, admin included, on any calendar; last-admin guard on every model path.
+
+### Gate
+- Typecheck 0 errors, web build clean, web 497/497 (61 files), API 1652/1652 (85 files); every existing suite passes unchanged.
 
 ## Quick role sign-in and Switch account, dev only (Status: COMPLETE; committed locally, not pushed)
 

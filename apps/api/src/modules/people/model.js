@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { ROLE_KEYS, JOB_ROLES, normalizeRole, WORK_PREFERENCES, WORKER_ROLE } from '@mmp/shared';
+import { ROLE_KEYS, JOB_ROLES, normalizeRole, WORK_PREFERENCES, WORKER_ROLE, CALENDAR_KEYS } from '@mmp/shared';
 import { disconnectUserSockets } from '../../lib/socketHub.js';
 
 const personSchema = new mongoose.Schema(
@@ -70,6 +70,12 @@ const personSchema = new mongoose.Schema(
       enum: ['invited', 'active', 'suspended'],
       default: 'active',
       index: true,
+    },
+    // Optional per-person calendar limit for decisions and queues (Phase B: stored, not yet used).
+    // Unset (the default, so existing records are unchanged) means every calendar; admin is never limited.
+    calendarScope: {
+      type: [{ type: String, enum: CALENDAR_KEYS }],
+      default: undefined,
     },
     mustSetPassword: {
       type: Boolean,
@@ -263,6 +269,46 @@ personSchema.post('save', function (doc) {
   doc.$locals.accessKey = `${doc.role}|${doc.status}`;
   doc.$locals.resetSockets = false;
 });
+
+// Fixed rule: there is always at least one active admin. A change that would turn the last
+// active admin into a non-admin or a non-active account (save, updateOne, updateMany,
+// findOneAndUpdate) or delete it (deleteOne, findOneAndDelete) is refused with 409 LAST_ADMIN.
+// deleteMany (maintenance and test clean-up) and raw collection writes are not guarded.
+function lastAdminError() {
+  const error = new Error('There must be at least one active admin. Make another person an active admin first.');
+  error.statusCode = 409;
+  error.code = 'LAST_ADMIN';
+  return error;
+}
+const isActiveAdmin = (role, status) => normalizeRole(role) === 'admin' && status === 'active';
+
+personSchema.pre('save', async function () {
+  if (this.isNew) return;
+  const [wasRole, wasStatus] = String(this.$locals.accessKey || '|').split('|');
+  if (!isActiveAdmin(wasRole, wasStatus) || isActiveAdmin(this.role, this.status)) return;
+  const others = await this.constructor.countDocuments({ _id: { $ne: this._id }, role: 'admin', status: 'active' });
+  if (others === 0) throw lastAdminError();
+});
+
+async function guardQueryChange() {
+  const update = this.getUpdate() || {};
+  const set = { ...update, ...(update.$set || {}) };
+  const demotes = ('role' in set && normalizeRole(set.role) !== 'admin') || ('status' in set && set.status !== 'active');
+  if (!demotes) return;
+  const targets = await this.model.find({ ...this.getFilter(), role: 'admin', status: 'active' }).select('_id').lean();
+  if (!targets.length) return;
+  const others = await this.model.countDocuments({ _id: { $nin: targets.map((t) => t._id) }, role: 'admin', status: 'active' });
+  if (others === 0) throw lastAdminError();
+}
+personSchema.pre(['updateOne', 'updateMany', 'findOneAndUpdate'], { document: false, query: true }, guardQueryChange);
+
+async function guardQueryDelete() {
+  const targets = await this.model.find({ ...this.getFilter(), role: 'admin', status: 'active' }).select('_id').lean();
+  if (!targets.length) return;
+  const others = await this.model.countDocuments({ _id: { $nin: targets.map((t) => t._id) }, role: 'admin', status: 'active' });
+  if (others === 0) throw lastAdminError();
+}
+personSchema.pre(['deleteOne', 'findOneAndDelete'], { document: false, query: true }, guardQueryDelete);
 
 // Primary Person model, pointing to 'users' collection to transform in-place
 export const Person = mongoose.models.Person || mongoose.model('Person', personSchema, 'users');
