@@ -3,101 +3,92 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import fs from 'fs';
 import os from 'os';
-import { spawnSync } from 'child_process';
 import path from 'path';
-import { DevQuickLogin, groupQuickLogins, type QuickLoginAccount } from '../components/DevQuickLogin';
+import { spawnSync } from 'child_process';
+import { DevQuickLogin, groupQuickLogins, parseQuickLogins, quickLoginLabel, type QuickLoginAccount } from '../components/DevQuickLogin';
 
 const ROOT = path.resolve(__dirname, '../..');
-const acc = (label: string, role: string, i: number): QuickLoginAccount => ({ label, role, email: `${label.toLowerCase().replace(/\W/g, '')}${i}@demo.haca.local`, password: 'not-a-real-password' });
+const acc = (label: string, role: string, i: number, jobRole = ''): QuickLoginAccount => ({ label, role, jobRole, email: `${label.toLowerCase().replace(/\W/g, '')}${i}@demo.haca.local`, password: 'not-a-real-password' });
 const ACCOUNTS = [
   acc('Admin', 'admin', 0),
-  acc('Creative Lead', 'creative_lead', 1),
-  acc('SM Manager', 'sm_manager', 2),
-  acc('Creative Head', 'creative_head', 3),
-  ...['Writer 1', 'Writer 2', 'Designer 1', 'Designer 2', 'Shooter', 'Editor 1', 'Editor 2', 'Poster', 'All-rounder'].map((l, i) => acc(l, 'executive', 10 + i)),
+  acc('Test Creative Lead', 'creative_lead', 1, 'Creative Manager (TL)'),
+  acc('Test SM Manager', 'sm_manager', 2, 'Social Media Manager'),
+  acc('Test Creative Head', 'creative_head', 3),
+  acc('Test Production Head', 'production_head', 4),
+  acc('Test Growth Lead', 'growth_lead', 5),
+  ...[['Test Writer One', 'Writer'], ['Test Writer Two', 'Writer'], ['Test Designer One', 'Graphic Designer'], ['Test Poster', '']].map(([l, j], i) => acc(l, 'executive', 10 + i, j)),
 ];
+const b64 = (v: unknown) => Buffer.from(JSON.stringify(v), 'utf8').toString('base64');
 
-describe('Quick sign in (dev, and test builds only)', () => {
-  it('groups the accounts by role, one click each', () => {
+describe('Quick sign in (dev only)', () => {
+  it('groups the buttons by the 7 roles, in order, each "Name · job role"', () => {
     const onPick = vi.fn();
     render(<DevQuickLogin accounts={ACCOUNTS} onPick={onPick} />);
+    expect(screen.getByRole('region', { name: 'Quick sign in (dev only)' })).toBeInTheDocument();
     const groups = screen.getAllByTestId('quick-login-group');
-    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual(['Admin', 'Creative Head', 'Creative Lead', 'SM Manager', 'Executive']);
-    expect(within(groups[4]).getAllByRole('button')).toHaveLength(9);
-    within(groups[4]).getByRole('button', { name: 'Poster' }).click();
-    expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ label: 'Poster', role: 'executive' }));
+    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual(['Admin', 'Creative Head', 'Production Head', 'Creative Lead', 'Growth Lead', 'SM Manager', 'Executive']);
+    expect(within(groups[3]).getByRole('button').textContent).toBe('Test Creative Lead · Creative Manager (TL)');
+    expect(within(groups[6]).getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'Test Writer One · Writer',
+      'Test Writer Two · Writer',
+      'Test Designer One · Graphic Designer',
+      'Test Poster', // no job role: the name alone
+    ]);
+    within(groups[6]).getByRole('button', { name: 'Test Writer One · Writer' }).click();
+    expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ email: 'testwriterone10@demo.haca.local', role: 'executive' }));
   });
 
-  it('accounts without a role still show, under Other', () => {
-    expect(groupQuickLogins([{ label: 'X', email: 'x@y.z', password: 'p' }]).map((g) => g.title)).toEqual(['Other']);
+  it('a role without a test account still has its row, saying so; unknown roles go under Other', () => {
+    render(<DevQuickLogin accounts={[ACCOUNTS[0], { label: 'X', email: 'x@y.z', password: 'p', role: 'team_member' }]} onPick={vi.fn()} />);
+    const groups = screen.getAllByTestId('quick-login-group');
+    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual(['Admin', 'Creative Head', 'Production Head', 'Creative Lead', 'Growth Lead', 'SM Manager', 'Executive', 'Other']);
+    expect(groups[2]).toHaveTextContent('No test account');
+    expect(groupQuickLogins([]).length).toBe(7);
   });
 
-  // These build the app themselves (into a temp folder), with the switch set through process env,
-  // which Vite ranks above .env files: the result never depends on apps/web/.env.local, and the
-  // "absent" check always runs.
-  const VITE_BIN = path.resolve(ROOT, '../../node_modules/vite/bin/vite.js');
-  const envLocalList = (() => {
-    const envLocal = path.join(ROOT, '.env.local');
-    const m = fs.existsSync(envLocal) ? fs.readFileSync(envLocal, 'utf8').match(/^VITE_QUICK_LOGINS=(.+)$/m) : null;
-    return m ? m[1].trim() : '';
-  })();
-  const FAKE_LIST = Buffer.from(JSON.stringify(ACCOUNTS.slice(0, 2))).toString('base64');
+  it('reads both list formats, and ignores a bad value', () => {
+    expect(parseQuickLogins(b64({ v: 2, accounts: ACCOUNTS })).map((a) => a.email)).toEqual(ACCOUNTS.map((a) => a.email));
+    expect(parseQuickLogins(b64(ACCOUNTS.slice(0, 2))).length).toBe(2);
+    expect(parseQuickLogins('not base64 json')).toEqual([]);
+    expect(parseQuickLogins(b64({ v: 2, accounts: [{ label: 'no password', email: 'a@b.c' }] }))).toEqual([]);
+    expect(quickLoginLabel({ label: 'A', email: 'a', password: 'p', jobRole: '  ' })).toBe('A');
+  });
 
-  function build(vars: Record<string, string>) {
+  // Builds the app itself (temp folder) with a known list given through process env, which Vite
+  // ranks above .env files: the result never depends on apps/web/.env.local, and it always runs.
+  it('is absent from the production build: no code, text, emails or account list', () => {
     const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qlbuild-'));
+    const list = b64({ v: 2, accounts: ACCOUNTS });
     const env: Record<string, string> = {};
-    for (const [k, v] of Object.entries(process.env)) {
-      // A clean slate: no VITE_* or deploy hints from the shell running the tests.
-      if (v !== undefined && !k.startsWith('VITE_') && k !== 'VERCEL_ENV' && k !== 'NODE_ENV' && k !== 'MODE') env[k] = v;
-    }
-    const res = spawnSync(process.execPath, [VITE_BIN, 'build', '--outDir', outDir, '--emptyOutDir', '--logLevel', 'error'], {
+    for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !k.startsWith('VITE_') && k !== 'NODE_ENV' && k !== 'MODE') env[k] = v;
+    const res = spawnSync(process.execPath, [path.resolve(ROOT, '../../node_modules/vite/bin/vite.js'), 'build', '--outDir', outDir, '--emptyOutDir', '--logLevel', 'error'], {
       cwd: ROOT,
-      env: { ...env, ...vars },
+      env: { ...env, VITE_QUICK_LOGINS: list },
       encoding: 'utf8',
     });
-    const files: string[] = [];
-    const walk = (dir: string) => {
-      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-        const p = path.join(dir, e.name);
-        if (e.isDirectory()) walk(p);
-        else if (/\.(js|html|css|map)$/.test(e.name)) files.push(p);
+    try {
+      expect(res.status, `${res.stdout}\n${res.stderr}`).toBe(0);
+      const files: string[] = [];
+      const walk = (dir: string) => {
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+          const p = path.join(dir, e.name);
+          if (e.isDirectory()) walk(p);
+          else if (/\.(js|html|css|map)$/.test(e.name)) files.push(p);
+        }
+      };
+      walk(outDir);
+      expect(files.length).toBeGreaterThan(0);
+      const text = files.map((f) => fs.readFileSync(f, 'utf8')).join('\n');
+      for (const absent of ['Quick sign in', 'Switch account', 'dev-quick-login', 'dev-switch-account', 'No test account', 'VITE_QUICK_LOGINS', 'not-a-real-password', list]) {
+        expect(text.includes(absent), absent.slice(0, 40)).toBe(false);
       }
-    };
-    if (res.status === 0) walk(outDir);
-    const text = files.map((f) => fs.readFileSync(f, 'utf8')).join('\n');
-    fs.rmSync(outDir, { recursive: true, force: true });
-    return { status: res.status, output: `${res.stdout}\n${res.stderr}`, files: files.length, text };
-  }
-
-  it('is absent from the production build (switch forced off, whatever .env.local says)', () => {
-    const b = build({ VITE_QUICK_LOGIN_IN_BUILD: 'false', VITE_QUICK_LOGINS: FAKE_LIST });
-    expect(b.status, b.output).toBe(0);
-    expect(b.files).toBeGreaterThan(0);
-    expect(b.text).not.toContain('Quick sign in');
-    expect(b.text).not.toContain('Local development only');
-    expect(b.text).not.toContain('Testing only: remove before hosting');
-    expect(b.text).not.toMatch(/@demo\.haca\.local/);
-    expect(b.text).not.toContain('VITE_QUICK_LOGINS');
-    expect(b.text).not.toContain(FAKE_LIST);
-    if (envLocalList) expect(b.text.includes(envLocalList)).toBe(false);
+      expect(text).not.toMatch(/@demo\.haca\.local/);
+      // The list in .env.local, when present, is not in the bundle either.
+      const envLocal = path.join(ROOT, '.env.local');
+      const m = fs.existsSync(envLocal) ? fs.readFileSync(envLocal, 'utf8').match(/^VITE_QUICK_LOGINS=(.+)$/m) : null;
+      if (m) expect(text.includes(m[1].trim())).toBe(false);
+    } finally {
+      fs.rmSync(outDir, { recursive: true, force: true });
+    }
   }, 180000);
-
-  it('with the switch on, a non-production build includes it; a production build fails', () => {
-    const staging = build({ VITE_QUICK_LOGIN_IN_BUILD: 'true', VITE_DEPLOY_TARGET: 'staging', VITE_QUICK_LOGINS: FAKE_LIST });
-    expect(staging.status, staging.output).toBe(0);
-    expect(staging.text).toContain('Quick sign in');
-    expect(staging.text).toContain('Testing only: remove before hosting');
-    expect(staging.text).toContain(FAKE_LIST);
-    // The list given to this build replaced the one in .env.local.
-    if (envLocalList) expect(staging.text.includes(envLocalList)).toBe(false);
-
-    const prod = build({ VITE_QUICK_LOGIN_IN_BUILD: 'true', VITE_DEPLOY_TARGET: 'production', VITE_QUICK_LOGINS: FAKE_LIST });
-    expect(prod.status).not.toBe(0);
-    expect(prod.output).toContain('VITE_QUICK_LOGIN_IN_BUILD=true');
-    expect(prod.files).toBe(0);
-
-    // A Vercel production deploy counts as production even without VITE_DEPLOY_TARGET.
-    const vercel = build({ VITE_QUICK_LOGIN_IN_BUILD: 'true', VERCEL_ENV: 'production', VITE_QUICK_LOGINS: FAKE_LIST });
-    expect(vercel.status).not.toBe(0);
-  }, 300000);
 });

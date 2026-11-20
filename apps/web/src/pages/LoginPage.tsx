@@ -24,16 +24,10 @@ import {
   EyeOff,
   Sparkles,
 } from 'lucide-react';
-import { DevQuickLogin, parseQuickLogins, type QuickLoginAccount } from '../components/DevQuickLogin';
+import { DevQuickLogin, devQuickLogins } from '../components/DevQuickLogin';
 
-// Quick sign in is on in the dev server, and in a production build ONLY when VITE_QUICK_LOGIN_IN_BUILD=true
-// (apps/web/.env.local). TEMPORARY: that flag puts every listed password in the bundle: remove it before hosting.
-// Vite replaces both values at build time, so with the flag off the list and its passwords are left out of the bundle.
-// Never with VITE_DEPLOY_TARGET=production (vite.config.ts also fails that build).
-const QUICK_LOGIN_ON =
-  import.meta.env.DEV || (import.meta.env.VITE_QUICK_LOGIN_IN_BUILD === 'true' && import.meta.env.VITE_DEPLOY_TARGET !== 'production');
-const QUICK_LOGINS: QuickLoginAccount[] =
-  QUICK_LOGIN_ON && import.meta.env.MODE !== 'test' ? parseQuickLogins(import.meta.env.VITE_QUICK_LOGINS) : [];
+// Dev server only: DEV is false in a production build, so the list and its passwords are left out.
+const QUICK_LOGINS = devQuickLogins();
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -352,10 +346,9 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Dev server, or a build with VITE_QUICK_LOGIN_IN_BUILD=true (temporary, remove before hosting).
-            With the flag off the component and the account list are dropped from the bundle
-            (checked by Phase9QuickLoginBuild.test). */}
-        {QUICK_LOGIN_ON && (
+        {/* Dev server only: DEV is false in a production build, so the component and the account
+            list are dropped from the bundle (checked by Phase9QuickLoginBuild.test). */}
+        {import.meta.env.DEV && (
           <DevQuickLogin
             accounts={QUICK_LOGINS}
             busy={isLoggingIn}

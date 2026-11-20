@@ -1,6 +1,30 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after the quick sign-in build switch fix):** 2126 passing, 0 failing, 0 skipped: API 1633 (81 files), web 493 (60 files). Typecheck 0 errors; web build clean.
+**Current test count (after Quick role sign-in and Switch account):** 2133 passing, 0 failing, 0 skipped: API 1636 (82 files), web 497 (61 files). Typecheck 0 errors; web build clean.
+
+## Quick role sign-in and Switch account, dev only (Status: COMPLETE; committed locally, not pushed)
+
+### Investigation
+- `DevQuickLogin.tsx` existed and rendered on the login page, but showed nothing: `.env.local` held the newer `{ v: 2, accounts }` list (with job roles), while `parseQuickLogins` accepted only a plain array, so it read zero accounts and hid itself.
+- Format: base64 of JSON `{ v: 2, accounts: [{ label, jobRole, email, password, role }] }` (a plain array still reads). The generator described earlier (`write-quick-logins.js`) was not in the repo; it is added now.
+
+### Built
+- Login page: "Quick sign in (dev only)" under the Sign In card; one row per role for all 7 roles (Admin, Creative Head, Production Head, Creative Lead, Growth Lead, SM Manager, Executive; "Other" for unknown roles), small chips "Name · job role" (name alone without a job role); a role without an account says "No test account". One click signs in and lands on the role's home (workers My Work, others Dashboard).
+- Profile menu: "Switch account (dev)" opens the same grouped list (current account marked and disabled); a click signs out, signs in as that account and reloads on its home page; a failed sign-in shows the error in the dialog.
+- Dev only: both render behind `import.meta.env.DEV`; the build switch `VITE_QUICK_LOGIN_IN_BUILD` and its `vite.config.ts` guard are removed. The build test builds the app itself (temp folder, a known list through process env) and always runs: no quick sign-in code, text, emails or list (also not the `.env.local` list) in the bundle.
+- `apps/api/scripts/write-quick-logins.js`: writes `VITE_QUICK_LOGINS` from `ADMIN_SEED_*` and `SEED_PASSWORD_*` with each account's current name, role and job role from the local database (read only; `--no-db` uses the seed definitions). Leaves out missing or suspended accounts and accounts whose password no longer matches the seed password. Prints names and roles only.
+- `apps/api/scripts/seed-missing-users.js --only=KEY,... [--confirm]`: adds named seed users that are not in the database (never updates; joins them to Team Chat). Dry run by default.
+
+### Accounts (regenerated, 15; every role has one)
+- At the user's request, seeded with the new script (additive; each joined Team Chat; nothing else changed): Test Production Head and Test Growth Lead (`SEED_PASSWORD_PRODUCTIONHEAD`, `SEED_PASSWORD_GROWTHLEAD`), and Test Creative Lead (`creativelead@demo.haca.local`, which was missing).
+- `seedUsers.js`: the Creative Lead (key `CREATIVEHEAD`, kept for older `.env` files) now reads `SEED_PASSWORD_CREATIVELEAD` first, then `SEED_PASSWORD_CREATIVEHEAD`. With `CREATIVELEAD` set, `SEED_PASSWORD_CREATIVEHEAD` is unused.
+- Creative Head: Test Executive (`executive@demo.haca.local`, role creative_head, opened by `SEED_PASSWORD_EXECUTIVE`), picked up by the generator's check of other `@demo.haca.local` accounts against the seed passwords.
+- Left out: `creativehead@demo.haca.local` (now Adhil Mubarak, a Creative Lead; password changed since seeding; not touched).
+- `apps/api/.env` lists `SEED_PASSWORD_WRITER1` twice; the first one is used.
+
+### Gate
+- Typecheck 0 errors, web build clean, web 497/497 (61 files, none skipped), API 1636/1636 (82 files). New tests: grouping by the 7 roles with "Name · job role", list formats, one click signs in as the right account and lands home, Switch account signs out then in and reloads, a failed switch shows the error, absent from the production build; seed password order (`seed_password_keys.test.js`).
+- Browser check 23/23 at 1440 and 390 px on the disposable `marketing_portal_uicheck` (dropped after; scratch Vite config proxied to :8095, a `/__uicheck` marker required, :8080 blocked): 7 groups and labels, the Sign In button stays on screen, section under the form, no sideways scroll, one click lands on My Work, Switch account to the Creative Lead reloads on the Dashboard.
 
 ## Request help modal, and no browser popups (Status: COMPLETE; committed locally, not pushed)
 
@@ -31,16 +55,7 @@
 
 ## Header search and Quick sign-in in builds (Status: COMPLETE; committed locally, not pushed)
 - Header kept as before (Search | Team Chat with avatars) with a standard look: the search segment is a white search field (icon, "Search tasks and content…", "Ctrl K" hint) that opens the same search; Team Chat is one line (icon, label, unread badge, avatars); active chat uses ink instead of indigo. The earlier `HeaderSearch` rework was dropped (it was never saved and broke the dev server).
-- Quick sign-in can be kept in a production build with `VITE_QUICK_LOGIN_IN_BUILD=true` in `apps/web/.env.local` (temporary, testing only: it puts the listed passwords in the bundle). The panel then says "Testing only: remove before hosting". With the flag off the build has no trace of it (checked by building both ways).
-- Who and why: added by Claude in commit `9912690` (author MUBASHIR, co-authored by Claude) at the user's request to keep quick sign-in for easy testing of production builds before hosting; the user will remove it at hosting time.
-- "Online now": not decided in `9912690`. The user asked to keep the old header, so the avatar group stayed as it was: faces of recent chat partners and Team Chat members, not who is online. The app has no presence data (no socket presence, no last-seen), and nothing is labelled "online".
-- Quick sign-in groups (unchanged, from Phase 12b): Admin, Creative Head, Production Head, Creative Lead, Growth Lead, SM Manager, Executive, plus "Other" for unknown roles.
-
-### Build switch fix
-- `vite.config.ts` `quickLoginGuard`: a build fails when `VITE_QUICK_LOGIN_IN_BUILD=true` and the deploy target is production (`VITE_DEPLOY_TARGET=production`, or `VERCEL_ENV=production` on a Vercel production deploy). LoginPage also ignores the switch when `VITE_DEPLOY_TARGET=production`.
-- `Phase9QuickLoginBuild.test.tsx` builds the app itself into a temp folder with the switch set through process env (which Vite ranks above `.env.local`), so it never depends on the local file and is never skipped: switch off → nothing in the bundle (also not the `.env.local` list); switch on + `staging` → included; switch on + `production` or `VERCEL_ENV=production` → the build fails.
-- Browser checks: the scratch scripts start the web app only with a test Vite config proxied to the disposable API on :8095, and refuse to run unless its `/__uicheck` marker answers with that target and the API logged `marketing_portal_uicheck`; every browser context blocks :8080. Re-run of the help check through it: 40/40, no request to :8080.
-- Gate: typecheck 0 errors, web build clean, web 493/493 (none skipped), API 1633/1633. Before/after screenshots of `9912690` at 1440, 1024 and 390 px (header, and login with Quick sign-in) in the session scratchpad (`uicheck/shots-9912690`).
+- Quick sign-in can be kept in a production build with `VITE_QUICK_LOGIN_IN_BUILD=true` in `apps/web/.env.local` (temporary, testing only: it puts the listed passwords in the bundle). The panel then says "Testing only: remove before hosting". With the flag off the build has no trace of it (checked by building both ways). The build test is skipped while the flag is on. (Removed later: quick sign-in is dev only now; see above.)
 
 ## Review Studio for the step owner (Status: COMPLETE; committed locally, not pushed)
 

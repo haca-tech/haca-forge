@@ -4,10 +4,13 @@ import { User, Settings, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Avatar } from './Avatar';
 import { ROLE_LABELS, UserRole } from '@mmp/shared';
+import { DevSwitchAccountDialog, DevSwitchAccountItem, devQuickLogins } from './DevQuickLogin';
 
 export const UserMenuDropdown: React.FC = () => {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  // Dev server only: Switch account (dev). Kept here so the dialog stays open after the menu closes.
+  const [switchOpen, setSwitchOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -106,6 +109,16 @@ export const UserMenuDropdown: React.FC = () => {
                 <span>{label}</span>
               </button>
             ))}
+            {import.meta.env.DEV && (
+              <DevSwitchAccountItem
+                accounts={devQuickLogins()}
+                onClick={() => {
+                  setIsOpen(false);
+                  setSwitchOpen(true);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-ui-text hover:text-ui-ink hover:bg-slate-100/80 rounded-xl transition-colors text-left min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-ink"
+              />
+            )}
           </div>
 
           {/* Sign out: red, like the sign-out button in the side menu. */}
@@ -122,6 +135,7 @@ export const UserMenuDropdown: React.FC = () => {
           </div>
         </div>
       )}
+      {import.meta.env.DEV && switchOpen && <DevSwitchAccountDialog accounts={devQuickLogins()} onClose={() => setSwitchOpen(false)} />}
     </div>
   );
 };
