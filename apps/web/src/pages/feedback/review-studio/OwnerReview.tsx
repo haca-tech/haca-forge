@@ -44,6 +44,37 @@ export function useOwnerTimeline(workItemId: string | null, enabled: boolean) {
 
 const lastOf = (events: TimelineEvent[], kinds: string[]) => [...events].reverse().find((e) => kinds.includes(e.kind));
 
+/**
+ * The comments that request-revision saved for its note. They carry no marker, so each is
+ * matched to a "changes requested" event: a first comment (no pin) with the same text, written
+ * within two minutes of the decision. Returns event time -> comment id.
+ */
+export function revisionRequestComments(
+  timeline: OwnerTimeline | null,
+  comments: Array<{ id: string; content?: string; text?: string; createdAt: string; parentId?: string | null; anchor?: { type?: string } | null }>,
+): Map<string, string> {
+  const found = new Map<string, string>();
+  if (!timeline) return found;
+  const used = new Set<string>();
+  for (const e of timeline.events) {
+    if (e.kind !== 'changes_requested' || !e.message) continue;
+    const at = new Date(e.at).getTime();
+    const match = comments.find(
+      (c) =>
+        !c.parentId &&
+        !c.anchor?.type &&
+        !used.has(c.id) &&
+        (c.content ?? c.text ?? '').trim() === e.message!.trim() &&
+        Math.abs(new Date(c.createdAt).getTime() - at) <= 2 * 60 * 1000,
+    );
+    if (match) {
+      used.add(match.id);
+      found.set(e.at, match.id);
+    }
+  }
+  return found;
+}
+
 /** "Waiting for review" | "Changes requested" | "Approved ★4" | "Rework in progress", with a tone. */
 export function ownerStatus(t: OwnerTimeline | null): { label: string; tone: string; since: string } {
   if (!t) return { label: '', tone: 'status-not-started', since: '' };
@@ -103,13 +134,21 @@ export const OwnerReviewHeader: React.FC<{
 };
 
 /** Bottom bar: the lead's decision (and rating) message, then the owner's next action. */
-export const OwnerReviewBar: React.FC<{ timeline: OwnerTimeline | null; onChanged: () => void }> = ({ timeline, onChanged }) => {
+export const OwnerReviewBar: React.FC<{
+  timeline: OwnerTimeline | null;
+  onChanged: () => void;
+  /** Event time -> the revision-request comment in the thread. */
+  revisionComments?: Map<string, string>;
+  onShowComment?: (commentId: string) => void;
+}> = ({ timeline, onChanged, revisionComments, onShowComment }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resubmitting, setResubmitting] = useState(false);
   if (!timeline) return null;
   const { step, mainAction, events } = timeline;
   const decision = lastOf(events, ['changes_requested', 'approved']);
+  // The revision note is already in the thread: link to it instead of repeating it.
+  const requestCommentId = decision?.kind === 'changes_requested' ? revisionComments?.get(decision.at) : undefined;
   const startRework = async () => {
     setBusy(true);
     setError(null);
@@ -137,7 +176,21 @@ export const OwnerReviewBar: React.FC<{ timeline: OwnerTimeline | null; onChange
               </span>
             ) : null}
           </p>
-          {decision.message && <p className="text-ui-text whitespace-pre-wrap break-words">{decision.message}</p>}
+          {requestCommentId ? (
+            <a
+              href={`#comment-${requestCommentId}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onShowComment?.(requestCommentId);
+              }}
+              className="inline-flex items-center min-h-[44px] font-semibold text-ui-ink underline underline-offset-2"
+              data-testid="see-revision-request"
+            >
+              See revision request
+            </a>
+          ) : (
+            decision.message && <p className="text-ui-text whitespace-pre-wrap break-words">{decision.message}</p>
+          )}
           {decision.rootCause && <p className="text-xs text-ui-muted">Root cause: {decision.rootCause}</p>}
         </div>
       ) : (

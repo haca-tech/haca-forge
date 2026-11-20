@@ -1,6 +1,6 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Review Studio for the step owner):** 2086 passing, 0 failing: API 1622 (80 files), web 464 (56 files). Typecheck 0 errors; web build clean.
+**Current test count (after Review Studio for the step owner):** 2089 passing, 0 failing: API 1622 (80 files), web 467 (56 files). Typecheck 0 errors; web build clean.
 
 ## Review Studio for the step owner (Status: COMPLETE; committed locally, not pushed)
 
@@ -8,6 +8,7 @@ Gate per commit: typecheck 0 errors, web build clean, API 1622/1622, web 452/452
 
 - `20ab89b` API: owners read and reply; notifications per comment.
 - `34cc639` Web: "my review" mode in Review Studio; threaded replies for everyone; "View review" entry points.
+- Small fix: in the owner view, the comment that request-revision saved is labelled "Revision request", and the bar shows "See revision request" (scrolls to and selects it) instead of repeating its text. It is matched without any data change: a first comment with the same text written within two minutes of the decision. Gate: web 467/467, API 1622/1622, typecheck and build clean; browser check 6/6 at desktop and phone width (real database unchanged).
 
 ### Access
 - The step owner opens `/work/:id/review` for their own step (workers skip the reviewers' queue). They read every version, comment, reply, pin, resolved state, decision message and rating message.

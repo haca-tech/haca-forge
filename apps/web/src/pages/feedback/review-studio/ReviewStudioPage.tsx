@@ -22,7 +22,7 @@ import { VideoPlayerViewer } from './VideoPlayerViewer';
 import { ImageViewer, ImageCommentAnchor, ReviewComment } from './ImageViewer';
 import { LinkOpenerViewer } from './LinkOpenerViewer';
 import { ReviewStudioSidebar } from './ReviewStudioSidebar';
-import { OwnerReviewBar, OwnerReviewHeader, useOwnerTimeline } from './OwnerReview';
+import { OwnerReviewBar, OwnerReviewHeader, revisionRequestComments, useOwnerTimeline } from './OwnerReview';
 import { DecisionBar, RootCause } from './DecisionBar';
 import { ShootReviewView } from '../../work/workspaces/ShootReviewView';
 import { ShareToChatModal } from '../../chat/ShareToChatModal';
@@ -759,6 +759,13 @@ export const ReviewStudioPage: React.FC = () => {
   };
   // Viewers number and pin only the first comment of each thread.
   const threadRoots = comments.filter((c) => !c.parentId);
+  // Owner view: the comments request-revision saved, labelled in the thread and linked from the bar.
+  const revisionComments = ownerMode ? revisionRequestComments(ownerTimeline.data, comments) : new Map<string, string>();
+  const revisionRequestIds = new Set(revisionComments.values());
+  const showComment = (commentId: string) => {
+    setActiveCommentId(commentId);
+    document.getElementById(`comment-${commentId}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  };
   const canSeePins = canSeeAllReviewText(user?.role) || isOwner;
   const isPrivileged = user?.role === 'admin' || isApprover(user?.role) || user?.role === 'sm_manager';
   const canShare = Boolean(isApproved && (isPrivileged || isOwner) && !isReadOnlyViewer(user?.role));
@@ -1046,6 +1053,7 @@ export const ReviewStudioPage: React.FC = () => {
                 onReplyComment={canReply ? handleReplyComment : undefined}
                 ownerId={ownerId}
                 viewerIsOwner={ownerMode}
+                revisionRequestIds={ownerMode ? revisionRequestIds : undefined}
                 canComment={canComment}
                 isDiffMode={isDiffMode}
                 onToggleDiffMode={() => setIsDiffMode(!isDiffMode)}
@@ -1055,7 +1063,7 @@ export const ReviewStudioPage: React.FC = () => {
         )}
       </div>
 
-      {ownerMode && activeSubmission && <OwnerReviewBar timeline={ownerTimeline.data} onChanged={reloadOwnerView} />}
+      {ownerMode && activeSubmission && <OwnerReviewBar timeline={ownerTimeline.data} onChanged={reloadOwnerView} revisionComments={revisionComments} onShowComment={showComment} />}
 
       {/* Persistent Docked Decision Bar (only for non-shoot stages since ShootReviewView has its own dedicated review controls) */}
       {activeSubmission && !isShootStage && canDecide && (

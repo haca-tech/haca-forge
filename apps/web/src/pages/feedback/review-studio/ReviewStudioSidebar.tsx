@@ -63,6 +63,8 @@ interface ReviewStudioSidebarProps {
   ownerId?: string;
   /** True when the viewer is the step owner ("my review" mode). */
   viewerIsOwner?: boolean;
+  /** Comments saved by request-revision, labelled "Revision request" (owner view). */
+  revisionRequestIds?: Set<string>;
   isDiffMode?: boolean;
   onToggleDiffMode?: () => void;
 }
@@ -81,6 +83,7 @@ export const ReviewStudioSidebar: React.FC<ReviewStudioSidebarProps> = ({
   onReplyComment,
   ownerId,
   viewerIsOwner = false,
+  revisionRequestIds,
   canComment = true,
   isDiffMode = false,
   onToggleDiffMode,
@@ -259,6 +262,7 @@ export const ReviewStudioSidebar: React.FC<ReviewStudioSidebarProps> = ({
                   return (
                     <div
                       key={comment.id}
+                      id={`comment-${comment.id}`}
                       data-testid="review-thread"
                       className={`rounded-xl border transition-colors ${
                         isSelected
@@ -325,6 +329,11 @@ export const ReviewStudioSidebar: React.FC<ReviewStudioSidebarProps> = ({
                           </span>
                         )}
 
+                        {revisionRequestIds?.has(comment.id) && (
+                          <span className="inline-block mb-1.5 status-chip status-changes text-[11px]" data-testid="revision-request-label">
+                            Revision request
+                          </span>
+                        )}
                         <span className="block text-xs text-ui-text whitespace-pre-wrap break-words">{comment.content}</span>
                         {comment.resolved && !onResolveComment && (
                           <span className="inline-flex items-center gap-1 mt-1.5 status-chip status-approved text-[11px]">

@@ -139,6 +139,64 @@ describe('Review Studio: "my review" for the step owner', () => {
   });
 });
 
+describe('Review Studio: the revision request in "my review"', () => {
+  // request-revision saves its note as a first comment (same text, at the decision time).
+  const sentBackAt = ago(20);
+  const withRequest = () => ({
+    ...version(),
+    comments: [
+      ...comments,
+      { _id: 'c4', text: 'Shorten the intro and fix the colour.', authorId: { _id: 'lead-1', name: 'Check Lead', role: 'creative_lead' }, anchor: null, resolved: false, parentId: null, createdAt: sentBackAt },
+    ],
+  });
+  const tl = () => {
+    const t = timeline('changes_requested', 'Feedback', 'start_rework');
+    t.events[1].at = sentBackAt;
+    return t;
+  };
+
+  it('labels the comment "Revision request" and links to it instead of repeating the text', async () => {
+    signIn('executive', 'owner-1');
+    mock(withRequest(), tl());
+    openAs('/work/w1/review');
+    const link = await screen.findByTestId('see-revision-request');
+    expect(link).toHaveTextContent('See revision request');
+    expect(link).toHaveAttribute('href', '#comment-c4');
+    // The decision line stays; its text is not repeated.
+    expect(screen.getByTestId('owner-decision')).toHaveTextContent('Changes requested by Check Lead (version 1)');
+    expect(screen.getByTestId('owner-decision')).not.toHaveTextContent('Shorten the intro and fix the colour.');
+    // Only that comment is labelled.
+    const labelled = screen.getAllByTestId('revision-request-label');
+    expect(labelled).toHaveLength(1);
+    const thread = labelled[0].closest('[data-testid="review-thread"]')!;
+    expect(thread).toHaveAttribute('id', 'comment-c4');
+    expect(within(thread as HTMLElement).getByText('Shorten the intro and fix the colour.')).toBeInTheDocument();
+    // The link selects that comment.
+    fireEvent.click(link);
+    await waitFor(() => expect(within(thread as HTMLElement).getAllByRole('button')[0]).toHaveAttribute('aria-pressed', 'true'));
+  });
+
+  it('a plain comment with the same text but written at another time is not taken for it', async () => {
+    signIn('executive', 'owner-1');
+    const sub = withRequest();
+    sub.comments[sub.comments.length - 1] = { ...sub.comments[sub.comments.length - 1], createdAt: ago(2) };
+    mock(sub, tl());
+    openAs('/work/w1/review');
+    await screen.findByTestId('owner-decision');
+    expect(screen.queryByTestId('revision-request-label')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('see-revision-request')).not.toBeInTheDocument();
+    expect(screen.getByTestId('owner-decision')).toHaveTextContent('Shorten the intro and fix the colour.');
+  });
+
+  it('the lead view has no "Revision request" label (owner view only)', async () => {
+    signIn('creative_lead', 'lead-1', 'Check Lead');
+    mock({ ...withRequest(), status: 'submitted' }, tl());
+    openAs('/feedback/review-studio');
+    await waitFor(() => expect(threads()).toHaveLength(3));
+    expect(screen.queryByTestId('revision-request-label')).not.toBeInTheDocument();
+  });
+});
+
 describe('Review Studio: the lead sees owner replies', () => {
   it('owner replies show with the owner\'s name, and an open comment with a new owner reply has a "New reply" badge', async () => {
     signIn('creative_lead', 'lead-1', 'Check Lead');
