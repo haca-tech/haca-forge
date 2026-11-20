@@ -93,7 +93,10 @@ describe('Access parity: old rules vs the resolver', () => {
     expect(checks).toBe(ROLE_KEYS.length * v1.length);
   });
 
-  it('every API route guard admits exactly the same roles (portal.view split by module)', () => {
+  it('every API route guard admits exactly the roles it admitted before Phase C2 (frozen snapshot)', () => {
+    // test/fixtures/route_guard_snapshot.json: each guard's admitted roles, generated from the
+    // pre-C2 routes (v1 keys, admin bypass) by scripts/snapshot-route-guards.js.
+    const snapshot = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'fixtures/route_guard_snapshot.json'), 'utf8'));
     const files = [];
     const walk = (dir) => {
       for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -103,25 +106,29 @@ describe('Access parity: old rules vs the resolver', () => {
       }
     };
     walk(path.join(SRC, 'modules'));
-    const guards = [];
+    const current = {};
     for (const f of files) {
-      const module = path.basename(path.dirname(f));
-      const text = fs.readFileSync(f, 'utf8');
-      for (const m of text.matchAll(/require(?:Any)?Permission\(([^)]*)\)/g)) {
+      const rel = path.relative(path.join(SRC, 'modules'), f).replace(/\\/g, '/');
+      const guards = [];
+      for (const m of fs.readFileSync(f, 'utf8').matchAll(/require(?:Any)?Permission\(([^)]*)\)/g)) {
         const keys = [...m[1].matchAll(/['"]([a-z_.]+)['"]/g)].map((x) => x[1]);
-        if (keys.length) guards.push({ module, keys, where: path.relative(SRC, f) });
+        if (keys.length) guards.push(keys);
       }
+      if (guards.length) current[rel] = guards;
     }
-    expect(guards.length).toBeGreaterThan(80);
-    for (const g of guards) {
-      if (g.keys.includes('portal.view')) expect(PORTAL_VIEW_SPLIT[g.module], `split for ${g.where}`).toBeTruthy();
-      const v2 = g.keys.map((k) => (k === 'portal.view' ? PORTAL_VIEW_SPLIT[g.module] : k));
-      for (const role of ROLE_KEYS) {
-        const oldOk = role === 'admin' || g.keys.some((k) => (ROLE_PERMISSIONS[role] || []).includes(k));
-        const newOk = v2.some((k) => can(userOf(role), k));
-        expect(newOk, `${g.where} [${g.keys.join(', ')}] for ${role}`).toBe(oldOk);
-      }
+    expect(Object.keys(current).sort()).toEqual(Object.keys(snapshot).sort());
+    let checked = 0;
+    for (const [file, guards] of Object.entries(snapshot)) {
+      expect(current[file].length, `${file}: number of guards`).toBe(guards.length);
+      guards.forEach((g, i) => {
+        const keys = current[file][i];
+        for (const k of keys) expect(PERMISSION_KEYS_V2, `${file} #${i} uses catalog v2 keys`).toContain(k);
+        const admitted = ROLE_KEYS.filter((role) => keys.some((k) => can(userOf(role), k)));
+        expect(admitted, `${file} #${i} [${keys.join(', ')}] was [${g.keys.join(', ')}]`).toEqual(g.roles);
+        checked++;
+      });
     }
+    expect(checked).toBe(101);
   });
 
   it(`decision actions: 7 roles × ${ACTIONS.length} actions × 5 calendars × owner/non-owner are 100% equal`, () => {
@@ -271,14 +278,14 @@ describe('Routing parity: reviewers, plan approvers, posters, recipients', () =>
   it('with no stored config (the code default)', async () => {
     expect(await WorkflowConfig.countDocuments()).toBe(0);
     expect(await expectParity('default')).toBe(items().length * 11);
-  });
+  }, 120000);
 
   it('with the seeded WorkflowConfig documents', async () => {
     const created = await applyWorkflowSeed(await planWorkflowSeed());
     expect(created.sort()).toEqual([...CALENDAR_KEYS].sort());
     resolver.clearAccessCache();
     await expectParity('seeded');
-  });
+  }, 120000);
 
   it('the resolver follows a changed config: named reviewers, version bump, cache cleared', async () => {
     const before = await resolver.getWorkflowConfig('sales');

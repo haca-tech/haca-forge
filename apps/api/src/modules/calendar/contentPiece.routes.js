@@ -9,7 +9,7 @@ router.use(authenticate);
 
 router.get(
   '/',
-  requireAnyPermission('calendar.plan', 'calendar.approve', 'portal.view'),
+  requireAnyPermission('calendar.plan', 'calendar.approve', 'calendar.view'),
   contentPieceController.listPieces
 );
 

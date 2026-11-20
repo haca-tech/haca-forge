@@ -9,7 +9,7 @@ const router = Router();
 router.use(authenticate);
 
 router.post('/', requireAnyPermission('work.request', 'work.update.own'), blockerController.createBlocker);
-router.get('/', requireAnyPermission('work.request', 'work.update.own', 'portal.view'), blockerController.listBlockers);
+router.get('/', requireAnyPermission('work.request', 'work.update.own', 'work.view_all'), blockerController.listBlockers);
 router.patch('/:id/resolve', requireAnyPermission('work.request', 'work.update.own'), requireBlockerAccess, blockerController.resolveBlocker);
 router.post('/:id/notify', requireAnyPermission('work.request', 'work.update.own'), requireBlockerAccess, blockerController.notifyDependencyOwner);
 

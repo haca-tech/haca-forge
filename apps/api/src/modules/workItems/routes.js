@@ -20,15 +20,15 @@ router.param('stageItemId', workItemParam);
 
 // Special Aggregated Endpoints (mounted before /:id)
 router.get('/my-work', requirePermission('work.update.own'), workItemController.getMyWork);
-router.get('/calendar', requireAnyPermission('work.request', 'work.update.own', 'portal.view'), workItemController.getCalendarWorkItems);
-router.get('/todo', requireAnyPermission('work.request', 'work.update.own', 'portal.view'), workItemController.getTodoItems);
+router.get('/calendar', requireAnyPermission('work.request', 'work.update.own', 'work.view_all'), workItemController.getCalendarWorkItems);
+router.get('/todo', requireAnyPermission('work.request', 'work.update.own', 'work.view_all'), workItemController.getTodoItems);
 // Pause requests waiting for a decision (leads: their calendars; admin and read-only heads: all; others: their own).
 router.get('/pause-requests', workItemController.listPauseRequests);
 
 // Work Items CRUD & Queries
-router.get('/', requireAnyPermission('work.request', 'work.update.own', 'portal.view'), workItemController.listWorkItems);
-router.get('/:id/activity', requireAnyPermission('work.request', 'work.update.own', 'portal.view'), workItemController.getWorkItemActivities);
-router.get('/:id', requireAnyPermission('work.request', 'work.update.own', 'portal.view'), workItemController.getWorkItem);
+router.get('/', requireAnyPermission('work.request', 'work.update.own', 'work.view_all'), workItemController.listWorkItems);
+router.get('/:id/activity', requireAnyPermission('work.request', 'work.update.own', 'work.view_all'), workItemController.getWorkItemActivities);
+router.get('/:id', requireAnyPermission('work.request', 'work.update.own', 'work.view_all'), workItemController.getWorkItem);
 
 router.post(
   '/',

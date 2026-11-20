@@ -27,7 +27,7 @@ router.post(
 
 router.get(
   '/overrides',
-  requireAnyPermission('assignment.override', 'portal.view'),
+  requireAnyPermission('assignment.override', 'assignment.view'),
   assignmentController.listOverrides
 );
 

@@ -6,7 +6,7 @@ import { getDashboardOverviewHandler, getDashboardSummaryHandler } from './contr
 const router = express.Router();
 
 router.use(authenticate);
-router.use(requireAnyPermission('analytics.team', 'portal.view'));
+router.use(requireAnyPermission('analytics.team', 'report.view'));
 
 // Dynamic 9-section overview auto-resolved by user's role and global filters
 router.get('/', getDashboardOverviewHandler);

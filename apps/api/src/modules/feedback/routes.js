@@ -12,14 +12,14 @@ feedbackRouter.param('workItemId', workItemParam);
 // Feedback threads list
 feedbackRouter.get(
   '/threads',
-  requireAnyPermission('analytics.team', 'portal.view'),
+  requireAnyPermission('analytics.team', 'feedback.view_all'),
   feedbackController.listFeedbackThreads
 );
 
 // Feedback per work item
 feedbackRouter.get(
   '/work-item/:workItemId',
-  requireAnyPermission('feedback.respond', 'feedback.give', 'portal.view'),
+  requireAnyPermission('feedback.respond', 'feedback.give', 'feedback.view_all'),
   feedbackController.getFeedbackForWorkItem
 );
 // Retired (Review Hub): leads send work back in Review Studio or Work Detail; owners answer by
@@ -43,7 +43,7 @@ revisionsRouter.use(authenticate);
 // Revision Flags
 revisionsRouter.get(
   '/flags',
-  requireAnyPermission('analytics.team', 'portal.view'),
+  requireAnyPermission('analytics.team', 'feedback.view_all'),
   feedbackController.listRevisionFlags
 );
 revisionsRouter.post(

@@ -13,14 +13,14 @@ const router = express.Router();
 router.use(authenticate);
 
 // Listing & Candidate endpoints
-router.get('/', requireAnyPermission('user.manage', 'people.assign', 'people.view', 'portal.view'), peopleController.listPeople);
-router.get('/assignment-candidates', requireAnyPermission('people.assign', 'work.create', 'portal.view'), peopleController.getAssignmentCandidates);
-router.get('/performance/team', requireAnyPermission('analytics.team', 'portal.view'), peopleController.getTeamPerformance);
-router.get('/:id/performance', requireAnyPermission('analytics.team', 'portal.view'), peopleController.getPersonPerformance);
+router.get('/', requireAnyPermission('user.manage', 'people.assign', 'people.view'), peopleController.listPeople);
+router.get('/assignment-candidates', requireAnyPermission('people.assign', 'work.create', 'people.view'), peopleController.getAssignmentCandidates);
+router.get('/performance/team', requireAnyPermission('analytics.team', 'people.view'), peopleController.getTeamPerformance);
+router.get('/:id/performance', requireAnyPermission('analytics.team', 'people.view'), peopleController.getPersonPerformance);
 router.get('/:id/ratings', ratingsSummaryHandler);
 router.get('/:id/profile', peopleController.getPersonProfileHandler);
 router.get('/:id/work-history', peopleController.getPersonWorkHistoryHandler);
-router.get('/:id', requireAnyPermission('user.manage', 'people.assign', 'people.view', 'portal.view'), peopleController.getPersonById);
+router.get('/:id', requireAnyPermission('user.manage', 'people.assign', 'people.view'), peopleController.getPersonById);
 
 // Admin-only creation & profile updates
 router.post('/', requirePermission('user.manage'), peopleController.createPerson);

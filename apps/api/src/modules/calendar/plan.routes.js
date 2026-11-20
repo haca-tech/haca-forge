@@ -10,6 +10,7 @@ import {
 } from '@mmp/shared';
 import * as planController from './plan.controller.js';
 import { normalizeRole } from '@mmp/shared';
+import { can } from '@mmp/shared';
 
 const router = Router();
 const upload = multer({
@@ -22,7 +23,7 @@ router.use(authenticate);
 // Import & Template routes (mounted before :id)
 router.get(
   '/template',
-  requireAnyPermission('calendar.plan', 'calendar.approve', 'portal.view'),
+  requireAnyPermission('calendar.plan', 'calendar.approve', 'calendar.view'),
   planController.downloadTemplate
 );
 
@@ -48,7 +49,7 @@ router.post(
 // Excel-style grid: one grid per calendar + month (mounted before :id)
 // Team members get 404 on every grid route (isolation rule: the grid does not exist for them).
 router.use('/grid', (req, res, next) => {
-  if (isWorker(normalizeRole(req.user?.role))) {
+  if (!can(req.user, 'calendar.view')) {
     return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } });
   }
   return next();
@@ -56,7 +57,7 @@ router.use('/grid', (req, res, next) => {
 
 router.get(
   '/grid',
-  requireAnyPermission('calendar.plan', 'calendar.approve', 'portal.view'),
+  requireAnyPermission('calendar.plan', 'calendar.approve', 'calendar.view'),
   planController.getGrid
 );
 
@@ -76,7 +77,7 @@ router.post(
 // Plans CRUD & review
 router.get(
   '/',
-  requireAnyPermission('calendar.plan', 'calendar.approve', 'portal.view'),
+  requireAnyPermission('calendar.plan', 'calendar.approve', 'calendar.view'),
   planController.listPlans
 );
 
@@ -89,7 +90,7 @@ router.post(
 
 router.get(
   '/:id',
-  requireAnyPermission('calendar.plan', 'calendar.approve', 'portal.view'),
+  requireAnyPermission('calendar.plan', 'calendar.approve', 'calendar.view'),
   planController.getPlan
 );
 
@@ -144,7 +145,7 @@ router.post(
 
 router.get(
   '/:id/rows/:rowId/history',
-  requireAnyPermission('calendar.plan', 'calendar.approve', 'portal.view'),
+  requireAnyPermission('calendar.plan', 'calendar.approve', 'calendar.view'),
   planController.getRowHistory
 );
 

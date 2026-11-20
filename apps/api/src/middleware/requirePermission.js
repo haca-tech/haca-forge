@@ -1,59 +1,41 @@
+import { can } from '@mmp/shared';
+
+/**
+ * Route guards (Phase C2): permission keys from catalog v2, answered by the shared access
+ * resolver for the signed-in user's system role. The locked admin role holds every key, so
+ * there is no role-name bypass here. Calendar-routed decisions are checked in the services.
+ */
+function unauthorized(res) {
+  return res.status(401).json({
+    error: {
+      code: 'UNAUTHORIZED',
+      message: 'Authentication required before checking permissions.',
+    },
+  });
+}
+
+function forbidden(res, keys) {
+  return res.status(403).json({
+    error: {
+      code: 'FORBIDDEN',
+      message: `You do not have the required permission (${keys.join(' or ')}) to perform this action.`,
+    },
+  });
+}
+
 export function requirePermission(permissionKey) {
   return (req, res, next) => {
-    if (!req.user || !req.ability) {
-      return res.status(401).json({
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required before checking permissions.',
-        },
-      });
-    }
-
-    // Admin has full manage access
-    if (req.user.role === 'admin') {
-      return next();
-    }
-
-    if (req.ability.can(permissionKey, 'all')) {
-      return next();
-    }
-
-    return res.status(403).json({
-      error: {
-        code: 'FORBIDDEN',
-        message: `You do not have the required permission (${permissionKey}) to perform this action.`,
-      },
-    });
+    if (!req.user) return unauthorized(res);
+    if (can(req.user, permissionKey)) return next();
+    return forbidden(res, [permissionKey]);
   };
 }
 
 export function requireAnyPermission(...permissionKeys) {
   const keys = permissionKeys.flat();
   return (req, res, next) => {
-    if (!req.user || !req.ability) {
-      return res.status(401).json({
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required before checking permissions.',
-        },
-      });
-    }
-
-    // Admin has full manage access
-    if (req.user.role === 'admin') {
-      return next();
-    }
-
-    const hasAny = keys.some((key) => req.ability.can(key, 'all'));
-    if (hasAny) {
-      return next();
-    }
-
-    return res.status(403).json({
-      error: {
-        code: 'FORBIDDEN',
-        message: `You do not have any of the required permissions (${keys.join(', ')}) to perform this action.`,
-      },
-    });
+    if (!req.user) return unauthorized(res);
+    if (keys.some((key) => can(req.user, key))) return next();
+    return forbidden(res, keys);
   };
 }

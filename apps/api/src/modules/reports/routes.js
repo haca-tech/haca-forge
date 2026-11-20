@@ -15,7 +15,7 @@ router.use(authenticate);
 // member gets the same 404 as a project that does not exist.
 router.get("/projects/:id", projectKpiHandler);
 
-router.use(requireAnyPermission("report.view", "portal.view"));
+router.use(requireAnyPermission("report.view"));
 
 // Live reports, computed on request (filters: month, calendar, stepType).
 router.get("/overview", liveReportHandler("overview"));

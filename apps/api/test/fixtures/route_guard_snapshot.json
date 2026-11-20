@@ -1,0 +1,1229 @@
+{
+ "access/routes.js": [
+  {
+   "keys": [
+    "user.approve"
+   ],
+   "roles": [
+    "admin"
+   ]
+  }
+ ],
+ "assignment/routes.js": [
+  {
+   "keys": [
+    "work.create",
+    "work.request"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "assignment.override"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "assignment.override",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  }
+ ],
+ "blockers/routes.js": [
+  {
+   "keys": [
+    "work.request",
+    "work.update.own"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.request",
+    "work.update.own",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.request",
+    "work.update.own"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.request",
+    "work.update.own"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  }
+ ],
+ "calendar/contentPiece.routes.js": [
+  {
+   "keys": [
+    "calendar.plan",
+    "calendar.approve",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan",
+    "assignment.override"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "assignment.override"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "assignment.override"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "assignment.override"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  }
+ ],
+ "calendar/plan.routes.js": [
+  {
+   "keys": [
+    "calendar.plan",
+    "calendar.approve",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan",
+    "calendar.approve",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan",
+    "calendar.approve",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan",
+    "calendar.approve",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan",
+    "calendar.approve",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.plan"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "calendar.approve"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead"
+   ]
+  }
+ ],
+ "chat/routes.js": [
+  {
+   "keys": [
+    "chat.use",
+    "chat.read"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.group.create"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use",
+    "chat.read"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.group.create"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "chat.group.create"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "chat.moderate"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "chat.group.create"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use",
+    "chat.read"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use",
+    "chat.read"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use",
+    "chat.read"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use",
+    "chat.read"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use",
+    "chat.read"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "chat.use"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  }
+ ],
+ "departments/routes.js": [
+  {
+   "keys": [
+    "settings.manage"
+   ],
+   "roles": [
+    "admin"
+   ]
+  },
+  {
+   "keys": [
+    "settings.manage"
+   ],
+   "roles": [
+    "admin"
+   ]
+  },
+  {
+   "keys": [
+    "settings.manage"
+   ],
+   "roles": [
+    "admin"
+   ]
+  }
+ ],
+ "docs/routes.js": [
+  {
+   "keys": [
+    "settings.manage"
+   ],
+   "roles": [
+    "admin"
+   ]
+  }
+ ],
+ "feedback/routes.js": [
+  {
+   "keys": [
+    "analytics.team",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "feedback.respond",
+    "feedback.give",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "feedback.give",
+    "feedback.respond"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "feedback.give",
+    "feedback.respond"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "analytics.team",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "revision.classify"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead"
+   ]
+  }
+ ],
+ "people/routes.js": [
+  {
+   "keys": [
+    "user.manage",
+    "people.assign",
+    "people.view",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "people.assign",
+    "work.create",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "analytics.team",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "analytics.team",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "user.manage",
+    "people.assign",
+    "people.view",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "user.manage"
+   ],
+   "roles": [
+    "admin"
+   ]
+  },
+  {
+   "keys": [
+    "user.manage"
+   ],
+   "roles": [
+    "admin"
+   ]
+  },
+  {
+   "keys": [
+    "user.manage"
+   ],
+   "roles": [
+    "admin"
+   ]
+  },
+  {
+   "keys": [
+    "user.manage",
+    "people.assign"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead"
+   ]
+  },
+  {
+   "keys": [
+    "user.manage",
+    "people.assign"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead"
+   ]
+  },
+  {
+   "keys": [
+    "user.manage"
+   ],
+   "roles": [
+    "admin"
+   ]
+  },
+  {
+   "keys": [
+    "user.manage"
+   ],
+   "roles": [
+    "admin"
+   ]
+  }
+ ],
+ "reports/dashboard.routes.js": [
+  {
+   "keys": [
+    "analytics.team",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  }
+ ],
+ "reports/routes.js": [
+  {
+   "keys": [
+    "report.view",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  }
+ ],
+ "team/routes.js": [
+  {
+   "keys": [
+    "team.profile.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "team.profile.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager"
+   ]
+  }
+ ],
+ "uploads/routes.js": [
+  {
+   "keys": [
+    "work.create",
+    "work.request",
+    "work.update.own"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.create",
+    "work.request",
+    "work.update.own"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.create",
+    "work.request",
+    "work.update.own"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.create",
+    "work.request",
+    "work.update.own"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  }
+ ],
+ "workItems/routes.js": [
+  {
+   "keys": [
+    "work.update.own"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.request",
+    "work.update.own",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.request",
+    "work.update.own",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.request",
+    "work.update.own",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.request",
+    "work.update.own",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.request",
+    "work.update.own",
+    "portal.view"
+   ],
+   "roles": [
+    "admin",
+    "creative_head",
+    "production_head",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.create"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  },
+  {
+   "keys": [
+    "work.update.own"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.update.own"
+   ],
+   "roles": [
+    "admin",
+    "creative_lead",
+    "growth_lead",
+    "sm_manager",
+    "executive"
+   ]
+  },
+  {
+   "keys": [
+    "work.create"
+   ],
+   "roles": [
+    "admin",
+    "sm_manager"
+   ]
+  }
+ ]
+}
