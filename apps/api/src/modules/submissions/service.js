@@ -41,6 +41,7 @@ import {
   isReadOnlyViewer,
   isWorker,
   canSeeAllReviewText,
+  canDecide,
 } from '@mmp/shared';
 
 /**
@@ -589,13 +590,34 @@ export async function addComment(submissionId, commentData, user) {
     throw err;
   }
 
+  // A reply belongs to a comment on the same step; replies to replies join the first comment's thread.
+  let parent = null;
+  if (commentData.parentId) {
+    parent = mongoose.isValidObjectId(commentData.parentId) ? await SubmissionComment.findById(commentData.parentId) : null;
+    if (!parent || String(parent.workItemId) !== String(submission.workItemId)) {
+      const err = new Error('The comment you are replying to is not on this step.');
+      err.statusCode = 400;
+      err.code = 'INVALID_PARENT_COMMENT';
+      throw err;
+    }
+    if (parent.parentId) parent = (await SubmissionComment.findById(parent.parentId)) || parent;
+  }
+
+  // The step owner reads everything and replies (text only). Pins and new threads are the reviewers'.
+  if (isStepOwner && !isReviewer && (!parent || commentData.anchor)) {
+    const err = new Error('You can reply to a comment. Pins and new comments come from the reviewers.');
+    err.statusCode = 403;
+    err.code = 'OWNER_REPLY_ONLY';
+    throw err;
+  }
+
   const comment = await SubmissionComment.create({
     submissionId: submission._id,
     workItemId: submission.workItemId,
     authorId: userId,
-    anchor: commentData.anchor || null,
+    anchor: parent ? null : commentData.anchor || null,
     text: commentData.text.trim(),
-    parentId: commentData.parentId || null,
+    parentId: parent ? parent._id : null,
   });
 
   // Log Activity
@@ -603,35 +625,45 @@ export async function addComment(submissionId, commentData, user) {
     entityType: 'submission_comment',
     entityId: comment._id,
     actor: user,
-    action: 'submission.comment_added',
+    action: parent ? 'submission.comment_replied' : 'submission.comment_added',
     metadata: {
       submissionId: submission._id,
       workItemId: submission.workItemId,
       anchorType: commentData.anchor?.type,
+      parentId: parent ? parent._id : undefined,
     },
   });
 
-  // Notification: notify the other party
-  if (isReviewer && ownerId) {
+  // Notifications, one per comment:
+  // - a reviewer's comment or reply goes to the step owner;
+  // - the owner's reply goes to the lead who wrote that comment, or to the calendar's deciding
+  //   leads when that person no longer decides this calendar.
+  const title = workItem?.title || 'your step';
+  const reviewLink = `/work/${workItem?._id}/review`;
+  if (isReviewer && ownerId && ownerId !== userId) {
     await createNotification({
       recipient: ownerId,
       type: 'submission_comment',
-      title: 'New Feedback Comment',
-      message: `Reviewer added feedback on ${workItem?.title || 'your deliverable'}: "${comment.text.slice(0, 60)}"`,
-      link: `/my-work?id=${workItem?._id}`,
-      metadata: { submissionId: submission._id, commentId: comment._id },
+      title: parent ? 'New reply on your review' : 'New review comment',
+      message: `${user.name || 'Your lead'} ${parent ? 'replied' : 'commented'} on ${title}: "${comment.text.slice(0, 80)}"`,
+      link: reviewLink,
+      metadata: { submissionId: submission._id, commentId: comment._id, workItemId: workItem?._id },
     });
-  } else if (isStepOwner) {
-    // Phase 13: the lead of the step's calendar.
-    const creativeHeads = await decidersFor(calendarOf(workItem));
-    for (const ch of creativeHeads) {
+  } else if (isStepOwner && parent) {
+    const calendar = calendarOf(workItem);
+    const parentAuthor = await Person.findById(parent.authorId).select('role status').lean();
+    const recipients =
+      parentAuthor && parentAuthor.status !== 'suspended' && String(parentAuthor._id) !== userId && canDecide(parentAuthor.role, calendar)
+        ? [parentAuthor]
+        : (await decidersFor(calendar)).filter((p) => String(p._id) !== userId);
+    for (const r of recipients) {
       await createNotification({
-        recipient: ch._id,
+        recipient: r._id,
         type: 'submission_comment',
-        title: 'Worker Replied on Submission',
-        message: `${user.name || 'Worker'} replied on ${workItem?.title || 'deliverable'}: "${comment.text.slice(0, 60)}"`,
-        link: `/feedback?tab=stages&workItemId=${workItem?._id}`,
-        metadata: { submissionId: submission._id, commentId: comment._id },
+        title: 'Owner replied in Review Studio',
+        message: `${user.name || 'The owner'} replied on ${title}: "${comment.text.slice(0, 80)}"`,
+        link: `/feedback/review-studio?submissionId=${submission._id}`,
+        metadata: { submissionId: submission._id, commentId: comment._id, workItemId: workItem?._id },
       });
     }
   }
@@ -695,11 +727,12 @@ export async function resolveComment(commentId, user) {
   const userId = (user._id || user.id || user.userId)?.toString();
   const ownerId = (workItem?.ownerId?._id || workItem?.ownerId)?.toString();
 
+  // Resolving is the reviewers' call; the step owner reads and replies.
   const isReviewer = isApprover(role) || role === 'admin';
-  const isStepOwner = ownerId === userId;
-  if (!isReviewer && !isStepOwner) {
-    const err = new Error('Only the author, owner, or reviewer can resolve comments');
+  if (!isReviewer) {
+    const err = new Error(ownerId === userId ? 'Only a reviewer can resolve a comment. You can reply to it.' : 'Only a reviewer can resolve comments');
     err.statusCode = 403;
+    err.code = ownerId === userId ? 'OWNER_REPLY_ONLY' : 'FORBIDDEN_ACTION';
     throw err;
   }
 
