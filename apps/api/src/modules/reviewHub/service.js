@@ -20,10 +20,12 @@ import { PauseRequest } from '../workItems/pauseRequest.model.js';
 import { HelpRequest } from '../workItems/helpRequest.model.js';
 import { CalendarPlan } from '../calendar/plan.model.js';
 import { ContentPiece } from '../calendar/contentPiece.model.js';
-import { calendarOf, calendarQueryFor } from '../workItems/deciders.js';
+import { calendarOf, calendarQueryFor, canDecideOn } from '../workItems/deciders.js';
 import { attachTimeLabels } from '../workItems/timeLabels.js';
 import { outputItems } from '../workItems/handoff.js';
 import { listPauseRequests } from '../workItems/pause.service.js';
+import * as access from '../../lib/accessResolver.js';
+import { hasPermission, isOwnScope, isReadOnly, isSuperuser } from '../../lib/roleAccess.js';
 
 /**
  * Review Hub: an inbox and a history of review rounds, read from the real records (versions,
@@ -51,20 +53,19 @@ const TAB_LABELS = {
 };
 
 function viewerKind(user) {
-  const role = normalizeRole(user?.role);
-  if (isWorker(role)) return 'worker';
-  if (isApprover(role)) return 'lead';
-  if (role === 'admin') return 'admin';
+  if (isOwnScope(user)) return 'worker';
+  if (isSuperuser(user)) return 'admin';
+  if (hasPermission(user, 'review.decide')) return 'lead';
   return 'viewer'; // read-only heads and the SM Manager: everything, no decisions here
 }
 
 /** The steps this viewer's hub covers. */
-function scopeQuery(user, calendar) {
+async function scopeQuery(user, calendar) {
   const kind = viewerKind(user);
   const q = { isSkipped: { $ne: true } };
   const and = [];
   if (kind === 'worker') q.ownerId = new mongoose.Types.ObjectId(userIdOf(user));
-  if (kind === 'lead') and.push(calendarQueryFor(decisionCalendarsFor(normalizeRole(user.role))));
+  if (kind === 'lead') and.push(calendarQueryFor(await access.decisionCalendars(user)));
   if (calendar) and.push(calendarQueryFor([calendar]));
   if (and.length) q.$and = and;
   return q;
@@ -105,7 +106,7 @@ export async function reviewInbox(user, { tab, q = '', calendar = '' } = {}) {
   const active = tabs.includes(tab) ? tab : tabs[0];
   const search = String(q || '').trim().slice(0, 100);
 
-  const steps = await WorkItem.find(scopeQuery(user, calendar))
+  const steps = await WorkItem.find(await scopeQuery(user, calendar))
     .select('title stageKey workType calendar ownerId status revisions deadline dueDate unlockedAt startedAt submittedAt approvedAt postedAt isLocked isSkipped rounds intervals pauseState contentPieceId')
     .populate('ownerId', 'name')
     .lean();
@@ -129,7 +130,7 @@ export async function reviewInbox(user, { tab, q = '', calendar = '' } = {}) {
     pauseCount = pauses.filter((r) => (!calendar || r.workItem.calendar === calendar) && (!search || `${r.workItem.title} ${r.owner.name}`.toLowerCase().includes(search.toLowerCase()))).length;
     const waitingRows = await ContentPiece.aggregate([{ $match: { rowStatus: 'submitted' } }, { $group: { _id: '$planId' } }]);
     const plans = await CalendarPlan.find({ _id: { $in: waitingRows.map((r) => r._id) } }).select('calendar title').lean();
-    const allowed = kind === 'lead' ? decisionCalendarsFor(normalizeRole(user.role)) : null;
+    const allowed = kind === 'lead' ? await access.decisionCalendars(user) : null;
     planCount = plans.filter((p) => (!allowed || allowed.includes(p.calendar || 'sm')) && (!calendar || (p.calendar || 'sm') === calendar)).length;
   }
 
@@ -202,8 +203,8 @@ export async function stepTimeline(workItemId, user) {
   const role = normalizeRole(user?.role);
   const me = userIdOf(user);
   const isOwner = idOf(step.ownerId) === me;
-  if (isWorker(role) && !isOwner) throw notFound();
-  const privateOk = isOwner || canSeeAllReviewText(role);
+  if (isOwnScope(user) && !isOwner) throw notFound();
+  const privateOk = isOwner || hasPermission(user, 'review.read_all');
 
   const versions = await Submission.find({ workItemId: step._id, version: { $gt: 0 } })
     .sort({ version: 1 })
@@ -300,11 +301,11 @@ export async function stepTimeline(workItemId, user) {
   const state = stepReviewState(step.status, latest?.status, step.revisions || 0);
   const cal = calendarOf(step);
   let mainAction = { kind: 'open_work_detail', href: `/work/${step._id}` };
-  const readOnly = isReadOnlyViewer(role);
+  const readOnly = isReadOnly(user);
   if (!readOnly) {
-    if (state === 'awaiting_review' && latest?.status === 'submitted' && canDecide(user, cal, { ownerId: step.ownerId })) {
+    if (state === 'awaiting_review' && latest?.status === 'submitted' && (await canDecideOn(user, cal, { ownerId: step.ownerId }))) {
       mainAction = { kind: 'open_review_studio', href: `/feedback/review-studio?submissionId=${latest._id}` };
-    } else if (flag && flag.isFlagged && !flag.rootCause && canDecide(role, cal)) {
+    } else if (flag && flag.isFlagged && !flag.rootCause && (await canDecideOn(user, cal, { permission: 'revision.classify' }))) {
       mainAction = { kind: 'classify', flagId: String(flag._id) };
     } else if (isOwner && state === 'changes_requested') {
       mainAction = { kind: 'start_rework' };

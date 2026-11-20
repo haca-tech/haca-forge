@@ -10,6 +10,7 @@ import { ContentPiece } from '../calendar/contentPiece.model.js';
 import { workloadByPerson, bandCounts as workloadBandCounts } from '../workload/service.js';
 import { resolveScope } from '../../lib/scope.js';
 import { derivePlanStatus, WORKER_ROLE, isWorker } from '@mmp/shared';
+import { isOwnScope, stepTakingRoles } from '../../lib/roleAccess.js';
 
 /**
  * 8-Section Operational Dashboard Overview Service
@@ -25,7 +26,7 @@ export async function getDashboardOverview(filters = {}, user) {
   const workItemQuery = {};
 
   // Person Scoping (for Team Member)
-  if (isWorker(user.role) && !filters.allWork) {
+  if (isOwnScope(user) && !filters.allWork) {
     const userId = (user._id || user.id || user.userId)?.toString();
     workItemQuery.ownerId = userId;
   } else if (filters.ownerId && filters.ownerId !== 'all') {
@@ -247,7 +248,7 @@ export async function getDashboardOverview(filters = {}, user) {
 
   const personQuery = {
     $or: [{ status: 'active' }, { active: true }],
-    role: { $in: [WORKER_ROLE, 'sm_manager'] },
+    role: { $in: stepTakingRoles() },
   };
   if (workItemQuery.departmentId) {
     personQuery.departmentId = workItemQuery.departmentId;

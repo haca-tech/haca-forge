@@ -17,6 +17,8 @@ import { CalendarPlan } from '../calendar/plan.model.js';
 import { WorkItem } from '../workItems/model.js';
 import { PhoneVerification } from './phoneVerification.model.js';
 import { disconnectUserSockets } from '../../lib/socketHub.js';
+import { isSuperuser, rolesWith } from '../../lib/roleAccess.js';
+import { hasPermission, isOwnScope, isReadOnly } from '../../lib/roleAccess.js';
 
 export function stripHtml(str) {
   if (typeof str !== 'string') return str;
@@ -49,7 +51,7 @@ export async function getProfile(userId) {
 
   // Compute role panel metric summaries
   let rolePanelData = null;
-  if (normalizedRole === 'admin') {
+  if (isSuperuser(user)) {
     const pendingAccessRequests = await AccessRequest.countDocuments({ status: 'pending' }).catch(() => 0);
     const activeUsers = await User.find({ status: 'active' }).select('role').lean().catch(() => []);
     const usersByRole = activeUsers.reduce((acc, u) => {
@@ -59,13 +61,13 @@ export async function getProfile(userId) {
     rolePanelData = {
       adminMetrics: { pendingAccessRequests, usersByRole },
     };
-  } else if (isApprover(normalizedRole)) {
+  } else if (hasPermission(user, 'review.decide')) {
     const stagesWaitingApproval = await countAwaitingReview().catch(() => 0);
     const plansWaiting = await CalendarPlan.countDocuments({ status: { $in: ['submitted', 'in_review'] } }).catch(() => 0);
     rolePanelData = {
       creativeMetrics: { stagesWaitingApproval, plansWaiting },
     };
-  } else if (normalizedRole === 'sm_manager') {
+  } else if (hasPermission(user, 'calendar.plan')) {
     const needsOwnerCount = await WorkItem.countDocuments({ ownerId: null }).catch(() => 0);
     const now = new Date();
     const lateItemsCount = await WorkItem.countDocuments({
@@ -75,13 +77,13 @@ export async function getProfile(userId) {
     rolePanelData = {
       smMetrics: { planStatus: 'Active', needsOwnerCount, lateItemsCount },
     };
-  } else if (isReadOnlyViewer(normalizedRole)) {
+  } else if (isReadOnly(user)) {
     const activeUsersCount = await User.countDocuments({ status: 'active' }).catch(() => 0);
     const activeDeliverablesCount = await WorkItem.countDocuments({ status: { $nin: ['Published'] } }).catch(() => 0);
     rolePanelData = {
       companySummary: { activeUsersCount, activeDeliverablesCount },
     };
-  } else if (isWorker(normalizedRole)) {
+  } else if (isOwnScope(user)) {
     const myCurrentStepsCount = await WorkItem.countDocuments({
       ownerId: userId,
       status: { $nin: ['Approved', 'Published'] },
@@ -101,7 +103,7 @@ export async function getProfile(userId) {
     preferredName: user.preferredName || '',
     email: user.email,
     role: normalizedRole,
-    jobRole: user.jobRole || (user.role === 'admin' ? 'System Administrator' : 'Team Member'),
+    jobRole: user.jobRole || (isSuperuser(user) ? 'System Administrator' : 'Team Member'),
     department: deptName || 'General',
     departmentId: user.departmentId?._id?.toString() || null,
     status: user.status || 'active',
@@ -539,7 +541,7 @@ export async function updateSettings(userId, data, userRole) {
   }
 
   if (data.notificationPrefs) {
-    const isAdmin = normalizeRole(userRole) === 'admin';
+    const isAdmin = isSuperuser(userRole);
     const current = user.notificationPrefs || {};
 
     user.notificationPrefs = {
@@ -813,7 +815,7 @@ export async function submitChangeRequest(userId, { requestedChanges }) {
 
   // Find all active admins
   const admins = await User.find({
-    role: 'admin',
+    role: { $in: rolesWith('user.manage') },
     status: 'active',
   }).select('_id email name');
 

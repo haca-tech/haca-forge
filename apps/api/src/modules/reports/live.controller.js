@@ -1,8 +1,8 @@
 import { normalizeRole, APPROVER_ROLES, READ_ONLY_VIEWER_ROLES } from '@mmp/shared';
 import { LIVE_REPORTS, parseReportFilters, projectKpiReport } from './live.service.js';
+import { seesAll } from '../../lib/roleAccess.js';
 
 /** Roles that may open a Project KPI page. Everyone else gets the same 404 as a missing project. */
-const KPI_ROLES = ['admin', ...APPROVER_ROLES, 'sm_manager', ...READ_ONLY_VIEWER_ROLES];
 
 const notFound = (res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Project not found' } });
 
@@ -20,7 +20,7 @@ export function liveReportHandler(name) {
 
 export async function projectKpiHandler(req, res, next) {
   try {
-    if (!KPI_ROLES.includes(normalizeRole(req.user?.role))) return notFound(res);
+    if (!seesAll(req.user)) return notFound(res);
     const data = await projectKpiReport(req.params.id);
     if (!data) return notFound(res);
     res.json({ success: true, data });

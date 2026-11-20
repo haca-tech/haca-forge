@@ -3,6 +3,7 @@ import { isKnownRole, isReadOnlyViewer, normalizeRole } from '@mmp/shared';
 import { env } from '../config/env.js';
 import { User } from '../modules/people/model.js';
 import { defineAbilityForUser } from '../lib/permissions.js';
+import { isReadOnly } from '../lib/roleAccess.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -96,7 +97,7 @@ export async function authenticate(req, res, next) {
     // creative_head and production_head are read-only: every write is refused, except on
     // their own account (sign-out, password, own profile and settings, notification and
     // chat read markers).
-    if (isReadOnlyViewer(user.role) && !SAFE_METHODS.has(req.method) && !isOwnAccountWrite(req)) {
+    if (isReadOnly(user) && !SAFE_METHODS.has(req.method) && !isOwnAccountWrite(req)) {
       return res.status(403).json({
         error: {
           code: 'READ_ONLY_ROLE',

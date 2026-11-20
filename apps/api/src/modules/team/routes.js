@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticate } from '../../middleware/auth.js';
 import { requirePermission } from '../../middleware/requirePermission.js';
 import * as teamController from './controller.js';
+import { hasPermission } from '../../lib/roleAccess.js';
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ function requireProfileAccess(req, res, next) {
     });
   }
 
-  if (req.user.role === 'admin' || req.ability?.can('team.profile.view', 'all')) {
+  if (hasPermission(req.user, 'team.profile.view')) {
     return next();
   }
 
@@ -39,7 +40,7 @@ function requireProfileAccess(req, res, next) {
 // the resource exists (same anti-harvesting rule as requireProfileAccess). Requests for
 // your own :id fall through to the normal permission check unchanged.
 function notFoundForWorkers(req, res, next) {
-  if (req.user && req.user.role !== 'admin' && !req.ability?.can('team.profile.view', 'all')) {
+  if (req.user && !hasPermission(req.user, 'team.profile.view')) {
     const userIdStr = (req.user._id || req.user.id || req.user.userId)?.toString();
     const targetIdStr = req.params.id?.toString();
     if (!targetIdStr || targetIdStr !== userIdStr) {

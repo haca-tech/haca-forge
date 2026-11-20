@@ -13,6 +13,7 @@ import { createNotification } from '../notifications/service.js';
 import { resolveScope } from '../../lib/scope.js';
 import { recommendAssignee } from '../assignment/service.js';
 import { normalizeRole, calculateIndividualWorkMeasures, formatDuration } from '@mmp/shared';
+import { hasPermission, isOwnScope } from '../../lib/roleAccess.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -25,7 +26,7 @@ export async function listContentPieces(filters = {}, user) {
   const userId = (user?._id || user?.id || user?.userId)?.toString();
 
   const query = {};
-  if (isWorker(userRole)) {
+  if (isOwnScope(user)) {
     // Workers see only content pieces where they own at least one stage
     const myStages = await WorkItem.find({ ownerId: userId, contentPieceId: { $ne: null } }).select('contentPieceId');
     const myPieceIds = myStages.map((s) => s.contentPieceId);
@@ -73,7 +74,7 @@ export async function listContentPieces(filters = {}, user) {
 
   const results = pieces.map((piece) => {
     let stages = stagesByPiece[piece._id.toString()] || [];
-    if (isWorker(userRole)) {
+    if (isOwnScope(user)) {
       stages = stages.filter((s) => (s.ownerId?._id || s.ownerId)?.toString() === userId);
     }
 
@@ -343,7 +344,7 @@ export async function recommendOwnersForPiece(pieceId, user) {
  */
 export async function assignStages(assignmentList, user) {
   const userRole = normalizeRole(user.role);
-  if (userRole !== 'admin' && userRole !== 'sm_manager' && !isApprover(userRole)) {
+  if (!hasPermission(user, 'assignment.override')) {
     const error = new Error('You do not have permission to assign stage owners.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_ASSIGNMENT';

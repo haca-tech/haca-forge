@@ -52,6 +52,8 @@ import { autofillRowPlan, buildAutofillContext } from './autofill.service.js';
 import { validatePlanAndRows } from './validation.js';
 import { createPlan, getDefaultPlanTitle } from './plan.service.js';
 import { parseBufferToGridInput } from './import.service.js';
+import * as access from '../../lib/accessResolver.js';
+import { hasPermission, ownerCandidateRoles } from '../../lib/roleAccess.js';
 
 export const GRID_MAX_ROWS = 500;
 
@@ -69,7 +71,6 @@ const STAGE_BY_OWNER_FIELD = Object.fromEntries(Object.entries(OWNER_FIELD_BY_ST
 /** Workflow columns: filled by the system, never written from the grid. */
 export const READ_ONLY_FIELDS = PLAN_GRID_COLUMNS.filter((c) => !c.editable).map((c) => c.key);
 
-const PLAN_EDIT_ROLES = ['sm_manager', 'admin'];
 
 function httpError(status, code, message, extra = {}) {
   const error = new Error(message);
@@ -284,18 +285,18 @@ async function loadGridRows(planId) {
   return pieces.map((p) => toGridRow(p, byPiece.get(String(p._id)) || []));
 }
 
-function gridPermissions(user, calendar = 'sm') {
+async function gridPermissions(user, calendar = 'sm') {
   const role = normalizeRole(user.role);
-  const canEdit = PLAN_EDIT_ROLES.includes(role);
-  // Phase 13: the lead of this calendar (Growth Lead for Ads) reviews rows; admin is a backup.
-  const canReview = canDecide(role, calendar);
+  const canEdit = hasPermission(user, 'calendar.plan');
+  // Phase 13: this calendar's plan approvers (default: its lead; Growth Lead for Ads) review rows; admin always.
+  const canReview = await access.can(user, 'calendar.approve', { calendar });
   return { role, canEdit, canReview, readOnly: !canEdit && !canReview };
 }
 
 /** Owner choices: workers and SM Managers. Their workPreferences here are the steps they are
  *  eligible for (job role, narrowed by preferences; Post is SM Managers only). */
 async function activeOwnerCandidates() {
-  const people = await Person.find({ role: { $in: [WORKER_ROLE, 'sm_manager', 'admin'] }, status: 'active' })
+  const people = await Person.find({ role: { $in: ownerCandidateRoles() }, status: 'active' })
     .select('name role jobRole workPreferences')
     .lean();
   return people.map((p) => ({ ...p, workPreferences: effectiveStepsFor(p) }));
@@ -306,8 +307,8 @@ async function activeOwnerCandidates() {
  * what the viewer may do. Never creates a plan.
  */
 export async function loadGrid({ calendar = 'sm', month, planId } = {}, user) {
-  const perms = gridPermissions(user, calendar);
-  if (isWorker(perms.role)) {
+  const perms = await gridPermissions(user, calendar);
+  if (!hasPermission(user, 'calendar.view')) {
     throw httpError(403, 'FORBIDDEN_SCOPE', 'Team members cannot access calendar plans.');
   }
   const monthKey = month || monthKeyInAppTz(new Date());
@@ -582,7 +583,7 @@ function mapValidationField(field) {
  * body: { calendar, month, planId?, rows?: [{ clientKey?, rowId?, cells }], tsv?, startColumn?, dryRun? }
  */
 export async function saveGridRows(body = {}, user) {
-  const perms = gridPermissions(user);
+  const perms = await gridPermissions(user);
   if (!perms.canEdit) {
     throw httpError(403, 'FORBIDDEN_ROLE', 'Only SM Manager and Admin can create or edit plans.');
   }
@@ -621,7 +622,7 @@ export async function saveGridRows(body = {}, user) {
   const people = (await activeOwnerCandidates()).map((p) => ({ _id: String(p._id), name: p.name }));
   const existingRows = plan ? await ContentPiece.find({ planId: plan._id }).lean() : [];
   const existingById = new Map(existingRows.map((r) => [String(r._id), r]));
-  const defaultPoster = await Person.findOne({ role: 'sm_manager', status: 'active' }).select('_id').lean();
+  const defaultPoster = (await access.postersFor({ calendar: plan?.calendar || calendar })).defaultPoster;
 
   const results = [];
   const built = [];
@@ -806,7 +807,7 @@ export async function saveGridRows(body = {}, user) {
  * Same results shape as saveGridRows; use dryRun first to show the preview.
  */
 export async function uploadGridFile({ buffer, mimetype = '', calendar = 'sm', month, planId, dryRun = false }, user) {
-  const perms = gridPermissions(user);
+  const perms = await gridPermissions(user);
   if (!perms.canEdit) {
     throw httpError(403, 'FORBIDDEN_ROLE', 'Only SM Manager and Admin can create or edit plans.');
   }
@@ -817,7 +818,7 @@ export async function uploadGridFile({ buffer, mimetype = '', calendar = 'sm', m
   const emailFields = parsed.rows.flatMap((r) => Object.keys(r.cells).filter((k) => k.endsWith('Email')));
   let byEmail = new Map();
   if (emailFields.length) {
-    const active = await Person.find({ role: { $in: [WORKER_ROLE, 'sm_manager', 'admin'] }, status: 'active' }).select('email').lean();
+    const active = await Person.find({ role: { $in: ownerCandidateRoles() }, status: 'active' }).select('email').lean();
     byEmail = new Map(active.filter((p) => p.email).map((p) => [p.email.toLowerCase(), String(p._id)]));
   }
   const rows = parsed.rows.map((r) => {

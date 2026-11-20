@@ -109,7 +109,7 @@ export async function listWorkItems(filters = {}, user) {
   const query = {};
 
   // Person Scoping (for Team Member)
-  if (isWorker(user.role) && filters.scopedToSelf !== false && !filters.allWork) {
+  if (isOwnScope(user) && filters.scopedToSelf !== false && !filters.allWork) {
     const userId = (user._id || user.id || user.userId)?.toString();
     query.ownerId = userId;
   } else if (filters.ownerId && filters.ownerId !== 'all') {
@@ -128,7 +128,7 @@ export async function listWorkItems(filters = {}, user) {
     query.calendar = filters.calendar;
   }
 
-  if (user && isWorker(user.role)) {
+  if (user && isOwnScope(user)) {
     query.ownerId = (user._id || user.id || user.userId)?.toString();
   }
 
@@ -259,7 +259,7 @@ export async function getWorkItemById(id, user) {
     const isFirstStep = !siblingStages.some((s) => (s.stageOrder || 0) < (result.stageOrder || 0));
     Object.assign(result, await buildFromPlan(result.contentPieceId, { isFirstStep }));
     // Whether this viewer may reopen this step now (Phase 6).
-    result.canReopen = canReopen(user, result, siblingStages);
+    result.canReopen = await canReopen(user, result, siblingStages);
 
     if (result.stageOrder > 1) {
       const prevStage = siblingStages.find((s) => s.stageOrder === result.stageOrder - 1);
@@ -371,7 +371,7 @@ export async function getWorkItemById(id, user) {
 
   // A finished non-postable Design step is handed over: its approved files, with download,
   // for the SM manager, creative head and admin.
-  if (['sm_manager', ...APPROVER_ROLES, 'admin'].includes(normalizeRole(user?.role))) {
+  if (handlesDeliverables(user)) {
     const handover = await buildHandover(result);
     if (handover) result.handover = handover;
   }
@@ -415,13 +415,13 @@ function useEditLiveLink() {
 
 export async function assertCanPatchWorkItem(id, body, user) {
   const role = normalizeRole(user.role);
-  if (role === 'admin' || role === 'sm_manager') {
+  if (hasPermission(user, 'work.manage_steps')) {
     // Access first (others keep their 403/404); then the live link goes through Edit live link.
     if (body && Object.prototype.hasOwnProperty.call(body, 'publishedUrl')) throw useEditLiveLink();
     return;
   }
 
-  const isTeamMember = isWorker(role);
+  const isTeamMember = isOwnScope(user);
   if (isTeamMember && !mongoose.isValidObjectId(id)) throw workItemNotFound();
 
   const stored = await WorkItem.findById(id).select('ownerId contentPieceId status').lean();
@@ -774,6 +774,7 @@ import { approvedOutputOf } from './access.js';
 import { attachTimeLabels } from './timeLabels.js';
 import { markAwaitingReview, revisionNoteFor } from './reviewState.js';
 import { hasTimeLabel, compareUrgentThenDue } from '@mmp/shared';
+import { handlesDeliverables, hasPermission, isOwnScope } from '../../lib/roleAccess.js';
 
 /** Same rule as the WorkItem isOverdue virtual, which .lean() results do not carry. */
 function isPastDeadline(deadline, status) {
@@ -791,7 +792,7 @@ async function individualPlanIds(planIds) {
 export async function getCalendarWorkItems(filters = {}, user) {
   const query = {};
 
-  if (user && isWorker(user.role)) {
+  if (user && isOwnScope(user)) {
     const userId = (user._id || user.id || user.userId)?.toString();
     query.ownerId = userId;
   } else if (filters.ownerId && filters.ownerId !== 'all') {
@@ -839,7 +840,7 @@ export async function getCalendarWorkItems(filters = {}, user) {
   }
 
   // If not scoped to worker personal view, also include publish date events from ContentPiece
-  if (!isWorker(user?.role) && startParam && endParam) {
+  if (!isOwnScope(user) && startParam && endParam) {
     const pieceQuery = {
       postingDate: {
         $gte: new Date(startParam),
@@ -897,7 +898,7 @@ export async function getTodoItems(user) {
   const scope = await resolveScope(user);
   const query = {};
 
-  if (isWorker(user.role)) {
+  if (isOwnScope(user)) {
     const userId = (user._id || user.id || user.userId)?.toString();
     query.ownerId = userId;
   } else if (scope.allowedPersonIds) {

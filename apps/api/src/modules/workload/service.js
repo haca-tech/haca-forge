@@ -15,6 +15,7 @@ import { WorkItem } from '../workItems/model.js';
 import { Submission } from '../submissions/model.js';
 import { PersonChangeAudit } from '../team/audit.model.js';
 import { logActivity } from '../activity/service.js';
+import { hasPermission, isOwnScope, stepTakingRoles } from '../../lib/roleAccess.js';
 
 /**
  * Simple workload (step counts). One definition everywhere: the workload page, dashboard,
@@ -25,7 +26,7 @@ import { logActivity } from '../activity/service.js';
 
 const FINISHED = ['Approved', 'Published'];
 /** People whose workload is planned: workers and SM Managers (Post). */
-export const WORKLOAD_ROLES = [WORKER_ROLE, 'sm_manager'];
+export const WORKLOAD_ROLES = stepTakingRoles();
 export const ACTIVE_STEP_LIMIT_MAX = 20;
 
 const ownerKey = (v) => String(v?._id || v);
@@ -83,10 +84,7 @@ export function bandCounts(rows) {
   return counts;
 }
 
-const canEditLimits = (role) => {
-  const r = normalizeRole(role);
-  return r === 'admin' || isApprover(r);
-};
+const canEditLimits = (role) => hasPermission(role, 'people.manage_operational');
 
 const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'en', { sensitivity: 'base' }) || String(a._id).localeCompare(String(b._id));
 
@@ -97,7 +95,7 @@ const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || '')
 export async function listWorkload(user, { jobRole, band, q } = {}, now = new Date()) {
   const role = normalizeRole(user?.role);
   const query = { status: 'active', role: { $in: WORKLOAD_ROLES } };
-  if (isWorker(role)) query._id = user._id;
+  if (isOwnScope(role)) query._id = user._id;
   const people = (await Person.find(query).select('name role jobRole avatarUrl activeStepLimit departmentId').lean()).sort(byName);
   const workloads = await workloadByPerson(people, now);
   const all = people.map((p) => ({
@@ -129,7 +127,7 @@ export async function openStepsOf(personId, user) {
   const role = normalizeRole(user?.role);
   const notFound = () => Object.assign(new Error('Person not found'), { statusCode: 404, code: 'NOT_FOUND' });
   if (!mongoose.Types.ObjectId.isValid(personId)) throw notFound();
-  if (isWorker(role) && String(user._id) !== String(personId)) throw notFound();
+  if (isOwnScope(role) && String(user._id) !== String(personId)) throw notFound();
   const person = await Person.findById(personId).select('name role jobRole activeStepLimit').lean();
   if (!person) throw notFound();
   const steps = ((await openStepsByOwner([person._id])).get(String(person._id)) || []).filter((s) => !s.isLocked);

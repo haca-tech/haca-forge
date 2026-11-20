@@ -4,6 +4,7 @@ import { logger } from '../../lib/logger.js';
 import { withoutContact } from '../../lib/socketHub.js';
 import { enqueueEmail } from '../../lib/queue.js';
 import { eventBus, EVENTS } from '../../lib/events.js';
+import { rolesWith } from '../../lib/roleAccess.js';
 
 let ioInstance = null;
 
@@ -182,7 +183,7 @@ export async function handleDomainEvent(eventName, payload, io = ioInstance) {
       case EVENTS.ACCESS_REQUESTED: {
         preferenceKey = 'accessRequests';
         const admins = await User.find({
-          role: 'admin',
+          role: { $in: rolesWith('user.approve') },
           status: 'active',
         }).select('_id email name notificationPreferences');
 

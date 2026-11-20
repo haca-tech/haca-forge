@@ -1,5 +1,6 @@
 import { ActivityEvent } from './model.js';
 import { logger } from '../../lib/logger.js';
+import { isSuperuser } from '../../lib/roleAccess.js';
 
 export async function logActivity({
   entityType,
@@ -12,7 +13,7 @@ export async function logActivity({
 }) {
   try {
     const actorId = actor?._id || actor?.id || actor?.userId;
-    const actingAs = actor?.role === 'admin' ? 'admin' : undefined;
+    const actingAs = isSuperuser(actor) ? 'admin' : undefined;
 
     const event = await ActivityEvent.create({
       entityType,

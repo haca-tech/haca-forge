@@ -6,6 +6,7 @@ import { resolveScope } from '../../lib/scope.js';
 import { logActivity } from '../activity/service.js';
 import { syncUserTeamChatMembership } from '../chat/service.js';
 import { normalizeRole, APPROVER_ROLES, READ_ONLY_VIEWER_ROLES, WORKER_ROLE, isApprover, isReadOnlyViewer, isWorker, canSeeContactDetails } from '@mmp/shared';
+import { canSeeContacts, hasPermission, isOperationalManager, isOwnScope, isProtectedAccount, isSuperuser, rolesOutsidePools, seesAll } from '../../lib/roleAccess.js';
 
 /** Active-step limit (workload): a whole number from 1 to 20, else 400. */
 function validLimit(value) {
@@ -49,7 +50,7 @@ export async function listPeople({ actor, filters = {}, excludeAdmin = false }) 
 
   // Exclude admin and creative_head/production_head from auto-assignment candidate pools, workload calculations, and performance metrics
   if (excludeAdmin) {
-    query.role = { $nin: ['admin', ...READ_ONLY_VIEWER_ROLES] };
+    query.role = { $nin: rolesOutsidePools() };
   }
 
   const people = await Person.find(query)
@@ -59,7 +60,7 @@ export async function listPeople({ actor, filters = {}, excludeAdmin = false }) 
     .lean();
 
   // Contact details: hidden only from workers (the REST filter does the same).
-  if (!canSeeContactDetails(normalizeRole(actor?.role))) {
+  if (!canSeeContacts(actor)) {
     return people.map((p) => {
       const sanitized = { ...p };
       delete sanitized.email;
@@ -105,7 +106,7 @@ export async function getPersonById(id, actor) {
     }
   }
 
-  if (!canSeeContactDetails(normalizeRole(actor?.role))) {
+  if (!canSeeContacts(actor)) {
     const sanitized = { ...person };
     delete sanitized.email;
     delete sanitized.phone;
@@ -128,7 +129,7 @@ export async function getPersonById(id, actor) {
 
 export async function createPerson(data, actor) {
   const actorRole = normalizeRole(actor?.role);
-  if (actorRole !== 'admin') {
+  if (!hasPermission(actor, 'user.manage')) {
     const error = new Error('Forbidden: only Administrator can create users');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;
@@ -198,9 +199,9 @@ export async function updatePerson(id, updates, actor) {
   const eligiblePrefs = eligiblePreferencesForUpdate(target, updates);
 
   // Lead update restrictions (creative_lead, growth_lead): operational fields of workers and SM Managers only
-  if (isApprover(actorRole)) {
+  if (isOperationalManager(actor)) {
     // Cannot touch admin, lead or read-only head accounts
-    if (targetRole === 'admin' || isApprover(targetRole) || isReadOnlyViewer(targetRole)) {
+    if (isProtectedAccount(targetRole)) {
       const error = new Error('Forbidden: a lead cannot modify admin, lead or head accounts');
       error.code = 'FORBIDDEN';
       error.statusCode = 403;
@@ -236,7 +237,7 @@ export async function updatePerson(id, updates, actor) {
     if (updates.weeklyCapacityHours !== undefined) target.weeklyCapacityHours = updates.weeklyCapacityHours;
     if (updates.activeStepLimit !== undefined) target.activeStepLimit = validLimit(updates.activeStepLimit);
     if (eligiblePrefs !== undefined) target.workPreferences = eligiblePrefs;
-  } else if (actorRole === 'admin') {
+  } else if (hasPermission(actor, 'user.manage')) {
     // Admin has full control
     if (updates.name !== undefined) target.name = updates.name;
     if (updates.email !== undefined) target.email = updates.email.toLowerCase().trim();
@@ -276,7 +277,7 @@ export async function updatePerson(id, updates, actor) {
 
 export async function suspendPerson(id, actor) {
   const actorRole = normalizeRole(actor?.role);
-  if (actorRole !== 'admin') {
+  if (!hasPermission(actor, 'user.manage')) {
     const error = new Error('Forbidden: only Administrator can suspend users');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;
@@ -318,7 +319,7 @@ export async function suspendPerson(id, actor) {
 
 export async function reactivatePerson(id, actor) {
   const actorRole = normalizeRole(actor?.role);
-  if (actorRole !== 'admin') {
+  if (!hasPermission(actor, 'user.manage')) {
     const error = new Error('Forbidden: only Administrator can reactivate users');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;
@@ -352,7 +353,7 @@ export async function reactivatePerson(id, actor) {
 
 export async function getAssignmentCandidates({ departmentId, excludeIds = [] }) {
   const query = {
-    role: { $nin: ['admin', ...READ_ONLY_VIEWER_ROLES] }, // Admin & Executive strictly excluded from candidate pools
+    role: { $nin: rolesOutsidePools() }, // Admin & read-only roles strictly excluded from candidate pools
     status: 'active',
   };
 
@@ -442,7 +443,7 @@ export async function getPersonProfile(targetId, actor) {
   const isSelf = actor?._id?.toString() === person._id.toString();
 
   // Worker sharing check
-  if (isWorker(actorRole) && !isSelf) {
+  if (isOwnScope(actorRole) && !isSelf) {
     const isTeammate = await sharesContentPiece(actor._id, person._id);
     if (!isTeammate) {
       const error = new Error('Forbidden: You can only view profiles of teammates on shared content pieces.');
@@ -460,7 +461,7 @@ export async function getPersonProfile(targetId, actor) {
     name: person.name,
     preferredName: person.preferredName || '',
     role: normalizeRole(person.role),
-    jobRole: person.jobRole || (person.role === 'admin' ? 'System Administrator' : 'Team Member'),
+    jobRole: person.jobRole || (isSuperuser(person) ? 'System Administrator' : 'Team Member'),
     department: deptName || 'General',
     departmentId: person.departmentId?._id?.toString() || null,
     status: person.status || 'active',
@@ -478,7 +479,7 @@ export async function getPersonProfile(targetId, actor) {
   // Contact details visibility:
   // Everyone except workers sees contact details (Phase 12b: the read-only heads too).
   // A worker (executive) sees only their own.
-  const canSeeContact = isSelf || canSeeContactDetails(actorRole);
+  const canSeeContact = isSelf || canSeeContacts(actorRole);
 
   if (canSeeContact) {
     result.email = person.email;
@@ -498,7 +499,7 @@ export async function getPersonProfile(targetId, actor) {
  */
 export async function adminUpdatePersonBasic(targetId, data, actor) {
   const actorRole = normalizeRole(actor?.role);
-  if (actorRole !== 'admin') {
+  if (!hasPermission(actor, 'user.manage')) {
     const error = new Error('Forbidden: Only administrators can update person basic info');
     error.statusCode = 403;
     error.code = 'FORBIDDEN';
@@ -549,7 +550,7 @@ export async function adminUpdatePersonBasic(targetId, data, actor) {
  */
 export async function adminRemovePersonAvatar(targetId, actor) {
   const actorRole = normalizeRole(actor?.role);
-  if (actorRole !== 'admin') {
+  if (!hasPermission(actor, 'user.manage')) {
     const error = new Error('Forbidden: Only administrators can remove person avatar');
     error.statusCode = 403;
     error.code = 'FORBIDDEN';
@@ -569,7 +570,7 @@ export async function getPersonWorkHistory(targetPersonId, user) {
   const actorId = (user?._id || user?.id || user?.userId)?.toString();
 
   const isSelf = actorId === targetPersonId?.toString();
-  const isElevated = ['admin', ...APPROVER_ROLES, 'sm_manager', ...READ_ONLY_VIEWER_ROLES].includes(actorRole);
+  const isElevated = seesAll(actorRole);
 
   if (!isSelf && !isElevated) {
     const error = new Error('Forbidden: You can only view your own work history');

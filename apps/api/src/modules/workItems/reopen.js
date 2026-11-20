@@ -2,6 +2,8 @@ import { REVIEW_STAGES, normalizeRole, isApprover, canDecide } from '@mmp/shared
 import { WorkItem } from './model.js';
 import { isFinished } from './access.js';
 import { isHandoverStep } from './handoff.js';
+import * as access from '../../lib/accessResolver.js';
+import { hasPermission } from '../../lib/roleAccess.js';
 
 /**
  * Reopening a finished review step (Phase 6). Later steps that are not finished pause:
@@ -42,11 +44,10 @@ export async function assertCanReopen(workItem) {
 }
 
 /** For Work Detail: may this user reopen this step now? */
-export function canReopen(user, item, siblingStages) {
-  const role = normalizeRole(user?.role);
-  if (!isApprover(role) && role !== 'admin') return false;
-  // Phase 13: only the lead of the step's calendar (or admin).
-  if (!canDecide(role, item.calendar || 'sm')) return false;
+export async function canReopen(user, item, siblingStages) {
+  if (!hasPermission(user, 'review.decide')) return false;
+  // Phase 13: only the reviewers of the step's calendar (or admin).
+  if (!(await access.can(user, 'review.decide', { calendar: item.calendar || 'sm' }))) return false;
   const userId = String(user?._id || user?.id || user?.userId || '');
   const ownerId = String(item.ownerId?._id || item.ownerId || '');
   if (userId && userId === ownerId) return false;

@@ -10,6 +10,7 @@ import {
 } from '@mmp/shared';
 import { Person } from '../people/model.js';
 import { ownerCandidates } from '../workload/service.js';
+import { stepTakingRoles } from '../../lib/roleAccess.js';
 
 /**
  * Load everything autofill reads from the database, once, however many rows are filled:
@@ -20,7 +21,7 @@ import { ownerCandidates } from '../workload/service.js';
  * Revision history, ratings and speed are never factors.
  */
 export async function buildAutofillContext() {
-  const members = await Person.find({ role: { $in: [WORKER_ROLE, 'sm_manager'] }, status: 'active' }).lean();
+  const members = await Person.find({ role: { $in: stepTakingRoles() }, status: 'active' }).lean();
   const owners = await ownerCandidates(members);
   return {
     candidates: owners.map((c) => ({ ...c, member: c.person, workPreferences: effectiveStepsFor(c.person) })),

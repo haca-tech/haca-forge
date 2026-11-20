@@ -21,6 +21,8 @@ import { calculateIndividualWorkMeasures, formatDuration, normalizeRole, ROLE_LA
   decisionCalendarsFor,
   istDateKey,
 } from '@mmp/shared';
+import * as access from '../../lib/accessResolver.js';
+import { canSeeContacts, hasPermission, isOperationalManager, isOwnScope, isProtectedAccount, isSuperuser } from '../../lib/roleAccess.js';
 
 /**
  * Worker isolation guard: A executive (worker) accessing someone else's profile gets HTTP 404 (strictly anti-harvesting).
@@ -30,7 +32,7 @@ export function enforceProfileAccess(targetPersonId, actor) {
   const actorId = (actor?._id || actor?.id || actor?.userId)?.toString();
   const targetIdStr = targetPersonId.toString();
 
-  if (isWorker(actorRole) && actorId !== targetIdStr) {
+  if (isOwnScope(actorRole) && actorId !== targetIdStr) {
     const error = new Error('Profile not found');
     error.code = 'NOT_FOUND';
     error.statusCode = 404;
@@ -250,7 +252,7 @@ export async function getPersonBaseProfile(targetPersonId, actor) {
 
   // Contact details: hidden from workers only (Phase 12b: the read-only heads see them).
   const isSelf = String(actor._id || actor.id || actor.userId) === String(targetPersonId);
-  const hideContact = !canSeeContactDetails(normalizeRole(actor.role)) && !isSelf;
+  const hideContact = !canSeeContacts(actor) && !isSelf;
 
   return {
     _id: person._id,
@@ -409,9 +411,9 @@ export async function getPersonOverview(targetPersonId, actor, query = {}) {
   let operationalSummary = null;
   const personRole = normalizeRole(person.role);
 
-  if (isApprover(personRole)) {
+  if (hasPermission(person, 'review.decide') && !isSuperuser(person)) {
     // Phase 13: the reviews waiting in this lead's calendars.
-    const pendingReviewsCount = await countAwaitingReview(calendarQueryFor(decisionCalendarsFor(personRole)));
+    const pendingReviewsCount = await countAwaitingReview(calendarQueryFor(await access.decisionCalendars(person)));
     const approvedPast30Days = await WorkItem.countDocuments({
       status: { $in: ['Approved', 'Published'] },
       approvedAt: { $gte: new Date(Date.now() - 30 * 86400000) },
@@ -421,7 +423,7 @@ export async function getPersonOverview(targetPersonId, actor, query = {}) {
       pendingReviewsCount,
       approvedPast30Days,
     };
-  } else if (personRole === 'sm_manager') {
+  } else if (hasPermission(person, 'calendar.plan') && !isSuperuser(person)) {
     const { CalendarPlan } = await import('../calendar/plan.model.js');
     const activePlansCount = await CalendarPlan.countDocuments({
       status: { $in: ['Draft', 'Submitted', 'Approved'] },
@@ -431,7 +433,7 @@ export async function getPersonOverview(targetPersonId, actor, query = {}) {
       status: { $nin: ['Published'] },
     });
     operationalSummary = {
-      role: 'sm_manager',
+      role: personRole,
       activePlansCount,
       upcomingPostingsCount,
     };
@@ -819,7 +821,7 @@ export async function getPersonActivity(targetPersonId, actor, query = {}) {
  */
 export async function getPersonChanges(targetPersonId, actor) {
   const actorRole = normalizeRole(actor?.role);
-  if (actorRole !== 'admin' && !isApprover(actorRole)) {
+  if (!hasPermission(actor, 'people.manage_operational')) {
     const error = new Error('Forbidden: Only Admin and Creative Lead can view the operational changes audit log');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;
@@ -828,7 +830,7 @@ export async function getPersonChanges(targetPersonId, actor) {
 
   // Contact fields (the actor's email) only for admin (Phase 8).
   const logs = await PersonChangeAudit.find({ personId: targetPersonId })
-    .populate('actorId', actorRole === 'admin' ? 'name role email' : 'name role')
+    .populate('actorId', hasPermission(actor, 'user.manage') ? 'name role email' : 'name role')
     .sort({ createdAt: -1 })
     .lean();
 
@@ -852,8 +854,8 @@ export async function updatePersonDetails(targetPersonId, updates, actor) {
   const targetRole = normalizeRole(target.role);
 
   // Lead permission check (creative_lead, growth_lead): operational fields of workers and SM Managers only
-  if (isApprover(actorRole)) {
-    if (targetRole === 'admin' || isApprover(targetRole) || isReadOnlyViewer(targetRole)) {
+  if (isOperationalManager(actor)) {
+    if (isProtectedAccount(targetRole)) {
       const error = new Error('Forbidden: a lead cannot modify leadership accounts');
       error.code = 'FORBIDDEN';
       error.statusCode = 403;
@@ -873,7 +875,7 @@ export async function updatePersonDetails(targetPersonId, updates, actor) {
       error.statusCode = 403;
       throw error;
     }
-  } else if (actorRole !== 'admin') {
+  } else if (!hasPermission(actor, 'user.manage')) {
     const error = new Error('Forbidden: Insufficient privileges to update person details');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;
@@ -935,7 +937,7 @@ export async function updatePersonDetails(targetPersonId, updates, actor) {
   }
 
   // Apply other allowed fields if admin
-  if (actorRole === 'admin') {
+  if (hasPermission(actor, 'user.manage')) {
     if (updates.name !== undefined) target.name = updates.name.trim();
     if (updates.preferredName !== undefined) target.preferredName = updates.preferredName.trim();
     if (updates.email !== undefined) target.email = updates.email.toLowerCase().trim();
@@ -970,7 +972,7 @@ export async function updatePersonDetails(targetPersonId, updates, actor) {
  */
 export async function reassignSteps(sourcePersonId, { targetPersonId, workItemIds }, actor) {
   const actorRole = normalizeRole(actor?.role);
-  if (actorRole !== 'admin' && !isApprover(actorRole) && actorRole !== 'sm_manager') {
+  if (!hasPermission(actor, 'assignment.override')) {
     const error = new Error('Forbidden: Insufficient privileges to reassign steps');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;
@@ -1028,7 +1030,7 @@ export async function reassignSteps(sourcePersonId, { targetPersonId, workItemId
  */
 export async function toggleStatus(personId, actor) {
   const actorRole = normalizeRole(actor?.role);
-  if (actorRole !== 'admin') {
+  if (!hasPermission(actor, 'user.manage')) {
     const error = new Error('Forbidden: Only Administrator can suspend or reactivate users');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;
@@ -1061,7 +1063,7 @@ export async function toggleStatus(personId, actor) {
  */
 export async function triggerPasswordReset(personId, actor) {
   const actorRole = normalizeRole(actor?.role);
-  if (actorRole !== 'admin') {
+  if (!hasPermission(actor, 'user.manage')) {
     const error = new Error('Forbidden: Only Administrator can trigger password resets');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;
@@ -1090,7 +1092,7 @@ export async function triggerPasswordReset(personId, actor) {
  */
 export async function forceLogout(personId, actor) {
   const actorRole = normalizeRole(actor?.role);
-  if (actorRole !== 'admin') {
+  if (!hasPermission(actor, 'user.manage')) {
     const error = new Error('Forbidden: Only Administrator can revoke user sessions');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;

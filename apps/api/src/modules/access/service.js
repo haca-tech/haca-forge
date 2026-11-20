@@ -9,6 +9,7 @@ import { env } from '../../config/env.js';
 import { eventBus, EVENTS } from '../../lib/events.js';
 import { logActivity } from '../activity/service.js';
 import { syncUserTeamChatMembership } from '../chat/service.js';
+import { hasPermission, isProtectedAccount, rolesWith } from '../../lib/roleAccess.js';
 
 export async function resolveDepartmentObjectId(rawDept) {
   if (!rawDept) return null;
@@ -109,7 +110,7 @@ export async function submitAccessRequest(data) {
 
   // Notify all active administrators via email
   try {
-    const activeAdmins = await Person.find({ role: 'admin', status: 'active' }).select('email');
+    const activeAdmins = await Person.find({ role: { $in: rolesWith('user.approve') }, status: 'active' }).select('email');
     const adminEmails = new Set(
       activeAdmins.map((a) => a.email?.toLowerCase().trim()).filter(Boolean)
     );
@@ -162,7 +163,7 @@ export async function listAccessRequests(query = {}) {
 
 export async function approveAccessRequest(id, reviewData = {}, adminUser) {
   // Only full administrators can approve access requests
-  if (adminUser.role !== 'admin') {
+  if (!hasPermission(adminUser, 'user.approve')) {
     const error = new Error('Only administrators can approve access requests');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;
@@ -187,7 +188,7 @@ export async function approveAccessRequest(id, reviewData = {}, adminUser) {
   const assignedRole = reviewData.assignedRole || accessReq.requestedRole || WORKER_ROLE;
 
   // Only admin may grant admin, creative_lead/growth_lead, or creative_head/production_head
-  if (['admin', ...APPROVER_ROLES, ...READ_ONLY_VIEWER_ROLES].includes(assignedRole) && adminUser.role !== 'admin') {
+  if (isProtectedAccount(assignedRole) && !hasPermission(adminUser, 'user.manage')) {
     const error = new Error('Only an Admin can grant the Admin, Creative Head, Production Head, Creative Lead or Growth Lead roles');
     error.code = 'UNAUTHORIZED_ROLE_ASSIGNMENT';
     error.statusCode = 403;
@@ -298,7 +299,7 @@ export async function approveAccessRequest(id, reviewData = {}, adminUser) {
 }
 
 export async function rejectAccessRequest(id, reason, adminUser) {
-  if (adminUser.role !== 'admin') {
+  if (!hasPermission(adminUser, 'user.approve')) {
     const error = new Error('Only administrators can reject access requests');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;
@@ -345,7 +346,7 @@ export async function rejectAccessRequest(id, reason, adminUser) {
 }
 
 export async function requestInfoForAccess(id, question, adminUser) {
-  if (adminUser.role !== 'admin') {
+  if (!hasPermission(adminUser, 'user.approve')) {
     const error = new Error('Only administrators can request info on access requests');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;
@@ -391,7 +392,7 @@ export async function requestInfoForAccess(id, question, adminUser) {
 }
 
 export async function bulkApproveAccessRequests({ requestIds, defaultRole, defaultCapacity }, adminUser, ip) {
-  if (adminUser.role !== 'admin') {
+  if (!hasPermission(adminUser, 'user.approve')) {
     const error = new Error('Only administrators can bulk approve access requests');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;

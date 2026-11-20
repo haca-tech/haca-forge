@@ -16,6 +16,8 @@ import { calendarOf, decidersFor } from './deciders.js';
 import { Person } from '../people/model.js';
 import { logActivity } from '../activity/service.js';
 import { createNotification } from '../notifications/service.js';
+import * as access from '../../lib/accessResolver.js';
+import { handlesDeliverables, isOwnScope, isReadOnly } from '../../lib/roleAccess.js';
 
 /**
  * Help requests on a step. The step owner asks one person (the deciding lead by default,
@@ -49,7 +51,7 @@ async function loadStep(id) {
 }
 
 /** Leadership roles that can reply to and resolve any help request (read-only heads cannot write). */
-const isHelpManager = (role) => role === 'admin' || role === 'sm_manager' || isApprover(role);
+const isHelpManager = (role) => handlesDeliverables(role);
 
 /** The people the owner can ask, in order: the deciding lead(s), SM Managers, other step owners on the piece. */
 export async function helpOptionsFor(step) {
@@ -63,7 +65,7 @@ export async function helpOptionsFor(step) {
     options.push({ kind, personId: id, name: person.name || '', label });
   };
   for (const p of await decidersFor(calendarOf(step))) push('lead', p, `${p.name} (lead for this step)`);
-  const sms = await Person.find({ role: 'sm_manager', status: 'active' }).select('name').sort({ name: 1 }).lean();
+  const sms = [...(await access.postersFor(step)).people].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   for (const p of sms) push('sm_manager', p, `${p.name} (SM Manager)`);
   if (step.contentPieceId) {
     const siblings = await WorkItem.find({ contentPieceId: step.contentPieceId, _id: { $ne: step._id }, ownerId: { $ne: null }, isSkipped: { $ne: true } })
@@ -83,8 +85,8 @@ export async function helpOptionsFor(step) {
 function accessOf(step, user) {
   const role = normalizeRole(user?.role);
   const me = userIdOf(user);
-  if (isWorker(role)) return { kind: 'worker', me, isAsker: idOf(step.ownerId) === me };
-  if (isReadOnlyViewer(role)) return { kind: 'view', me };
+  if (isOwnScope(role)) return { kind: 'worker', me, isAsker: idOf(step.ownerId) === me };
+  if (isReadOnly(role)) return { kind: 'view', me };
   if (isHelpManager(role)) return { kind: 'manage', me };
   return { kind: 'none', me };
 }
@@ -161,7 +163,7 @@ export async function createHelpRequest(id, body = {}, user) {
   const me = userIdOf(user);
   if (idOf(step.ownerId) !== me) {
     // Another worker on the piece learns nothing; leadership is told why.
-    if (isWorker(normalizeRole(user?.role))) throw notFound();
+    if (isOwnScope(user)) throw notFound();
     throw fail(403, 'FORBIDDEN_NOT_OWNER', 'Only the step owner can ask for help on it.');
   }
   if (FINISHED.includes(step.status) || step.isSkipped) throw fail(409, 'STEP_FINISHED', 'This step is finished, so help cannot be asked on it.');

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import { flagAfterChangesRequested } from '../feedback/service.js';
-import { assertDecidesOn, calendarOf, decidersFor } from '../workItems/deciders.js';
+import { assertDecidesOn, calendarOf, canDecideOn, decidersFor } from '../workItems/deciders.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { MediaItem, MediaMessage } from './model.js';
@@ -12,6 +12,7 @@ import { createNotification } from '../notifications/service.js';
 import { logActivity } from '../activity/service.js';
 import { canSeePrivateReview, canSeeStepOutput, getParticipation, isTeamMember } from '../workItems/access.js';
 import { assertOutputUrl } from '../uploads/outputUrls.js';
+import { hasPermission, isSuperuser } from '../../lib/roleAccess.js';
 
 /**
  * Sanitize plain text to ensure no dangerous HTML/scripts
@@ -469,7 +470,7 @@ export async function postMessage(clipId, messageData, user) {
   const role = user.role;
 
   // Verify permission
-  const canPost = isOwner || isApprover(role) || role === 'admin';
+  const canPost = isOwner || hasPermission(user, 'review.decide');
   if (!canPost) {
     const error = new Error('You do not have permission to post messages to this clip');
     error.statusCode = 403;
@@ -626,7 +627,7 @@ export async function toggleMessageDone(clipId, messageId, done, user) {
   const userIdStr = (user.userId || user._id || user.id)?.toString();
   const ownerIdStr = (workItem.ownerId?._id || workItem.ownerId)?.toString();
   const isOwner = Boolean(userIdStr && ownerIdStr && userIdStr === ownerIdStr);
-  const isReviewer = canDecide(user.role, calendarOf(workItem));
+  const isReviewer = await canDecideOn(user, calendarOf(workItem));
 
   if (done === false) {
     // Reopening is restricted to reviewers
@@ -659,7 +660,7 @@ export async function toggleMessageDone(clipId, messageId, done, user) {
  * Approve clip, or Reshoot needed (a message is required).
  */
 export async function reviewClip(clipId, { action, message }, user) {
-  if (!isApprover(user.role) && user.role !== 'admin') {
+  if (!hasPermission(user, 'review.decide')) {
     const error = new Error('Only Creative Lead or Admin can review clips');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_ACTION';
@@ -680,7 +681,7 @@ export async function reviewClip(clipId, { action, message }, user) {
     throw error;
   }
   // Phase 13: the lead of the step's calendar (or admin) reviews its clips.
-  assertDecidesOn(user, calendarOf(workItem), { roleCode: 'FORBIDDEN_ACTION' });
+  await assertDecidesOn(user, calendarOf(workItem), { roleCode: 'FORBIDDEN_ACTION' });
 
   const userIdStr = (user.userId || user._id || user.id)?.toString();
 
@@ -769,7 +770,7 @@ export async function submitClipsForApproval(stageItemId, user) {
   const ownerIdStr = (workItem.ownerId?._id || workItem.ownerId)?.toString();
   const isOwner = Boolean(userIdStr && ownerIdStr && userIdStr === ownerIdStr);
 
-  if (!isOwner && user.role !== 'admin') {
+  if (!isOwner && !isSuperuser(user)) {
     const error = new Error('Only the step owner can submit clips for approval');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_ACTION';
@@ -913,7 +914,7 @@ export async function finishShootStepReview(stageItemId, reviewData, user) {
     throw error;
   }
 
-  assertReviewer(user, workItem);
+  await assertReviewer(user, workItem);
 
   const { required, flagged: flaggedClips, undecided: undecidedClips } = await getRequiredClips(stageItemId);
   if (required.length === 0) {

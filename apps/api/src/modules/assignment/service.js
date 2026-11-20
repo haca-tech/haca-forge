@@ -8,6 +8,7 @@ import { logActivity } from '../activity/service.js';
 import { WORK_TYPE_DEPARTMENT_MAP, READ_ONLY_VIEWER_ROLES, isWorker, effectiveStepsFor, WORKER_ROLE, APPROVER_ROLES, workloadFor } from '@mmp/shared';
 import { resolveProfileObjectId } from '../referenceData/service.js';
 import { ownerCandidates, pickOwner } from '../workload/service.js';
+import { isOwnScope, stepTakingRoles } from '../../lib/roleAccess.js';
 
 /**
  * Auto-Assignment Recommendation Engine
@@ -45,7 +46,7 @@ export async function recommendAssignee(criteria = {}, user) {
     // Stage Work Items: candidates are the people eligible for the step (job role sets it,
     // preferences narrow it; Post is SM Managers only). No fallback to ineligible people.
     candidates = (
-      await Person.find({ status: 'active', role: { $in: [WORKER_ROLE, 'sm_manager'] } })
+      await Person.find({ status: 'active', role: { $in: stepTakingRoles() } })
     ).filter((person) => effectiveStepsFor(person).includes(effectiveStageKey));
   } else {
     // Standalone Work Items: Candidates come from target department responsible for workType
@@ -60,7 +61,7 @@ export async function recommendAssignee(criteria = {}, user) {
 
     const deptQuery = {
       status: 'active',
-      role: { $nin: ['admin', ...READ_ONLY_VIEWER_ROLES, ...APPROVER_ROLES] },
+      role: { $in: stepTakingRoles() },
     };
 
     if (targetDepartment) {
@@ -72,7 +73,7 @@ export async function recommendAssignee(criteria = {}, user) {
     if (candidates.length === 0) {
       candidates = await Person.find({
         status: 'active',
-        role: { $nin: ['admin', ...READ_ONLY_VIEWER_ROLES, ...APPROVER_ROLES] },
+        role: { $in: stepTakingRoles() },
       });
     }
   }
@@ -93,7 +94,7 @@ export async function recommendAssignee(criteria = {}, user) {
   // 3. Workload (step counts) for each candidate, then the shared owner rule.
   const now = new Date();
   const owners = await ownerCandidates(candidates);
-  const members = owners.filter((c) => isWorker(c.person.role));
+  const members = owners.filter((c) => isOwnScope(c.person));
   const pick = pickOwner(members, { targetDue, now }) || pickOwner(owners, { targetDue, now });
   const best = pick.candidate;
   const deptLabel = targetDepartment ? targetDepartment.name : 'Marketing Operations';

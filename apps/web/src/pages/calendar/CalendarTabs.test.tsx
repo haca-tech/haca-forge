@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { CalendarPage } from './CalendarPage';
@@ -178,6 +178,13 @@ vi.mock('../../lib/api', () => ({
 }));
 
 describe('CalendarPage 3 Tabs & Role-based Controls (Scope Reset R3)', () => {
+  // The fixtures use November 2026 due dates: pin the clock (Date only) before them so the
+  // forms never see past due dates as the real date moves on.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-11-10T06:30:00Z'));
+  });
+  afterEach(() => vi.useRealTimers());
   beforeEach(() => {
     vi.clearAllMocks();
   });

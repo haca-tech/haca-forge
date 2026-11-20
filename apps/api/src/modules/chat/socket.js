@@ -2,6 +2,7 @@ import { isReadOnlyViewer } from '@mmp/shared';
 import { ChannelMember } from './channelMember.model.js';
 import { logger } from '../../lib/logger.js';
 import { withoutContact } from '../../lib/socketHub.js';
+import { isReadOnly } from '../../lib/roleAccess.js';
 
 let ioInstance = null;
 
@@ -23,7 +24,7 @@ export function setupChatSocket(io, socket) {
   const userId = socket.user?.userId;
 
   if (!userId) return;
-  const isExecutive = isReadOnlyViewer(socket.user?.role);
+  const isExecutive = isReadOnly(socket.user);
   const isMember = async (channelId) =>
     Boolean(channelId) && Boolean(await ChannelMember.exists({ channelId, userId }));
 

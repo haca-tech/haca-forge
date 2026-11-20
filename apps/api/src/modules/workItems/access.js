@@ -4,6 +4,7 @@ import { WorkItem } from './model.js';
 import { Submission, SubmissionComment, Rating } from '../submissions/model.js';
 import { MediaItem } from '../media/model.js';
 import { Blocker } from '../blockers/model.js';
+import { hasPermission, isOwnScope, isSuperuser } from '../../lib/roleAccess.js';
 
 /**
  * Who can reach a work item, and what they see on it.
@@ -17,7 +18,7 @@ import { Blocker } from '../blockers/model.js';
  * router) and before validation, so a blocked user learns nothing from validation errors.
  */
 
-export const isTeamMember = (user) => isWorker(normalizeRole(user?.role));
+export const isTeamMember = (user) => isOwnScope(user);
 export const userIdOf = (user) => (user?._id || user?.id || user?.userId)?.toString();
 const idOf = (value) => (value?._id || value)?.toString();
 export const isFinished = (step) => step.status === 'Approved' || step.status === 'Published';
@@ -42,7 +43,7 @@ function forbidden(message, code = 'FORBIDDEN_ACTION') {
  */
 export function canSeePrivateReview(user, workItem) {
   const role = normalizeRole(user?.role);
-  if (canSeeAllReviewText(role)) return true;
+  if (hasPermission(role, 'review.read_all')) return true;
   return Boolean(userIdOf(user) && idOf(workItem?.ownerId) === userIdOf(user));
 }
 
@@ -167,7 +168,7 @@ export const requireRatingAccess = onParamId(checkRating);
 export const requireBlockerAccess = async (req, _res, next) => {
   try {
     const role = normalizeRole(req.user?.role);
-    if (role === 'admin' || role === 'sm_manager') return next();
+    if (hasPermission(req.user, 'blocker.resolve.any')) return next();
     if (!isTeamMember(req.user)) throw forbidden('Only the step owner, an SM Manager or an Admin can act on this blocker');
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) throw notFound();
@@ -185,6 +186,6 @@ export const requireBlockerAccess = async (req, _res, next) => {
 export async function assertCanHoldEditorLock(workItemId, user) {
   const workItem = await WorkItem.findById(workItemId).select('ownerId').lean();
   if (!workItem) throw notFound();
-  if (normalizeRole(user?.role) === 'admin' || idOf(workItem.ownerId) === userIdOf(user)) return;
+  if (isSuperuser(user) || idOf(workItem.ownerId) === userIdOf(user)) return;
   throw forbidden('Only the step owner can hold the editor lock');
 }

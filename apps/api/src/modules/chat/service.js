@@ -21,6 +21,7 @@ import {
   APPROVER_ROLES,
   isReadOnlyViewer,
 } from '@mmp/shared';
+import { hasPermission, isReadOnly } from '../../lib/roleAccess.js';
 
 // Helper to strip executable HTML tags (XSS guard)
 export function sanitizeChatContent(content = '') {
@@ -300,7 +301,7 @@ export async function updateGroupChannel(channelId, user, { name, description })
 
   const member = await ChannelMember.findOne({ channelId, userId: user.userId });
   const isOwner = member?.role === 'owner';
-  const isAdmin = user.role === 'admin';
+  const isAdmin = hasPermission(user, 'chat.manage_groups');
 
   if (!isOwner && !isAdmin) {
     const error = new Error('Only the group owner or an administrator can update group settings.');
@@ -347,7 +348,7 @@ export async function archiveGroupChannel(channelId, user) {
 
   const member = await ChannelMember.findOne({ channelId, userId: user.userId });
   const isOwner = member?.role === 'owner';
-  const isAdmin = user.role === 'admin';
+  const isAdmin = hasPermission(user, 'chat.manage_groups');
 
   if (!isOwner && !isAdmin) {
     const error = new Error('Only the group owner or an administrator can archive this group.');
@@ -367,7 +368,7 @@ export async function archiveGroupChannel(channelId, user) {
  * 7. Unarchive Group Channel (admin only).
  */
 export async function unarchiveGroupChannel(channelId, user) {
-  if (user.role !== 'admin') {
+  if (!hasPermission(user, 'chat.manage_groups')) {
     const error = new Error('Only an administrator can unarchive a group.');
     error.statusCode = 403;
     throw error;
@@ -400,7 +401,7 @@ export async function addGroupMembers(channelId, user, memberIds = []) {
   }
 
   const callerMember = await ChannelMember.findOne({ channelId, userId: user.userId });
-  if (callerMember?.role !== 'owner' && user.role !== 'admin') {
+  if (callerMember?.role !== 'owner' && !hasPermission(user, 'chat.manage_groups')) {
     const error = new Error('Only the group owner or an administrator can add members.');
     error.statusCode = 403;
     throw error;
@@ -444,7 +445,7 @@ export async function removeGroupMember(channelId, user, targetUserId) {
   const callerMember = await ChannelMember.findOne({ channelId, userId: user.userId });
   const isLeaving = user.userId.toString() === targetUserId.toString();
   const isOwner = callerMember?.role === 'owner';
-  const isAdmin = user.role === 'admin';
+  const isAdmin = hasPermission(user, 'chat.manage_groups');
 
   if (!isLeaving && !isOwner && !isAdmin) {
     const error = new Error('You do not have permission to remove members from this group.');
@@ -490,7 +491,7 @@ export async function removeGroupMember(channelId, user, targetUserId) {
  * 10. Direct Messages: Get or create 1:1 conversation between two active non-creative_head/production_head users.
  */
 export async function getOrCreateDMChannel(user, targetUserId) {
-  if (isReadOnlyViewer(user.role)) {
+  if (isReadOnly(user)) {
     const error = new Error('Executives are read-only viewers and cannot participate in direct messages.');
     error.statusCode = 403;
     error.code = 'EXECUTIVE_CANNOT_DM';
@@ -505,7 +506,7 @@ export async function getOrCreateDMChannel(user, targetUserId) {
     throw error;
   }
 
-  if (isReadOnlyViewer(target.role)) {
+  if (isReadOnly(target)) {
     const error = new Error('Executives cannot be messaged directly.');
     error.statusCode = 403;
     error.code = 'EXECUTIVE_CANNOT_DM';
@@ -617,7 +618,7 @@ export async function listMessages(channelId, userId, { cursor, limit = 50, arou
  * 12. Send a message to a channel.
  */
 export async function sendMessage(channelId, user, { content = '', replyToId = null, attachments = [], sharedMedia = null }) {
-  if (isReadOnlyViewer(user.role)) {
+  if (isReadOnly(user)) {
     const error = new Error('Executives are read-only viewers and cannot post messages.');
     error.statusCode = 403;
     error.code = 'EXECUTIVE_READ_ONLY';
@@ -632,7 +633,7 @@ export async function sendMessage(channelId, user, { content = '', replyToId = n
       member = await ChannelMember.create({
         channelId: channel._id,
         userId: person._id,
-        role: isReadOnlyViewer(person.role) ? 'viewer' : 'member',
+        role: isReadOnly(person) ? 'viewer' : 'member',
       });
     }
   }
@@ -662,7 +663,7 @@ export async function sendMessage(channelId, user, { content = '', replyToId = n
   // Permission check for @everyone
   const hasEveryoneMention = /@everyone\b/i.test(sanitized);
   if (hasEveryoneMention) {
-    const canMentionEveryone = ['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role);
+    const canMentionEveryone = hasPermission(user, 'chat.mention_all');
     if (!canMentionEveryone) {
       const error = new Error('Only the Creative Lead, SM Manager, or Administrator can mention @everyone.');
       error.statusCode = 403;
@@ -776,7 +777,7 @@ export async function deleteMessage(channelId, messageId, user) {
   }
 
   const isAuthor = message.authorId.toString() === user.userId.toString();
-  const isAdmin = user.role === 'admin';
+  const isAdmin = hasPermission(user, 'chat.manage_groups');
 
   if (!isAuthor && !isAdmin) {
     const error = new Error('You do not have permission to delete this message.');
@@ -808,7 +809,7 @@ export async function deleteMessage(channelId, messageId, user) {
  * 15. Toggle emoji reaction on a message.
  */
 export async function toggleReaction(channelId, messageId, user, emoji) {
-  if (isReadOnlyViewer(user.role)) {
+  if (isReadOnly(user)) {
     const error = new Error('Executives cannot react to messages.');
     error.statusCode = 403;
     throw error;
@@ -868,7 +869,7 @@ export async function togglePinMessage(channelId, messageId, user) {
 
   const member = await ChannelMember.findOne({ channelId, userId: user.userId });
   const isOwner = member?.role === 'owner';
-  const isLeader = ['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role);
+  const isLeader = hasPermission(user, 'chat.moderate');
 
   if (!isOwner && !isLeader) {
     const error = new Error('Only channel owners, leaders, or administrators can pin messages.');
@@ -943,7 +944,7 @@ export async function setChannelMute(channelId, userId, isMuted) {
  * 19. Share approved asset to chat with scoped ShareGrant.
  */
 export async function shareAssetToChat(user, { channelId, assetId, mediaItemId, assetType, contentPieceId, stageKey, note = '' }) {
-  if (isReadOnlyViewer(user.role)) {
+  if (isReadOnly(user)) {
     const error = new Error('Executives cannot share assets.');
     error.statusCode = 403;
     throw error;
@@ -1057,7 +1058,7 @@ export async function shareAssetToChat(user, { channelId, assetId, mediaItemId, 
   }
 
   // Permission check: only output owner, creative_lead/growth_lead, sm_manager, and admin can share
-  const isPrivilegedRole = ['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role);
+  const isPrivilegedRole = hasPermission(user, 'chat.share_asset');
   if (!isPrivilegedRole && !isOwner) {
     const error = new Error('Only the asset owner, Creative Lead, SM Manager, or Admin can share this asset.');
     error.statusCode = 403;
@@ -1151,7 +1152,7 @@ export async function revokeShareGrant(grantId, user) {
 
   const sharerId = (grant.grantedBy || grant.sharedById)?.toString();
   const isSharer = sharerId === user.userId?.toString();
-  const isLeader = ['admin', ...APPROVER_ROLES].includes(user.role);
+  const isLeader = hasPermission(user, 'chat.revoke_share');
 
   if (!isSharer && !isLeader) {
     const error = new Error('Only the sharer, Creative Lead, or an Administrator can revoke this share.');

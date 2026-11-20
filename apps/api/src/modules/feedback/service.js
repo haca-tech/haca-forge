@@ -17,6 +17,8 @@ import {
   afterDecision,
   applyChangesRequested,
 } from '../submissions/reviewDecision.js';
+import * as access from '../../lib/accessResolver.js';
+import { hasPermission, isOwnScope } from '../../lib/roleAccess.js';
 
 /**
  * Get full feedback thread and revision flag status for a work item
@@ -119,7 +121,7 @@ export async function createFeedbackEntry(data, user) {
 
   const ownerIdStr = workItem.ownerId?._id?.toString() || workItem.ownerId?.toString();
   const userRole = normalizeRole(user.role);
-  const isAdminOrHead = userRole === 'admin' || isApprover(userRole);
+  const isAdminOrHead = hasPermission(user, 'review.decide');
 
   // Determine round if not explicitly supplied
   const existingEntries = await FeedbackEntry.find({ workItemId }).sort({ round: -1, createdAt: -1 });
@@ -128,7 +130,7 @@ export async function createFeedbackEntry(data, user) {
 
   if (isResponse) {
     // Owner response logic
-    if (isWorker(user.role) && ownerIdStr !== fromPerson._id.toString()) {
+    if (isOwnScope(user) && ownerIdStr !== fromPerson._id.toString()) {
       const error = new Error('Only the assigned owner can respond to review feedback');
       error.statusCode = 403;
       throw error;
@@ -357,12 +359,7 @@ export async function checkAndCreateRevisionFlag(workItem, actor = null) {
   });
 
   // Alert the lead of the step's calendar and the department's SM Manager, once per crossing.
-  const alertPersons = await Person.find({
-    $or: [
-      { role: deciderRoleFor(calendarOf(workItem)), status: 'active' },
-      ...(workItem.departmentId ? [{ role: 'sm_manager', departmentId: workItem.departmentId, status: 'active' }] : []),
-    ],
-  });
+  const alertPersons = await access.recipientsFor('revision.flagged', workItem);
   for (const recipient of alertPersons) {
     await createNotification({
       recipient: recipient._id,
@@ -390,7 +387,7 @@ export async function flagAfterChangesRequested(workItem, actor) {
  * Classify root cause for a revision flag (SM Manager, Creative Lead or Admin)
  */
 export async function classifyRevisionFlag(flagId, { rootCause, rootCauseNotes }, user) {
-  if (isWorker(user.role)) {
+  if (isOwnScope(user)) {
     const error = new Error('Only an SM Manager, Creative Lead, or Admin can classify revision root causes');
     error.statusCode = 403;
     throw error;
@@ -415,7 +412,7 @@ export async function classifyRevisionFlag(flagId, { rootCause, rootCauseNotes }
     throw error;
   }
   // Phase 13: the lead of the step's calendar (or admin) classifies its root cause.
-  assertDecidesOn(user, calendarOf(flag.workItemId), { roleCode: 'FORBIDDEN_ACTION' });
+  await assertDecidesOn(user, calendarOf(flag.workItemId), { roleCode: 'FORBIDDEN_ACTION', permission: 'revision.classify' });
 
   const userId = (user._id || user.id || user.userId)?.toString();
   const classifierPerson = await Person.findOne({
@@ -506,7 +503,7 @@ export async function listFeedbackThreads(filters = {}, user) {
     $or: [{ status: 'Feedback' }, { status: 'Pending' }, { revisions: { $gt: 0 } }],
   };
   // Phase 13: a lead sees the threads of their own calendars.
-  const myCalendars = decisionCalendarFilter(user);
+  const myCalendars = await decisionCalendarFilter(user);
   if (myCalendars) workItemsQuery.$and = [...(workItemsQuery.$and || []), calendarQueryFor(myCalendars)];
 
   if (filters.departmentId) {

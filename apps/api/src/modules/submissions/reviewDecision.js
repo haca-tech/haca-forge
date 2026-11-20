@@ -95,8 +95,8 @@ export function assertReworkStarted(workItem, latestSubmission) {
  * The lead of the step's calendar (Growth Lead for Ads, Creative Lead otherwise) and admin
  * decide (Phase 13); the other lead gets 403 WRONG_CALENDAR; nobody decides on their own work.
  */
-export function assertReviewer(user, workItem, decision = 'approve') {
-  assertDecidesOn(user, calendarOf(workItem), {
+export async function assertReviewer(user, workItem, decision = 'approve') {
+  await assertDecidesOn(user, calendarOf(workItem), {
     roleCode: decision === 'approve' ? 'FORBIDDEN_APPROVAL' : 'FORBIDDEN_ACTION',
     roleMessage: decision === 'approve' ? 'Only Creative Lead or Admin can approve deliverables' : 'Only Creative Lead or Admin can request revisions',
   });
@@ -144,7 +144,7 @@ export async function getRequiredClips(workItemId) {
  * Pass submissionId to require that exact version to be the latest.
  */
 export async function assertDecisionAllowed({ user, workItem, submissionId = null, decision = 'approve' }) {
-  assertReviewer(user, workItem, decision);
+  await assertReviewer(user, workItem, decision);
   // Paused while an earlier step is redone: no decision until it resumes.
   assertNotPaused(workItem);
 

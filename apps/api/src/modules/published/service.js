@@ -16,6 +16,7 @@ import { WorkItem } from '../workItems/model.js';
 import { approvedOutputOf, canSeeStepOutput } from '../workItems/access.js';
 import { outputItems } from '../workItems/handoff.js';
 import { logActivity } from '../activity/service.js';
+import { hasPermission, isOwnScope } from '../../lib/roleAccess.js';
 
 /**
  * Published page: every posted piece with its live link, newest first. Read-only.
@@ -65,7 +66,7 @@ export async function listPublished(query, user) {
   const postByPiece = new Map(postSteps.map((s) => [String(s.contentPieceId), s]));
 
   const pieceQuery = { $or: [{ publishedAt: { $ne: null } }, { _id: { $in: postSteps.map((s) => s.contentPieceId) } }] };
-  if (isWorker(role)) {
+  if (isOwnScope(role)) {
     // Workers: only pieces where they owned a step.
     const mine = await WorkItem.distinct('contentPieceId', { ownerId: userId, contentPieceId: { $ne: null } });
     pieceQuery._id = { $in: mine };
@@ -156,7 +157,7 @@ async function previewFor(piece, liveUrl, user, role) {
     .select('_id ownerId stageOrder status stageKey')
     .lean();
   if (!step) return { source: 'live', embed: live };
-  if (isWorker(role)) {
+  if (isOwnScope(role)) {
     const userId = String(user._id || user.userId || user.id || '');
     const owned = await WorkItem.find({ contentPieceId: piece._id, ownerId: userId }).select('stageOrder').lean();
     const orders = owned.map((s) => s.stageOrder || 0);
@@ -182,7 +183,7 @@ function httpError(status, code, message) {
  */
 export async function editLiveLink(pieceId, body, user) {
   const role = normalizeRole(user.role);
-  if (role !== 'sm_manager' && role !== 'admin') {
+  if (!hasPermission(role, 'publish.edit_live_link')) {
     throw httpError(403, 'FORBIDDEN_ROLE', 'Only an SM Manager or an Admin can edit a live link.');
   }
   if (!mongoose.isValidObjectId(pieceId)) throw httpError(404, 'NOT_FOUND', 'Content piece not found');

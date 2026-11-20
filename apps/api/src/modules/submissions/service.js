@@ -1,7 +1,8 @@
 import crypto from 'crypto';
 import { flagAfterChangesRequested } from '../feedback/service.js';
 import { assertNotManuallyPaused, clearRequestOnSubmit, finishRequestOnSubmit } from '../workItems/pause.service.js';
-import { calendarOf, decidersFor, decisionCalendarFilter } from '../workItems/deciders.js';
+import { calendarOf, canDecideOn, decidersFor, decisionCalendarFilter } from '../workItems/deciders.js';
+import { hasPermission, isOwnScope, isSuperuser, seesAll } from '../../lib/roleAccess.js';
 import mongoose from 'mongoose';
 import { Submission, SubmissionComment, Rating, EditorLock } from './model.js';
 import { WorkItem } from '../workItems/model.js';
@@ -49,7 +50,7 @@ import {
  */
 async function canAccessPieceOutputs(user, pieceId) {
   const role = normalizeRole(user.role);
-  if (['admin', ...APPROVER_ROLES, 'sm_manager', ...READ_ONLY_VIEWER_ROLES].includes(role)) {
+  if (seesAll(role)) {
     return true;
   }
   const userId = (user._id || user.id || user.userId)?.toString();
@@ -133,7 +134,7 @@ export async function getDraft(workItemId, user) {
   const ownerId = (workItem.ownerId?._id || workItem.ownerId)?.toString();
 
   // Scoping: Worker can only get draft of their own work item; reviewers can inspect
-  if (isWorker(role) && ownerId !== userId) {
+  if (isOwnScope(role) && ownerId !== userId) {
     const err = new Error('You can only view drafts for work items assigned to you');
     err.statusCode = 403;
     err.code = 'FORBIDDEN_OWNERSHIP';
@@ -170,7 +171,7 @@ export async function saveDraft(workItemId, draftData, user) {
   const ownerId = (workItem.ownerId?._id || workItem.ownerId)?.toString();
 
   // Guard: Only assigned owner or admin can save drafts
-  if (role !== 'admin' && ownerId !== userId) {
+  if (!isSuperuser(role) && ownerId !== userId) {
     const err = new Error('Only the assigned owner can edit the draft for this stage');
     err.statusCode = 403;
     err.code = 'FORBIDDEN_OWNERSHIP';
@@ -248,7 +249,7 @@ export async function submitForApproval(workItemId, submitData = {}, user) {
   const userId = (user._id || user.id || user.userId)?.toString();
   const ownerId = (workItem.ownerId?._id || workItem.ownerId)?.toString();
 
-  if (role !== 'admin' && ownerId !== userId) {
+  if (!isSuperuser(role) && ownerId !== userId) {
     const err = new Error('Only the assigned owner can submit deliverables for this stage');
     err.statusCode = 403;
     err.code = 'FORBIDDEN_OWNERSHIP';
@@ -580,7 +581,7 @@ export async function addComment(submissionId, commentData, user) {
   const ownerId = (workItem?.ownerId?._id || workItem?.ownerId)?.toString();
 
   // Comment Privacy Guard: strictly between step owner and reviewers (creative_lead/growth_lead, admin)
-  const isReviewer = isApprover(role) || role === 'admin';
+  const isReviewer = hasPermission(role, 'review.decide');
   const isStepOwner = ownerId === userId;
 
   if (!isReviewer && !isStepOwner) {
@@ -653,7 +654,7 @@ export async function addComment(submissionId, commentData, user) {
     const calendar = calendarOf(workItem);
     const parentAuthor = await Person.findById(parent.authorId).select('role status').lean();
     const recipients =
-      parentAuthor && parentAuthor.status !== 'suspended' && String(parentAuthor._id) !== userId && canDecide(parentAuthor.role, calendar)
+      parentAuthor && parentAuthor.status !== 'suspended' && String(parentAuthor._id) !== userId && (await canDecideOn(parentAuthor, calendar))
         ? [parentAuthor]
         : (await decidersFor(calendar)).filter((p) => String(p._id) !== userId);
     for (const r of recipients) {
@@ -695,7 +696,7 @@ export async function listComments(submissionId, user) {
 
   // Privacy Guard
   // Reading comments: every role but a worker (Phase 12b: the read-only heads too), and the step owner.
-  const isReviewer = canSeeAllReviewText(role);
+  const isReviewer = hasPermission(role, 'review.read_all');
   const isStepOwner = ownerId === userId;
   if (!isReviewer && !isStepOwner) {
     const err = new Error('Comments are private to the assigned worker and reviewers');
@@ -728,7 +729,7 @@ export async function resolveComment(commentId, user) {
   const ownerId = (workItem?.ownerId?._id || workItem?.ownerId)?.toString();
 
   // Resolving is the reviewers' call; the step owner reads and replies.
-  const isReviewer = isApprover(role) || role === 'admin';
+  const isReviewer = hasPermission(role, 'review.decide');
   if (!isReviewer) {
     const err = new Error(ownerId === userId ? 'Only a reviewer can resolve a comment. You can reply to it.' : 'Only a reviewer can resolve comments');
     err.statusCode = 403;
@@ -985,7 +986,7 @@ export async function editRating(ratingId, editData, user) {
   const userId = (user._id || user.id || user.userId)?.toString();
 
   // Guard: Rater or Admin only
-  if (role !== 'admin' && rating.raterId.toString() !== userId) {
+  if (!isSuperuser(role) && rating.raterId.toString() !== userId) {
     const err = new Error('Only the original rater or an Admin can edit this rating');
     err.statusCode = 403;
     err.code = 'FORBIDDEN_ACTION';
@@ -1039,7 +1040,7 @@ export async function editRating(ratingId, editData, user) {
 
 export async function getReviewQueue(user) {
   const role = normalizeRole(user.role);
-  if (!['admin', ...APPROVER_ROLES, 'sm_manager', ...READ_ONLY_VIEWER_ROLES].includes(role)) {
+  if (!seesAll(role)) {
     const err = new Error('Only reviewers and leadership can view the review queue');
     err.statusCode = 403;
     throw err;
@@ -1070,7 +1071,7 @@ export async function getReviewQueue(user) {
 
   // Phase 13: a lead sees the versions of their own calendars; admin, the SM manager and the
   // read-only heads see every calendar.
-  const myCalendars = decisionCalendarFilter(user);
+  const myCalendars = await decisionCalendarFilter(user);
   const submissions = submitted.filter(
     (sub) =>
       sub.workItemId &&
@@ -1149,7 +1150,7 @@ export async function getRatingsSummary(personId, user) {
   // - A worker reads ONLY their own ratings
   // - creative_lead/growth_lead, sm_manager, admin, creative_head/production_head read anyone's
   // - NO comparative ranking or leaderboards
-  if (isWorker(role) && userId !== targetIdStr) {
+  if (isOwnScope(role) && userId !== targetIdStr) {
     const err = new Error('Workers are permitted to inspect only their own quality ratings');
     err.statusCode = 403;
     err.code = 'FORBIDDEN_RATINGS_ACCESS';
@@ -1347,7 +1348,7 @@ export async function listWorkItemComments(workItemId, user) {
   const userId = (user._id || user.id || user.userId)?.toString();
   const ownerId = (workItem.ownerId?._id || workItem.ownerId)?.toString();
 
-  const isReviewer = canSeeAllReviewText(role);
+  const isReviewer = hasPermission(role, 'review.read_all');
   const isStepOwner = ownerId === userId;
   if (!isReviewer && !isStepOwner) {
     const err = new Error('Comments are private to the assigned worker and reviewers');

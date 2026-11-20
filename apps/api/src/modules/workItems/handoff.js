@@ -1,6 +1,7 @@
 import { isAppUploadPath, isDriveLink, isPostableWorkType, workflowFromFlags, workflowLabel } from '@mmp/shared';
 import { MediaItem } from '../media/model.js';
 import { approvedOutputOf, isFinished } from './access.js';
+import * as access from '../../lib/accessResolver.js';
 
 /**
  * Asset handoff (Phase 5): what each step receives from the finished steps before it, and,
@@ -152,7 +153,7 @@ export async function buildHandover(step) {
 export async function notifyHandoverReady(step) {
   const { Person } = await import('../people/model.js');
   const { createNotification } = await import('../notifications/service.js');
-  const managers = await Person.find({ role: 'sm_manager', status: 'active' }).select('_id').lean();
+  const managers = (await access.postersFor(step)).people;
   for (const manager of managers) {
     await createNotification({
       recipient: manager._id,

@@ -4,6 +4,7 @@ import { FeedbackEntry } from '../feedback/model.js';
 import { Person } from './model.js';
 import { resolveScope } from '../../lib/scope.js';
 import { logger } from '../../lib/logger.js';
+import { rolesOutsidePools } from '../../lib/roleAccess.js';
 
 /**
  * Performance Dimensions Calculation Service (Scope Reset R1)
@@ -282,7 +283,7 @@ export async function calculateTeamPerformance(filters = {}, actor = null) {
     return { overallTeamScore: 0, members: [] };
   }
 
-  const query = { status: { $ne: 'suspended' }, role: { $nin: ['admin', ...READ_ONLY_VIEWER_ROLES] } };
+  const query = { status: { $ne: 'suspended' }, role: { $nin: rolesOutsidePools() } };
   if (scope.allowedPersonIds !== null) {
     query._id = { $in: scope.allowedPersonIds };
   }

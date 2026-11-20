@@ -21,6 +21,7 @@ import { Person } from '../people/model.js';
 import { WorkItem } from '../workItems/model.js';
 import { logger } from '../../lib/logger.js';
 import { ownerCandidates } from '../workload/service.js';
+import { isSuperuser, ownerCandidateRoles } from '../../lib/roleAccess.js';
 
 export const TEMPLATE_COLUMNS = [
   { header: 'Posting Date', key: 'postingDate', width: 16 },
@@ -426,7 +427,7 @@ export async function validateImportRows(rawRows) {
 
   // Fetch active team members for owner lookup and autofill
   const activeMembers = await Person.find({
-    role: { $in: [WORKER_ROLE, 'sm_manager', 'admin'] },
+    role: { $in: ownerCandidateRoles() },
     status: 'active',
   }).lean();
   const membersByEmail = new Map();
@@ -448,7 +449,7 @@ export async function validateImportRows(rawRows) {
   // Workload (step counts) per member, read once; each suggestion in this import is added
   // as a planned step so later rows spread across people. The shared owner rule (pickOwner),
   // the same as autofill and Recommended Owner.
-  let importCandidates = (await ownerCandidates(activeMembers.filter((m) => m.role !== 'admin'))).map((c) => ({ ...c, member: c.person }));
+  let importCandidates = (await ownerCandidates(activeMembers.filter((m) => !isSuperuser(m)))).map((c) => ({ ...c, member: c.person }));
   const pickBestMemberForStage = (stageKey, dueDate) => {
     const pick = pickOwner(importCandidates, { targetDue: dueDate, eligible: (c) => effectiveStepsFor(c.member).includes(stageKey) });
     if (!pick) return null;

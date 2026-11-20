@@ -1,4 +1,5 @@
 import { normalizeRole, isReadOnlyViewer, isWorker, canSeeContactDetails } from '@mmp/shared';
+import { canSeeContacts } from '../lib/roleAccess.js';
 
 /**
  * Contact details in REST responses. A worker (executive) sees only their own:
@@ -29,7 +30,7 @@ export function redactContact(req, res, next) {
     const role = normalizeRole(req.user?.role);
     // No signed-in user (status, sign-in): nothing to filter. Workers see only their own
     // contact details; every other role sees them.
-    if (!req.user || canSeeContactDetails(role)) return originalJson(body);
+    if (!req.user || canSeeContacts(req.user)) return originalJson(body);
     const viewerId = (req.user._id || req.user.id || req.user.userId)?.toString();
     // Through JSON first, so documents, ids and dates are plain values, as res.json would send them.
     return originalJson(stripContact(JSON.parse(JSON.stringify(body ?? null)), viewerId));

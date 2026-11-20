@@ -36,6 +36,8 @@ import { CalendarPlan } from '../calendar/plan.model.js';
 import { ActivityEvent } from '../activity/model.js';
 import { evaluateSteps } from '../workItems/timeLabels.js';
 import { oneRatingPerStep } from '../submissions/ratingsPerStep.js';
+import { hasPermission, isOwnScope, isReadOnly, isSuperuser } from '../../lib/roleAccess.js';
+import { decisionCalendarsForRole } from '../workItems/deciders.js';
 
 /**
  * Profile KPIs (Phase 8). Read only. One person's own figures for a period (steps belong to
@@ -47,20 +49,19 @@ import { oneRatingPerStep } from '../submissions/ratingsPerStep.js';
 const notFound = () => Object.assign(new Error('Profile not found'), { statusCode: 404, code: 'NOT_FOUND' });
 const forbidden = (message) => Object.assign(new Error(message), { statusCode: 403, code: 'FORBIDDEN' });
 const idOf = (u) => (u?._id || u?.id || u?.userId)?.toString();
-const REPORT_ROLES = ['admin', ...APPROVER_ROLES, ...READ_ONLY_VIEWER_ROLES];
 const pct = (n, d) => (d ? Math.round((n / d) * 100) : null);
 
-export const canDownloadProfileReport = (actor) => REPORT_ROLES.includes(normalizeRole(actor?.role));
+export const canDownloadProfileReport = (actor) => hasPermission(actor, 'team.profile.report');
 
 /** Who sees the Creative Lead review section: admin, creative_head/production_head, and the Creative Lead on their own profile. */
 const canSeeReviewSection = (actor, target) => {
   const role = normalizeRole(actor?.role);
-  return role === 'admin' || isReadOnlyViewer(role) || idOf(actor) === String(target._id);
+  return isSuperuser(actor) || isReadOnly(actor) || idOf(actor) === String(target._id);
 };
 
 function assertProfileAccess(targetId, actor) {
   const role = normalizeRole(actor?.role);
-  if (isWorker(role) && idOf(actor) !== String(targetId)) throw notFound();
+  if (isOwnScope(actor) && idOf(actor) !== String(targetId)) throw notFound();
 }
 
 /** When a finished step was finished: approval (posting for Post), stored or from history. */
@@ -229,7 +230,7 @@ async function reviewerFigures(personId, period, now, role = null) {
   const waitingSteps = (
     await markAwaitingReview(
       // Phase 13: the queue of this lead's calendars (no role: every calendar).
-      await WorkItem.find({ status: { $in: ['Feedback', 'Pending'] }, stageKey: { $ne: 'Post' }, isSkipped: { $ne: true }, ...calendarQueryFor(role ? decisionCalendarsFor(role) : null) })
+      await WorkItem.find({ status: { $in: ['Feedback', 'Pending'] }, stageKey: { $ne: 'Post' }, isSkipped: { $ne: true }, ...calendarQueryFor(role ? await decisionCalendarsForRole(role) : null) })
         .select('status revisions submittedAt resubmittedAt')
         .lean()
     )
@@ -295,7 +296,7 @@ export async function getProfileKpis(targetId, actor, query = {}, { withSteps = 
   await markAwaitingReview(steps);
   const worker = await workerFigures(steps, period, now);
   if (worker && !withSteps) delete worker.steps;
-  const isCreativeHead = isApprover(normalizeRole(person.role));
+  const isCreativeHead = hasPermission(person, 'review.decide') && !isSuperuser(person);
   const creativeHead = isCreativeHead && canSeeReviewSection(actor, person) ? await reviewerFigures(person._id, period, now, normalizeRole(person.role)) : null;
 
   return {

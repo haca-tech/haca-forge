@@ -16,11 +16,14 @@ import {
 } from '@mmp/shared';
 import { WorkItem } from './model.js';
 import { PauseRequest } from './pauseRequest.model.js';
-import { assertDecidesOn, calendarOf, decidersFor } from './deciders.js';
+import { assertDecidesOn, calendarOf, decidersFor, decisionCalendarFilter } from './deciders.js';
 import { Person } from '../people/model.js';
 import { logActivity } from '../activity/service.js';
 import { createNotification } from '../notifications/service.js';
 import { logger } from '../../lib/logger.js';
+import { can as canPure } from '@mmp/shared';
+import * as access from '../../lib/accessResolver.js';
+import { hasPermission, isReadOnly } from '../../lib/roleAccess.js';
 
 /**
  * Pause work with lead approval. A worker asks to pause a step they are working on; the
@@ -63,8 +66,9 @@ async function loadStep(id) {
 
 const currentRoundIndex = (step) => (Array.isArray(step.rounds) && step.rounds.length ? step.rounds.length - 1 : -1);
 
-async function smManagers() {
-  return Person.find({ role: 'sm_manager', status: 'active' }).select('_id').lean();
+/** The step calendar's posters (default: every active SM Manager). */
+async function smManagers(step) {
+  return (await access.postersFor(step)).people;
 }
 
 async function notifyAll(people, payload, exceptId) {
@@ -209,7 +213,7 @@ export async function finishRequestOnSubmit(step, user) {
 export async function decidePauseRequest(id, body = {}, user) {
   const step = await loadStep(id);
   // The lead of the step's calendar (or admin); the other lead gets WRONG_CALENDAR.
-  assertDecidesOn(user, calendarOf(step), { roleCode: 'FORBIDDEN_ACTION', roleMessage: 'Only the step\'s lead or an Admin can decide a pause request.' });
+  await assertDecidesOn(user, calendarOf(step), { roleCode: 'FORBIDDEN_ACTION', roleMessage: 'Only the step\'s lead or an Admin can decide a pause request.' });
   const request = await PauseRequest.findOne({ workItemId: step._id, status: 'pending' });
   if (!request) throw fail(409, 'NOT_PENDING', 'There is no pause request waiting for this step.');
   if (idOf(request.ownerId) === userIdOf(user) || idOf(step.ownerId) === userIdOf(user)) {
@@ -280,22 +284,21 @@ export async function decidePauseRequest(id, body = {}, user) {
     message: `Your pause of "${step.title}" was approved. Work time stops until you resume.${message ? ` ${message}` : ''}`,
   });
   const owner = await Person.findById(request.ownerId).select('name').lean();
-  await notifyAll(await smManagers(), { ...payload, message: `"${step.title}" (${owner?.name || 'owner'}) is paused. ${reasonText(request)}` }, userIdOf(user));
+  await notifyAll(await smManagers(step), { ...payload, message: `"${step.title}" (${owner?.name || 'owner'}) is paused. ${reasonText(request)}` }, userIdOf(user));
   return done.toObject();
 }
 
 // ---------------------------------------------------------------- resume
 
-export function canResume(user, step) {
-  const role = normalizeRole(user?.role);
-  if (isReadOnlyViewer(role)) return false;
+export async function canResume(user, step) {
+  if (isReadOnly(user)) return false;
   if (idOf(step.ownerId) === userIdOf(user)) return true;
-  return canDecide(role, calendarOf(step));
+  return access.can(user, 'review.decide', { calendar: calendarOf(step) });
 }
 
 export async function resumeStep(id, user) {
   const step = await loadStep(id);
-  if (!canResume(user, step)) throw fail(403, 'FORBIDDEN_ACTION', 'Only the owner, the step\'s lead or an Admin can resume it.');
+  if (!(await canResume(user, step))) throw fail(403, 'FORBIDDEN_ACTION', 'Only the owner, the step\'s lead or an Admin can resume it.');
   if (step.pauseState !== 'paused') throw fail(409, 'NOT_PAUSED', 'This step is not paused.');
   const now = new Date();
   const resumed = await WorkItem.findOneAndUpdate(
@@ -317,7 +320,7 @@ export async function resumeStep(id, user) {
   );
   await logPause(step, user, 'pause_resumed', { requestId: request?._id || null, resumedAt: now });
   const leads = await decidersFor(calendarOf(step));
-  await notifyAll([...leads, ...(await smManagers())], {
+  await notifyAll([...leads, ...(await smManagers(step))], {
     type: 'pause_resumed',
     title: 'Step resumed',
     message: `"${step.title}" is back In Progress.`,
@@ -358,10 +361,10 @@ export async function pauseInfoFor(step, user) {
     lastRejected: lastRejected && !pending && !active ? view(lastRejected) : null,
     count: manual.length,
     totalMs,
-    canRequest: isOwner && !isReadOnlyViewer(role) && !step.pauseState && step.status === 'In Progress' && !step.isLocked && !(step.pausedBy || []).length,
+    canRequest: isOwner && !isReadOnly(user) && !step.pauseState && step.status === 'In Progress' && !step.isLocked && !(step.pausedBy || []).length,
     canCancel: isOwner && Boolean(pending),
-    canDecide: Boolean(pending) && !isOwner && canDecide(role, calendarOf(step)) && idOf(pending?.ownerId) !== userIdOf(user),
-    canResume: step.pauseState === 'paused' && canResume(user, step),
+    canDecide: Boolean(pending) && !isOwner && (await access.can(user, 'review.decide', { calendar: calendarOf(step) })) && idOf(pending?.ownerId) !== userIdOf(user),
+    canResume: step.pauseState === 'paused' && (await canResume(user, step)),
   };
 }
 
@@ -374,18 +377,18 @@ export async function listPauseRequests(user, { status = 'pending' } = {}) {
     .populate('urgentStepId', 'title')
     .populate('workItemId', 'title stageKey status calendar ownerId deadline isLocked')
     .lean();
-  let calendars = null;
-  if (isApprover(role)) calendars = decisionCalendarsFor(role);
-  else if (role !== 'admin' && !isReadOnlyViewer(role)) {
+  const configs = await access.getAllWorkflowConfigs();
+  const calendars = await decisionCalendarFilter(user);
+  if (!calendars && !hasPermission(user, 'review.decide') && !isReadOnly(user)) {
     // Others (SM Manager, workers): their own requests only.
-    return pending.filter((r) => idOf(r.ownerId) === userIdOf(user)).map((r) => itemView(r, user, role));
+    return pending.filter((r) => idOf(r.ownerId) === userIdOf(user)).map((r) => itemView(r, user, configs));
   }
   return pending
     .filter((r) => r.workItemId && (!calendars || calendars.includes(calendarOf(r.workItemId))))
-    .map((r) => itemView(r, user, role));
+    .map((r) => itemView(r, user, configs));
 }
 
-function itemView(r, user, role) {
+function itemView(r, user, configs) {
   const step = r.workItemId || {};
   return {
     _id: String(r._id),
@@ -397,7 +400,7 @@ function itemView(r, user, role) {
     urgentStep: r.urgentStepId ? { _id: idOf(r.urgentStepId), title: r.urgentStepId.title || '' } : null,
     pauseUntil: r.pauseUntil,
     requestedAt: r.requestedAt,
-    canDecide: canDecide(role, calendarOf(step)) && idOf(r.ownerId) !== userIdOf(user),
+    canDecide: canPure(user, 'review.decide', { calendar: calendarOf(step) }, configs[calendarOf(step)]) && idOf(r.ownerId) !== userIdOf(user),
   };
 }
 

@@ -9,6 +9,8 @@ import { createNotification } from '../notifications/service.js';
 import { sendMail } from '../../lib/mailer.js';
 import { BLOCKER_DEPENDENCY_REASONS, isWorker } from '@mmp/shared';
 import { isTeamMember, participantWorkItemIds, requireParticipant } from '../workItems/access.js';
+import * as access from '../../lib/accessResolver.js';
+import { isOwnScope } from '../../lib/roleAccess.js';
 
 /**
  * Mark a deliverable Blocked and alert dependency owner if applicable
@@ -47,7 +49,7 @@ export async function createBlocker(data, user) {
   });
 
   const ownerIdStr = workItem.ownerId?._id?.toString() || workItem.ownerId?.toString();
-  if (isWorker(user.role) && ownerIdStr !== blockerPerson?._id?.toString()) {
+  if (isOwnScope(user) && ownerIdStr !== blockerPerson?._id?.toString()) {
     const error = new Error('You can only mark your own assigned deliverables as blocked');
     error.statusCode = 403;
     throw error;
@@ -135,7 +137,7 @@ export async function createBlocker(data, user) {
 
   // Notify SM Manager of active blocker
   try {
-    const smManagers = await Person.find({ role: 'sm_manager', status: 'active' });
+    const smManagers = await access.recipientsFor('step.needs_owner', workItem);
     for (const sm of smManagers) {
       if (dependencyPerson && String(sm._id) === String(dependencyPerson._id)) continue;
       await createNotification({

@@ -8,6 +8,7 @@ import {
   isTeamMember,
   userIdOf,
 } from './access.js';
+import { isOwnScope } from '../../lib/roleAccess.js';
 
 /** What every participant may see of a step they do not own: pipeline status. */
 const PIPELINE_FIELDS = [
@@ -91,7 +92,7 @@ const PRIVATE_ACTIVITY_KEYS = ['text', 'comment', 'note', 'notes', 'feedback', '
 
 /** Activity keeps who did what and when; review text and outputs stay private. */
 export function sanitizeActivities(activities, user, workItem) {
-  if (workItem ? canSeePrivateReview(user, workItem) : !isWorker(normalizeRole(user?.role))) return activities;
+  if (workItem ? canSeePrivateReview(user, workItem) : !isOwnScope(user)) return activities;
   return (activities || []).map((event) => {
     const plain = event?.toObject ? event.toObject() : event;
     return { ...plain, metadata: plain.metadata ? omit(plain.metadata, PRIVATE_ACTIVITY_KEYS) : plain.metadata };

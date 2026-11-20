@@ -14,6 +14,7 @@ import {
 } from '@mmp/shared';
 import { Person } from '../people/model.js';
 import { ownerCandidates } from '../workload/service.js';
+import { ownerCandidateRoles } from '../../lib/roleAccess.js';
 
 /**
  * Standard start-of-day for comparison
@@ -62,7 +63,7 @@ export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting =
 
   // Pre-fetch team members to validate stage owners and calculate workload warnings
   const activeMembers = await Person.find({
-    role: { $in: [WORKER_ROLE, 'sm_manager', 'admin'] },
+    role: { $in: ownerCandidateRoles() },
     status: 'active',
   }).lean();
   const membersById = new Map(activeMembers.map((m) => [m._id.toString(), m]));

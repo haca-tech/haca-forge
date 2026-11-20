@@ -15,6 +15,8 @@ import { assertChangedOutputUrl } from '../uploads/outputUrls.js';
 import { isHandoverStep, notifyHandoverReady } from './handoff.js';
 import { recordBlocker, resolveActiveBlockers } from '../blockers/lifecycle.js';
 import { assertCanReopen, assertNotPaused, isPaused, pauseLaterSteps, resumePausedSteps } from './reopen.js';
+import * as access from '../../lib/accessResolver.js';
+import { hasPermission, isOwnScope, isReadOnly } from '../../lib/roleAccess.js';
 
 export const ALLOWED_TRANSITIONS = {
   'Not Started': ['In Progress', 'Blocked'],
@@ -54,14 +56,14 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
   const ownerIdStr = (workItem.ownerId?._id || workItem.ownerId)?.toString();
   const userRole = normalizeRole(user.role);
 
-  if (isReadOnlyViewer(userRole)) {
+  if (isReadOnly(user)) {
     const error = new Error('Executives cannot perform status transitions');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_ACTION';
     throw error;
   }
 
-  if (isWorker(userRole) && ownerIdStr !== userId) {
+  if (isOwnScope(user) && ownerIdStr !== userId) {
     const error = new Error('You can only update status for work items assigned to you');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_OWNERSHIP';
@@ -117,7 +119,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
       error.code = 'FORBIDDEN_SELF_APPROVAL';
       throw error;
     }
-    assertDecidesOn(user, calendarOf(workItem), {
+    await assertDecidesOn(user, calendarOf(workItem), {
       roleCode: 'FORBIDDEN_APPROVAL',
       roleMessage: 'Review stages can be approved only by Creative Lead and Admin. SM Manager and the owner cannot approve.',
     });
@@ -128,13 +130,13 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
   const isReviewerRevision = fromStatus === 'Pending' && toStatus === 'Feedback';
 
   // Reopening a finished step: creative_lead/growth_lead and admin only, and never your own work.
-  if (isReopen && ((!isApprover(userRole) && userRole !== 'admin') || ownerIdStr === userId)) {
+  if (isReopen && (!hasPermission(user, 'review.decide') || ownerIdStr === userId)) {
     const error = new Error('Only a Creative Lead or Admin who does not own this step can reopen it');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_REOPEN';
     throw error;
   }
-  if (isReopen) assertDecidesOn(user, calendarOf(workItem), { roleCode: 'FORBIDDEN_REOPEN' });
+  if (isReopen) await assertDecidesOn(user, calendarOf(workItem), { roleCode: 'FORBIDDEN_REOPEN' });
   // Only a finished review step, and never once the deliverable is posted or handed over.
   if (isReopen) await assertCanReopen(workItem);
   // A paused step is not decided until every earlier step it waits on is approved again.
@@ -144,7 +146,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
 
   // Requesting a revision follows the same reviewer rule as every other decision path.
   if (isReviewerRevision && !options.reviewDecision) {
-    assertDecidesOn(user, calendarOf(workItem), {
+    await assertDecidesOn(user, calendarOf(workItem), {
       roleCode: 'FORBIDDEN_ACTION',
       roleMessage: 'Only Creative Lead or Admin can request revisions',
     });
@@ -192,16 +194,16 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
   // Worker actions guard: A user never gets worker actions on a task they do not own
   // Note: On legacy standalone work items (no stageKey), sm_manager can publish and head can request rework.
   let isWorkerAction = ['start', 'submit_for_approval', 'mark_as_posted', 'mark_blocked'].includes(requiredAction);
-  if (fromStatus === 'Feedback' && toStatus === 'In Progress' && (isApprover(userRole) || userRole === 'admin') && !isOwner) {
+  if (fromStatus === 'Feedback' && toStatus === 'In Progress' && hasPermission(user, 'review.decide') && !isOwner) {
     // A reviewer moving a step back is a decision: their calendar only.
-    assertDecidesOn(user, calendarOf(workItem), { roleCode: 'FORBIDDEN_ACTION' });
+    await assertDecidesOn(user, calendarOf(workItem), { roleCode: 'FORBIDDEN_ACTION' });
     isWorkerAction = false;
   }
-  if (toStatus === 'Published' && !workItem.stageKey && (userRole === 'sm_manager' || userRole === 'admin')) {
+  if (toStatus === 'Published' && !workItem.stageKey && (await access.can(user, 'publish.post', { calendar: calendarOf(workItem) }))) {
     isWorkerAction = false;
   }
   // The SM manager and admin may also mark a Post step posted, writing its caption (Phase 5d).
-  if (toStatus === 'Published' && workItem.stageKey === 'Post' && (userRole === 'sm_manager' || userRole === 'admin')) {
+  if (toStatus === 'Published' && workItem.stageKey === 'Post' && (await access.can(user, 'publish.post', { calendar: calendarOf(workItem) }))) {
     isWorkerAction = false;
   }
 
@@ -253,7 +255,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
 
   // Blocker resolution guard: Owner, SM Manager, or Admin only
   if (fromStatus === 'Blocked' && toStatus === 'In Progress') {
-    if (!isOwner && userRole !== 'sm_manager' && userRole !== 'admin') {
+    if (!isOwner && !hasPermission(user, 'blocker.resolve.any')) {
       const error = new Error(
         'Action not permitted for your role: resolve_blocker. You must hold the appropriate role or stage ownership.'
       );
@@ -686,7 +688,7 @@ export async function unlockNextStage(workItem) {
         link: `/my-work?id=${nextStage._id}`,
       });
     } else {
-      const smManagers = await Person.find({ role: 'sm_manager', status: 'active' });
+      const smManagers = await access.recipientsFor('step.needs_owner', nextStage);
       for (const sm of smManagers) {
         await createNotification({
           recipient: sm._id,

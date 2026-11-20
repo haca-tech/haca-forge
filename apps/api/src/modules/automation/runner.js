@@ -9,6 +9,7 @@ import { enqueueEmail } from '../../lib/queue.js';
 import { isRetiredJob, runRetiredJob } from '../jobs/retired.js';
 import { logger } from '../../lib/logger.js';
 import { hasTimeLabel, istDateKey, overdueDays, stepTimeLabels, APPROVER_ROLES, deciderRoleFor } from '@mmp/shared';
+import * as access from '../../lib/accessResolver.js';
 
 // Default reminder rules (Phase 7: the two report-email rules were retired)
 export const DEFAULT_AUTOMATION_RULES = [
@@ -240,13 +241,8 @@ Link: /work/${item._id}`,
     }
 
     // One SM manager: the step's department's, else any active SM manager.
-    let manager = item.departmentId
-      ? await Person.findOne({ departmentId: item.departmentId, role: 'sm_manager', status: 'active' }).sort({ createdAt: 1 }).lean()
-      : null;
-    if (!manager) {
-      if (anySmManager === undefined) anySmManager = await Person.findOne({ role: 'sm_manager', status: 'active' }).sort({ createdAt: 1 }).lean();
-      manager = anySmManager;
-    }
+    // The resolver picks the step department's poster, else the first poster overall.
+    const [manager] = await access.recipientsFor('step.overdue_manager', item);
     if (manager?._id && String(manager._id) !== String(owner?._id) && !(await once(manager._id, 'overdue_manager'))) {
       await Notification.create({
         recipient: manager._id,
@@ -427,16 +423,12 @@ async function runRevisionPatternFlagRule(rule, user) {
 
   let escalatedCount = 0;
   // Phase 13: each flag goes to the lead of its step's calendar, plus admin.
-  const leadersByRole = new Map();
-  for (const role of ['creative_lead', 'growth_lead', 'admin']) {
-    leadersByRole.set(role, await Person.find({ role, status: { $ne: 'suspended' } }).lean());
-  }
 
   for (const flag of unclassifiedFlags) {
     flag.isEscalated = true;
     await flag.save();
 
-    const leaders = [...leadersByRole.get(deciderRoleFor(flag.workItemId?.calendar || 'sm')), ...leadersByRole.get('admin')];
+    const leaders = await access.recipientsFor('revision.flag_escalated', flag.workItemId || {});
     for (const leader of leaders) {
       await Notification.create({
         recipient: leader._id,

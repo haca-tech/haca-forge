@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Person } from '../modules/people/model.js';
 import { normalizeRole, isApprover, isReadOnlyViewer } from '@mmp/shared';
+import { seesAll } from './roleAccess.js';
 
 /**
  * Resolves query-level scoping for a given user and optional request filters.
@@ -34,7 +35,7 @@ export async function resolveScope(user, filters = {}) {
   let scopeType = 'self';
   let allowedPersonIds = null; // null represents all people
 
-  if (role === 'admin' || isApprover(role) || isReadOnlyViewer(role) || role === 'sm_manager') {
+  if (seesAll(user)) {
     scopeType = 'all';
     allowedPersonIds = null; // Full visibility across all people and all work
 
@@ -86,7 +87,7 @@ export async function resolveScope(user, filters = {}) {
 
   const canAccessPerson = (personId) => {
     if (!personId) return false;
-    if (role === 'admin' || isApprover(role) || isReadOnlyViewer(role) || role === 'sm_manager') return true;
+    if (seesAll(user)) return true;
     if (allowedPersonIds === null) return true;
     return allowedPersonIds.includes(personId.toString());
   };

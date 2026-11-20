@@ -34,6 +34,8 @@ import {
 } from '@mmp/shared';
 import { recommendAssignee } from '../assignment/service.js';
 import { validatePlanAndRows } from './validation.js';
+import * as access from '../../lib/accessResolver.js';
+import { hasPermission, isSuperuser, plannerRoles } from '../../lib/roleAccess.js';
 
 /**
  * Generate sequential unique plan code: PLAN-YYYY-MM-001
@@ -224,7 +226,7 @@ export async function listPlans(filters = {}, user) {
   const scope = await resolveScope(user);
   const userRole = normalizeRole(user.role);
 
-  if (isWorker(userRole)) {
+  if (!hasPermission(user, 'calendar.view')) {
     const error = new Error('Team members cannot access calendar plans.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_SCOPE';
@@ -292,7 +294,7 @@ export async function listPlans(filters = {}, user) {
  */
 export async function getPlanById(id, user) {
   const userRole = normalizeRole(user.role);
-  if (isWorker(userRole)) {
+  if (!hasPermission(user, 'calendar.view')) {
     const error = new Error('Team members cannot access calendar plans.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_SCOPE';
@@ -345,7 +347,7 @@ export async function createPlan(data, user) {
   const scope = await resolveScope(user);
   const userRole = normalizeRole(user.role);
 
-  if (userRole !== 'admin' && userRole !== 'sm_manager') {
+  if (!hasPermission(user, 'calendar.plan')) {
     const error = new Error('Only SM Manager and Admin can create calendar plans.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_ROLE';
@@ -505,7 +507,7 @@ export async function addRowsToPlan(id, rows, user) {
   }
 
   const scope = await resolveScope(user);
-  const smManager = (await Person.findOne({ role: 'sm_manager', status: 'active' }).lean()) || user;
+  const smManager = (await access.postersFor(plan)).defaultPoster || user;
   const defaultPosterId = (smManager?._id || user._id || user.userId)?.toString();
 
   // Validate incoming rows
@@ -722,7 +724,7 @@ export const ROW_STARTED_MESSAGE = "This post has started work and can't be dele
  */
 export async function deleteRow(planId, rowId, user) {
   const userRole = normalizeRole(user.role);
-  if (userRole !== 'admin' && userRole !== 'sm_manager') {
+  if (!hasPermission(user, 'calendar.plan')) {
     const error = new Error('Only SM Manager and Admin can delete plan rows.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_ROLE';
@@ -840,7 +842,7 @@ export async function submitRow(planId, rowId, user) {
   await plan.save();
 
   // Notify the lead of the plan's calendar (Phase 13: Growth Lead for Ads, Creative Lead otherwise)
-  const creativeHeads = await decidersFor(calendarOf(plan));
+  const creativeHeads = await decidersFor(calendarOf(plan), { plans: true });
   for (const ch of creativeHeads) {
     await createNotification({
       recipient: ch._id,
@@ -877,7 +879,7 @@ export async function submitPlan(id, user) {
   }
 
   // Auto-heal incomplete draft rows before validation
-  const smManager = (await Person.findOne({ role: 'sm_manager', status: 'active' }).lean()) || user;
+  const smManager = (await access.postersFor(plan)).defaultPoster || user;
   const defaultPosterId = (smManager?._id || user._id || user.userId)?.toString();
 
   const existingRows = await ContentPiece.find({ planId: plan._id });
@@ -985,7 +987,7 @@ export async function submitPlan(id, user) {
   await plan.save();
 
   // One combined notification to the lead of the plan's calendar (Phase 13)
-  const creativeHeads = await decidersFor(calendarOf(plan));
+  const creativeHeads = await decidersFor(calendarOf(plan), { plans: true });
   for (const ch of creativeHeads) {
     await createNotification({
       recipient: ch._id,
@@ -1157,7 +1159,7 @@ export async function reviewPlan(id, reviewData, user) {
   const userRole = normalizeRole(user.role);
   // Phase 12b: plan rows are reviewed by the leads (creative_lead, growth_lead), with admin as a backup.
   // Phase 13 splits the leads by calendar.
-  if (!isApprover(userRole) && userRole !== 'admin') {
+  if (!hasPermission(user, 'calendar.approve')) {
     const error = new Error('Plan rows can be reviewed only by a Creative Lead, a Growth Lead or an Admin.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_APPROVAL';
@@ -1166,7 +1168,7 @@ export async function reviewPlan(id, reviewData, user) {
 
   const plan = await CalendarPlan.findById(id);
   // Phase 13: the lead of the plan's calendar (Growth Lead for Ads) or admin.
-  if (plan) assertDecidesOn(user, calendarOf(plan), { roleCode: 'FORBIDDEN_APPROVAL' });
+  if (plan) await assertDecidesOn(user, calendarOf(plan), { roleCode: 'FORBIDDEN_APPROVAL', permission: 'calendar.approve' });
   if (!plan) {
     const error = new Error('Calendar plan not found');
     error.statusCode = 404;
@@ -1361,7 +1363,7 @@ export async function planWorkState(pieceIds) {
 
 export async function deletePlan(id, user) {
   const userRole = normalizeRole(user.role);
-  if (userRole !== 'admin' && userRole !== 'sm_manager') {
+  if (!hasPermission(user, 'calendar.plan')) {
     const error = new Error('Only SM Manager and Admin can delete calendar plans.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_ROLE';
@@ -1504,7 +1506,7 @@ export async function movePlanCalendar(id, newCalendar, user) {
   const derivedStats = computePlanRowStats(rows, plan);
   const isApproved = derivedStats.status === 'Approved' || derivedStats.status === 'Approved with pending rows';
 
-  if (isApproved && userRole !== 'sm_manager' && userRole !== 'admin') {
+  if (isApproved && !hasPermission(user, 'calendar.plan')) {
     const error = new Error('Only SM Manager and Admin can move an approved plan to another calendar.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_MOVE';
@@ -1546,9 +1548,13 @@ export async function movePlanCalendar(id, newCalendar, user) {
   // Create notification
   // Phase 13: pending decisions follow the plan to its new calendar's lead. Tell both leads
   // (old and new; the same person when both calendars have the same lead) and the SM manager.
-  const notifyRoles = [...new Set([deciderRoleFor(oldCalendar), deciderRoleFor(newCalendar)])];
-  if (userRole !== 'sm_manager') notifyRoles.push('sm_manager');
-  const notifyUsers = await Person.find({ role: { $in: notifyRoles }, status: 'active' }).lean();
+  const approvers = [
+    ...(await access.planApproversFor({ calendar: oldCalendar })).primary,
+    ...(await access.planApproversFor({ calendar: newCalendar })).primary,
+  ];
+  const actorPlans = hasPermission(user, 'calendar.plan') && !isSuperuser(user);
+  const planners = actorPlans ? [] : await Person.find({ role: { $in: plannerRoles() }, status: 'active' }).lean();
+  const notifyUsers = [...new Map([...approvers, ...planners].map((p) => [String(p._id), p])).values()];
   for (const recipient of notifyUsers) {
     await createNotification({
       recipient: recipient._id,

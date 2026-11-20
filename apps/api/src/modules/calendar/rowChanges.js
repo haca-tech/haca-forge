@@ -9,6 +9,7 @@ import { CalendarPlan } from './plan.model.js';
 import { ContentPiece } from './contentPiece.model.js';
 import { parseGridRowInput, saveGridRows, ymdInAppTz } from './planGrid.service.js';
 import { logRowHistory, rowHistory } from './rowHistory.js';
+import { hasPermission } from '../../lib/roleAccess.js';
 
 /**
  * Phase 13: a lead's change request on a plan row. The lead writes a message and may suggest
@@ -116,7 +117,7 @@ async function loadRow(planId, rowId) {
  */
 export async function applyRowSuggestion(planId, rowId, user) {
   const role = normalizeRole(user.role);
-  if (role !== 'sm_manager' && role !== 'admin') {
+  if (!hasPermission(role, 'calendar.plan')) {
     throw httpError(403, 'FORBIDDEN_ROLE', 'Only the SM Manager or an Admin can apply a suggestion.');
   }
   const { plan, row } = await loadRow(planId, rowId);
