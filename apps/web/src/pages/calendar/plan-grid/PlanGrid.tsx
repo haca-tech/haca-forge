@@ -795,8 +795,8 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
       const typedName = line.draft[field] !== undefined ? String(line.draft[field]) : '';
       return (
         <div>
-          <div className="flex items-center gap-1">
-            <select {...common} className={`ui-select h-11 w-full min-w-0${invalidCls}`} value={value} onChange={(e) => commit(line, e.target.value ? { [`${field}Id`]: e.target.value } : { [field]: '' })}>
+          <div className="flex flex-wrap items-center gap-1">
+            <select {...common} className={`ui-select h-11 w-full min-w-[9rem] flex-1${invalidCls}`} value={value} onChange={(e) => commit(line, e.target.value ? { [`${field}Id`]: e.target.value } : { [field]: '' })}>
               <option value="">{typedName ? `“${typedName}” (not matched)` : 'Auto-assign'}</option>
               {options.map((p) => (
                 <option key={p._id} value={p._id}>{ownerOptionLabel(p.name, teamWorkload.get(String(p._id)))}</option>
