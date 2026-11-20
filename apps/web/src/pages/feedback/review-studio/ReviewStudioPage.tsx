@@ -249,6 +249,7 @@ export const ReviewStudioPage: React.FC = () => {
           },
           content: c.content || c.text || '',
           parentId: c.parentId ? String(c.parentId?._id || c.parentId) : null,
+          kind: c.kind || null,
           createdAt: c.createdAt,
           anchor: {
             ...c.anchor,
@@ -412,6 +413,7 @@ export const ReviewStudioPage: React.FC = () => {
             },
             content: incoming.content || incoming.text || '',
             parentId: incoming.parentId ? String(incoming.parentId?._id || incoming.parentId) : null,
+            kind: incoming.kind || null,
             createdAt: incoming.createdAt || new Date().toISOString(),
             anchor: {
               ...incoming.anchor,
@@ -760,8 +762,9 @@ export const ReviewStudioPage: React.FC = () => {
   // Viewers number and pin only the first comment of each thread.
   const threadRoots = comments.filter((c) => !c.parentId);
   // Owner view: the comments request-revision saved, labelled in the thread and linked from the bar.
-  const revisionComments = ownerMode ? revisionRequestComments(ownerTimeline.data, comments) : new Map<string, string>();
-  const revisionRequestIds = new Set(revisionComments.values());
+  const revisionRequests = ownerMode ? revisionRequestComments(ownerTimeline.data, comments) : null;
+  const revisionComments = revisionRequests?.byEvent ?? new Map<string, string>();
+  const revisionRequestIds = revisionRequests?.ids ?? new Set<string>();
   const showComment = (commentId: string) => {
     setActiveCommentId(commentId);
     document.getElementById(`comment-${commentId}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });

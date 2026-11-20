@@ -181,6 +181,12 @@ const submissionCommentSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    // Set on the comment that request-revision saves for its note. Optional: older comments
+    // have none (no default is stored).
+    kind: {
+      type: String,
+      enum: ['revision_request'],
+    },
     resolved: {
       type: Boolean,
       default: false,

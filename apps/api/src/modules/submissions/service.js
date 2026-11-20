@@ -854,6 +854,7 @@ export async function requestRevision(submissionId, { comment, rootCause }, user
         anchor: null,
         text: trimmedComment,
         parentId: null,
+        kind: 'revision_request',
       });
     }
 

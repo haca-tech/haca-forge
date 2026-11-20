@@ -45,34 +45,52 @@ export function useOwnerTimeline(workItemId: string | null, enabled: boolean) {
 const lastOf = (events: TimelineEvent[], kinds: string[]) => [...events].reverse().find((e) => kinds.includes(e.kind));
 
 /**
- * The comments that request-revision saved for its note. They carry no marker, so each is
- * matched to a "changes requested" event: a first comment (no pin) with the same text, written
- * within two minutes of the decision. Returns event time -> comment id.
+ * The comments that request-revision saved for its note. Newer ones carry kind
+ * 'revision_request'; each "changes requested" event is linked to the tagged comment written
+ * nearest to it (within two minutes). Older comments have no kind, so for them the match is a
+ * first comment (no pin) with the same text, written within two minutes of the decision.
+ * Returns the labelled comment ids and, per event time, the comment to link to.
  */
 export function revisionRequestComments(
   timeline: OwnerTimeline | null,
-  comments: Array<{ id: string; content?: string; text?: string; createdAt: string; parentId?: string | null; anchor?: { type?: string } | null }>,
-): Map<string, string> {
-  const found = new Map<string, string>();
-  if (!timeline) return found;
+  comments: Array<{ id: string; content?: string; text?: string; createdAt: string; parentId?: string | null; anchor?: { type?: string } | null; kind?: string | null }>,
+): { ids: Set<string>; byEvent: Map<string, string> } {
+  const tagged = comments.filter((c) => c.kind === 'revision_request');
+  const ids = new Set<string>(tagged.map((c) => c.id));
+  const byEvent = new Map<string, string>();
+  if (!timeline) return { ids, byEvent };
+  const WINDOW = 2 * 60 * 1000;
   const used = new Set<string>();
+  const timeOf = (c: { createdAt: string }) => new Date(c.createdAt).getTime();
   for (const e of timeline.events) {
-    if (e.kind !== 'changes_requested' || !e.message) continue;
+    if (e.kind !== 'changes_requested') continue;
     const at = new Date(e.at).getTime();
-    const match = comments.find(
-      (c) =>
-        !c.parentId &&
-        !c.anchor?.type &&
-        !used.has(c.id) &&
-        (c.content ?? c.text ?? '').trim() === e.message!.trim() &&
-        Math.abs(new Date(c.createdAt).getTime() - at) <= 2 * 60 * 1000,
-    );
+    // 1. The tagged comment nearest to this decision.
+    const nearest = tagged
+      .filter((c) => !used.has(c.id) && Math.abs(timeOf(c) - at) <= WINDOW)
+      .sort((a, b) => Math.abs(timeOf(a) - at) - Math.abs(timeOf(b) - at))[0];
+    // 2. Older comments (no kind): same text, no pin, first in its thread, near the decision.
+    const legacy = nearest
+      ? undefined
+      : e.message
+        ? comments.find(
+            (c) =>
+              !c.kind &&
+              !c.parentId &&
+              !c.anchor?.type &&
+              !used.has(c.id) &&
+              (c.content ?? c.text ?? '').trim() === e.message!.trim() &&
+              Math.abs(timeOf(c) - at) <= WINDOW,
+          )
+        : undefined;
+    const match = nearest || legacy;
     if (match) {
       used.add(match.id);
-      found.set(e.at, match.id);
+      ids.add(match.id);
+      byEvent.set(e.at, match.id);
     }
   }
-  return found;
+  return { ids, byEvent };
 }
 
 /** "Waiting for review" | "Changes requested" | "Approved ★4" | "Rework in progress", with a tone. */

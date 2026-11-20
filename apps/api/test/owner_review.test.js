@@ -170,6 +170,22 @@ describe('Review Studio for the step owner', () => {
     expect(await notes('growthLead', r2.body.data._id)).toBe(1);
   });
 
+  it('request-revision marks its comment kind "revision_request"; ordinary comments and replies have no kind', async () => {
+    const res = await as('growthLead').post(`/api/submissions/${ads.v._id}/request-revision`, { comment: 'Use the approved headline.', rootCause: 'Brief unclear' });
+    expect(res.status).toBeLessThan(300);
+    const saved = await SubmissionComment.findOne({ workItemId: ads.w._id, text: 'Use the approved headline.' }).lean();
+    expect(saved.kind).toBe('revision_request');
+    expect(saved.parentId).toBeNull();
+    // Older and ordinary comments carry no kind (nothing stored for them).
+    const plain = await SubmissionComment.findOne({ workItemId: ads.w._id, text: 'Headline too long' }).lean();
+    expect(plain.kind).toBeUndefined();
+    const reply = await SubmissionComment.findOne({ workItemId: ads.w._id, text: 'Shortened' }).lean();
+    expect(reply.kind).toBeUndefined();
+    // The owner reads it with its kind.
+    const sub = await as('owner').get(`/api/submissions/${ads.v._id}`);
+    expect(sub.body.data.comments.find((c) => c.text === 'Use the approved headline.').kind).toBe('revision_request');
+  });
+
   it('the owner can open the step timeline (decision and rating messages) for their own step only', async () => {
     expect((await as('owner').get(`/api/review-hub/steps/${sm.w._id}/timeline`)).status).toBe(200);
     expect((await as('other').get(`/api/review-hub/steps/${sm.w._id}/timeline`)).status).toBe(404);

@@ -28,6 +28,8 @@ export interface ReviewComment {
   resolved?: boolean;
   /** Set on a reply: the first comment of its thread. */
   parentId?: string | null;
+  /** 'revision_request' on the comment request-revision saved (newer comments only). */
+  kind?: string | null;
 }
 
 interface ImageViewerProps {

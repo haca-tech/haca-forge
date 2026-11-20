@@ -188,6 +188,42 @@ describe('Review Studio: the revision request in "my review"', () => {
     expect(screen.getByTestId('owner-decision')).toHaveTextContent('Shorten the intro and fix the colour.');
   });
 
+  it('uses the kind field first: a tagged comment is labelled and linked even when its text differs', async () => {
+    signIn('executive', 'owner-1');
+    const sub = withRequest();
+    // Newer comment: tagged, written a minute after the decision, text not identical to the event.
+    sub.comments[sub.comments.length - 1] = {
+      ...sub.comments[sub.comments.length - 1],
+      _id: 'c5',
+      text: 'Shorten the intro and fix the colour. (see notes)',
+      kind: 'revision_request',
+      createdAt: new Date(new Date(sentBackAt).getTime() + 60 * 1000).toISOString(),
+    } as any;
+    mock(sub, tl());
+    openAs('/work/w1/review');
+    const link = await screen.findByTestId('see-revision-request');
+    expect(link).toHaveAttribute('href', '#comment-c5');
+    const labelled = screen.getAllByTestId('revision-request-label');
+    expect(labelled).toHaveLength(1);
+    expect(labelled[0].closest('[data-testid="review-thread"]')).toHaveAttribute('id', 'comment-c5');
+  });
+
+  it('a tagged comment is labelled even with no matching decision; an untagged same-text comment is not then used', async () => {
+    signIn('executive', 'owner-1');
+    const sub = withRequest();
+    sub.comments = [
+      ...sub.comments,
+      { _id: 'c6', text: 'An earlier revision note', authorId: { _id: 'lead-1', name: 'Check Lead', role: 'creative_lead' }, anchor: null, resolved: true, parentId: null, kind: 'revision_request', createdAt: ago(200) } as any,
+      // Tagged and near the decision: it wins over the untagged same-text comment (c4).
+      { _id: 'c7', text: 'Shorten the intro and fix the colour.', authorId: { _id: 'lead-1', name: 'Check Lead', role: 'creative_lead' }, anchor: null, resolved: false, parentId: null, kind: 'revision_request', createdAt: sentBackAt } as any,
+    ];
+    mock(sub, tl());
+    openAs('/work/w1/review');
+    expect(await screen.findByTestId('see-revision-request')).toHaveAttribute('href', '#comment-c7');
+    const ids = screen.getAllByTestId('revision-request-label').map((l) => l.closest('[data-testid="review-thread"]')!.getAttribute('id'));
+    expect(ids.sort()).toEqual(['comment-c6', 'comment-c7']);
+  });
+
   it('the lead view has no "Revision request" label (owner view only)', async () => {
     signIn('creative_lead', 'lead-1', 'Check Lead');
     mock({ ...withRequest(), status: 'submitted' }, tl());
