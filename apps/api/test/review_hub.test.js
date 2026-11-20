@@ -22,7 +22,7 @@ import { buildAutofillContext, autofillRowPlan } from '../src/modules/calendar/a
 import { calculatePersonPerformance, calculateTeamPerformance } from '../src/modules/people/metrics.js';
 import { revisionNoteFor } from '../src/modules/workItems/reviewState.js';
 import { revisionsLabel } from '../src/modules/reviewHub/service.js';
-import { recommendAssignee, calculateMemberWorkloadMetrics } from '../src/modules/assignment/service.js';
+import { recommendAssignee } from '../src/modules/assignment/service.js';
 
 const EMAIL = /@review-hub-test\.com$/;
 const TAG = 'RHUBT';
@@ -238,8 +238,6 @@ describe('Review Hub', () => {
         await WorkItem.updateOne({ _id: done._id }, { $set: { revisions: 6 } });
       }
       expect(await WorkItem.countDocuments({ ownerId: P[first]._id, revisions: 6 })).toBe(3);
-      // The workload figures carry no revision average at all.
-      expect('avgRevisions' in (await calculateMemberWorkloadMetrics(P[first]._id))).toBe(false);
       const after = await recommendAssignee({ stageKey: 'Edit', estimatedEffortHrs: 4 }, P.admin);
       expect(String(after.recommendedPerson._id)).toBe(String(before.recommendedPerson._id));
       expect(after.rationale).toBe(before.rationale);

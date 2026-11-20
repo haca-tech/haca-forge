@@ -244,7 +244,6 @@ export const WorkDetailPage: React.FC = () => {
   const [editTitle, setEditTitle] = useState('');
   const [editWorkType, setEditWorkType] = useState<WorkType>('Static Post');
   const [editPriority, setEditPriority] = useState<Priority>('Normal');
-  const [editEffort, setEditEffort] = useState(4);
   const [editDeadline, setEditDeadline] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editDeliverableUrl, setEditDeliverableUrl] = useState('');
@@ -349,7 +348,6 @@ export const WorkDetailPage: React.FC = () => {
       setEditTitle(res.data.title);
       setEditWorkType(res.data.workType);
       setEditPriority(normalizePriority(res.data.priority));
-      setEditEffort(res.data.estimatedEffortHrs || 4);
       setEditDeadline(res.data.deadline ? res.data.deadline.slice(0, 10) : '');
       setEditDescription(res.data.description || res.data.brief?.description || '');
       setEditDeliverableUrl(res.data.deliverableUrl || '');
@@ -559,7 +557,6 @@ export const WorkDetailPage: React.FC = () => {
           workType: editWorkType,
           // Sent only when changed, so an older stored value (shown as Normal) is left as it is.
           ...(editPriority !== normalizePriority(item.priority) ? { priority: editPriority } : {}),
-          estimatedEffortHrs: Number(editEffort),
           deadline: editDeadline,
           description: editDescription,
           deliverableUrl: editDeliverableUrl,
@@ -1856,11 +1853,6 @@ export const WorkDetailPage: React.FC = () => {
             )}
 
             <div className="flex justify-between items-center text-xs">
-              <span className="text-ui-muted">Estimated Effort</span>
-              <span className="font-bold text-ui-ink">{item.estimatedEffortHrs || 4} Hours</span>
-            </div>
-
-            <div className="flex justify-between items-center text-xs">
               <span className="text-ui-muted">Revisions</span>
               <span className="font-bold text-ui-ink">{item.revisions || 0}</span>
             </div>
@@ -2264,7 +2256,7 @@ export const WorkDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <div>
                   <label htmlFor="wd-field-9" className="block text-[13px] font-medium text-ui-muted mb-1.5">Deadline *</label>
                   <input
@@ -2277,19 +2269,6 @@ export const WorkDetailPage: React.FC = () => {
                   />
                 </div>
 
-                <div>
-                  <label htmlFor="wd-field-10" className="block text-[13px] font-medium text-ui-muted mb-1.5">Estimated Effort (Hrs)</label>
-                  <input
-                    id="wd-field-10"
-                    type="number"
-                    min="0.5"
-                    max="100"
-                    step="0.5"
-                    value={editEffort}
-                    onChange={(e) => setEditEffort(Number(e.target.value))}
-                    className="ui-input w-full"
-                  />
-                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

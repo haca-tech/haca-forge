@@ -38,9 +38,7 @@ describe('Team Directory and Worker Profile Frontend Suite', () => {
               jobRole: 'Writer',
               department: { _id: 'dept-1', name: 'SEO & Content' },
               status: 'active',
-              weeklyCapacityHours: 40,
-              loadPct: 45,
-              capacityBand: 'Healthy',
+              workload: { inProgress: 2, dueThisWeek: 3, limit: 4, band: 'Busy', nextDue: '2026-11-05' },
               currentStep: {
                 workItemId: 'work-1',
                 title: 'Diwali Campaign Reel',
@@ -69,8 +67,10 @@ describe('Team Directory and Worker Profile Frontend Suite', () => {
 
       expect(await screen.findByText('Team Directory')).toBeInTheDocument();
       expect(await screen.findByText('Alex (Test Writer One)')).toBeInTheDocument();
-      expect(screen.getByText('45%')).toBeInTheDocument();
-      expect(screen.getByText('Healthy')).toBeInTheDocument();
+      // Workload in step counts with its band; no percentage.
+      expect(screen.getByTestId('dir-workload')).toHaveTextContent('2 in progress · 3 due this week');
+      expect(screen.getByTestId('dir-workload')).toHaveTextContent('Busy');
+      expect(screen.queryByText(/\d+%/)).not.toBeInTheDocument();
       expect(screen.getByText('Diwali Campaign Reel')).toBeInTheDocument();
       expect(screen.getByText('2 in prog')).toBeInTheDocument();
 
@@ -81,7 +81,8 @@ describe('Team Directory and Worker Profile Frontend Suite', () => {
       expect(sortText).toContain('Name');
       expect(sortText).toContain('Department');
       expect(sortText).toContain('Job Role');
-      expect(sortText).toContain('Load');
+      // Never sorted by load (workload is a planning tool, not a ranking).
+      expect(sortText).not.toContain('Load');
       expect(sortText).not.toContain('Rating');
       expect(sortText).not.toContain('Speed');
 

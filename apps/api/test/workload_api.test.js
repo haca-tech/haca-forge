@@ -145,11 +145,8 @@ describe('Simple workload API', () => {
       expect(busy.body.data.people.map((p) => p._id)).toEqual([String(P.edB._id)]);
       const writers = await as('creativeLead').get('/api/workload', { jobRole: 'Writer', q: TAG });
       expect(writers.body.data.people.map((p) => p._id)).toEqual([String(P.writer._id)]);
-      // The legacy department lists are by name too.
-      for (const d of res.body.data.departments) {
-        const n = d.members.map((m) => m.name);
-        expect(n).toEqual([...n].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' })));
-      }
+      // No hours or percentages in the response.
+      expect(JSON.stringify(res.body.data)).not.toMatch(/workloadPct|allocatedHours|capacityHours|avgWorkloadPct/);
     });
 
     it('the directory ignores a sort by load', async () => {

@@ -48,24 +48,18 @@ export function roleClass(role?: string | null): string {
   return role && (ROLE_KEYS as readonly string[]).includes(role) ? `role-${role.replace(/_/g, '-')}` : 'role-executive';
 }
 
-/** Workload capacity band -> shared class (`band-healthy` | `band-high` | `band-overloaded`).
- *  Combine with `band-chip`, `band-tint` or `band-bar`. Thresholds: <65 Healthy, 65-85 High, >85 Overloaded. */
+/** Workload band -> shared class (`band-healthy` | `band-high` | `band-overloaded`).
+ *  Combine with `band-chip`, `band-tint` or `band-bar`. Bands come from step counts:
+ *  Available (2 or fewer due this week), Busy (up to the person's limit), Over (above it). */
 export function bandClass(band?: string | null): string {
   switch (band) {
-    case 'Overloaded':
+    case 'Over':
       return 'band-overloaded';
-    case 'High':
+    case 'Busy':
       return 'band-high';
     default:
       return 'band-healthy';
   }
-}
-
-/** Same thresholds as the API's capacity bands; the real (unclamped) percentage is passed in. */
-export function bandForPct(pct: number): 'Healthy' | 'High' | 'Overloaded' {
-  if (pct > 85) return 'Overloaded';
-  if (pct >= 65) return 'High';
-  return 'Healthy';
 }
 
 /**

@@ -11,6 +11,7 @@ const calls: { url: string; method: string; body: any }[] = [];
 let gridResponse: GridData;
 let saveHandler: (body: any) => any;
 let autofillHandler: (body: any) => any = () => ({ stages: [] });
+let workloadPeople: any[] = [];
 
 vi.mock('../../../../lib/api', async () => {
   class ApiError extends Error {
@@ -29,6 +30,7 @@ vi.mock('../../../../lib/api', async () => {
       if (url.startsWith('/api/calendar-plans/grid?')) return { data: gridResponse };
       if (url === '/api/calendar-plans/grid/rows' || url === '/api/calendar-plans/grid/upload') return { data: saveHandler(body) };
       if (url.endsWith('/autofill')) return { data: autofillHandler(body) };
+      if (url === '/api/workload') return { data: { bands: { available: 0, busy: 0, over: 0 }, people: workloadPeople, jobRoles: [], canEditLimit: true } };
       return { data: {} };
     }),
   };
@@ -372,6 +374,24 @@ describe('Grid basics kept from PG-2', () => {
     await renderGrid({ plans: [p, { ...p, _id: 'plan2', code: 'PLAN-2031-11-002' }], plan: null, rows: [], selectionRequired: true });
     expect(screen.getByLabelText('Plan for this month')).toBeInTheDocument();
     expect(screen.queryByLabelText('Posting Date, row 1')).not.toBeInTheDocument();
+  });
+
+  it('owner options show load; an auto-picked owner shows its reason, and an over-limit pick a warning chip', async () => {
+    workloadPeople = [
+      { _id: 'p-editor', name: 'Ravi Editor', role: 'executive', jobRole: 'Video Editor', inProgress: 2, dueThisWeek: 5, limit: 4, band: 'Over', nextDue: null },
+      { _id: 'p-writer', name: 'Asha Writer', role: 'executive', jobRole: 'Writer', inProgress: 0, dueThisWeek: 1, limit: 4, band: 'Available', nextDue: null },
+    ];
+    await renderGrid({
+      rows: [{ ...reel, ownerSources: { ...reel.ownerSources, Edit: { owner: 'suggested', deadline: 'auto', reason: 'Fewest due this week (4), 2 in progress', warning: 'Over limit: Ravi has 5 due this week.' } } }, staticRow],
+    });
+    const select = screen.getByLabelText('Edit Owner, row 1, Founder reel');
+    await waitFor(() => expect(within(select).getByRole('option', { name: /Ravi Editor/ }).textContent).toBe('Ravi Editor — 🔴 5 due this week · over limit'));
+    // Over-limit people stay selectable.
+    expect(within(select).getByRole('option', { name: /Ravi Editor/ })).not.toBeDisabled();
+    const cell = select.closest('div')!;
+    expect(within(cell).getByTestId('auto-chip')).toHaveAttribute('title', 'Suggested by autofill: Fewest due this week (4), 2 in progress. Pick a person to fix it.');
+    expect(within(cell).getByTestId('over-limit-chip')).toHaveAttribute('title', 'Over limit: Ravi has 5 due this week.');
+    workloadPeople = [];
   });
 
   it('owner picked from the list is sent by id; "Auto-assign" clears it back to autofill', async () => {

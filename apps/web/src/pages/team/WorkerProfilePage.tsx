@@ -32,7 +32,8 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { apiFetch } from '../../lib/api';
-import { displayStatus, statusClass, statusTone, roleClass, bandClass } from '../../lib/statusTone';
+import { displayStatus, statusClass, statusTone, roleClass } from '../../lib/statusTone';
+import { BandChip, countsText, ownerOptionLabel, useTeamWorkload } from '../../lib/workload';
 import { useAuth } from '../../context/AuthContext';
 import { TimeLabelChips } from '../../components/TimeLabelChips';
 import { Avatar } from '../../components/Avatar';
@@ -51,6 +52,7 @@ export const WorkerProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const teamWorkload = useTeamWorkload(Boolean(user?.role) && !isWorker(user?.role));
 
   // If path is /profile, target person is current logged in user
   const isProfileRoute = location.pathname.startsWith('/profile');
@@ -147,7 +149,7 @@ export const WorkerProfilePage: React.FC = () => {
   const [editForm, setEditForm] = useState({
     jobRole: '',
     departmentId: '',
-    weeklyCapacityHours: 40,
+    activeStepLimit: 4,
     workPreferences: [] as string[],
     reason: '',
   });
@@ -168,7 +170,7 @@ export const WorkerProfilePage: React.FC = () => {
       setEditForm({
         jobRole: res.data.jobRole || '',
         departmentId: res.data.department?._id || '',
-        weeklyCapacityHours: res.data.weeklyCapacityHours || 40,
+        activeStepLimit: res.data.activeStepLimit || 4,
         workPreferences: res.data.workPreferences || [],
         reason: '',
       });
@@ -679,7 +681,7 @@ export const WorkerProfilePage: React.FC = () => {
                 </span>
                 <span>•</span>
                 <span className="font-semibold text-ui-text">
-                  Capacity: {profile.weeklyCapacityHours || 40}h / week
+                  Limit: {profile.activeStepLimit || 4} steps due a week
                 </span>
               </div>
             </div>
@@ -837,15 +839,13 @@ export const WorkerProfilePage: React.FC = () => {
         {/* Load & Band */}
         <div className="p-4 sm:p-5 bg-ui-card space-y-1">
           <span className="text-[13px] font-medium text-ui-muted block">
-            Weekly Load
+            Workload
           </span>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[24px] leading-8 font-semibold text-ui-ink tabular-nums">
-              {profile.kpis?.loadPct || 0}%
+          <div className="flex flex-wrap items-center gap-1.5" data-testid="profile-workload">
+            <span className="text-sm font-semibold text-ui-ink">
+              {profile.kpis?.workload ? countsText(profile.kpis.workload) : '—'}
             </span>
-            <span className={`band-chip ${bandClass(profile.kpis?.capacityBand)} text-[11px] font-semibold px-1.5 py-0.5`}>
-              {profile.kpis?.capacityBand || 'Healthy'}
-            </span>
+            <BandChip band={profile.kpis?.workload?.band} />
           </div>
         </div>
 
@@ -1083,7 +1083,7 @@ export const WorkerProfilePage: React.FC = () => {
             {/* 8-Week Load History Trend Chart */}
             <div className="glass-panel rounded-ui-panel p-5 space-y-4">
               <h3 className="text-xs font-black text-ui-muted">
-                8-Week Load History Trend
+                Steps due per week (last 8 weeks)
               </h3>
               <div className="h-56 w-full">
                 {overviewData?.loadTrend ? (
@@ -1091,10 +1091,10 @@ export const WorkerProfilePage: React.FC = () => {
                     <BarChart data={overviewData.loadTrend}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--ui-line)" />
                       <XAxis dataKey="weekLabel" tick={{ fontSize: 11, fill: 'var(--ui-muted)' }} axisLine={false} tickLine={false} />
-                      <YAxis unit="%" tick={{ fontSize: 11, fill: 'var(--ui-muted)' }} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--ui-muted)' }} axisLine={false} tickLine={false} />
                       <Tooltip cursor={{ fill: 'rgb(var(--ui-ink-rgb) / 0.04)' }} contentStyle={{ borderRadius: 16, border: '1px solid var(--ui-line)', fontSize: 12 }} />
-                      <Bar dataKey="loadPct" fill="var(--ui-blue)" radius={[6, 6, 0, 0]} name="Load %">
-                        <LabelList dataKey="loadPct" position="top" formatter={(v: any) => `${v}%`} style={{ fontSize: 11, fill: 'var(--ui-text)' }} />
+                      <Bar dataKey="stepsDue" fill="var(--ui-blue)" radius={[6, 6, 0, 0]} name="Steps due">
+                        <LabelList dataKey="stepsDue" position="top" style={{ fontSize: 11, fill: 'var(--ui-text)' }} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -1499,7 +1499,7 @@ export const WorkerProfilePage: React.FC = () => {
                 <option value="">Select team member...</option>
                 {allWorkers.map((w) => (
                   <option key={w._id} value={w._id}>
-                    {w.preferredName ? `${w.preferredName} (${w.name})` : w.name} ({w.jobRole || w.role})
+                    {ownerOptionLabel(w.preferredName ? `${w.preferredName} (${w.name})` : w.name, teamWorkload.get(String(w._id)))}
                   </option>
                 ))}
               </select>
@@ -1554,14 +1554,16 @@ export const WorkerProfilePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-[13px] font-medium text-ui-muted block">Weekly Capacity (hours)</label>
+                <label htmlFor="edit-step-limit" className="text-[13px] font-medium text-ui-muted block">Active-step limit (steps due in a week)</label>
                 <input
+                  id="edit-step-limit"
                   type="number"
-                  min="0"
-                  max="168"
-                  value={editForm.weeklyCapacityHours}
+                  min="1"
+                  max="20"
+                  step="1"
+                  value={editForm.activeStepLimit}
                   onChange={(e) =>
-                    setEditForm({ ...editForm, weeklyCapacityHours: parseInt(e.target.value, 10) || 40 })
+                    setEditForm({ ...editForm, activeStepLimit: parseInt(e.target.value, 10) || 4 })
                   }
                   className="ui-input w-full"
                 />

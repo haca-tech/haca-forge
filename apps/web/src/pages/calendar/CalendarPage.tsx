@@ -839,7 +839,7 @@ export const CalendarPage: React.FC = () => {
                                   </span>
 
                                   <span className="flex w-full items-center justify-between mt-3 pt-2 border-t border-ui-line text-[11px] text-ui-muted">
-                                    <span>{item.estimatedEffortHrs != null ? `${item.estimatedEffortHrs}h` : item.workType}</span>
+                                    <span>{item.workType}</span>
                                     <span className="font-medium text-ui-text">{item.ownerId?.name || 'Unassigned'}</span>
                                   </span>
                                 </button>
@@ -922,11 +922,9 @@ export const CalendarPage: React.FC = () => {
                     <span className="font-semibold text-ui-text">{selectedItem.ownerId?.name || 'Unassigned'}</span>
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-ui-muted block">Effort / priority</span>
+                    <span className="text-xs font-medium text-ui-muted block">Priority</span>
                     <span className="font-semibold text-ui-text">
-                      {[selectedItem.estimatedEffortHrs != null ? `${selectedItem.estimatedEffortHrs}h` : null, selectedItem.priority?.toUpperCase()]
-                        .filter(Boolean)
-                        .join(' • ') || '–'}
+                      {selectedItem.priority?.toUpperCase() || '–'}
                     </span>
                   </div>
                 </div>

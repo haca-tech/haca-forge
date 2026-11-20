@@ -441,7 +441,7 @@ export const AccessRequestsPage: React.FC = () => {
                         <CheckCircle2 className="w-3.5 h-3.5" /> Approved by {req.reviewedBy?.name || 'Admin'}
                       </div>
                       <div className="text-ui-text">
-                        Assigned: <strong className="text-ui-ink">{req.assignedRole?.replace('_', ' ')}</strong> ({req.assignedCapacity || 40}h/wk)
+                        Assigned: <strong className="text-ui-ink">{req.assignedRole?.replace('_', ' ')}</strong>
                       </div>
                     </div>
                   )}
@@ -596,8 +596,8 @@ export const AccessRequestsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Department & Capacity */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Department (workload is counted in steps; no capacity hours to set) */}
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
                         <label className="block text-xs font-semibold text-ui-text mb-1">
                           Department *
@@ -616,19 +616,6 @@ export const AccessRequestsPage: React.FC = () => {
                         </select>
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-semibold text-ui-text mb-1">
-                          Weekly Capacity (Hours)
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={80}
-                          value={assignedCapacity}
-                          onChange={(e) => setAssignedCapacity(Number(e.target.value))}
-                          className="ui-input w-full"
-                        />
-                      </div>
                     </div>
 
                   </>

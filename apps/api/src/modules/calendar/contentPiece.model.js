@@ -151,6 +151,13 @@ const contentPieceSchema = new mongoose.Schema(
           type: String,
           default: '',
         },
+        // Why autofill picked this owner, and its over-limit warning (suggested owners only).
+        ownerReason: {
+          type: String,
+        },
+        ownerWarning: {
+          type: String,
+        },
       },
     ],
     pipeline: {

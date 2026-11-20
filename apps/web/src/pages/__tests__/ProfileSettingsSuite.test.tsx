@@ -266,7 +266,8 @@ describe('Profile & Settings Frontend Suite', () => {
         rolePanelData: {
           memberMetrics: {
             myCurrentStepsCount: 3,
-            capacityBand: 'Balanced',
+            capacityBand: 'Busy',
+            workload: { inProgress: 2, dueThisWeek: 3, limit: 4, band: 'Busy', nextDue: null },
             onTimeRate: 98,
           },
         },
@@ -280,8 +281,11 @@ describe('Profile & Settings Frontend Suite', () => {
 
       expect(screen.getByText(/Active Deliverables in Flight/i)).toBeInTheDocument();
       expect(screen.getByText('3')).toBeInTheDocument();
-      expect(screen.getByText(/Current Workload Band/i)).toBeInTheDocument();
-      expect(screen.getByText('Balanced')).toBeInTheDocument();
+      // The real band from workloadFor (no hard-coded "Optimal" or "Balanced").
+      expect(screen.getByText(/Current Workload/i)).toBeInTheDocument();
+      expect(screen.getByTestId('my-workload')).toHaveTextContent('2 in progress · 3 due this week');
+      expect(screen.getByTestId('my-workload')).toHaveTextContent('Busy');
+      expect(screen.queryByText(/Optimal|Balanced/)).not.toBeInTheDocument();
       expect(screen.getByText('98%')).toBeInTheDocument();
     });
 

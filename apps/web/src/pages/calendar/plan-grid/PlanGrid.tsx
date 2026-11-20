@@ -28,6 +28,7 @@ import { PlanGridConfirmDialog } from './PlanGridConfirmDialog';
 import { PlanChangesDialog } from './PlanRowChangeRequest';
 import { PlanGridPasteDialog } from './PlanGridPasteDialog';
 import { useMediaQuery } from './useMediaQuery';
+import { ownerOptionLabel, useTeamWorkload } from '../../../lib/workload';
 import { OWNER_FIELD_BY_STAGE, PLANNING_COLUMNS, PROGRESS_COLUMNS, STAGE_LABEL, stageForColumn, type PlanCol, type PlanColGroup } from './columns';
 import { STATUS_STAGE, rowCanBeDeleted, type GridCellInput, type GridData, type GridLine, type GridRow, type GridRowResult, type GridSaveResponse } from './types';
 
@@ -180,6 +181,8 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
   const [calendar, setCalendar] = useState(initialCalendar && initialCalendar !== 'all' ? initialCalendar : 'sm');
   const [month, setMonth] = useState(initialMonth || nextMonthKey(monthKeyInAppTz(new Date())));
   const [planId, setPlanId] = useState<string | undefined>(initialPlanId);
+  // Owner options show each person's load (band dot, "N due this week"); over-limit is marked, still selectable.
+  const teamWorkload = useTeamWorkload();
   const [data, setData] = useState<GridData | null>(null);
   const [lines, setLines] = useState<GridLine[]>([newLine()]);
   const [loading, setLoading] = useState(true);
@@ -785,6 +788,8 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
       const savedId = line.saved?.ownerIds[stage] || '';
       const value = draftId !== undefined ? String(draftId) : savedId || '';
       const source = line.saved?.ownerSources[stage]?.owner;
+      const why = line.saved?.ownerSources[stage]?.reason || '';
+      const overLimit = line.saved?.ownerSources[stage]?.warning || '';
       // Same rule as the Add Row form: owners hold the step in their work preferences.
       const options = people.filter((p) => p.workPreferences.includes(stage) || p._id === value);
       const typedName = line.draft[field] !== undefined ? String(line.draft[field]) : '';
@@ -794,12 +799,17 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
             <select {...common} className={`ui-select h-11 w-full min-w-0${invalidCls}`} value={value} onChange={(e) => commit(line, e.target.value ? { [`${field}Id`]: e.target.value } : { [field]: '' })}>
               <option value="">{typedName ? `“${typedName}” (not matched)` : 'Auto-assign'}</option>
               {options.map((p) => (
-                <option key={p._id} value={p._id}>{p.name}</option>
+                <option key={p._id} value={p._id}>{ownerOptionLabel(p.name, teamWorkload.get(String(p._id)))}</option>
               ))}
             </select>
             {value && source === 'suggested' && draftId === undefined && (
-              <span className="status-chip status-not-started text-[11px] shrink-0" title="Suggested by autofill. Pick a person to fix it.">
+              <span className="status-chip status-not-started text-[11px] shrink-0" title={`Suggested by autofill${why ? `: ${why}` : ''}. Pick a person to fix it.`} data-testid="auto-chip">
                 Auto
+              </span>
+            )}
+            {value && source === 'suggested' && draftId === undefined && overLimit && (
+              <span className="band-chip band-overloaded text-[11px] font-semibold px-1.5 py-0.5 shrink-0" title={overLimit} data-testid="over-limit-chip">
+                Over limit
               </span>
             )}
           </div>

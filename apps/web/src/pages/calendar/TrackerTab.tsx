@@ -10,6 +10,7 @@ import { PersonWorkHistoryDrawer } from '../../components/PersonWorkHistoryDrawe
 import { TrackerFilterBar } from './tracker/TrackerFilterBar';
 import { EditLiveLinkDialog, canEditLiveLink } from '../../components/EditLiveLinkDialog';
 import { TrackerRow } from './tracker/TrackerRow';
+import { ownerOptionLabel, useTeamWorkload, type WorkloadFigures } from '../../lib/workload';
 import {
   apiParams,
   applyTrackerFilters,
@@ -30,10 +31,10 @@ interface AssignRecommendation {
   currentOwner?: { _id: string; name: string; email: string };
   recommendedPerson: { _id: string; name: string; email: string; jobRole?: string } | null;
   rationale: string;
+  overLimitWarning?: string | null;
   candidatePool: Array<{
     person: { _id: string; name: string; email: string; jobRole?: string };
-    workloadPct: number;
-    availableHours: number;
+    workload?: WorkloadFigures;
   }>;
 }
 
@@ -45,6 +46,8 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
   const { user } = useAuth();
   const isExecutive = isReadOnlyViewer(user?.role);
   const canAssign = user?.role === 'admin' || isApprover(user?.role) || user?.role === 'sm_manager';
+  // Owner options show each person's load (band dot, "N due this week"); only people who assign need it.
+  const teamWorkload = useTeamWorkload(canAssign);
   const canManageSteps = user?.role === 'admin' || user?.role === 'sm_manager';
   const showOwnerFilter = !isWorker(user?.role);
 
@@ -358,7 +361,7 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
                   Assign Stage Owners: {selectedPieceForAssign.topic}
                 </h3>
                 <p className="text-xs text-ui-muted mt-0.5">
-                  Algorithmic owner recommendations based on work preferences, current workload (&lt;85%), revisions, and bandwidth.
+                  Suggestions: eligible people first, then fewest steps due that week, then fewest in progress. Over-limit people are marked but can be picked.
                 </p>
               </div>
               <button
@@ -372,7 +375,7 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
             <div className="py-4 space-y-4 overflow-y-auto flex-1">
               {isLoadingRecs ? (
                 <div className="text-center py-8 text-xs text-ui-ink font-semibold">
-                  Calculating member bandwidth, work preferences, and lowest workload candidates...
+                  Finding eligible people and their steps due…
                 </div>
               ) : (
                 <>
@@ -433,11 +436,16 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
                                   </span>
                                 ) : (
                                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                                    Needs owner (overloaded / none)
+                                    Needs owner (nobody eligible)
                                   </span>
                                 )}
                               </div>
                               <p className="text-[11px] text-ui-muted mt-1 italic">{rec.rationale}</p>
+                              {rec.overLimitWarning && (
+                                <span className="inline-block mt-1 band-chip band-overloaded px-2 py-0.5 text-[11px] font-semibold" data-testid="over-limit-chip">
+                                  {rec.overLimitWarning}
+                                </span>
+                              )}
                             </div>
                           </div>
 
@@ -461,7 +469,7 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
                                 <option value="">— Needs Owner (Unassigned) —</option>
                                 {availableUsers.map((u: any) => (
                                   <option key={u._id} value={u._id}>
-                                    {u.name} {u.jobRole ? `— ${u.jobRole}` : u.role ? `(${u.role.replace('_', ' ')})` : ''}
+                                    {ownerOptionLabel(u.name, teamWorkload.get(String(u._id)))}
                                   </option>
                                 ))}
                               </select>

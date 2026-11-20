@@ -30,6 +30,7 @@ import {
   type StepLineState,
 } from '../planRowSteps';
 import { OWNER_FIELD_BY_STAGE, STAGE_LABEL } from './columns';
+import { ownerOptionLabel, useTeamWorkload } from '../../../lib/workload';
 import { ChangeRequestBanner, RowHistory, SuggestFields, cleanSuggestions } from './PlanRowChangeRequest';
 import { rowCanBeDeleted, type GridCellInput, type GridLine, type GridPerson } from './types';
 
@@ -120,6 +121,7 @@ export const PlanGridRowPanel: React.FC<Props> = ({
   onApplySuggestion,
   onClose,
 }) => {
+  const teamWorkload = useTeamWorkload();
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true, onClose);
   const row = line.saved;
@@ -424,7 +426,7 @@ export const PlanGridRowPanel: React.FC<Props> = ({
                     {field(ownerId, `${STAGE_LABEL[s.stageKey]} owner`, (
                       <select id={ownerId} className="ui-select h-11 w-full" value={s.ownerId || ''} disabled={!editable} onChange={(e) => changeOwner(s.stageKey, e.target.value)} aria-invalid={stepErr ? true : undefined} aria-describedby={stepErr ? stepErrId : undefined}>
                         <option value="">Auto-assign</option>
-                        {options.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+                        {options.map((p) => <option key={p._id} value={p._id}>{ownerOptionLabel(p.name, teamWorkload.get(String(p._id)))}</option>)}
                       </select>
                     ))}
                     {field(dueId, `${STAGE_LABEL[s.stageKey]} deadline`, (

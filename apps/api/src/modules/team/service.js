@@ -99,17 +99,6 @@ export async function getTeamDirectory(query = {}, actor) {
         .lean();
       await markAwaitingReview(openItems);
 
-      const capacity = person.weeklyCapacityHours || 40;
-      const allocatedHours = openItems.reduce(
-        (acc, it) => acc + (it.estimatedEffortHrs || 4),
-        0
-      );
-      const loadPct = capacity > 0 ? Math.round((allocatedHours / capacity) * 100) : 0;
-
-      let band = 'Healthy';
-      if (loadPct > 85) band = 'Overloaded';
-      else if (loadPct >= 65) band = 'High';
-
       const inProgress = openItems.filter((it) => it.status === 'In Progress').length;
       const waitingApproval = openItems.filter((it) => it.awaitingReview).length;
       // No late-step count per person here: the directory never compares people by lateness.
@@ -148,10 +137,6 @@ export async function getTeamDirectory(query = {}, actor) {
         jobRole: person.jobRole || '',
         department: person.departmentId || null,
         status: person.status,
-        weeklyCapacityHours: capacity,
-        // Deprecated (hours based), kept for one release while a screen still reads them.
-        loadPct,
-        capacityBand: band,
         workload: workloads.get(String(person._id)),
         currentStep,
         counts: {
@@ -169,7 +154,7 @@ export async function getTeamDirectory(query = {}, actor) {
     const want = String(loadBand).toLowerCase();
     filtered = ['available', 'busy', 'over'].includes(want)
       ? filtered.filter((p) => String(p.workload?.band || '').toLowerCase() === want)
-      : filtered.filter((p) => p.capacityBand.toLowerCase() === want);
+      : filtered;
   }
 
   // Whitelist sorting: name, department, jobRole. Never by load (workload is not a ranking).
@@ -227,7 +212,6 @@ export async function getPersonBaseProfile(targetPersonId, actor) {
   }
 
   const now = new Date();
-  const capacity = person.weeklyCapacityHours || 40;
 
   // Open steps
   const openItems = await WorkItem.find({
@@ -235,15 +219,6 @@ export async function getPersonBaseProfile(targetPersonId, actor) {
     status: { $nin: ['Approved', 'Published'] },
   }).lean();
   await markAwaitingReview(openItems);
-
-  const allocatedHours = openItems.reduce(
-    (acc, it) => acc + (it.estimatedEffortHrs || 4),
-    0
-  );
-  const loadPct = capacity > 0 ? Math.round((allocatedHours / capacity) * 100) : 0;
-  let capacityBand = 'Healthy';
-  if (loadPct > 85) capacityBand = 'Overloaded';
-  else if (loadPct >= 65) capacityBand = 'High';
 
   const inProgress = openItems.filter((it) => it.status === 'In Progress').length;
   const waitingApproval = openItems.filter((it) => it.awaitingReview).length;
@@ -288,7 +263,6 @@ export async function getPersonBaseProfile(targetPersonId, actor) {
     status: person.status,
     createdAt: person.createdAt,
     lastLoginAt: person.lastLoginAt || person.lastLogin || null,
-    weeklyCapacityHours: capacity,
     languages: person.languages || [],
     skills: person.skills || [],
     workPreferences: person.workPreferences || [],
@@ -298,9 +272,6 @@ export async function getPersonBaseProfile(targetPersonId, actor) {
     whatsappNumber: hideContact ? null : person.whatsappNumber || '',
     activeStepLimit: workload.limit,
     kpis: {
-      // Deprecated (hours based), kept for one release while a screen still reads them.
-      loadPct,
-      capacityBand,
       workload,
       inProgressCount: inProgress,
       waitingApprovalCount: waitingApproval,
@@ -333,7 +304,6 @@ export async function getPersonOverview(targetPersonId, actor, query = {}) {
     throw error;
   }
 
-  const capacity = person.weeklyCapacityHours || 40;
   const now = new Date();
 
   // Right Now: active items in progress, feedback, pending, blocked
@@ -381,9 +351,7 @@ export async function getPersonOverview(targetPersonId, actor, query = {}) {
     contentPieceId: item.contentPieceId?._id || item.contentPieceId,
   }));
 
-  // 8-Week Load Trend:
-  // For each of the last 8 calendar weeks, calculate:
-  // sum of default stage hours of steps assigned to the person and not yet submitted during that week / weekly capacity
+  // 8-week workload trend: for each of the last 8 calendar weeks, the steps due that week.
   const loadTrend = [];
   const startOfThisWeek = new Date(now);
   const day = startOfThisWeek.getDay();
@@ -401,23 +369,6 @@ export async function getPersonOverview(targetPersonId, actor, query = {}) {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
-
-    // Filter items assigned on or before weekEnd and not submitted before weekStart
-    const assignedDuringWeek = allAssigned.filter((it) => {
-      const assignedTime = it.assignedAt || it.createdAt;
-      if (new Date(assignedTime) > weekEnd) return false;
-      if (it.submittedAt && new Date(it.submittedAt) < weekStart) return false;
-      return true;
-    });
-
-    const allocatedHours = assignedDuringWeek.reduce(
-      (sum, it) => sum + (it.estimatedEffortHrs || 4),
-      0
-    );
-    const loadPct = capacity > 0 ? Math.round((allocatedHours / capacity) * 100) : 0;
-    let band = 'Healthy';
-    if (loadPct > 85) band = 'Overloaded';
-    else if (loadPct >= 65) band = 'High';
 
     const weekNumber = Math.ceil(
       ((weekStart - new Date(weekStart.getFullYear(), 0, 1)) / 86400000 + 1) / 7
@@ -439,10 +390,6 @@ export async function getPersonOverview(targetPersonId, actor, query = {}) {
       year: weekStart.getFullYear(),
       startDate: weekStart.toISOString(),
       endDate: weekEnd.toISOString(),
-      allocatedHours,
-      capacityHours: capacity,
-      loadPct,
-      band,
     });
   }
 

@@ -243,8 +243,9 @@ describe('Team Directory and Worker Profile API Suite', () => {
       expect(res.status).toBe(200);
       const writer = res.body.data.items.find((i) => i._id === worker1._id.toString());
       expect(writer).toBeDefined();
-      expect(writer.loadPct).toBeGreaterThan(0);
-      expect(writer.capacityBand).toBe('Healthy');
+      expect(writer.workload).toMatchObject({ limit: 4 });
+      expect(typeof writer.workload.dueThisWeek).toBe('number');
+      expect(writer.loadPct).toBeUndefined();
       expect(writer.counts.inProgress).toBe(1);
       expect(writer.counts.waitingApproval).toBe(1);
       // No late-step count per person in the directory (no people filter on it either);
@@ -315,10 +316,12 @@ describe('Team Directory and Worker Profile API Suite', () => {
       expect(res.body.data.rightNow.length).toBe(2);
       expect(res.body.data.loadTrend).toBeInstanceOf(Array);
       expect(res.body.data.loadTrend.length).toBe(8);
-      const currentWeek = res.body.data.loadTrend[7];
-      expect(currentWeek.allocatedHours).toBe(8); // workItem1 (4) + workItem2 (4)
-      expect(currentWeek.capacityHours).toBe(40);
-      expect(currentWeek.loadPct).toBe(20);
+      // Steps due per week (step counts), no hours or percentages.
+      for (const week of res.body.data.loadTrend) {
+        expect(Number.isInteger(week.stepsDue)).toBe(true);
+        expect(week.loadPct).toBeUndefined();
+        expect(week.allocatedHours).toBeUndefined();
+      }
     });
 
     it('GET /api/team/:id/work returns paginated steps with timeline timestamps', async () => {

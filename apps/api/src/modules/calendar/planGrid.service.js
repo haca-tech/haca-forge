@@ -189,7 +189,13 @@ export function toGridRow(piece, workItems = []) {
     const sp = planByStage.get(s);
     const auto = calculateStageDueDate(piece.postingDate, pipelineInfo.pipeline, s, pipelineInfo.hasPostStage);
     stepDeadlines[s] = ymdInAppTz(sp?.dueDate || auto);
-    ownerSources[s] = { owner: sp?.ownerSource || 'suggested', deadline: sp?.dueDateSource || 'auto' };
+    ownerSources[s] = {
+      owner: sp?.ownerSource || 'suggested',
+      deadline: sp?.dueDateSource || 'auto',
+      // Why autofill picked this owner, and any over-limit warning (only when there is one).
+      ...(sp?.ownerReason ? { reason: sp.ownerReason } : {}),
+      ...(sp?.ownerWarning ? { warning: sp.ownerWarning } : {}),
+    };
   }
 
   return {
@@ -533,14 +539,18 @@ function buildStagePlan(draft, existing, suggestion) {
     const old = prev.get(stageKey);
     let ownerId = null;
     let ownerSource = 'suggested';
+    let ownerReason;
+    let ownerWarning;
     if (cell && !cell.clear) {
       ownerId = cell.id;
       ownerSource = 'manual';
     } else if (!cell && old?.ownerSource === 'manual' && old.ownerId) {
       ownerId = String(old.ownerId._id || old.ownerId);
       ownerSource = 'manual';
-    } else {
-      ownerId = sugg.get(stageKey)?.ownerId || null;
+    } else if (sugg.has(stageKey)) {
+      ownerId = sugg.get(stageKey).ownerId || null;
+      ownerReason = sugg.get(stageKey).reason || undefined;
+      ownerWarning = sugg.get(stageKey).warning || undefined;
     }
 
     const dl = draft.deadlines[stageKey];
@@ -555,7 +565,7 @@ function buildStagePlan(draft, existing, suggestion) {
     } else {
       dueDate = calculateStageDueDate(postingDate, pipelineInfo.pipeline, stageKey, pipelineInfo.hasPostStage);
     }
-    return { stageKey, ownerId, dueDate, ownerSource, dueDateSource, overrideReason: old?.overrideReason || '' };
+    return { stageKey, ownerId, dueDate, ownerSource, dueDateSource, overrideReason: old?.overrideReason || '', ownerReason, ownerWarning };
   });
 }
 

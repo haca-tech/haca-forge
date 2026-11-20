@@ -13,7 +13,8 @@ import { apiFetch } from '../../lib/api';
 import { OverdueChip } from '../../components/OverdueChip';
 import { useAuth } from '../../context/AuthContext';
 import { InviteUserDialog } from './InviteUserDialog';
-import { roleClass, bandClass } from '../../lib/statusTone';
+import { roleClass } from '../../lib/statusTone';
+import { BandChip, countsText, type WorkloadFigures } from '../../lib/workload';
 import { Avatar } from '../../components/Avatar';
 import { ROLE_LABELS, ROLE_KEYS } from '@mmp/shared';
 
@@ -26,9 +27,8 @@ interface DirectoryMember {
   jobRole?: string;
   department?: { _id: string; name: string } | null;
   status: string;
-  weeklyCapacityHours: number;
-  loadPct: number;
-  capacityBand: 'Healthy' | 'High' | 'Overloaded';
+  /** Workload (step counts). */
+  workload?: WorkloadFigures;
   currentStep?: {
     workItemId: string;
     title: string;
@@ -61,7 +61,7 @@ export const TeamDirectoryPage: React.FC = () => {
   const [bandFilter, setBandFilter] = useState('all');
 
   // Whitelist Sorting ONLY: name, department, jobRole, load
-  const [sortBy, setSortBy] = useState<'name' | 'department' | 'jobRole' | 'load'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'department' | 'jobRole'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const fetchDirectory = async () => {
@@ -114,8 +114,6 @@ export const TeamDirectoryPage: React.FC = () => {
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [members]);
 
-  // Capacity colours come from the shared .band-* classes; the band label is always shown.
-  const getBandBadgeClass = (band: string) => `band-tint ${bandClass(band)} border-transparent`;
 
   return (
     <div className="max-w-7xl mx-auto pb-16 space-y-6">
@@ -131,7 +129,7 @@ export const TeamDirectoryPage: React.FC = () => {
             </span>
           </div>
           <p className="text-[15px] text-ui-muted mt-1.5 max-w-[70ch]">
-            View and manage team members, assignments, capacity, and individual performance profiles
+            View and manage team members, assignments, workload, and individual profiles
           </p>
           {/* Always mounted so screen readers announce the message when it appears; no height when empty. */}
           <div role="status" aria-live="polite">
@@ -235,15 +233,15 @@ export const TeamDirectoryPage: React.FC = () => {
           {/* Load Band Filter */}
           <div>
             <select
-              aria-label="Load band"
+              aria-label="Workload band"
               value={bandFilter}
               onChange={(e) => setBandFilter(e.target.value)}
               className="ui-select w-full"
             >
-              <option value="all">All Load Bands</option>
-              <option value="Healthy">Healthy (&lt; 65%)</option>
-              <option value="High">High (65% – 85%)</option>
-              <option value="Overloaded">Overloaded (&gt; 85%)</option>
+              <option value="all">All bands</option>
+              <option value="Available">Available</option>
+              <option value="Busy">Busy</option>
+              <option value="Over">Over</option>
             </select>
           </div>
         </div>
@@ -308,8 +306,6 @@ export const TeamDirectoryPage: React.FC = () => {
               <option value="name_desc">Name (Z – A)</option>
               <option value="department_asc">Department</option>
               <option value="jobRole_asc">Job Role</option>
-              <option value="load_desc">Load (Highest first)</option>
-              <option value="load_asc">Load (Lowest first)</option>
             </select>
           </div>
         </div>
@@ -403,28 +399,10 @@ export const TeamDirectoryPage: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Load & Capacity Band Indicator */}
-                <div className="space-y-1.5 pt-2 border-t border-ui-line">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-ui-muted font-semibold">Weekly Load:</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-ui-ink tabular-nums">{member.loadPct}%</span>
-                      <span
-                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${getBandBadgeClass(
-                          member.capacityBand
-                        )}`}
-                      >
-                        {member.capacityBand}
-                      </span>
-                    </div>
-                  </div>
-                  {/* Visual progress bar */}
-                  <div className="w-full h-1.5 rounded-full bg-ui-line overflow-hidden">
-                    <div
-                      className={`h-full rounded-full band-bar ${bandClass(member.capacityBand)}`}
-                      style={{ width: `${Math.min(100, member.loadPct)}%` }}
-                    />
-                  </div>
+                {/* Workload (step counts) */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-ui-line text-xs" data-testid="dir-workload">
+                  <span className="text-ui-ink">{member.workload ? countsText(member.workload) : '—'}</span>
+                  <BandChip band={member.workload?.band} />
                 </div>
 
                 {/* 'Now' Active Step Indicator */}

@@ -43,7 +43,7 @@ export interface GridRow {
   reviewFeedback: string;
   changeRequest?: RowChangeRequest | null;
   stepDeadlines: Partial<Record<StageKey, string>>;
-  ownerSources: Partial<Record<StageKey, { owner: 'manual' | 'suggested'; deadline: 'manual' | 'auto' }>>;
+  ownerSources: Partial<Record<StageKey, { owner: 'manual' | 'suggested'; deadline: 'manual' | 'auto'; reason?: string | null; warning?: string | null }>>;
   ownerIds: Partial<Record<StageKey, string | null>>;
   contentOwner: string;
   designOwner: string;

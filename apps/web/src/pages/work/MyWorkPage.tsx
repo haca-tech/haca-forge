@@ -634,11 +634,6 @@ export const MyWorkPage: React.FC = () => {
               Due: {new Date(item.dueDate || item.deadline).toLocaleDateString()}
             </span>
             <TimeLabelChips labels={item.timeLabels} className="ml-1" />
-            {item.estimatedEffortHrs && (
-              <span className="text-[10px] text-ui-muted ml-1">
-                ({item.estimatedEffortHrs}h effort)
-              </span>
-            )}
           </div>
 
           {/* Action Triggers */}

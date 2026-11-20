@@ -270,7 +270,7 @@ describe('PG-1 plan grid', () => {
       const r = created.body.data.results[0];
       expect(r.status).toBe('saved');
       expect(r.row.ownerSources.Edit).toEqual({ owner: 'manual', deadline: 'manual' });
-      expect(r.row.ownerSources.Script).toEqual({ owner: 'suggested', deadline: 'auto' });
+      expect(r.row.ownerSources.Script).toMatchObject({ owner: 'suggested', deadline: 'auto', reason: expect.stringMatching(/^Fewest due /) });
       expect(r.row.stepDeadlines).toMatchObject({ Script: '2031-12-12', Shoot: '2031-12-15', Edit: '2031-12-17', Post: '2031-12-20' });
       expect(r.row.scriptOwner).not.toBe(''); // a Script-preference person exists, so autofill picks one
 

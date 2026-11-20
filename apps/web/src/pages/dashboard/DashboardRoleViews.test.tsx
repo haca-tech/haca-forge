@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { TeamDashboardPage } from './TeamDashboardPage';
 import * as apiModule from '../../lib/api';
@@ -113,6 +113,7 @@ const mockDashboardData = {
   },
   workload: {
     totalMembers: 4,
+    bands: { available: 1, busy: 1, over: 2 },
     avgWorkloadPct: 92,
     bandCounts: { healthy: 1, high: 1, overloaded: 2 },
     members: [
@@ -288,7 +289,7 @@ describe('TeamDashboardPage Role Views & Scope Reset R4 Specifications', () => {
     expect(screen.getByText(/Recent Activity Feed/i)).toBeInTheDocument();
   });
 
-  it('Team Workload displays real percentage uncapped (125%) with band classifications', async () => {
+  it('Team Workload shows the band summary chips (step counts), linking to the Workload page, with no hours or %', async () => {
     mockUser = { _id: 'u-head', name: 'Creative Head User', role: 'creative_lead' };
     render(
       <MemoryRouter>
@@ -296,14 +297,15 @@ describe('TeamDashboardPage Role Views & Scope Reset R4 Specifications', () => {
       </MemoryRouter>
     );
 
-    await waitFor(
-      () => {
-        expect(screen.getByText(/Overloaded Editor/i)).toBeInTheDocument();
-        expect(screen.getByText(/125% Workload/i)).toBeInTheDocument(); // Real uncapped value
-        expect(screen.getByText(/^Overloaded$/i)).toBeInTheDocument();
-      },
-      { timeout: 4000 }
-    );
+    const widget = await screen.findByTestId('dashboard-workload', {}, { timeout: 4000 });
+    expect(within(widget).getByRole('button', { name: 'Available: 1 people' })).toBeInTheDocument();
+    expect(within(widget).getByRole('button', { name: 'Busy: 1 people' })).toBeInTheDocument();
+    expect(within(widget).getByRole('button', { name: 'Over: 2 people' })).toBeInTheDocument();
+    fireEvent.click(within(widget).getByRole('button', { name: 'Over: 2 people' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/workload?band=Over');
+    // No per-person percentages or hours.
+    expect(widget.textContent || '').not.toMatch(/%|\d+h|hours/i);
+    expect(within(widget).queryByText(/Overloaded Editor/)).not.toBeInTheDocument();
   });
 
   it('strictly verifies zero Target, Funnel, or Campaign sections exist in DOM', async () => {

@@ -504,13 +504,14 @@ describe('SCOPE RESET R4: Dashboard, Reports, Automation, Journey & Route-Table 
         .set('Authorization', `Bearer ${headToken}`);
 
       expect(res.status).toBe(200);
-      const members = res.body.data.members || res.body.data.team || res.body.data;
-      const workerWorkload = members.find((m) => (m.person?._id || m._id).toString() === memberUser._id.toString());
+      const workerWorkload = res.body.data.people.find((m) => m._id.toString() === memberUser._id.toString());
       expect(workerWorkload).toBeDefined();
 
-      // Real percentage exceeds 100%
-      expect(workerWorkload.workloadPct).toBeGreaterThanOrEqual(100);
-      expect(workerWorkload.capacityBand || workerWorkload.band).toBe('Overloaded'); // > 85% is Overloaded
+      // Step counts, not hours: the 50-hour step is one step in progress, due this week.
+      expect(workerWorkload.inProgress).toBeGreaterThanOrEqual(1);
+      expect(workerWorkload.dueThisWeek).toBeGreaterThanOrEqual(1);
+      expect(['Available', 'Busy', 'Over']).toContain(workerWorkload.band);
+      expect(workerWorkload.workloadPct).toBeUndefined();
     });
   });
 

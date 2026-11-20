@@ -29,6 +29,7 @@ import { AvatarCropModal } from './AvatarCropModal';
 import { RatingsFeedbackSection } from './RatingsFeedbackSection';
 import { apiFetch } from '../lib/api';
 import { roleClass } from '../lib/statusTone';
+import { BandChip, countsText, type WorkloadFigures } from '../lib/workload';
 import {
   WORK_PREFERENCES,
   ROLE_LABELS,
@@ -57,6 +58,7 @@ export interface ProfileData {
   about?: string;
   skills?: string[];
   weeklyCapacityHours?: number;
+  activeStepLimit?: number;
   workPreferences?: string[];
   createdAt?: string;
   lastLoginAt?: string | null;
@@ -175,7 +177,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           if (isMounted) {
             setRoleMetrics({
               activeSteps: myWorkRes.status === 'fulfilled' ? myWorkRes.value.data?.length || 0 : 0,
-              utilizationBand: workloadRes.status === 'fulfilled' ? 'Optimal' : 'Standard',
+              // The worker's own row (the API returns only theirs): real band from workloadFor.
+              workload: workloadRes.status === 'fulfilled' ? workloadRes.value.data?.people?.[0] || null : null,
             });
           }
         } else if (isReadOnlyViewer(profile.role)) {
@@ -222,7 +225,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   const memberMetrics = profile.rolePanelData?.memberMetrics || profile.rolePanelData;
   const memberSteps = memberMetrics?.myCurrentStepsCount ?? memberMetrics?.activeSteps ?? roleMetrics?.activeSteps ?? 0;
-  const memberBand = memberMetrics?.capacityBand ?? roleMetrics?.utilizationBand ?? 'Balanced';
+  const memberWorkload: WorkloadFigures | null = memberMetrics?.workload ?? roleMetrics?.workload ?? null;
   const memberOnTimeRate = memberMetrics?.onTimeRate ?? 95;
 
   // Form Field Change Handlers
@@ -874,9 +877,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
             <div className="p-3.5 rounded-2xl bg-white/60 border border-slate-100 space-y-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                <Clock className="w-3 h-3" /> Weekly Capacity
+                <Clock className="w-3 h-3" /> Active-step limit
               </span>
-              <p className="font-bold text-purple-700">{profile.weeklyCapacityHours || 40} hours / week</p>
+              <p className="font-bold text-purple-700">{profile.activeStepLimit || 4} steps due a week</p>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-white/60 border border-slate-100 space-y-1">
@@ -927,7 +930,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 className="w-full py-2.5 px-4 rounded-2xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/70 text-indigo-700 text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px]"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Request a change in role, department, or capacity</span>
+                <span>Request a change in role, department, or step limit</span>
               </button>
             </div>
           )}
@@ -1120,11 +1123,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
                 <div className="p-4 rounded-2xl bg-white/70 border border-slate-200 shadow-xs">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Current Workload Band
+                    Current Workload
                   </span>
-                  <p className="text-lg font-black text-emerald-700 mt-1 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    {memberBand}
+                  <p className="text-sm font-semibold text-ui-ink mt-1 flex flex-wrap items-center gap-1.5" data-testid="my-workload">
+                    {memberWorkload ? (
+                      <>
+                        <span>{countsText(memberWorkload)}</span>
+                        <BandChip band={memberWorkload.band} />
+                      </>
+                    ) : (
+                      <span className="text-ui-muted">—</span>
+                    )}
                   </p>
                 </div>
 
@@ -1197,7 +1206,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             ) : (
               <form onSubmit={handleSubmitChangeRequest} className="space-y-4">
                 <p className="text-xs text-slate-600">
-                  Submit a request to update your assigned job role, department, weekly capacity hours, or pipeline stage preferences.
+                  Submit a request to update your assigned job role, department, active-step limit, or pipeline stage preferences.
                 </p>
                 <textarea
                   required

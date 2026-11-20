@@ -544,10 +544,10 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
       expect(candidateIds).not.toContain(adminUser._id.toString());
     });
 
-    it('excludes executive from getTeamWorkload report', async () => {
-      const workload = await assignmentService.getTeamWorkload({}, adminUser);
-      const allMembers = workload.departments.flatMap((d) => d.members);
-      const memberIds = allMembers.map((m) => m.person._id.toString());
+    it('excludes executive from the team workload', async () => {
+      const { listWorkload } = await import('../src/modules/workload/service.js');
+      const workload = await listWorkload(adminUser);
+      const memberIds = workload.people.map((m) => m._id.toString());
       expect(memberIds).not.toContain(execUser._id.toString());
       expect(memberIds).not.toContain(execRestrictedUser._id.toString());
       expect(memberIds).not.toContain(adminUser._id.toString());

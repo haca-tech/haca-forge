@@ -8,7 +8,8 @@ import { Profile } from '../src/modules/referenceData/profile.model.js';
 import { WorkItem } from '../src/modules/workItems/model.js';
 import { AssignmentOverride } from '../src/modules/assignment/model.js';
 import { ActivityEvent } from '../src/modules/activity/model.js';
-import { recommendAssignee, calculateMemberWorkloadMetrics } from '../src/modules/assignment/service.js';
+import { recommendAssignee } from '../src/modules/assignment/service.js';
+import { workloadOfPerson } from '../src/modules/workload/service.js';
 import jwt from 'jsonwebtoken';
 import { env } from '../src/config/env.js';
 
@@ -187,27 +188,18 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
   // ==========================================
   // Part A: Workload Metric Calculation & Capacity Bands
   // ==========================================
-  describe('Workload Metric Calculation', () => {
-    it('calculates correct workload percentage and Healthy band (<65%) for Alice', async () => {
-      const metrics = await calculateMemberWorkloadMetrics(memberDesignA._id);
-      expect(metrics.allocatedHours).toBe(10);
-      expect(metrics.capacity).toBe(40);
-      expect(metrics.workloadPct).toBe(25);
-      expect(metrics.capacityBand).toBe('Healthy');
-      expect(metrics.availableHours).toBe(30);
+  describe('Workload (step counts)', () => {
+    it('Alice: one step in progress, due (overdue counts), Available', async () => {
+      const w = await workloadOfPerson(memberDesignA);
+      expect(w).toMatchObject({ inProgress: 1, dueThisWeek: 1, limit: 4, band: 'Available' });
+      expect(Object.keys(w)).not.toEqual(expect.arrayContaining(['workloadPct', 'allocatedHours', 'availableHours']));
     });
 
-    it('calculates correct workload percentage and Overloaded band (>85%) for Bob', async () => {
-      const metrics = await calculateMemberWorkloadMetrics(memberDesignB._id);
-      expect(metrics.allocatedHours).toBe(36);
-      expect(metrics.capacity).toBe(40);
-      expect(metrics.workloadPct).toBe(90);
-      expect(metrics.capacityBand).toBe('Overloaded');
-      expect(metrics.availableHours).toBe(4);
+    it('Bob: two steps in progress and due', async () => {
+      expect(await workloadOfPerson(memberDesignB)).toMatchObject({ inProgress: 2, dueThisWeek: 2, band: 'Available' });
     });
 
     it('excludes Approved and Published items from active workload', async () => {
-      // Create completed item
       await WorkItem.create({
         profileId: profileHaca._id,
         title: 'Alice Completed Task',
@@ -220,10 +212,7 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
         priority: 'Medium',
         createdBy: leadUser._id,
       });
-
-      const metrics = await calculateMemberWorkloadMetrics(memberDesignA._id);
-      expect(metrics.allocatedHours).toBe(10); // Still 10, approved not counted!
-      expect(metrics.workloadPct).toBe(25);
+      expect(await workloadOfPerson(memberDesignA)).toMatchObject({ inProgress: 1, dueThisWeek: 1 });
     });
   });
 
@@ -387,35 +376,31 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
   // Part D: Team Workload Aggregation Endpoint
   // ==========================================
   describe('GET /api/workload (Team Workload Monitor)', () => {
-    it('returns structured department groupings with capacity metrics and bands', async () => {
+    it('returns people with step counts and bands, sorted by name, and the band summary', async () => {
       const res = await request(app)
         .get('/api/workload')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.summary).toBeDefined();
-      expect(res.body.data.summary.totalMembers).toBeGreaterThan(0);
-      expect(res.body.data.summary.overallAvgWorkload).toBeDefined();
-
-      const depts = res.body.data.departments;
-      expect(Array.isArray(depts)).toBe(true);
-
-      const designDept = depts.find((d) => d._id.toString() === deptDesign._id.toString());
-      expect(designDept).toBeDefined();
-      expect(designDept.totalMembers).toBeGreaterThanOrEqual(2);
-      expect(designDept.bandCounts.overloaded).toBeGreaterThanOrEqual(1); // Bob is overloaded
+      const { bands, people } = res.body.data;
+      expect(bands.available + bands.busy + bands.over).toBe(people.length);
+      const bob = people.find((p) => p._id === memberDesignB._id.toString());
+      expect(bob.inProgress).toBe(2);
+      expect(bob.dueThisWeek).toBeGreaterThanOrEqual(2);
+      expect(['Available', 'Busy', 'Over']).toContain(bob.band);
+      const names = people.map((p) => p.name);
+      expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' })));
+      expect(JSON.stringify(res.body.data)).not.toMatch(/workloadPct|allocatedHours|capacityHours|overallAvgWorkload/);
     });
 
-    it('filters team workload by departmentId query param', async () => {
+    it('filters by job role and search', async () => {
       const res = await request(app)
-        .get(`/api/workload?departmentId=${deptVideo._id.toString()}`)
+        .get('/api/workload?q=Bob')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.status).toBe(200);
-      const depts = res.body.data.departments;
-      expect(depts.length).toBe(1);
-      expect(depts[0]._id.toString()).toBe(deptVideo._id.toString());
+      expect(res.body.data.people.every((p) => /bob/i.test(p.name))).toBe(true);
     });
 
     it('allows Team Lead to view their team workload', async () => {
@@ -424,7 +409,9 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
         .set('Authorization', `Bearer ${leadToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.departments).toBeDefined();
+      expect(Array.isArray(res.body.data.people)).toBe(true);
+      // This "lead" is an SM Manager: sees the workload, cannot change limits.
+      expect(res.body.data.canEditLimit).toBe(false);
     });
   });
 

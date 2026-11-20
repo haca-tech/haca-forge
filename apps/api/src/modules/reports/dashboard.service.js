@@ -7,7 +7,6 @@ import { RevisionFlag } from '../feedback/model.js';
 import { ActivityEvent } from '../activity/model.js';
 import { CalendarPlan } from '../calendar/plan.model.js';
 import { ContentPiece } from '../calendar/contentPiece.model.js';
-import { calculateMemberWorkloadMetrics } from '../assignment/service.js';
 import { workloadByPerson, bandCounts as workloadBandCounts } from '../workload/service.js';
 import { resolveScope } from '../../lib/scope.js';
 import { derivePlanStatus, WORKER_ROLE, isWorker } from '@mmp/shared';
@@ -255,64 +254,15 @@ export async function getDashboardOverview(filters = {}, user) {
   }
 
   const activePeople = await Person.find(personQuery)
-    .select('_id name email role jobRole departmentId weeklyCapacityHours activeStepLimit')
+    .select('_id name email role jobRole departmentId activeStepLimit')
     .populate('departmentId', 'name code')
     .lean();
 
-  let healthyCount = 0;
-  let highCount = 0;
-  let overloadedCount = 0;
-  let sumWorkloadPct = 0;
-  const membersSnapshot = [];
-
-  for (const person of activePeople) {
-    try {
-      const metrics = await calculateMemberWorkloadMetrics(person._id);
-      sumWorkloadPct += metrics.workloadPct;
-
-      const memberInfo = {
-        personId: person._id,
-        name: person.name,
-        role: person.role,
-        jobRole: person.jobRole,
-        departmentName: person.departmentId?.name || 'General',
-        workloadPct: metrics.workloadPct, // Real un-capped percentage
-        allocatedHours: metrics.allocatedHours,
-        capacity: metrics.capacity,
-        capacityBand: metrics.capacityBand,
-      };
-
-      membersSnapshot.push(memberInfo);
-
-      if (metrics.capacityBand === 'Overloaded') {
-        overloadedCount++;
-      } else if (metrics.capacityBand === 'High') {
-        highCount++;
-      } else {
-        healthyCount++;
-      }
-    } catch (_err) {
-      healthyCount++;
-    }
-  }
-
-  const avgWorkloadPct =
-    activePeople.length > 0 ? Math.round(sumWorkloadPct / activePeople.length) : 0;
-
-  // Workload (step counts): band summary for the dashboard chips.
+  // Workload (step counts): band summary for the dashboard chips. No hours or percentages.
   const workloads = await workloadByPerson(activePeople);
   const workloadSnapshot = {
     totalMembers: activePeople.length,
     bands: workloadBandCounts([...workloads.values()]),
-    // Deprecated (hours based), kept for one release while a screen still reads them.
-    avgWorkloadPct,
-    bandCounts: {
-      healthy: healthyCount,
-      high: highCount,
-      overloaded: overloadedCount,
-    },
-    members: membersSnapshot,
-    overloadedMembers: membersSnapshot.filter((m) => m.capacityBand === 'Overloaded'),
   };
 
   // ----------------------------------------------------

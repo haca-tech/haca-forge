@@ -25,18 +25,6 @@ export async function recordOverride(req, res, next) {
   }
 }
 
-export async function getTeamWorkload(req, res, next) {
-  try {
-    const workload = await assignmentService.getTeamWorkload(req.query, req.user);
-    res.json({
-      success: true,
-      data: workload,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
 export async function listOverrides(req, res, next) {
   try {
     const overrides = await assignmentService.listAssignmentOverrides(req.query, req.user);

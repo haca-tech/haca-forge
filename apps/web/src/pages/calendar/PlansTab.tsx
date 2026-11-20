@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { planGridHref } from './PlanGridPage';
 import { apiFetch } from '../../lib/api';
+import { ownerOptionLabel, useTeamWorkload } from '../../lib/workload';
 import { useAuth } from '../../context/AuthContext';
 import { statusClass, type StatusTone } from '../../lib/statusTone';
 import {
@@ -178,6 +179,8 @@ export const PlansTab: React.FC<PlansTabProps> = ({
   const isCreativeHead = isApprover(user?.role);
   const isSMManager = user?.role === 'sm_manager' || user?.role === 'admin';
   const isAdmin = user?.role === 'admin';
+  // Owner options show each person's load (band dot, "N due this week").
+  const teamWorkload = useTeamWorkload(isSMManager || isCreativeHead);
 
   // Plans List State
   const [plans, setPlans] = useState<CalendarPlan[]>([]);
@@ -2296,7 +2299,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
                               </option>
                               {qualifyingMembers.map((m) => (
                                 <option key={m._id} value={m._id}>
-                                  {m.name} ({m.email})
+                                  {ownerOptionLabel(m.name, teamWorkload.get(String(m._id)))}
                                 </option>
                               ))}
                             </select>

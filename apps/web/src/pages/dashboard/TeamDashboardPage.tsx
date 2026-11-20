@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
 import { overdueLabel } from '../../components/OverdueChip';
-import { displayStatus, statusClass, statusTone, roleClass, bandClass, bandForPct, type StatusTone } from '../../lib/statusTone';
+import { displayStatus, statusClass, statusTone, roleClass, type StatusTone } from '../../lib/statusTone';
 import { useAuth } from '../../context/AuthContext';
 import { useGlobalFilter } from '../../context/GlobalFilterContext';
 import { GlobalFilterBar } from '../../components/GlobalFilterBar';
@@ -91,34 +91,8 @@ interface DashboardData {
   };
   workload: {
     totalMembers: number;
-    avgWorkloadPct: number;
-    bandCounts: {
-      healthy: number;
-      high: number;
-      overloaded: number;
-    };
-    members: {
-      personId: string;
-      name: string;
-      role: string;
-      jobRole?: string;
-      departmentName: string;
-      workloadPct: number;
-      allocatedHours: number;
-      capacity: number;
-      capacityBand: string;
-    }[];
-    overloadedMembers: {
-      personId: string;
-      name: string;
-      role: string;
-      jobRole?: string;
-      departmentName: string;
-      workloadPct: number;
-      allocatedHours: number;
-      capacity: number;
-      capacityBand: string;
-    }[];
+    /** Workload bands from step counts. */
+    bands?: { available: number; busy: number; over: number };
   };
   issues: {
     activeBlockersCount: number;
@@ -627,89 +601,39 @@ export const TeamDashboardPage: React.FC = () => {
             </section>
           </div>
 
-          {/* Team workload (real % text, capped bar, bands: <65, 65-85, >85) */}
-          <section className="glass-panel rounded-ui-panel p-5 sm:p-6 space-y-4">
+          {/* Team workload: band summary from step counts; each chip opens the Workload page filtered. */}
+          <section className="glass-panel rounded-ui-panel p-5 sm:p-6 space-y-4" data-testid="dashboard-workload">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
                 <Users className="w-4 h-4 text-ui-ink shrink-0" />
                 <div>
                   <h2 className={sectionTitle}>Team workload</h2>
-                  <span className="text-xs text-ui-muted">
-                    Real utilization percentage &bull; Capacity Bands: &lt;65%, 65-85%, &gt;85%
-                  </span>
+                  <span className="text-xs text-ui-muted">Steps due this week against each person's limit</span>
                 </div>
               </div>
               <button onClick={() => navigate('/workload')} className={`${textLink} shrink-0`}>
-                <span>Capacity Console</span>
+                <span>Open Workload</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
-
-            <div className="space-y-4">
-              {/* Capacity band summary */}
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-3 rounded-2xl band-tint band-healthy">
-                  <span className="text-xs font-medium block">Healthy (&lt;65%)</span>
-                  <strong className="text-2xl font-semibold tabular-nums">
-                    {data.workload.bandCounts.healthy}
-                  </strong>
-                  <span className="text-[11px] block mt-0.5">members</span>
-                </div>
-                <div className="p-3 rounded-2xl band-tint band-high">
-                  <span className="text-xs font-medium block">High (65-85%)</span>
-                  <strong className="text-2xl font-semibold tabular-nums">
-                    {data.workload.bandCounts.high}
-                  </strong>
-                  <span className="text-[11px] block mt-0.5">members</span>
-                </div>
-                <div className="p-3 rounded-2xl band-tint band-overloaded">
-                  <span className="text-xs font-medium block">Overload (&gt;85%)</span>
-                  <strong className="text-2xl font-semibold tabular-nums">
-                    {data.workload.bandCounts.overloaded}
-                  </strong>
-                  <span className="text-[11px] block mt-0.5">members</span>
-                </div>
-              </div>
-
-              {/* Members capacity list with real % and capped bar */}
-              <div className="space-y-2">
-                <span className={`${fieldLabel} block`}>Member utilization snapshot:</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {(data.workload.members || []).slice(0, 6).map((m) => {
-                    // Shared capacity band classes; the band name is printed in the badge.
-                    const band = bandClass(bandForPct(m.workloadPct));
-                    const barColor = `band-bar ${band}`;
-                    const badgeBg = `band-tint ${band}`;
-
-                    return (
-                      <div
-                        key={m.personId}
-                        onClick={() => navigate('/workload')}
-                        className="glass-card cursor-pointer p-4 space-y-2"
-                      >
-                        <div className="flex items-center justify-between gap-2 text-[13px]">
-                          <span className="font-semibold text-ui-text truncate">{m.name}</span>
-                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${badgeBg}`}>
-                            {m.capacityBand}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-ui-muted">
-                          <span>{m.departmentName}</span>
-                          {/* Requirement 4: Show REAL percentage in text */}
-                          <strong className="font-semibold text-ui-ink">{m.workloadPct}% Workload</strong>
-                        </div>
-                        {/* Requirement 4: Cap only the progress bar width at 100% */}
-                        <div className="w-full bg-ui-line rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${barColor}`}
-                            style={{ width: `${Math.min(100, m.workloadPct)}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              {([
+                ['Available', 'band-healthy', data.workload.bands?.available ?? 0],
+                ['Busy', 'band-high', data.workload.bands?.busy ?? 0],
+                ['Over', 'band-overloaded', data.workload.bands?.over ?? 0],
+              ] as const).map(([label, cls, count]) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => navigate(`/workload?band=${label}`)}
+                  className={`p-3 rounded-2xl band-tint ${cls} min-h-[44px]`}
+                  aria-label={`${label}: ${count} people`}
+                >
+                  <span className="text-xs font-medium block">{label}</span>
+                  <strong className="text-2xl font-semibold tabular-nums">{count}</strong>
+                  <span className="text-[11px] block mt-0.5">people</span>
+                </button>
+              ))}
             </div>
           </section>
 
