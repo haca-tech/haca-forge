@@ -1,6 +1,33 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Simple workload):** 2067 passing, 0 failing: API 1615 (79 files), web 452 (54 files). Typecheck 0 errors; web build clean.
+**Current test count (after Review Studio for the step owner):** 2086 passing, 0 failing: API 1622 (80 files), web 464 (56 files). Typecheck 0 errors; web build clean.
+
+## Review Studio for the step owner (Status: COMPLETE; committed locally, not pushed)
+
+Gate per commit: typecheck 0 errors, web build clean, API 1622/1622, web 452/452 (API commit) and 464/464 (web commit).
+
+- `20ab89b` API: owners read and reply; notifications per comment.
+- `34cc639` Web: "my review" mode in Review Studio; threaded replies for everyone; "View review" entry points.
+
+### Access
+- The step owner opens `/work/:id/review` for their own step (workers skip the reviewers' queue). They read every version, comment, reply, pin, resolved state, decision message and rating message.
+- The owner may only reply: threaded, text only, to a comment on the same step (a reply to a reply joins the first comment's thread). New comments, pins and resolving return 403 `OWNER_REPLY_ONLY`; approve, request revision, rating and classify stay 403. Owners could post and resolve before; only the locked workspaces used that.
+- Leads (canDecide), admin and the read-only heads keep their access; the heads are view only (403 on comments, replies and resolve). Other workers get 404.
+
+### Owner UI
+- Header: step, version selector, status chip (Waiting for review / Changes requested / Approved ★N / Rework in progress) and waiting time. The viewer shows the lead's pins read-only.
+- Side panel: threads with replies, All / Unresolved / Resolved filters, a reply box per comment; Brief, Versions and Outputs as before.
+- No decision bar: the lead's decision (and rating) message, then Start rework or Resubmit link through the existing flow. Status and messages come from the Review Hub step timeline (Phase 3 privacy rules).
+- "View review" on My Work and Work Detail once a version exists.
+
+### Lead UI and notifications
+- Owner replies appear in the thread with the owner's name and an "Owner" label; an open comment whose latest reply is the owner's shows "New reply". Reviewers can reply too. Decisions unchanged.
+- One notification per comment: a reviewer's comment or reply -> the owner (link `/work/:id/review`); the owner's reply -> the lead who wrote that comment, or the calendar's deciding leads if that lead no longer decides it.
+- Also: the route-boundary test now waits for the Review Hub request (it was intermittent in full runs).
+
+### Browser check (disposable `marketing_portal_uicheck`; desktop 1440 and phone 390)
+- 26/26 checks. SM step (desktop): the Creative Lead commented and requested changes; the owner opened "View review" from My Work, read the comment and decision message, replied, started rework and resubmitted (version 2); the lead saw the reply with the "New reply" badge and approved with 4 stars; the owner saw "Approved ★4" at phone width. Ads step (phone): the Growth Lead commented; the owner opened the notification link and replied; the Growth Lead (not the Creative Lead) was notified and saw the reply. Another worker got 404; the Creative Head saw comments with no reply box or resolve and got 403 on commenting. One notification per comment throughout.
+- Screenshots in the session scratchpad (`uicheck/shots_orv`). Database dropped, servers stopped; the real `marketing_portal` unchanged.
 
 ## Simple workload: step counts (Status: COMPLETE; committed locally, not pushed)
 
