@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CalendarClock, ChevronDown, ChevronRight, ExternalLink, Lock, MoreHorizontal, Pencil, Sparkles } from 'lucide-react';
+import { CalendarClock, ChevronDown, ChevronRight, ExternalLink, HelpCircle, Lock, MoreHorizontal, Pencil, Sparkles } from 'lucide-react';
 import { formatShortDate, getCalendarDefinition, getStepStatusLabel } from '@mmp/shared';
 import { Avatar } from '../../../components/Avatar';
 import { TimeLabelChips } from '../../../components/TimeLabelChips';
@@ -130,6 +130,18 @@ export const TrackerRow: React.FC<Props> = ({ piece, now = new Date(), canAssign
           >
             {st.pauseState === 'paused' ? 'Paused' : 'Pause requested'}
             {st.pauseReason ? <span className="sr-only">: {String(st.pauseReason)}</span> : null}
+          </span>
+        )}
+        {/* Help requests: the open count, with the full wording in the tooltip. */}
+        {(st.openHelpCount || 0) > 0 && (
+          <span
+            className="status-chip status-waiting text-[11px] self-start inline-flex items-center gap-1"
+            title={`${st.openHelpCount} open help request${st.openHelpCount === 1 ? '' : 's'}`}
+            data-testid="tracker-help-chip"
+          >
+            <HelpCircle className="w-3 h-3" aria-hidden="true" />
+            {st.openHelpCount}
+            <span className="sr-only"> open help request{st.openHelpCount === 1 ? '' : 's'}</span>
           </span>
         )}
         <TimeLabelChips labels={(st.timeLabels || []).filter((l) => l.kind !== 'paused')} showOnTime={false} />

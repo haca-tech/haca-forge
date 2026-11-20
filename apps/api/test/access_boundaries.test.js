@@ -103,7 +103,7 @@ describe('Route inventory: every :id route', () => {
   });
 
   const MOUNTS = [
-    { name: 'work items', router: workItemRoutes, prefixes: ['/api/work', '/api/work-items'], ids: (f2, p) => ({ id: f2.edit._id, stageItemId: f2.edit._id, commentId: f2.comment._id })[p] },
+    { name: 'work items', router: workItemRoutes, prefixes: ['/api/work', '/api/work-items'], ids: (f2, p) => ({ id: f2.edit._id, stageItemId: f2.edit._id, commentId: f2.comment._id, helpId: missing })[p] },
     { name: 'clips', router: clipsRouter, prefixes: ['/api/clips', '/clips'], ids: (f2, p) => ({ id: f2.clip._id, messageId: f2.message._id })[p] },
     { name: 'feedback', router: feedbackRouter, prefixes: ['/api/feedback'], ids: (f2, p) => ({ workItemId: f2.edit._id })[p] },
     { name: 'blockers', router: blockerRoutes, prefixes: ['/api/blockers'], ids: (f2, p) => ({ id: f2.blocker._id })[p] },

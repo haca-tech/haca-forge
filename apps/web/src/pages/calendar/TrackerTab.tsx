@@ -21,6 +21,7 @@ import {
   type TrackerFilters,
   type TrackerPiece,
 } from './tracker/trackerModel';
+import { toast } from '../../lib/uiFeedback';
 
 type ContentPieceTrackerRow = TrackerPiece;
 
@@ -186,7 +187,7 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
       }
       setAssignSelections(initialSelections);
     } catch (err: any) {
-      alert(err.message || 'Failed to fetch recommendations');
+      toast.error(err.message || 'Failed to fetch recommendations');
     } finally {
       setIsLoadingRecs(false);
     }
@@ -231,7 +232,7 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
       setSelectedPieceForAssign(null);
       await fetchTrackerData();
     } catch (err: any) {
-      alert(err.message || 'Failed to save assignments');
+      toast.error(err.message || 'Failed to save assignments');
     } finally {
       setIsSavingAssign(false);
     }
@@ -254,7 +255,7 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
       setSelectedPieceForReschedule(null);
       await fetchTrackerData();
     } catch (err: any) {
-      alert(err.message || 'Failed to reschedule content piece');
+      toast.error(err.message || 'Failed to reschedule content piece');
     } finally {
       setIsRescheduling(false);
     }
@@ -270,7 +271,7 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
       });
       await fetchTrackerData();
     } catch (err: any) {
-      alert(err.message || 'Failed to update stage skip status');
+      toast.error(err.message || 'Failed to update stage skip status');
     }
   };
 

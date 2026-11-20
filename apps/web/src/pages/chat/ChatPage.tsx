@@ -45,6 +45,7 @@ import {
   APPROVER_ROLES,
   isReadOnlyViewer,
 } from '@mmp/shared';
+import { confirmDialog, toast } from '../../lib/uiFeedback';
 
 const ENTER_TO_SEND_KEY = 'haca.chat.enterToSend';
 const GROUPING_WINDOW_MS = 5 * 60 * 1000;
@@ -484,7 +485,7 @@ export default function ChatPage() {
         setEditingMessage(null);
         setInputText('');
       } catch (err: any) {
-        alert(err.message || 'Failed to edit message.');
+        toast.error(err.message || 'Failed to edit message.');
       }
       return;
     }
@@ -503,7 +504,7 @@ export default function ChatPage() {
         if (uploadData.attachments) uploadedAttachments = uploadData.attachments;
       } catch (err: any) {
         console.error('Upload error:', err);
-        alert(err?.message || 'Failed to upload attachments.');
+        toast.error(err?.message || 'Failed to upload attachments.');
         setUploadingFiles(false);
         return;
       } finally {
@@ -528,7 +529,7 @@ export default function ChatPage() {
         body: JSON.stringify(payload),
       });
     } catch (err: any) {
-      alert(err.message || 'Failed to send message.');
+      toast.error(err.message || 'Failed to send message.');
     }
   }
 
@@ -579,7 +580,7 @@ export default function ChatPage() {
         body: JSON.stringify({ emoji }),
       });
     } catch (err: any) {
-      alert(err.message || 'Failed to react.');
+      toast.error(err.message || 'Failed to react.');
     }
   }
 
@@ -588,16 +589,17 @@ export default function ChatPage() {
     try {
       await apiFetch(`/api/chat/channels/${activeChannelId}/messages/${messageId}/pin`, { method: 'POST' });
     } catch (err: any) {
-      alert(err.message || 'Failed to pin message.');
+      toast.error(err.message || 'Failed to pin message.');
     }
   }
 
   async function deleteMessage(messageId: string) {
-    if (!activeChannelId || !confirm('Are you sure you want to delete this message?')) return;
+    if (!activeChannelId) return;
+    if (!(await confirmDialog({ title: 'Delete this message?', message: 'It is removed for everyone in the conversation.', confirmLabel: 'Delete message', danger: true }))) return;
     try {
       await apiFetch(`/api/chat/channels/${activeChannelId}/messages/${messageId}`, { method: 'DELETE' });
     } catch (err: any) {
-      alert(err.message || 'Failed to delete message.');
+      toast.error(err.message || 'Failed to delete message.');
     }
   }
 
@@ -613,7 +615,7 @@ export default function ChatPage() {
       setActiveChannel((prev) => (prev ? { ...prev, isMuted: newMute } : null));
       setChannels((prev) => prev.map((c) => (idOf(c) === activeChannelId ? { ...c, isMuted: newMute } : c)));
     } catch (err: any) {
-      alert(err.message || 'Failed to update notifications.');
+      toast.error(err.message || 'Failed to update notifications.');
     }
   }
 
@@ -630,12 +632,13 @@ export default function ChatPage() {
   }
 
   async function archiveGroup() {
-    if (!activeChannelId || !confirm('Archive this group? It becomes read-only for everyone.')) return;
+    if (!activeChannelId) return;
+    if (!(await confirmDialog({ title: `Archive "${activeChannel?.name || 'this group'}"?`, message: 'It becomes read-only for everyone. You can unarchive it later.', confirmLabel: 'Archive group' }))) return;
     try {
       await apiFetch(`/api/chat/channels/${activeChannelId}/archive`, { method: 'POST' });
       await Promise.all([loadChannels(), loadChannelDetails(activeChannelId)]);
     } catch (err: any) {
-      alert(err.message || 'Failed to archive group.');
+      toast.error(err.message || 'Failed to archive group.');
     }
   }
 
@@ -645,18 +648,19 @@ export default function ChatPage() {
       await apiFetch(`/api/chat/channels/${activeChannelId}/unarchive`, { method: 'POST' });
       await Promise.all([loadChannels(), loadChannelDetails(activeChannelId)]);
     } catch (err: any) {
-      alert(err.message || 'Failed to unarchive group.');
+      toast.error(err.message || 'Failed to unarchive group.');
     }
   }
 
   async function leaveGroup() {
-    if (!activeChannelId || !myId || !confirm('Leave this group? You will stop receiving its messages.')) return;
+    if (!activeChannelId || !myId) return;
+    if (!(await confirmDialog({ title: `Leave "${activeChannel?.name || 'this group'}"?`, message: 'You will stop receiving its messages.', confirmLabel: 'Leave group', danger: true }))) return;
     try {
       await apiFetch(`/api/chat/channels/${activeChannelId}/members/${myId}`, { method: 'DELETE' });
       await loadChannels();
       navigate('/chat');
     } catch (err: any) {
-      alert(err.message || 'Failed to leave group.');
+      toast.error(err.message || 'Failed to leave group.');
     }
   }
 
@@ -1667,7 +1671,7 @@ export default function ChatPage() {
                       onChange={(e) => {
                         const files = Array.from(e.target.files || []);
                         if (files.length + pendingFiles.length > 5) {
-                          alert('Maximum 5 attachments permitted per message.');
+                          toast.error('Maximum 5 attachments permitted per message.');
                           return;
                         }
                         setPendingFiles((prev) => [...prev, ...files]);

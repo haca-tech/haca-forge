@@ -27,6 +27,7 @@ import {
   isReadOnlyViewer,
   isWorker,
 } from '@mmp/shared';
+import { confirmDialog, toast } from '../lib/uiFeedback';
 
 interface SessionItem {
   id: string;
@@ -166,7 +167,8 @@ export const SettingsPage: React.FC = () => {
 
   // Revoke Single Device Session
   const handleRevokeSession = async (sessionId: string) => {
-    if (!window.confirm('Are you sure you want to sign out this device?')) return;
+    const device = sessions.find((s) => (s.id || s._id) === sessionId);
+    if (!(await confirmDialog({ title: 'Sign out this device?', message: device?.isCurrent ? 'This is the device you are using: you will be signed out here.' : 'That device will have to sign in again.', confirmLabel: 'Sign out device', danger: true }))) return;
     setRevokingId(sessionId);
     try {
       const res = await apiFetch<{ success: boolean; isCurrent?: boolean }>(
@@ -179,7 +181,7 @@ export const SettingsPage: React.FC = () => {
       }
       setSessions((prev) => prev.filter((s) => (s.id || s._id) !== sessionId));
     } catch (err: any) {
-      alert(err?.message || 'Failed to revoke session');
+      toast.error(err?.message || 'Failed to revoke session');
     } finally {
       setRevokingId(null);
     }
@@ -187,13 +189,13 @@ export const SettingsPage: React.FC = () => {
 
   // Revoke All Other Sessions
   const handleRevokeOtherSessions = async () => {
-    if (!window.confirm('Sign out all other active devices? You will remain signed in on this device.')) return;
+    if (!(await confirmDialog({ title: 'Sign out all other devices?', message: 'You stay signed in on this device.', confirmLabel: 'Sign out others', danger: true }))) return;
     setRevokingOthers(true);
     try {
       await apiFetch('/api/me/sessions/revoke-others', { method: 'POST' });
       setSessions((prev) => prev.filter((s) => s.isCurrent));
     } catch (err: any) {
-      alert(err?.message || 'Failed to revoke other sessions');
+      toast.error(err?.message || 'Failed to revoke other sessions');
     } finally {
       setRevokingOthers(false);
     }
@@ -212,7 +214,7 @@ export const SettingsPage: React.FC = () => {
       setNotifsSuccess('Notification preferences saved successfully.');
       setTimeout(() => setNotifsSuccess(null), 3000);
     } catch (err: any) {
-      alert(err?.message || 'Failed to save notification preferences');
+      toast.error(err?.message || 'Failed to save notification preferences');
     } finally {
       setSavingNotifs(false);
     }
@@ -231,7 +233,7 @@ export const SettingsPage: React.FC = () => {
       setPrefsSuccess('Preferences saved successfully.');
       setTimeout(() => setPrefsSuccess(null), 3000);
     } catch (err: any) {
-      alert(err?.message || 'Failed to save preferences');
+      toast.error(err?.message || 'Failed to save preferences');
     } finally {
       setSavingPrefs(false);
     }

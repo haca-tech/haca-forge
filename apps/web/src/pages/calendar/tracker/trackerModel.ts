@@ -51,6 +51,8 @@ export interface TrackerStage {
   /** Pause with lead approval, and its reason (chip tooltip). */
   pauseState?: 'requested' | 'paused' | null;
   pauseReason?: string;
+  /** Open help requests on the step (chip tooltip). */
+  openHelpCount?: number;
   [key: string]: unknown;
 }
 

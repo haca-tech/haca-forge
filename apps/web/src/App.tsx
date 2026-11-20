@@ -10,6 +10,7 @@ import type { UserRole } from '@mmp/shared';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PageSkeleton } from './components/Skeleton';
+import { UiFeedbackHost } from './lib/uiFeedback';
 
 import { LoginPage } from './pages/LoginPage';
 import { SetPasswordPage } from './pages/SetPasswordPage';
@@ -583,6 +584,8 @@ export const App: React.FC = () => {
           </ErrorBoundary>
         </GlobalFilterProvider>
       </AuthProvider>
+      {/* Toasts and confirm / prompt dialogs (replaces the browser's alert, confirm and prompt). */}
+      <UiFeedbackHost />
       </BrowserRouter>
     </QueryClientProvider>
   );

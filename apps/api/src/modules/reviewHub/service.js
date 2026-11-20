@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import {
+  HELP_TOPIC_LABELS,
   PAUSE_REASON_LABELS,
   canDecide,
   canSeeAllReviewText,
@@ -16,6 +17,7 @@ import { Submission, Rating } from '../submissions/model.js';
 import { RevisionFlag, FeedbackEntry } from '../feedback/model.js';
 import { ActivityEvent } from '../activity/model.js';
 import { PauseRequest } from '../workItems/pauseRequest.model.js';
+import { HelpRequest } from '../workItems/helpRequest.model.js';
 import { CalendarPlan } from '../calendar/plan.model.js';
 import { ContentPiece } from '../calendar/contentPiece.model.js';
 import { calendarOf, calendarQueryFor } from '../workItems/deciders.js';
@@ -210,13 +212,14 @@ export async function stepTimeline(workItemId, user) {
     .lean();
   const latest = versions.at(-1) || null;
   const versionIds = versions.map((v) => v._id);
-  const [ratings, revisionEvents, statusEvents, pauses, flag, entries] = await Promise.all([
+  const [ratings, revisionEvents, statusEvents, pauses, flag, entries, helps] = await Promise.all([
     Rating.find({ submissionId: { $in: versionIds } }).populate('raterId', 'name').lean(),
     ActivityEvent.find({ entityId: { $in: [...versionIds, ...versionIds.map(String)] }, action: 'submission.revision_requested' }).populate('actorId', 'name').lean(),
     ActivityEvent.find({ entityId: { $in: [step._id, String(step._id)] }, action: 'work_item.status_changed' }).populate('actorId', 'name').sort({ timestamp: 1 }).lean(),
     PauseRequest.find({ workItemId: step._id }).populate('ownerId', 'name').populate('decidedById', 'name').populate('resumedById', 'name').lean(),
     RevisionFlag.findOne({ workItemId: step._id }).populate('classifiedBy', 'name').lean(),
     FeedbackEntry.find({ workItemId: step._id }).populate('fromPersonId', 'name').sort({ createdAt: 1 }).lean(),
+    HelpRequest.find({ workItemId: step._id }).populate('askerId', 'name').populate('helperId', 'name').populate('resolvedById', 'name').lean(),
   ]);
 
   const events = [];
@@ -275,6 +278,12 @@ export async function stepTimeline(workItemId, user) {
     if (p.resumedAt) add({ kind: 'pause_resumed', at: p.resumedAt, by: p.resumedById?.name || '' });
   }
 
+  // Help requests: asked and resolved (the message follows the review-text rule).
+  for (const h of helps) {
+    add({ kind: 'help_requested', at: h.createdAt, by: h.askerId?.name || '', to: h.helperId?.name || '', topic: HELP_TOPIC_LABELS[h.topic] || h.topic, message: text(h.message), open: h.status === 'open' });
+    if (h.resolvedAt) add({ kind: 'help_resolved', at: h.resolvedAt, by: h.resolvedById?.name || '', topic: HELP_TOPIC_LABELS[h.topic] || h.topic });
+  }
+
   if (flag) {
     add({ kind: 'flagged', at: flag.flaggedAt, by: '', revisions: flag.revisionsCount });
     if (flag.classifiedAt) add({ kind: 'classified', at: flag.classifiedAt, by: flag.classifiedBy?.name || '', rootCause: privateOk ? flag.rootCause : null });
@@ -285,7 +294,7 @@ export async function stepTimeline(workItemId, user) {
   }
 
   // Oldest first; at the same moment, a submission comes before its decision.
-  const ORDER = ['submitted', 'rework_started', 'pause_requested', 'pause_approved', 'pause_rejected', 'pause_cancelled', 'pause_resumed', 'changes_requested', 'approved', 'flagged', 'classified', 'reopened', 'earlier_note'];
+  const ORDER = ['submitted', 'rework_started', 'pause_requested', 'pause_approved', 'pause_rejected', 'pause_cancelled', 'pause_resumed', 'help_requested', 'help_resolved', 'changes_requested', 'approved', 'flagged', 'classified', 'reopened', 'earlier_note'];
   events.sort((a, b) => new Date(a.at) - new Date(b.at) || ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
 
   const state = stepReviewState(step.status, latest?.status, step.revisions || 0);
@@ -320,6 +329,7 @@ export async function stepTimeline(workItemId, user) {
       revisions: step.revisions || 0,
       revisionsLabel: revisionsLabel(step.revisions || 0),
       publishedUrl: step.publishedUrl || '',
+      openHelpCount: helps.filter((h) => h.status === 'open').length,
     },
     mainAction,
     events,

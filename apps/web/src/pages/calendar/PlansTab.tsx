@@ -48,6 +48,7 @@ import {
   setStepOwner,
   validateRowSteps,
 } from './planRowSteps';
+import { confirmDialog, toast } from '../../lib/uiFeedback';
 
 export interface StagePlanPreviewItem {
   stageKey: 'Content' | 'Script' | 'Design' | 'Shoot' | 'Edit' | 'Post';
@@ -547,7 +548,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
       await fetchPlanDetails(selectedPlan._id);
       await fetchPlans();
     } catch (err: any) {
-      alert(err.message || 'Failed to move plan to another calendar');
+      toast.error(err.message || 'Failed to move plan to another calendar');
     } finally {
       setIsMovingCalendar(false);
     }
@@ -683,7 +684,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
   // Submit Plan for Approval
   const handleSubmitPlan = async (planId: string) => {
     if (!selectedPlan?.rows || selectedPlan.rows.length === 0) {
-      alert('Add at least one row');
+      toast.error('Add at least one row');
       return;
     }
     try {
@@ -691,16 +692,20 @@ export const PlansTab: React.FC<PlansTabProps> = ({
       await fetchPlans();
       await fetchPlanDetails(planId);
     } catch (err: any) {
-      alert(err.message || 'Failed to submit plan');
+      toast.error(err.message || 'Failed to submit plan');
     }
   };
 
   // Delete a plan whose steps have not started (Phase 6)
   const handleDeletePlan = async (planId: string) => {
+    const planName = plans.find((p) => p._id === planId)?.title || selectedPlan?.title || 'this plan';
     if (
-      !confirm(
-        'Delete this plan? Its rows and any steps not started yet will be removed. This cannot be undone.'
-      )
+      !(await confirmDialog({
+        title: `Delete "${planName}"?`,
+        message: 'Its rows and any steps not started yet will be removed. This cannot be undone.',
+        confirmLabel: 'Delete plan',
+        danger: true,
+      }))
     ) {
       return;
     }
@@ -709,7 +714,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
       setSelectedPlan(null);
       await fetchPlans();
     } catch (err: any) {
-      alert(err.message || 'Failed to delete plan');
+      toast.error(err.message || 'Failed to delete plan');
     }
   };
 
@@ -727,7 +732,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
       await fetchPlans();
       await fetchPlanDetails(selectedPlan._id);
     } catch (err: any) {
-      alert(err.message || 'Failed to rename plan');
+      toast.error(err.message || 'Failed to rename plan');
     } finally {
       setIsRenaming(false);
     }
@@ -738,12 +743,12 @@ export const PlansTab: React.FC<PlansTabProps> = ({
     e.preventDefault();
     if (!selectedPlan) return;
     if (!rowTopic.trim() || !rowPostingDate) {
-      alert('Topic and date are required');
+      toast.error('Topic and date are required');
       return;
     }
 
     if (Object.keys(stepValidation.errors).length > 0) {
-      alert('Please resolve all step errors before submitting.');
+      toast.error('Please resolve all step errors before submitting.');
       return;
     }
 
@@ -808,7 +813,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
       await fetchPlans();
       await fetchPlanDetails(selectedPlan._id);
     } catch (err: any) {
-      alert(err.message || 'Failed to save row');
+      toast.error(err.message || 'Failed to save row');
     }
   };
 
@@ -822,7 +827,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
       await fetchPlans();
       await fetchPlanDetails(selectedPlan._id);
     } catch (err: any) {
-      alert(err.message || 'Failed to submit row');
+      toast.error(err.message || 'Failed to submit row');
     }
   };
 
@@ -830,12 +835,12 @@ export const PlansTab: React.FC<PlansTabProps> = ({
   const handleSaveAndResubmitRow = async () => {
     if (!selectedPlan || !editingRowId) return;
     if (!rowTopic.trim() || !rowPostingDate) {
-      alert('Topic and date are required');
+      toast.error('Topic and date are required');
       return;
     }
 
     if (Object.keys(stepValidation.errors).length > 0) {
-      alert('Please resolve all step errors before submitting.');
+      toast.error('Please resolve all step errors before submitting.');
       return;
     }
 
@@ -893,13 +898,15 @@ export const PlansTab: React.FC<PlansTabProps> = ({
       await fetchPlans();
       await fetchPlanDetails(selectedPlan._id);
     } catch (err: any) {
-      alert(err.message || 'Failed to resubmit row');
+      toast.error(err.message || 'Failed to resubmit row');
     }
   };
 
   // Delete Row
   const handleDeleteRow = async (rowId: string) => {
-    if (!selectedPlan || !confirm('Are you sure you want to delete this row?')) return;
+    if (!selectedPlan) return;
+    const rowName = selectedPlan.rows?.find((r) => r._id === rowId)?.topic || 'this row';
+    if (!(await confirmDialog({ title: `Delete "${rowName}"?`, message: 'The row is removed from the plan.', confirmLabel: 'Delete row', danger: true }))) return;
     try {
       await apiFetch(`/api/calendar-plans/${selectedPlan._id}/rows/${rowId}`, {
         method: 'DELETE',
@@ -907,7 +914,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
       await fetchPlans();
       await fetchPlanDetails(selectedPlan._id);
     } catch (err: any) {
-      alert(err.message || 'Failed to delete row');
+      toast.error(err.message || 'Failed to delete row');
     }
   };
 
@@ -921,7 +928,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
       const payload: any = { action };
       if (action === 'approve_selected') {
         if (selectedRowIds.length === 0) {
-          alert('Please select at least one row to approve');
+          toast.error('Please select at least one row to approve');
           setIsReviewSubmitting(false);
           return;
         }
@@ -942,7 +949,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
           }
         }
         if (!hasComment) {
-          alert('Please enter a review comment explaining requested changes for at least one row');
+          toast.error('Please enter a review comment explaining requested changes for at least one row');
           setIsReviewSubmitting(false);
           return;
         }
@@ -964,7 +971,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
       await fetchPlans();
       await fetchPlanDetails(selectedPlan._id);
     } catch (err: any) {
-      alert(err.message || 'Failed to submit review');
+      toast.error(err.message || 'Failed to submit review');
     } finally {
       setIsReviewSubmitting(false);
     }

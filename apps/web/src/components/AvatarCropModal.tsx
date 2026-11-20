@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Upload, ZoomIn, ZoomOut, RotateCcw, Check, Trash2, AlertCircle } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { confirmDialog } from '../lib/uiFeedback';
 
 interface AvatarCropModalProps {
   isOpen: boolean;
@@ -201,7 +202,7 @@ export const AvatarCropModal: React.FC<AvatarCropModalProps> = ({
 
   // Remove Avatar with Confirmation
   const handleRemoveAvatar = async () => {
-    if (!window.confirm('Are you sure you want to remove your profile photo?')) return;
+    if (!(await confirmDialog({ title: 'Remove your profile photo?', message: 'Your initials will show instead.', confirmLabel: 'Remove photo', danger: true }))) return;
 
     setUploading(true);
     setError(null);

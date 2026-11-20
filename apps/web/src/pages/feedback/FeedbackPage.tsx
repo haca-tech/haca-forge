@@ -16,6 +16,7 @@ import {
   Send,
   Sparkles,
   StickyNote,
+  HelpCircle,
   X,
 } from 'lucide-react';
 import {
@@ -82,6 +83,10 @@ interface TimelineEvent {
   round?: number;
   revisions?: number;
   isResponse?: boolean;
+  /** Help requests: whom it was sent to, and its topic. */
+  to?: string;
+  topic?: string;
+  open?: boolean;
 }
 interface Timeline {
   step: {
@@ -98,6 +103,8 @@ interface Timeline {
     dueDate: string | null;
     revisions: number;
     revisionsLabel: string;
+    /** Open help requests on the step. */
+    openHelpCount?: number;
   };
   mainAction: { kind: 'open_review_studio' | 'classify' | 'start_rework' | 'resubmit' | 'open_work_detail'; href?: string; flagId?: string };
   events: TimelineEvent[];
@@ -177,6 +184,10 @@ function describe(e: TimelineEvent): { icon: React.ComponentType<{ className?: s
       return { icon: PauseCircle, title: e.cancelReason === 'cancelled_on_submit' ? 'Pause request withdrawn (step submitted)' : e.cancelReason === 'reassigned' ? 'Pause request cancelled (step reassigned)' : 'Pause request cancelled' };
     case 'pause_resumed':
       return { icon: PlayCircle, title: `Resumed${by}` };
+    case 'help_requested':
+      return { icon: HelpCircle, title: `Help requested${by}${e.to ? ` from ${e.to}` : ''}: ${e.topic || ''}${e.open ? ' (open)' : ''}`, body: e.message };
+    case 'help_resolved':
+      return { icon: CheckCircle2, title: `Help request resolved${by}${e.topic ? `: ${e.topic}` : ''}` };
     case 'flagged':
       return { icon: Flag, title: `Flagged: reached round 4 (${e.revisions} change requests)` };
     case 'classified':
@@ -325,6 +336,12 @@ const DetailPanel: React.FC<{ workItemId: string; onBack: () => void; onChanged:
           <div><dt className="text-[11px] text-ui-muted">Due</dt><dd className="text-ui-ink">{step.dueDate ? formatShortDate(step.dueDate) : '—'}</dd></div>
           <div><dt className="text-[11px] text-ui-muted">Revisions</dt><dd className="text-ui-ink" data-testid="hub-revisions">{step.revisionsLabel}</dd></div>
         </dl>
+        {(step.openHelpCount || 0) > 0 && (
+          <p className="inline-flex items-center gap-1.5 status-chip status-waiting text-[11px]" data-testid="hub-open-help">
+            <HelpCircle className="w-3 h-3" aria-hidden="true" />
+            {step.openHelpCount} open help request{step.openHelpCount === 1 ? '' : 's'}
+          </p>
+        )}
       </header>
       <div className="flex flex-wrap gap-2" data-testid="hub-main-action">{action}</div>
       {error && <p role="alert" className="p-3 rounded-xl status-tint status-changes text-xs font-semibold">{error}</p>}

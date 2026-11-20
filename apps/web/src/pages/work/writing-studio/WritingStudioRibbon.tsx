@@ -38,6 +38,7 @@ import {
   X,
 } from 'lucide-react';
 import { SCRIPT_TEMPLATES } from '../../../lib/scriptTools';
+import { promptDialog } from '../../../lib/uiFeedback';
 
 export type RibbonTab = 'home' | 'insert' | 'script' | 'review' | 'view' | 'file';
 
@@ -528,8 +529,15 @@ export const WritingStudioRibbon: React.FC<WritingStudioRibbonProps> = ({
             {/* Image Embed */}
             <button
               type="button"
-              onClick={() => {
-                const url = prompt('Enter Image URL:');
+              onClick={async () => {
+                const url = await promptDialog({
+                  title: 'Insert image',
+                  label: 'Image URL',
+                  placeholder: 'https://…',
+                  inputType: 'url',
+                  confirmLabel: 'Insert',
+                  validate: (v) => (/^https:\/\/[^\s]+$/i.test(v) ? null : 'Enter an https:// link to the image.'),
+                });
                 if (url) editor.chain().focus().setImage({ src: url }).run();
               }}
               className="ui-btn ui-btn-secondary h-11 gap-1.5"

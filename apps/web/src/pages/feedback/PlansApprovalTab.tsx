@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { planMonthKey, type CalendarPlanStatus, type RowStatus, isApprover, canDecide, decisionCalendarsFor } from '@mmp/shared';
+import { toast } from '../../lib/uiFeedback';
 
 interface PlanRow {
   _id: string;
@@ -124,7 +125,7 @@ export const PlansApprovalTab: React.FC = () => {
 
       if (action === 'approve_selected') {
         if (selectedRowIds.length === 0) {
-          alert('Please select at least one row to approve');
+          toast.error('Please select at least one row to approve');
           setIsSubmittingReview(false);
           return;
         }
@@ -145,7 +146,7 @@ export const PlansApprovalTab: React.FC = () => {
           }
         }
         if (!hasComment) {
-          alert('Please enter a review comment explaining requested revisions for at least one row');
+          toast.error('Please enter a review comment explaining requested revisions for at least one row');
           setIsSubmittingReview(false);
           return;
         }
@@ -163,7 +164,7 @@ export const PlansApprovalTab: React.FC = () => {
       setRowComments({});
       await fetchSubmittedPlans();
     } catch (err: any) {
-      alert(err.message || 'Failed to submit review');
+      toast.error(err.message || 'Failed to submit review');
     } finally {
       setIsSubmittingReview(false);
     }

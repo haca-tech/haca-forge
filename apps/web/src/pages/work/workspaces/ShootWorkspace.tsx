@@ -19,6 +19,7 @@ import { ClipCard } from './ClipCard';
 import { VideoPlayer } from './VideoPlayer';
 import { MediaThread } from './MediaThread';
 import { DriveLinkInput, driveLinkError } from '../../../components/DriveLinkInput';
+import { toast } from '../../../lib/uiFeedback';
 
 interface ShootWorkspaceProps {
   workItem: {
@@ -188,7 +189,7 @@ export const ShootWorkspace: React.FC<ShootWorkspaceProps> = ({
         fetchClips();
       }
     } catch (err: any) {
-      alert(err.message || 'Failed to update clip metadata');
+      toast.error(err.message || 'Failed to update clip metadata');
     }
   };
 
@@ -200,7 +201,7 @@ export const ShootWorkspace: React.FC<ShootWorkspaceProps> = ({
       if (activeClip?._id === clipId) setActiveClip(null);
       fetchClips();
     } catch (err: any) {
-      alert(err.message || 'Failed to delete clip');
+      toast.error(err.message || 'Failed to delete clip');
     }
   };
 
@@ -218,7 +219,7 @@ export const ShootWorkspace: React.FC<ShootWorkspaceProps> = ({
       setDriveClipTitle('');
       await fetchClips();
     } catch (err: any) {
-      alert(err.message || 'Failed to add the Drive clip');
+      toast.error(err.message || 'Failed to add the Drive clip');
     } finally {
       setAddingDriveClip(false);
     }
@@ -247,7 +248,7 @@ export const ShootWorkspace: React.FC<ShootWorkspaceProps> = ({
       setClips((prev) => [...prev, newClip]);
       await fetchClips();
     } catch (err: any) {
-      alert(err.message || 'Failed to replace clip');
+      toast.error(err.message || 'Failed to replace clip');
     }
   };
 

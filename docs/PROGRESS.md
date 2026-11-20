@@ -1,6 +1,37 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Review Studio for the step owner):** 2092 passing, 0 failing: API 1623 (80 files), web 469 (56 files). Typecheck 0 errors; web build clean.
+**Current test count (after Request help and no browser popups):** 2124 passing, 0 failing: API 1633 (81 files), web 491 (60 files; 1 skipped while the temporary quick sign-in build flag is on). Typecheck 0 errors; web build clean.
+
+## Request help modal, and no browser popups (Status: COMPLETE; committed locally, not pushed)
+
+### What was there before (investigation)
+- "Request help" on Work Detail was `prompt()` then `alert('Help request broadcast to team: …')`: no API call, nothing stored, nobody notified.
+- "Request help" on My Work opened the **Mark blocked** form pre-filled with "Waiting for feedback", so it blocked the step. My Work has its own "Mark blocked" button; nothing else depended on this one. It now opens the same Ask for help dialog (no block).
+- 121 browser popups in 24 files: 103 `alert` (102 error/success messages plus the fake help "broadcast"), 15 `confirm`, 3 `prompt` (the help prompt, Reopen step's reason, Writing Studio "Image URL").
+
+### Help requests (API: `help.service.js`, `helpRequest.model.js`, new `HelpRequest` collection)
+- `GET/POST /api/work/:id/help-requests`, `POST …/:helpId/replies`, `POST …/:helpId/resolve`.
+- The step owner asks one person: the step's deciding lead (default; `decidersFor(calendar)`), an SM Manager, or the owner of another step on the same piece. Topic (Brief unclear / Need files or assets / Technical issue / Other), message (required, ≤ 1,000), optional https link.
+- The chosen person gets one notification (`help_requested`, link `/work/:id#help`). Replies notify the other party; resolving notifies the asker and helper (never the actor).
+- Access: the asker, the helper, both leads, SM Managers and admin reply and resolve; read-only heads view only (403 on writes); another worker gets 404 (a step owner who was asked sees only the request sent to them). Finished or skipped steps take no new requests (409).
+- Never pauses or blocks the step: the step record is not written, so status, intervals, work time and KPIs are untouched (tested).
+- Tracker: `openHelpCount` per step, a small chip with the tooltip "N open help requests". Review Hub timeline: `help_requested` / `help_resolved` events (message under the review-text rule) and `step.openHelpCount`.
+
+### Web
+- `components/help/HelpRequests.tsx`: Ask for help dialog (focus trap, Esc closes, inline validation), and the Work Detail card: open requests (topic, message, link, who asked whom, when, replies, reply box, Mark resolved), resolved ones collapsed under History. `#help` links scroll to it.
+- `lib/uiFeedback.tsx`: `toast.error/success/info`, `confirmDialog()` (named item, red danger button, focus on Cancel) and `promptDialog()` (validation). Mounted in `App`; mounts itself when used outside the shell. Esc and Tab are taken in the capture phase, so a confirm over another modal (Version history) closes alone.
+- Every alert is a toast (7 success messages as success toasts), every confirm a confirm dialog naming the item, the two remaining prompts small form dialogs (Reopen: optional reason; Image URL: https only).
+- Guard: `NoBrowserPopups.test.ts` fails on `alert(`, `confirm(`, `prompt(` (bare or on window/globalThis/self) in web source.
+
+### Gate
+- Typecheck 0 errors, web build clean. Web 491/491 (60 files; 1 skipped: the production-build quick sign-in check, skipped while `VITE_QUICK_LOGIN_IN_BUILD=true` is set locally). API 1633/1633 (81 files).
+- New tests: API `help_requests.test.js` (10); web `uiFeedback` (6), `HelpRequests` (8), `NoBrowserPopups` (2), `ReplacedConfirms` (7: delete clip, restore version over its modal, unshare asset, remove photo, sign out device / other devices, skip step, reopen reason). Route inventory classifies `:helpId`.
+- Not covered by a test of their own (same `confirmDialog` call, covered by the shared tests and the guard): Profile photo in ProfileView, bulk approve access requests, delete plan, delete row, chat delete message / archive / leave group, suspend or reactivate a person.
+- Browser check 39/39 at 1440 and 390 px on the disposable `marketing_portal_uicheck` (dropped after): ask for help (default lead, validation, http refused, toast, card), the step stays In Progress, the lead replies and resolves from `#help`, the worker sees History; Skip step and Sign out other devices (Cancel, Esc, Confirm); no sideways scroll; zero native dialogs. Note: the dev server's `/api` proxy is fixed to :8080, so the first attempt sent two failed sign-ins for non-existent `@uicheck.invalid` emails and one `GET /api/status` to the real API (read-only; nothing written). The check then ran with a scratch Vite config proxied to :8095.
+
+## Header search and Quick sign-in in builds (Status: COMPLETE; committed locally, not pushed)
+- Header kept as before (Search | Team Chat with avatars) with a standard look: the search segment is a white search field (icon, "Search tasks and content…", "Ctrl K" hint) that opens the same search; Team Chat is one line (icon, label, unread badge, avatars); active chat uses ink instead of indigo. The earlier `HeaderSearch` rework was dropped (it was never saved and broke the dev server).
+- Quick sign-in can be kept in a production build with `VITE_QUICK_LOGIN_IN_BUILD=true` in `apps/web/.env.local` (temporary, testing only: it puts the listed passwords in the bundle). The panel then says "Testing only: remove before hosting". With the flag off the build has no trace of it (checked by building both ways). The build test is skipped while the flag is on.
 
 ## Review Studio for the step owner (Status: COMPLETE; committed locally, not pushed)
 

@@ -46,6 +46,7 @@ import {
   JOB_ROLES,
   formatDuration,
 } from '@mmp/shared';
+import { confirmDialog, toast } from '../../lib/uiFeedback';
 
 export const WorkerProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -311,7 +312,7 @@ export const WorkerProfilePage: React.FC = () => {
       setShowEditModal(false);
       fetchBaseProfile();
     } catch (err: any) {
-      alert(err?.message || 'Failed to update details');
+      toast.error(err?.message || 'Failed to update details');
     }
   };
 
@@ -554,7 +555,7 @@ export const WorkerProfilePage: React.FC = () => {
   // Handle Reassign
   const handleReassign = async () => {
     if (!targetAssigneeId) {
-      alert('Please select a target assignee');
+      toast.error('Please select a target assignee');
       return;
     }
     try {
@@ -564,10 +565,10 @@ export const WorkerProfilePage: React.FC = () => {
         body: JSON.stringify({ targetPersonId: targetAssigneeId }),
       });
       setShowReassignModal(false);
-      alert('Active steps reassigned successfully');
+      toast.success('Active steps reassigned successfully');
       fetchBaseProfile();
     } catch (err: any) {
-      alert(err?.message || 'Failed to reassign steps');
+      toast.error(err?.message || 'Failed to reassign steps');
     } finally {
       setReassigning(false);
     }
@@ -575,12 +576,18 @@ export const WorkerProfilePage: React.FC = () => {
 
   // Status toggle
   const handleToggleStatus = async () => {
-    if (!confirm(`Are you sure you want to change status to ${profile.status === 'active' ? 'suspended' : 'active'}?`)) return;
+    const suspending = profile.status === 'active';
+    if (!(await confirmDialog({
+      title: suspending ? `Suspend ${profile.name || 'this person'}?` : `Reactivate ${profile.name || 'this person'}?`,
+      message: suspending ? 'They are signed out and cannot sign in until reactivated.' : 'They can sign in again.',
+      confirmLabel: suspending ? 'Suspend' : 'Reactivate',
+      danger: suspending,
+    }))) return;
     try {
       await apiFetch(`/api/team/${targetId}/status`, { method: 'POST' });
       fetchBaseProfile();
     } catch (err: any) {
-      alert(err?.message || 'Failed to toggle status');
+      toast.error(err?.message || 'Failed to toggle status');
     }
   };
 

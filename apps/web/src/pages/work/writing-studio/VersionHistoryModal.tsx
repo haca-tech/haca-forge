@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useDialogFocus } from '../../../lib/useDialogFocus';
 import { History, X, RotateCcw, User } from 'lucide-react';
+import { confirmDialog } from '../../../lib/uiFeedback';
 
 export interface SubmissionVersion {
   _id: string;
@@ -125,8 +126,8 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => {
-                      if (confirm(`Restore Version ${currentSelected.version} into active editor? Current uncommitted changes will be replaced.`)) {
+                    onClick={async () => {
+                      if (await confirmDialog({ title: `Restore version ${currentSelected.version}?`, message: 'It replaces what is in the editor now. Unsaved changes are lost.', confirmLabel: 'Restore version', danger: true })) {
                         onRestoreVersion(currentSelected);
                         onClose();
                       }

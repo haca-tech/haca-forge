@@ -13,6 +13,7 @@ import { MediaItemType, RATING_TAGS, RatingTag } from '@mmp/shared';
 import { apiFetch } from '../../../lib/api';
 import { VideoPlayer } from './VideoPlayer';
 import { MediaThread } from './MediaThread';
+import { toast } from '../../../lib/uiFeedback';
 
 interface ShootReviewViewProps {
   stageItemId: string;
@@ -127,7 +128,7 @@ export const ShootReviewView: React.FC<ShootReviewViewProps> = ({
       setClips((prev) => prev.map((c) => (c._id === updated._id ? { ...c, ...updated } : c)));
       setSelectedClip((prev) => (prev ? { ...prev, ...updated } : null));
     } catch (err: any) {
-      alert(err.message || 'Failed to approve clip');
+      toast.error(err.message || 'Failed to approve clip');
     } finally {
       setIsSubmittingReview(false);
     }
@@ -147,7 +148,7 @@ export const ShootReviewView: React.FC<ShootReviewViewProps> = ({
       setReshootModalOpen(false);
       setReshootMessage('');
     } catch (err: any) {
-      alert(err.message || 'Failed to flag clip for reshoot');
+      toast.error(err.message || 'Failed to flag clip for reshoot');
     } finally {
       setIsSubmittingReview(false);
     }
@@ -171,7 +172,7 @@ export const ShootReviewView: React.FC<ShootReviewViewProps> = ({
         setApproveStepModalOpen(false);
         onStaleDecision(err.message);
       } else {
-        alert(err.message || 'Failed to approve step');
+        toast.error(err.message || 'Failed to approve step');
       }
     } finally {
       setIsSubmittingReview(false);
@@ -194,7 +195,7 @@ export const ShootReviewView: React.FC<ShootReviewViewProps> = ({
         setSendBackModalOpen(false);
         onStaleDecision(err.message);
       } else {
-        alert(err.message || 'Failed to send back step');
+        toast.error(err.message || 'Failed to send back step');
       }
     } finally {
       setIsSubmittingReview(false);

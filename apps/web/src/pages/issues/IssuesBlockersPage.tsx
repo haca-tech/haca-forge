@@ -24,6 +24,7 @@ import {
   Sparkles,
   AlertTriangle,
 } from 'lucide-react';
+import { toast } from '../../lib/uiFeedback';
 
 interface BlockerItem {
   _id: string;
@@ -200,7 +201,7 @@ export const IssuesBlockersPage: React.FC = () => {
       await fetchData();
       setTimeout(() => setRemindSuccessMsg(null), 4000);
     } catch (err: any) {
-      alert(err.message || 'Failed to dispatch reminder');
+      toast.error(err.message || 'Failed to dispatch reminder');
     } finally {
       setRemindingId(null);
     }
@@ -210,12 +211,12 @@ export const IssuesBlockersPage: React.FC = () => {
   const handleCreateBlocker = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWorkItemId) {
-      alert('Please select a deliverable to mark as blocked.');
+      toast.error('Please select a deliverable to mark as blocked.');
       return;
     }
 
     if (BLOCKER_DEPENDENCY_REASONS.includes(newReason) && !newDependencyOwnerId) {
-      alert('A Dependency Owner is mandatory for ' + newReason);
+      toast.error('A Dependency Owner is mandatory for ' + newReason);
       return;
     }
 
@@ -237,7 +238,7 @@ export const IssuesBlockersPage: React.FC = () => {
       setNewDependencyOwnerId('');
       await fetchData();
     } catch (err: any) {
-      alert(err.message || 'Failed to report blocker');
+      toast.error(err.message || 'Failed to report blocker');
     } finally {
       setIsCreatingBlocker(false);
     }
@@ -262,7 +263,7 @@ export const IssuesBlockersPage: React.FC = () => {
       setResolutionNotes('');
       await fetchData();
     } catch (err: any) {
-      alert(err.message || 'Failed to resolve blocker');
+      toast.error(err.message || 'Failed to resolve blocker');
     } finally {
       setIsResolving(false);
     }
@@ -287,7 +288,7 @@ export const IssuesBlockersPage: React.FC = () => {
       setRootCauseNotes('');
       await fetchData();
     } catch (err: any) {
-      alert(err.message || 'Failed to classify root cause');
+      toast.error(err.message || 'Failed to classify root cause');
     } finally {
       setIsClassifying(false);
     }

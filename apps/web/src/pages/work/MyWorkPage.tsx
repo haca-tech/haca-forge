@@ -48,6 +48,8 @@ import {
   RotateCcw,
   MessageSquare,
 } from 'lucide-react';
+import { toast } from '../../lib/uiFeedback';
+import { AskForHelpDialog, helpApi, type HelpData } from '../../components/help/HelpRequests';
 
 interface WorkItemSummary {
   /** Phase 7: computed time labels. */
@@ -148,6 +150,7 @@ export const MyWorkPage: React.FC = () => {
 
   // Blocker Modal State
   const [selectedItemForBlock, setSelectedItemForBlock] = useState<WorkItemSummary | null>(null);
+  const [helpFor, setHelpFor] = useState<{ item: WorkItemSummary; data: HelpData } | null>(null);
   const [blockerReason, setBlockerReason] = useState<BlockerReason>('Waiting for feedback');
   const [blockerNote, setBlockerNote] = useState('');
   const [dependencyOwnerId, setDependencyOwnerId] = useState('');
@@ -195,7 +198,7 @@ export const MyWorkPage: React.FC = () => {
       });
       await fetchMyWork();
     } catch (err: any) {
-      alert(err.message || 'Transition failed');
+      toast.error(err.message || 'Transition failed');
     }
   };
 
@@ -731,7 +734,7 @@ export const MyWorkPage: React.FC = () => {
                           await resolveStepBlocker(item._id);
                           await fetchMyWork();
                         } catch (err: any) {
-                          alert(err.message || 'Could not resolve the blocker');
+                          toast.error(err.message || 'Could not resolve the blocker');
                         }
                       }}
                       className="ui-btn ui-btn-primary h-11 px-4"
@@ -744,12 +747,15 @@ export const MyWorkPage: React.FC = () => {
 
                   {!isWaitingApproval && actions.includes('request_help') && (
                     <button
-                      onClick={() => {
-                        setSelectedItemForBlock(item);
-                        setBlockerReason('Waiting for feedback');
-                        setBlockerNote('');
-                        const prevOwner = item.suggestedDependencyOwner || item.previousStage?.owner;
-                        setDependencyOwnerId(prevOwner?._id || '');
+                      onClick={async () => {
+                        // Ask for help (does not block the step; "Mark blocked" is its own button).
+                        try {
+                          const data = await helpApi.list(item._id);
+                          if (!data.canAsk) return toast.info('Help cannot be asked on this step right now.');
+                          setHelpFor({ item, data });
+                        } catch (err: any) {
+                          toast.error(err?.message || 'Could not open the help request.');
+                        }
                       }}
                       className="ui-btn ui-btn-secondary h-11 px-4"
                       title="Request help"
@@ -1050,6 +1056,17 @@ export const MyWorkPage: React.FC = () => {
       )}
 
       {/* 4. Mark Blocked Modal */}
+      {helpFor && (
+        <AskForHelpDialog
+          stepId={helpFor.item._id}
+          stepTitle={helpFor.item.title}
+          options={helpFor.data.options}
+          defaultHelperId={helpFor.data.defaultHelperId}
+          onClose={() => setHelpFor(null)}
+          onSent={() => setHelpFor(null)}
+        />
+      )}
+
       {selectedItemForBlock && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 ui-scrim backdrop-blur-sm animate-fade-in">
           <div

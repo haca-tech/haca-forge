@@ -23,6 +23,7 @@ import {
   Mail,
 } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
+import { confirmDialog, toast } from '../../lib/uiFeedback';
 
 interface AccessRequestItem {
   _id: string;
@@ -98,7 +99,7 @@ export const AccessRequestsPage: React.FC = () => {
 
   const handleBulkApprove = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`Bulk approve and generate onboarding invites for ${selectedIds.length} candidate(s)?`)) return;
+    if (!(await confirmDialog({ title: `Approve ${selectedIds.length} access request${selectedIds.length === 1 ? '' : 's'}?`, message: 'Each person gets an onboarding invite.', confirmLabel: 'Approve and invite' }))) return;
     setIsBulkApproving(true);
     try {
       const res = await apiFetch<{ message: string; data: Array<{ id: string; success: boolean }> }>(
@@ -108,11 +109,11 @@ export const AccessRequestsPage: React.FC = () => {
           body: JSON.stringify({ requestIds: selectedIds, defaultRole: WORKER_ROLE, defaultCapacity: 40 }),
         }
       );
-      alert(res.message || `Successfully processed ${selectedIds.length} access requests.`);
+      toast.success(res.message || `Successfully processed ${selectedIds.length} access requests.`);
       setSelectedIds([]);
       await fetchRequests();
     } catch (err: any) {
-      alert(err.message || 'Failed to bulk approve requests');
+      toast.error(err.message || 'Failed to bulk approve requests');
     } finally {
       setIsBulkApproving(false);
     }
@@ -182,7 +183,7 @@ export const AccessRequestsPage: React.FC = () => {
         setActionMessage(`Approved ${selectedRequest.name}! Activation invite dispatched.`);
       } else if (actionType === 'reject') {
         if (!actionReason.trim()) {
-          alert('Please enter a rejection reason.');
+          toast.error('Please enter a rejection reason.');
           setIsSubmitting(false);
           return;
         }
@@ -193,7 +194,7 @@ export const AccessRequestsPage: React.FC = () => {
         setActionMessage(`Rejected request from ${selectedRequest.name}.`);
       } else if (actionType === 'info') {
         if (!actionReason.trim()) {
-          alert('Please enter a question for the applicant.');
+          toast.error('Please enter a question for the applicant.');
           setIsSubmitting(false);
           return;
         }
@@ -212,7 +213,7 @@ export const AccessRequestsPage: React.FC = () => {
         setActionMessage(null);
       }, 1500);
     } catch (err: any) {
-      alert(err.message || 'Operation failed');
+      toast.error(err.message || 'Operation failed');
     } finally {
       setIsSubmitting(false);
     }

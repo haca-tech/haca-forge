@@ -255,6 +255,12 @@ export async function listContentPieces(filters = {}, user) {
       s.pauseReason = r ? `${PAUSE_REASON_LABELS[r.reason] || r.reason}: ${r.note}${r.pauseUntil ? ` (until ${r.pauseUntil})` : ''}` : '';
     }
   }
+  // Help requests: the open count per step (chip tooltip). Counts only, no text.
+  {
+    const { openHelpCounts } = await import('../workItems/help.service.js');
+    const counts = await openHelpCounts(results.flatMap((p) => p.stages).map((s) => s._id));
+    for (const s of results.flatMap((p) => p.stages)) s.openHelpCount = counts.get(String(s._id)) || 0;
+  }
   for (const p of results) {
     p.hasPaused = p.stages.some((s) => s.pauseState === 'paused');
     p.hasPauseRequested = p.stages.some((s) => s.pauseState === 'requested');

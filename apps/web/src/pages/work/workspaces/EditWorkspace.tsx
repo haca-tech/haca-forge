@@ -29,6 +29,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { ShareToChatModal } from '../../chat/ShareToChatModal';
 import { DriveLinkInput, driveLinkError } from '../../../components/DriveLinkInput';
 import { safeUrl } from '../../../lib/safeUrl';
+import { toast } from '../../../lib/uiFeedback';
 
 export interface FootageClip {
   id: string;
@@ -341,7 +342,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
         chatEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
       }, 100);
     } catch (err: any) {
-      alert(err?.message || 'Failed to send message');
+      toast.error(err?.message || 'Failed to send message');
     } finally {
       setIsSendingChat(false);
     }

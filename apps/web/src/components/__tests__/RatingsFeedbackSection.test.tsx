@@ -170,7 +170,6 @@ describe('WS4: RatingsFeedbackSection Component Tests', () => {
   });
 
   it('allows worker to mark feedback as seen on their own profile', async () => {
-    window.alert = vi.fn();
     const testData: RatingsSummaryData = {
       ...mockFullData,
       recentFeedback: [

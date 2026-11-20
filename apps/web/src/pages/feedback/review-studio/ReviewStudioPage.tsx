@@ -28,6 +28,7 @@ import { ShootReviewView } from '../../work/workspaces/ShootReviewView';
 import { ShareToChatModal } from '../../chat/ShareToChatModal';
 import { DRIVE_LINK_HINT, isAppUploadPath } from '@mmp/shared';
 import { AssetLinks, assetKind, type AssetItem } from '../../../components/AssetLinks';
+import { toast } from '../../../lib/uiFeedback';
 
 interface ReviewQueueItem {
   id: string;
@@ -465,7 +466,7 @@ export const ReviewStudioPage: React.FC = () => {
       setComments((prev) => [...prev, newComment]);
       setActiveCommentId(newComment.id);
     } catch (err: any) {
-      alert(err?.message || 'Failed to add comment');
+      toast.error(err?.message || 'Failed to add comment');
     }
   };
 
@@ -502,7 +503,7 @@ export const ReviewStudioPage: React.FC = () => {
       setComments((prev) => [...prev, newComment]);
       setActiveCommentId(newComment.id);
     } catch (err: any) {
-      alert(err?.message || 'Failed to add video comment');
+      toast.error(err?.message || 'Failed to add video comment');
     }
   };
 
@@ -539,7 +540,7 @@ export const ReviewStudioPage: React.FC = () => {
       setComments((prev) => [...prev, newComment]);
       setActiveCommentId(newComment.id);
     } catch (err: any) {
-      alert(err?.message || 'Failed to add point comment');
+      toast.error(err?.message || 'Failed to add point comment');
     }
   };
 
@@ -564,7 +565,7 @@ export const ReviewStudioPage: React.FC = () => {
       setComments((prev) => [...prev, newComment]);
       setActiveCommentId(newComment.id);
     } catch (err: any) {
-      alert(err?.message || 'Failed to add general comment');
+      toast.error(err?.message || 'Failed to add general comment');
     }
   };
 
@@ -592,7 +593,7 @@ export const ReviewStudioPage: React.FC = () => {
             ]
       );
     } catch (err: any) {
-      alert(err?.message || 'Failed to send the reply');
+      toast.error(err?.message || 'Failed to send the reply');
     }
   };
 
@@ -610,7 +611,7 @@ export const ReviewStudioPage: React.FC = () => {
         prev.map((c) => (c.id === commentId ? { ...c, resolved } : c))
       );
     } catch (err: any) {
-      alert(err?.message || 'Failed to update comment status');
+      toast.error(err?.message || 'Failed to update comment status');
     }
   };
 
@@ -649,7 +650,7 @@ export const ReviewStudioPage: React.FC = () => {
       }
     } catch (err: any) {
       if (err?.statusCode === 409) await handleStaleDecision(err.message);
-      else alert(err?.message || 'Approval failed');
+      else toast.error(err?.message || 'Approval failed');
     } finally {
       setIsSubmittingDecision(false);
     }
@@ -690,7 +691,7 @@ export const ReviewStudioPage: React.FC = () => {
       }
     } catch (err: any) {
       if (err?.statusCode === 409) await handleStaleDecision(err.message);
-      else alert(err?.message || 'Request revision failed');
+      else toast.error(err?.message || 'Request revision failed');
     } finally {
       setIsSubmittingDecision(false);
     }

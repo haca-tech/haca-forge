@@ -14,6 +14,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { RATING_TAGS } from '@mmp/shared';
+import { toast } from '../lib/uiFeedback';
 
 interface RatingEditItem {
   editedBy?: { name?: string; role?: string } | string;
@@ -124,7 +125,7 @@ export const RatingsFeedbackSection: React.FC<RatingsFeedbackSectionProps> = ({
         };
       });
     } catch (err: any) {
-      alert(err.message || 'Failed to mark feedback as seen');
+      toast.error(err.message || 'Failed to mark feedback as seen');
     }
   };
 

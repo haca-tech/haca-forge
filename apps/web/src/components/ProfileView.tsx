@@ -38,6 +38,7 @@ import {
   isReadOnlyViewer,
   isWorker,
 } from '@mmp/shared';
+import { confirmDialog, toast } from '../lib/uiFeedback';
 
 export interface ProfileData {
   id: string;
@@ -257,7 +258,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   const handleRemoveAvatar = async () => {
-    if (!confirm('Are you sure you want to remove your profile photo?')) return;
+    if (!(await confirmDialog({ title: 'Remove your profile photo?', message: 'Your initials will show instead.', confirmLabel: 'Remove photo', danger: true }))) return;
     try {
       await apiFetch('/api/me/avatar', { method: 'DELETE' });
       if (onProfileUpdated) {
@@ -382,7 +383,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         setChangeRequestText('');
       }, 1500);
     } catch (err: any) {
-      alert(err?.message || 'Failed to submit change request');
+      toast.error(err?.message || 'Failed to submit change request');
     } finally {
       setSubmittingChangeRequest(false);
     }

@@ -13,6 +13,7 @@ import { PostWorkspace } from './PostWorkspace';
 import { EarlierOutputsViewer, StageOutput } from './EarlierOutputsViewer';
 import type { AssetItem } from '../../../components/AssetLinks';
 import { FromPlanCard } from '../FromPlanCard';
+import { toast } from '../../../lib/uiFeedback';
 
 export const MediaWorkspacePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -292,10 +293,10 @@ export const MediaWorkspacePage: React.FC = () => {
         }),
       });
 
-      alert('Deliverable submitted successfully for review!');
+      toast.success('Deliverable submitted successfully for review!');
       navigate(`/work/${workItem._id || workItem.id}`);
     } catch (err: any) {
-      alert(err?.message || 'Failed to submit deliverable');
+      toast.error(err?.message || 'Failed to submit deliverable');
     } finally {
       setIsSubmitting(false);
     }
@@ -321,10 +322,10 @@ export const MediaWorkspacePage: React.FC = () => {
         }),
       });
 
-      alert('Item marked as Published!');
+      toast.success('Item marked as Published!');
       navigate(`/work/${workItem._id || workItem.id}`);
     } catch (err: any) {
-      alert(err?.message || 'Failed to mark as posted');
+      toast.error(err?.message || 'Failed to mark as posted');
     } finally {
       setIsSubmitting(false);
     }

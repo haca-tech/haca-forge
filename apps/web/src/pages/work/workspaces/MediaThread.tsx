@@ -18,6 +18,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { Avatar } from '../../../components/Avatar';
 import { MediaMessageType, APPROVER_ROLES, isApprover, isReadOnlyViewer } from '@mmp/shared';
 import { ShareToChatModal } from '../../chat/ShareToChatModal';
+import { toast } from '../../../lib/uiFeedback';
 
 interface MediaThreadProps {
   clipId: string;
@@ -161,7 +162,7 @@ export const MediaThread: React.FC<MediaThreadProps> = ({
         prev.map((m) => (m._id === message._id ? { ...m, ...updated } : m))
       );
     } catch (err: any) {
-      alert(err.message || 'Action not permitted');
+      toast.error(err.message || 'Action not permitted');
     }
   };
 

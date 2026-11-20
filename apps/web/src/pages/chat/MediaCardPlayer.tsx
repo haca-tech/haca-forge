@@ -6,6 +6,7 @@ import { Avatar } from '../../components/Avatar';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../lib/api';
 import { safeUrl } from '../../lib/safeUrl';
+import { confirmDialog } from '../../lib/uiFeedback';
 
 interface MediaCardPlayerProps {
   card: ChatSharedMediaCard;
@@ -30,7 +31,7 @@ export function MediaCardPlayer({ card, onRevoked }: MediaCardPlayerProps) {
 
   async function handleUnshare() {
     if (!card.grantId || revoking) return;
-    if (!window.confirm('Are you sure you want to unshare this asset? Channel members will no longer be able to view or download it.')) {
+    if (!(await confirmDialog({ title: `Unshare "${card.title || 'this asset'}"?`, message: 'Channel members will no longer be able to view or download it.', confirmLabel: 'Unshare', danger: true }))) {
       return;
     }
     try {

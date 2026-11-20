@@ -62,4 +62,12 @@ router.post('/:id/pause-request/cancel', workItemController.cancelPauseRequest);
 router.post('/:id/pause-request/decide', workItemController.decidePauseRequest);
 router.post('/:id/resume', workItemController.resumeStep);
 
+// Help requests (rules in help.service.js: the owner asks one person; the asker, the helper,
+// leads, SM Managers and admin reply and resolve; read-only heads read; other workers get 404).
+// They never pause or block the step and never change work time.
+router.get('/:id/help-requests', workItemController.listHelpRequests);
+router.post('/:id/help-requests', workItemController.createHelpRequest);
+router.post('/:id/help-requests/:helpId/replies', workItemController.replyToHelpRequest);
+router.post('/:id/help-requests/:helpId/resolve', workItemController.resolveHelpRequest);
+
 export default router;

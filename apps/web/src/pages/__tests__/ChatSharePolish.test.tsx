@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { ShareToChatModal } from '../chat/ShareToChatModal';
 import { MediaCardPlayer } from '../chat/MediaCardPlayer';
@@ -179,7 +179,6 @@ describe('Share to Chat & Chat Polish Frontend Suite', () => {
     });
 
     it('displays unshare button for privileged users and transitions to revoked state on click', async () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
       (apiFetch as any).mockResolvedValueOnce({ success: true });
       const onRevokedMock = vi.fn();
 
@@ -193,6 +192,8 @@ describe('Share to Chat & Chat Polish Frontend Suite', () => {
       expect(unshareBtn).toBeInTheDocument();
 
       fireEvent.click(unshareBtn);
+      // The app's confirm dialog (not the browser's): Unshare.
+      fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Unshare' }));
 
       await waitFor(() => {
         expect(apiFetch).toHaveBeenCalledWith(

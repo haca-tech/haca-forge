@@ -14,6 +14,12 @@ vi.mock('react-router-dom', async (orig) => ({ ...(await orig<typeof import('rea
 vi.mock('../../../context/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('../../../lib/api', () => ({ apiFetch: vi.fn() }));
 vi.mock('../../../hooks/useSocket', () => ({ useSocket: () => ({ on: () => () => {}, emit: vi.fn() }) }));
+// Error messages are toasts now (no browser alert): spy on them.
+vi.mock('../../../lib/uiFeedback', async (orig) => ({
+  ...(await orig<typeof import('../../../lib/uiFeedback')>()),
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
+}));
+import { toast } from '../../../lib/uiFeedback';
 
 const apiFetch = apiModule.apiFetch as unknown as ReturnType<typeof vi.fn>;
 const useAuth = authContext.useAuth as unknown as ReturnType<typeof vi.fn>;
@@ -24,7 +30,6 @@ const posts = (part: string) => apiFetch.mock.calls.filter(([url, opts]: any[]) 
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.spyOn(window, 'alert').mockImplementation(() => {});
 });
 
 describe('Review Studio: a stale or decided version', () => {
@@ -62,7 +67,7 @@ describe('Review Studio: a stale or decided version', () => {
     expect(notice).toHaveTextContent('This version is out of date. Version 2 is the latest.');
     expect(notice).toHaveTextContent('The review queue has been refreshed.');
     await waitFor(() => expect(queueCalls()).toBe(2));
-    expect(window.alert).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
     expect(await screen.findByText(/All Caught Up/i)).toBeInTheDocument();
   });
 
@@ -106,7 +111,7 @@ describe('Review Studio: a stale or decided version', () => {
     const queueCalls = showStudio(() => Promise.reject(Object.assign(new Error('Server error'), { statusCode: 500 })));
     fireEvent.click(await screen.findByLabelText(/4 stars/i));
     fireEvent.click(screen.getByRole('button', { name: /approve/i }));
-    await waitFor(() => expect(window.alert).toHaveBeenCalledWith('Server error'));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Server error'));
     expect(queueCalls()).toBe(1);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
@@ -131,7 +136,7 @@ describe('Shoot review', () => {
     fireEvent.click(await screen.findByRole('button', { name: /approve step/i }));
     fireEvent.click(await screen.findByRole('button', { name: /Approve & Unlock/i }));
     await waitFor(() => expect(onStaleDecision).toHaveBeenCalledWith('This step has already been approved.'));
-    expect(window.alert).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });
 
@@ -301,7 +306,7 @@ describe('Work Detail', () => {
     asHead();
     show(item({}));
     await approveFromDetail();
-    await waitFor(() => expect(window.alert).toHaveBeenCalledWith(expect.stringContaining('no submission to review yet')));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('no submission to review yet')));
     expect(posts('/transition')).toHaveLength(0);
     expect(posts('/approve')).toHaveLength(0);
   });

@@ -26,6 +26,7 @@ import {
   X,
   RotateCcw,
 } from 'lucide-react';
+import { toast } from '../../../lib/uiFeedback';
 
 export const WritingStudioPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -326,7 +327,7 @@ export const WritingStudioPage: React.FC = () => {
   const handleSubmitForApproval = async () => {
     if (!id || !editor || isDocumentEmpty || isReadOnly) return;
     if (driveLink && !driveLinkValid) {
-      alert(driveLinkError(driveLink));
+      toast.error(driveLinkError(driveLink));
       return;
     }
 
@@ -366,9 +367,9 @@ export const WritingStudioPage: React.FC = () => {
       // Refresh workItem
       const updatedRes = await apiFetch<any>(`/api/work/${id}`);
       setWorkItem(updatedRes.data);
-      alert('Your script has been submitted for Creative Lead approval.');
+      toast.success('Your script has been submitted for Creative Lead approval.');
     } catch (err: any) {
-      alert(`Submission failed: ${err.message || 'Please check your connection and try again.'}`);
+      toast.error(`Submission failed: ${err.message || 'Please check your connection and try again.'}`);
     } finally {
       setSubmitting(false);
     }
@@ -378,7 +379,7 @@ export const WritingStudioPage: React.FC = () => {
   const handleFallbackLinkSubmit = async () => {
     if (!id || !driveLink) return;
     if (!driveLinkValid) {
-      alert(driveLinkError(driveLink));
+      toast.error(driveLinkError(driveLink));
       return;
     }
 
@@ -405,9 +406,9 @@ export const WritingStudioPage: React.FC = () => {
       setShowLinkFallbackModal(false);
       const updatedRes = await apiFetch<any>(`/api/work/${id}`);
       setWorkItem(updatedRes.data);
-      alert('Google Drive link submitted for Creative Lead approval.');
+      toast.success('Google Drive link submitted for Creative Lead approval.');
     } catch (err: any) {
-      alert(`Submission failed: ${err.message}`);
+      toast.error(`Submission failed: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -431,7 +432,7 @@ export const WritingStudioPage: React.FC = () => {
       });
       setComments([...comments, res.data]);
     } catch (err: any) {
-      alert(`Could not add comment: ${err.message}`);
+      toast.error(`Could not add comment: ${err.message}`);
     }
   };
 
@@ -449,7 +450,7 @@ export const WritingStudioPage: React.FC = () => {
       const commentsRes = await apiFetch<any>(`/api/work/${id}/comments`);
       setComments(commentsRes.data);
     } catch (err: any) {
-      alert(`Could not add reply: ${err.message}`);
+      toast.error(`Could not add reply: ${err.message}`);
     }
   };
 
@@ -462,7 +463,7 @@ export const WritingStudioPage: React.FC = () => {
         comments.map((c) => (c._id === commentId ? { ...c, resolved: !c.resolved } : c))
       );
     } catch (err: any) {
-      alert(`Could not resolve comment: ${err.message}`);
+      toast.error(`Could not resolve comment: ${err.message}`);
     }
   };
 
@@ -473,7 +474,7 @@ export const WritingStudioPage: React.FC = () => {
       const blob = await exportDocxFile(documentTitle, editor.getHTML(), editor.getText());
       downloadBlob(blob, `${documentTitle.replace(/\s+/g, '_')}.docx`);
     } catch (err: any) {
-      alert(`DOCX export failed: ${err.message}`);
+      toast.error(`DOCX export failed: ${err.message}`);
     }
   };
 
@@ -487,9 +488,9 @@ export const WritingStudioPage: React.FC = () => {
     try {
       const html = await importDocxFile(file);
       editor.commands.setContent(html);
-      alert('DOCX imported successfully.');
+      toast.success('DOCX imported successfully.');
     } catch (err: any) {
-      alert(`DOCX import failed: ${err.message}`);
+      toast.error(`DOCX import failed: ${err.message}`);
     }
     e.target.value = '';
   };

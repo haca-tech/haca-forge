@@ -3280,6 +3280,33 @@ export const PAUSE_REASON_LABELS: Record<PauseReason, string> = { urgent_task: "
 export type PauseState = "requested" | "paused" | null;
 export const PAUSE_NOTE_MAX = 300;
 
+// ==========================================
+// Help requests on a step (ask a lead, the SM Manager or another step's owner)
+// ==========================================
+export const HELP_TOPICS = ["brief_unclear", "need_files", "technical_issue", "other"] as const;
+export type HelpTopic = (typeof HELP_TOPICS)[number];
+export const HELP_TOPIC_LABELS: Record<HelpTopic, string> = {
+  brief_unclear: "Brief unclear",
+  need_files: "Need files or assets",
+  technical_issue: "Technical issue",
+  other: "Other",
+};
+/** Who the help request goes to: the step's deciding lead, an SM Manager, or the owner of another step on the piece. */
+export const HELP_TARGET_KINDS = ["lead", "sm_manager", "step_owner"] as const;
+export type HelpTargetKind = (typeof HELP_TARGET_KINDS)[number];
+export const HELP_MESSAGE_MAX = 1000;
+export const HELP_REPLY_MAX = 1000;
+/** An optional help link: https only. */
+export const isHttpsUrl = (value: unknown): boolean => {
+  if (typeof value !== "string" || !value.trim()) return false;
+  try {
+    const u = new URL(value.trim());
+    return u.protocol === "https:" && Boolean(u.hostname);
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Comprehensive Individual Timing & Measures Calculator
  * Implements Section 2 of Individual Tracking & Timing spec:

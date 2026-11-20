@@ -62,6 +62,8 @@ import { PipelineStepper, type PipelineStageItem } from '../../components/Pipeli
 import { AssetLinks } from '../../components/AssetLinks';
 import { resolveStepBlocker } from '../../lib/blockers';
 import { FromPlanCard, type FromPlan } from './FromPlanCard';
+import { AskForHelpDialog, HelpRequestsCard, useHelpRequests } from '../../components/help/HelpRequests';
+import { confirmDialog, promptDialog, toast } from '../../lib/uiFeedback';
 
 const NO_SUBMISSION_TO_REVIEW =
   'This step has no submission to review yet. It can be approved or sent back once the owner submits their work.';
@@ -205,6 +207,9 @@ export const WorkDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [editingLiveLink, setEditingLiveLink] = useState(false);
+  // Help requests on this step (null when the viewer has no share in them).
+  const help = useHelpRequests(id);
+  const [showHelpDialog, setShowHelpDialog] = useState(false);
 
   const [item, setItem] = useState<WorkItemDetail | null>(null);
   const [activities, setActivities] = useState<ActivityEventItem[]>([]);
@@ -284,7 +289,7 @@ export const WorkDetailPage: React.FC = () => {
       await apiFetch(`/api/submissions/ratings/${item.rating._id}/seen`, { method: 'POST' });
       await fetchItemData();
     } catch (err: any) {
-      alert(err.message || 'Failed to acknowledge rating');
+      toast.error(err.message || 'Failed to acknowledge rating');
     }
   };
 
@@ -396,19 +401,24 @@ export const WorkDetailPage: React.FC = () => {
       });
       await fetchItemData();
     } catch (err: any) {
-      alert(err.message || 'Transition failed');
+      toast.error(err.message || 'Transition failed');
     }
   };
 
   // Reopens a finished review step; unfinished later steps pause until it is approved again.
   const handleReopen = async () => {
     if (!item) return;
-    const reason = window.prompt(
-      'Reopen this step? Later steps that are not finished will pause until it is approved again. Reason (optional):',
-      ''
-    );
+    const reason = await promptDialog({
+      title: `Reopen "${item.title}"?`,
+      message: 'Later steps that are not finished will pause until it is approved again.',
+      label: 'Reason (optional)',
+      required: false,
+      multiline: true,
+      maxLength: 500,
+      confirmLabel: 'Reopen step',
+    });
     if (reason === null) return;
-    await handleTransition('In Progress', { comment: reason.trim() || 'Reopened for changes' });
+    await handleTransition('In Progress', { comment: reason || 'Reopened for changes' });
   };
 
   // Resolves the blocker record and returns the step to its status before it was blocked.
@@ -418,7 +428,7 @@ export const WorkDetailPage: React.FC = () => {
       await resolveStepBlocker(item._id);
       await fetchItemData();
     } catch (err: any) {
-      alert(err.message || 'Could not resolve the blocker');
+      toast.error(err.message || 'Could not resolve the blocker');
     }
   };
 
@@ -440,7 +450,7 @@ export const WorkDetailPage: React.FC = () => {
       setBlockerNote('');
       await fetchItemData();
     } catch (err: any) {
-      alert(err.message || 'Failed to mark blocked');
+      toast.error(err.message || 'Failed to mark blocked');
     } finally {
       setIsBlocking(false);
     }
@@ -464,7 +474,7 @@ export const WorkDetailPage: React.FC = () => {
       } else if (item.reviewRequired) {
         // A review step can only be approved on a submission, with a rating.
         setShowApproveModal(false);
-        alert(NO_SUBMISSION_TO_REVIEW);
+        toast.error(NO_SUBMISSION_TO_REVIEW);
         return;
       } else {
         await apiFetch(`/api/work/${item._id}/transition`, {
@@ -477,7 +487,7 @@ export const WorkDetailPage: React.FC = () => {
       setApproveTags([]);
       await fetchItemData();
     } catch (err: any) {
-      alert(err.message || 'Approval failed');
+      toast.error(err.message || 'Approval failed');
       if (err?.statusCode === 409) {
         setShowApproveModal(false);
         await fetchItemData();
@@ -504,7 +514,7 @@ export const WorkDetailPage: React.FC = () => {
         });
       } else if (item.reviewRequired) {
         setShowRevisionModal(false);
-        alert(NO_SUBMISSION_TO_REVIEW);
+        toast.error(NO_SUBMISSION_TO_REVIEW);
         return;
       } else {
         await apiFetch(`/api/work/${item._id}/transition`, {
@@ -519,7 +529,7 @@ export const WorkDetailPage: React.FC = () => {
       setRevisionNotes('');
       await fetchItemData();
     } catch (err: any) {
-      alert(err.message || 'Revision request failed');
+      toast.error(err.message || 'Revision request failed');
       if (err?.statusCode === 409) {
         setShowRevisionModal(false);
         await fetchItemData();
@@ -530,7 +540,8 @@ export const WorkDetailPage: React.FC = () => {
   };
 
   const handleSkipStep = async () => {
-    if (!item || !window.confirm(`Skip step "${item.stageKey || item.title}"?`)) return;
+    if (!item) return;
+    if (!(await confirmDialog({ title: `Skip the ${item.stageKey || 'step'} step?`, message: `"${item.title}" will be marked as not needed.`, confirmLabel: 'Skip step', danger: true }))) return;
     try {
       await apiFetch(`/api/content-pieces/${item.contentPieceId}/stages/${item._id}/skip`, {
         method: 'PATCH',
@@ -573,7 +584,7 @@ export const WorkDetailPage: React.FC = () => {
       setShowEditModal(false);
       await fetchItemData();
     } catch (err: any) {
-      alert(err.message || 'Update failed');
+      toast.error(err.message || 'Update failed');
     } finally {
       setIsUpdating(false);
     }
@@ -586,7 +597,7 @@ export const WorkDetailPage: React.FC = () => {
       await apiFetch(`/api/work/${item._id}`, { method: 'DELETE' });
       navigate('/my-work');
     } catch (err: any) {
-      alert(err.message || 'Delete failed');
+      toast.error(err.message || 'Delete failed');
     } finally {
       setIsDeleting(false);
       setShowDeleteConfirmModal(false);
@@ -784,6 +795,13 @@ export const WorkDetailPage: React.FC = () => {
           </div>
         )}
 
+        {/* Help requests: open ones, then History (resolved). Never pause or block the step. */}
+        {help.data && (help.data.open.length > 0 || help.data.resolved.length > 0) && (
+          <div className="mt-3">
+            <HelpRequestsCard stepId={item._id} data={help.data} onChanged={help.reload} />
+          </div>
+        )}
+
         {/* Action Triggers Bar (Driven strictly by getAvailableActions) */}
         <div className="pt-3 border-t border-ui-line flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -947,11 +965,10 @@ export const WorkDetailPage: React.FC = () => {
 
             {!isUnderReview && actions.includes('request_help') && (
               <button
-                onClick={() => {
-                  const msg = prompt('Enter your question or help request for the team:');
-                  if (msg) alert('Help request broadcast to team: ' + msg);
-                }}
+                onClick={() => setShowHelpDialog(true)}
+                disabled={!help.data?.canAsk}
                 className="ui-btn ui-btn-secondary h-11 gap-1.5"
+                data-testid="request-help"
               >
                 <HelpCircle className="w-3.5 h-3.5" />
                 Request help
@@ -2086,6 +2103,20 @@ export const WorkDetailPage: React.FC = () => {
       )}
 
       {/* Blocker Modal */}
+      {showHelpDialog && item && help.data && (
+        <AskForHelpDialog
+          stepId={item._id}
+          stepTitle={item.title}
+          options={help.data.options}
+          defaultHelperId={help.data.defaultHelperId}
+          onClose={() => setShowHelpDialog(false)}
+          onSent={async () => {
+            setShowHelpDialog(false);
+            await help.reload();
+          }}
+        />
+      )}
+
       {showBlockerModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 ui-scrim">
           <div

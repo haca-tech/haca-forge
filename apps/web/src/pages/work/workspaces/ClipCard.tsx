@@ -17,6 +17,7 @@ import { MediaItemType, getMediaItemStatusLabel, APPROVER_ROLES } from '@mmp/sha
 import { useAuth } from '../../../context/AuthContext';
 import { ShareToChatModal } from '../../chat/ShareToChatModal';
 import { isDriveLink } from '@mmp/shared';
+import { confirmDialog } from '../../../lib/uiFeedback';
 
 interface ClipCardProps {
   clip: MediaItemType;
@@ -496,10 +497,11 @@ export const ClipCard: React.FC<ClipCardProps> = ({
           {onDelete && (
             <button
               type="button"
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
-                if (confirm(`Delete clip "${clip.title}"?`)) onDelete();
+                if (await confirmDialog({ title: `Delete clip "${clip.title}"?`, message: 'The clip and its review notes are removed.', confirmLabel: 'Delete clip', danger: true })) onDelete();
               }}
+              aria-label={`Delete clip ${clip.title}`}
               className="min-h-[38px] px-2.5 rounded-lg hover:bg-rose-500/20 text-ui-muted hover:text-rose-800 flex items-center gap-1 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />

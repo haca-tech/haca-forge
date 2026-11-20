@@ -1,5 +1,6 @@
 import * as workItemService from './service.js';
 import * as pauseService from './pause.service.js';
+import * as helpService from './help.service.js';
 import * as transitionService from './transition.service.js';
 import { applyWorkItemViewerRules } from './viewerRules.js';
 
@@ -128,3 +129,9 @@ export const cancelPauseRequest = wrap((req) => pauseService.cancelPauseRequest(
 export const decidePauseRequest = wrap((req) => pauseService.decidePauseRequest(req.params.id, req.body, req.user));
 export const resumeStep = wrap((req) => pauseService.resumeStep(req.params.id, req.user));
 export const listPauseRequests = wrap((req) => pauseService.listPauseRequests(req.user));
+
+// Help requests
+export const listHelpRequests = wrap((req) => helpService.listHelpRequests(req.params.id, req.user));
+export const createHelpRequest = wrap((req) => helpService.createHelpRequest(req.params.id, req.body, req.user), 201);
+export const replyToHelpRequest = wrap((req) => helpService.replyToHelpRequest(req.params.id, req.params.helpId, req.body, req.user));
+export const resolveHelpRequest = wrap((req) => helpService.resolveHelpRequest(req.params.id, req.params.helpId, req.user));
