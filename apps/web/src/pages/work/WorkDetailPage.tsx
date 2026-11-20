@@ -54,6 +54,7 @@ import {
   Star,
   FileCheck,
   Pencil,
+  MessageSquare,
 } from 'lucide-react';
 import { EditLiveLinkDialog, canEditLiveLink } from '../../components/EditLiveLinkDialog';
 import { PausePanel, type PauseInfo } from '../../components/pause/PauseControls';
@@ -905,6 +906,17 @@ export const WorkDetailPage: React.FC = () => {
                       {isReworkInProgress ? 'Resubmit link' : 'Submit link'}
                     </button>
                   )
+                )}
+                {/* Review Studio, read-and-reply, once a version exists. */}
+                {(item.latestSubmission?.version || 0) > 0 && item.stageKey !== 'Post' && (
+                  <button
+                    onClick={() => navigate(`/work/${item._id}/review`)}
+                    className="ui-btn ui-btn-secondary h-11 gap-1.5"
+                    data-testid="view-review"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    View review
+                  </button>
                 )}
               </>
             )}

@@ -46,6 +46,7 @@ import {
   Film,
   Palette,
   RotateCcw,
+  MessageSquare,
 } from 'lucide-react';
 
 interface WorkItemSummary {
@@ -680,6 +681,18 @@ export const MyWorkPage: React.FC = () => {
                     >
                       <Globe className="w-3 h-3" />
                       Mark as posted
+                    </button>
+                  )}
+
+                  {/* Review Studio, read-and-reply, once a version exists. */}
+                  {Boolean(latestStatus) && item.stageKey !== 'Post' && (
+                    <button
+                      onClick={() => navigate(`/work/${item._id}/review`)}
+                      className="ui-btn ui-btn-secondary h-11 px-4"
+                      data-testid="view-review"
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      View review
                     </button>
                   )}
 

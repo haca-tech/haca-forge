@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ReviewStudioPage } from '../review-studio/ReviewStudioPage';
 import { ImageViewer } from '../review-studio/ImageViewer';
 import { ShootReviewView } from '../../work/workspaces/ShootReviewView';
@@ -60,11 +60,21 @@ describe('Review Studio controls by role', () => {
     expect(screen.getByRole('button', { name: /comment @/i })).toBeInTheDocument();
   });
 
-  it('the step owner can comment but cannot decide', async () => {
+  it('the step owner reads and replies, but cannot comment, pin or decide', async () => {
     signIn('executive', 'owner-1');
-    await showStudio();
-    expect(screen.getByRole('button', { name: /post comment/i })).toBeInTheDocument();
+    apiFetch.mockImplementation(async (url: string) => {
+      if (url.startsWith('/api/submissions?workItemId=w1')) return [video];
+      if (url.includes('/api/submissions/s1')) return video;
+      return [];
+    });
+    render(<MemoryRouter initialEntries={['/work/w1/review']}><Routes><Route path="/work/:id/review" element={<ReviewStudioPage />} /></Routes></MemoryRouter>);
+    await screen.findAllByText('Edit step');
+    // The reviewers' queue is not asked for.
+    expect(apiFetch.mock.calls.some(([u]: any[]) => u === '/api/submissions/review-queue')).toBe(false);
+    expect(screen.queryByRole('button', { name: /post comment/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /comment @/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /request revision/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^approve/i })).not.toBeInTheDocument();
   });
 });
 

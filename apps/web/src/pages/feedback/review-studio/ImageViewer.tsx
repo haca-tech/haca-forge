@@ -26,6 +26,8 @@ export interface ReviewComment {
     y?: number;
   };
   resolved?: boolean;
+  /** Set on a reply: the first comment of its thread. */
+  parentId?: string | null;
 }
 
 interface ImageViewerProps {

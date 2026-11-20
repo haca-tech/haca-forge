@@ -15,13 +15,14 @@ import {
   CheckCircle,
   Share2,
 } from 'lucide-react';
-import { ROLE_LABELS, type UserRole, isApprover, isReadOnlyViewer, canSeeAllReviewText, canDecide as canDecideOn } from '@mmp/shared';
+import { ROLE_LABELS, type UserRole, isApprover, isReadOnlyViewer, isWorker, canSeeAllReviewText, canDecide as canDecideOn } from '@mmp/shared';
 
 import { DocumentViewer, DocumentCommentAnchor } from './DocumentViewer';
 import { VideoPlayerViewer } from './VideoPlayerViewer';
 import { ImageViewer, ImageCommentAnchor, ReviewComment } from './ImageViewer';
 import { LinkOpenerViewer } from './LinkOpenerViewer';
 import { ReviewStudioSidebar } from './ReviewStudioSidebar';
+import { OwnerReviewBar, OwnerReviewHeader, useOwnerTimeline } from './OwnerReview';
 import { DecisionBar, RootCause } from './DecisionBar';
 import { ShootReviewView } from '../../work/workspaces/ShootReviewView';
 import { ShareToChatModal } from '../../chat/ShareToChatModal';
@@ -126,6 +127,15 @@ export const ReviewStudioPage: React.FC = () => {
     try {
       setLoading(true);
       setErrorMsg(null);
+      if (isWorker(user?.role)) {
+        // "My review": the step owner opens their own step; the review queue is the reviewers'.
+        if (routeWorkItemId) fetchSubmissionByWorkItem(routeWorkItemId);
+        else {
+          setErrorMsg('Open "View review" from My Work or Work Detail.');
+          setLoading(false);
+        }
+        return;
+      }
       const res = await apiFetch<any>('/api/submissions/review-queue');
       const items: ReviewQueueItem[] = Array.isArray(res) ? res : (res?.data || []);
       setQueue(items);
@@ -164,7 +174,7 @@ export const ReviewStudioPage: React.FC = () => {
       setErrorMsg(err?.message || 'Failed to load review queue');
       setLoading(false);
     }
-  }, [routeWorkItemId, searchParams]);
+  }, [routeWorkItemId, searchParams, user?.role]);
 
   useEffect(() => {
     fetchReviewQueue();
@@ -238,6 +248,7 @@ export const ReviewStudioPage: React.FC = () => {
             role: c.authorId?.role || c.authorRole,
           },
           content: c.content || c.text || '',
+          parentId: c.parentId ? String(c.parentId?._id || c.parentId) : null,
           createdAt: c.createdAt,
           anchor: {
             ...c.anchor,
@@ -400,6 +411,7 @@ export const ReviewStudioPage: React.FC = () => {
               role: incoming.authorId?.role || incoming.authorRole,
             },
             content: incoming.content || incoming.text || '',
+            parentId: incoming.parentId ? String(incoming.parentId?._id || incoming.parentId) : null,
             createdAt: incoming.createdAt || new Date().toISOString(),
             anchor: {
               ...incoming.anchor,
@@ -551,6 +563,34 @@ export const ReviewStudioPage: React.FC = () => {
       setActiveCommentId(newComment.id);
     } catch (err: any) {
       alert(err?.message || 'Failed to add general comment');
+    }
+  };
+
+  // A threaded reply (text only): the step owner and the reviewers.
+  const handleReplyComment = async (parentId: string, text: string) => {
+    if (!activeSubmission) return;
+    try {
+      const res = await apiFetch<any>(`/api/submissions/${activeSubmission._id || activeSubmission.id}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ text, content: text, parentId }),
+      });
+      const created = res?.data || res;
+      setComments((prev) =>
+        prev.some((c) => c.id === (created._id || created.id))
+          ? prev
+          : [
+              ...prev,
+              {
+                id: created._id || created.id,
+                author: { id: user?.id || (user as any)?._id || 'me', name: user?.name || 'Me', role: user?.role },
+                content: text,
+                parentId: String(created.parentId || parentId),
+                createdAt: created.createdAt || new Date().toISOString(),
+              },
+            ]
+      );
+    } catch (err: any) {
+      alert(err?.message || 'Failed to send the reply');
     }
   };
 
@@ -707,7 +747,19 @@ export const ReviewStudioPage: React.FC = () => {
   const isDecisionRole = isApprover(user?.role) || user?.role === 'admin';
   const stepCalendar = activeSubmission?.calendar || activeSubmission?.workItemId?.calendar || 'sm';
   const canDecide = canDecideOn(user?.role, stepCalendar) && !isOwner;
-  const canComment = isDecisionRole || isOwner;
+  // Pins, new comments and resolving are the reviewers'; the owner reads everything and replies.
+  const canComment = isDecisionRole && !isOwner;
+  const canReply = canComment || isOwner;
+  const ownerMode = isOwner && !canDecide;
+  const ownerWorkItemId = String(activeSubmission?.workItemId?._id || activeSubmission?.workItemId?.id || activeSubmission?.workItemId || '') || null;
+  const ownerTimeline = useOwnerTimeline(ownerWorkItemId, ownerMode);
+  const reloadOwnerView = () => {
+    ownerTimeline.refresh();
+    if (ownerWorkItemId) fetchSubmissionByWorkItem(ownerWorkItemId);
+  };
+  // Viewers number and pin only the first comment of each thread.
+  const threadRoots = comments.filter((c) => !c.parentId);
+  const canSeePins = canSeeAllReviewText(user?.role) || isOwner;
   const isPrivileged = user?.role === 'admin' || isApprover(user?.role) || user?.role === 'sm_manager';
   const canShare = Boolean(isApproved && (isPrivileged || isOwner) && !isReadOnlyViewer(user?.role));
 
@@ -850,6 +902,15 @@ export const ReviewStudioPage: React.FC = () => {
         )}
       </header>
 
+      {ownerMode && activeSubmission && (
+        <OwnerReviewHeader
+          timeline={ownerTimeline.data}
+          versions={versionList}
+          activeVersionId={activeSubmission._id || activeSubmission.id}
+          onSelectVersion={loadSubmissionDetails}
+        />
+      )}
+
       {staleNotice && (
         <div role="alert" className="status-tint status-waiting px-4 py-2.5 flex items-center justify-between gap-3 text-[13px] flex-shrink-0">
           <span>{staleNotice}</span>
@@ -895,7 +956,7 @@ export const ReviewStudioPage: React.FC = () => {
               hideHeader={true}
               onStaleDecision={handleStaleDecision}
               readOnly={!canDecide}
-              canSeeThreads={canSeeAllReviewText(user?.role)}
+              canSeeThreads={canSeePins}
               onFinishReview={async () => {
                 const subId = activeSubmission._id || activeSubmission.id;
                 const remaining = queue.filter((item) => (item.id || (item as any)._id) !== subId);
@@ -929,7 +990,7 @@ export const ReviewStudioPage: React.FC = () => {
                   title={activeSubmission.workItemId?.title || 'Deliverable Document'}
                   content={activeSubmission.textContent || activeSubmission.document?.htmlSnapshot || activeSubmission.notes || ''}
                   versionNumber={activeSubmission.versionNumber || activeSubmission.version || 1}
-                  comments={comments}
+                  comments={threadRoots}
                   activeCommentId={activeCommentId}
                   onSelectComment={setActiveCommentId}
                   onAddTextComment={canComment ? handleAddTextComment : undefined}
@@ -942,7 +1003,7 @@ export const ReviewStudioPage: React.FC = () => {
                 <VideoPlayerViewer
                   src={uploadUrls(activeSubmission)[0] || ''}
                   title={activeSubmission.workItemId?.title || 'Video Deliverable'}
-                  comments={comments}
+                  comments={threadRoots}
                   activeCommentId={activeCommentId}
                   onSelectComment={setActiveCommentId}
                   onAddVideoComment={canComment ? handleAddVideoComment : undefined}
@@ -952,7 +1013,7 @@ export const ReviewStudioPage: React.FC = () => {
               {viewerType === 'image' && (
                 <ImageViewer
                   images={imageGallery}
-                  comments={comments}
+                  comments={threadRoots}
                   activeCommentId={activeCommentId}
                   onSelectComment={setActiveCommentId}
                   onAddPointComment={canComment ? handleAddPointComment : undefined}
@@ -980,8 +1041,11 @@ export const ReviewStudioPage: React.FC = () => {
                 comments={comments}
                 activeCommentId={activeCommentId}
                 onSelectComment={setActiveCommentId}
-                onResolveComment={handleResolveComment}
+                onResolveComment={canComment ? handleResolveComment : undefined}
                 onAddGeneralComment={handleAddGeneralComment}
+                onReplyComment={canReply ? handleReplyComment : undefined}
+                ownerId={ownerId}
+                viewerIsOwner={ownerMode}
                 canComment={canComment}
                 isDiffMode={isDiffMode}
                 onToggleDiffMode={() => setIsDiffMode(!isDiffMode)}
@@ -990,6 +1054,8 @@ export const ReviewStudioPage: React.FC = () => {
           </>
         )}
       </div>
+
+      {ownerMode && activeSubmission && <OwnerReviewBar timeline={ownerTimeline.data} onChanged={reloadOwnerView} />}
 
       {/* Persistent Docked Decision Bar (only for non-shoot stages since ShootReviewView has its own dedicated review controls) */}
       {activeSubmission && !isShootStage && canDecide && (

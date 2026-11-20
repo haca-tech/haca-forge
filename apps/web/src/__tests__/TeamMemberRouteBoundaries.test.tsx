@@ -88,7 +88,8 @@ describe('team_member route boundaries', () => {
     currentRole = 'executive';
     visit('/feedback');
     expect(await screen.findByRole('heading', { level: 1, name: /review hub/i }, WAIT)).toBeInTheDocument();
-    expect(apiCalls.some((u) => u.startsWith('/api/review-hub'))).toBe(true);
+    // The page asks for its data after it mounts; wait for it like the other checks here.
+    await waitFor(() => expect(apiCalls.some((u) => u.startsWith('/api/review-hub'))).toBe(true), WAIT);
     expect(screen.queryByRole('heading', { name: /page not found/i })).not.toBeInTheDocument();
   });
 });
