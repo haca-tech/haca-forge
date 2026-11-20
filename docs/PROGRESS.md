@@ -10,6 +10,7 @@ Gate per commit: typecheck 0 errors, web build clean, all tests passing (A: API 
 - `45eb18e` B: API and suggestions on step counts.
 - `1f5e07f` C: screens; old hours/percentage fields removed from the API.
 - `e5e771c` Plan grid: owner-cell chips wrap under the select (found in the browser check).
+- `e931024` Plan grid owner select: closed, a cell shows only the band dot and the name; the open list keeps "N due this week". Gate: API 1615/1615, web 452/452, typecheck and build clean; browser check 6/6 on the disposable database (real database unchanged).
 
 ### Rules
 - In progress: the person's steps with status In Progress (rework and paused included).
