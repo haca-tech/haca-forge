@@ -3,6 +3,9 @@
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL?: string;
   readonly VITE_SOCKET_URL?: string;
+  readonly VITE_QUICK_LOGINS?: string;
+  /** "true" keeps quick sign in in a production build. Temporary: remove before hosting. */
+  readonly VITE_QUICK_LOGIN_IN_BUILD?: string;
 }
 
 interface ImportMeta {

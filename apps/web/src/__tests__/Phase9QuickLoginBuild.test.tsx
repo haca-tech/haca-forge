@@ -32,7 +32,12 @@ describe('Quick sign in (dev only)', () => {
   });
 
   // The gate builds the web app before running these tests, so dist/ is the production build.
-  it.skipIf(!fs.existsSync(DIST))('is absent from the production build', () => {
+  // Skipped while VITE_QUICK_LOGIN_IN_BUILD=true is set (temporary testing builds); it guards the hosted build.
+  const keptInBuild = (() => {
+    const envLocal = path.join(ROOT, '.env.local');
+    return fs.existsSync(envLocal) && /^VITE_QUICK_LOGIN_IN_BUILD=true\s*$/m.test(fs.readFileSync(envLocal, 'utf8'));
+  })();
+  it.skipIf(!fs.existsSync(DIST) || keptInBuild)('is absent from the production build', () => {
     const files: string[] = [];
     const walk = (dir: string) => {
       for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

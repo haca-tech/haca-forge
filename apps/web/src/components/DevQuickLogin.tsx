@@ -46,7 +46,9 @@ export const DevQuickLogin: React.FC<DevQuickLoginProps> = ({ accounts, busy, on
       className="glass-modal border border-white p-4 mt-4 w-full lg:mt-0 lg:fixed lg:z-20 lg:right-6 lg:top-1/2 lg:-translate-y-1/2 lg:w-60 lg:max-h-[90vh] lg:overflow-y-auto"
     >
       <h3 className="text-xs font-bold text-ui-ink">Quick sign in</h3>
-      <p className="text-[11px] text-ui-muted mt-0.5 mb-3">Local development only</p>
+      <p className="text-[11px] text-ui-muted mt-0.5 mb-3">
+        {import.meta.env.DEV ? 'Local development only' : 'Testing only: remove before hosting'}
+      </p>
       <div className="space-y-3">
         {groupQuickLogins(accounts).map((group) => (
           <div key={group.title} role="group" aria-label={group.title} data-testid="quick-login-group">

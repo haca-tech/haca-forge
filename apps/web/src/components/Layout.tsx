@@ -20,7 +20,6 @@ import {
   AlertCircle,
   Bell,
   MessageSquare,
-  ChevronDown,
   Megaphone,
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
@@ -609,57 +608,46 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
                 className="pointer-events-none absolute top-0 -right-8 w-8 h-8"
                 style={{ background: 'radial-gradient(circle at 100% 100%, transparent 31.5px, var(--shell-surface) 32px)' }}
               />
+              {/* Search: looks like a standard search field, opens the quick search */}
               <button
+                type="button"
                 onClick={() => setShowSearchModal(true)}
-                title="Search tasks and content (⌘K)"
-                className="flex-1 min-w-0 flex flex-col justify-center h-12 px-6 rounded-full hover:bg-white/60 transition-all text-left leading-tight"
+                title="Search tasks and content (Ctrl K)"
+                aria-label="Search tasks and content"
+                className="group flex-1 min-w-0 flex items-center gap-2.5 h-10 pl-4 pr-2 rounded-full bg-white border border-slate-200 text-left shadow-sm hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-ink/30 transition-colors"
               >
-                <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
-                  <Search className="w-3 h-3" />
-                  Search
-                </span>
-                <span className="mt-0.5 flex items-center justify-between gap-8 text-xs font-semibold text-slate-800 whitespace-nowrap">
-                  Tasks and content
-                  <ChevronDown className="hidden lg:block w-3.5 h-3.5 text-slate-500" />
-                </span>
+                <Search className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-slate-600 transition-colors" />
+                <span className="flex-1 min-w-0 truncate text-sm text-slate-400">Search tasks and content…</span>
+                <kbd className="hidden lg:inline-flex items-center h-6 px-2 rounded-md border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500 font-sans">
+                  Ctrl K
+                </kbd>
               </button>
 
-              <span className="h-7 w-px bg-slate-300/70 shrink-0" aria-hidden="true" />
+              <span className="mx-3 h-6 w-px bg-slate-300/70 shrink-0" aria-hidden="true" />
 
+              {/* Team Chat: one line (icon, label, unread badge) with the people faces */}
               <Link
                 to="/chat"
                 title="Team Chat"
                 data-testid="top-bar-chat-btn"
-                className={`relative flex-1 min-w-0 flex flex-col justify-center h-12 px-6 rounded-full transition-all text-left leading-tight ${
+                aria-label={chatUnreadCount > 0 ? `Team Chat, ${chatUnreadCount} unread` : 'Team Chat'}
+                className={`shrink-0 flex items-center gap-3 h-10 pl-3 pr-1.5 rounded-full transition-colors ${
                   location.pathname.startsWith('/chat')
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'hover:bg-white/60 text-slate-800'
+                    ? 'bg-ui-ink text-white shadow-sm'
+                    : 'text-slate-700 hover:bg-white/70'
                 }`}
               >
-                <span className="flex items-center justify-between gap-3 min-w-0">
-                  <span className="flex flex-col min-w-0">
-                    <span
-                      className={`flex items-center gap-1.5 text-[10px] font-medium ${
-                        location.pathname.startsWith('/chat') ? 'text-white/70' : 'text-slate-400'
-                      }`}
-                    >
-                      <MessageSquare className="w-3 h-3" />
-                      Team Chat
-                    </span>
-                    <span className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap">
-                      Messages
-                      {chatUnreadCount > 0 && (
-                        <span
-                          data-testid="chat-unread-badge"
-                          className="px-1.5 min-w-[18px] h-[18px] rounded-full text-[10px] font-bold bg-rose-500 text-white flex items-center justify-center shadow-sm"
-                        >
-                          {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
-                        </span>
-                      )}
-                    </span>
+                <MessageSquare className="w-4 h-4 shrink-0" />
+                <span className="text-sm font-semibold whitespace-nowrap">Team Chat</span>
+                {chatUnreadCount > 0 && (
+                  <span
+                    data-testid="chat-unread-badge"
+                    className="px-1.5 min-w-[20px] h-5 rounded-full text-[10px] font-bold bg-rose-500 text-white flex items-center justify-center"
+                  >
+                    {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
                   </span>
-                  <HeaderChatAvatars people={chatPeople} moreCount={chatTeamMore} active={location.pathname.startsWith('/chat')} />
-                </span>
+                )}
+                <HeaderChatAvatars people={chatPeople} moreCount={chatTeamMore} active={location.pathname.startsWith('/chat')} />
               </Link>
             </div>
           </div>
