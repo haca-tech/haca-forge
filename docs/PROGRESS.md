@@ -1,6 +1,6 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Request help and no browser popups):** 2124 passing, 0 failing: API 1633 (81 files), web 491 (60 files; 1 skipped while the temporary quick sign-in build flag is on). Typecheck 0 errors; web build clean.
+**Current test count (after the quick sign-in build switch fix):** 2126 passing, 0 failing, 0 skipped: API 1633 (81 files), web 493 (60 files). Typecheck 0 errors; web build clean.
 
 ## Request help modal, and no browser popups (Status: COMPLETE; committed locally, not pushed)
 
@@ -31,7 +31,16 @@
 
 ## Header search and Quick sign-in in builds (Status: COMPLETE; committed locally, not pushed)
 - Header kept as before (Search | Team Chat with avatars) with a standard look: the search segment is a white search field (icon, "Search tasks and content…", "Ctrl K" hint) that opens the same search; Team Chat is one line (icon, label, unread badge, avatars); active chat uses ink instead of indigo. The earlier `HeaderSearch` rework was dropped (it was never saved and broke the dev server).
-- Quick sign-in can be kept in a production build with `VITE_QUICK_LOGIN_IN_BUILD=true` in `apps/web/.env.local` (temporary, testing only: it puts the listed passwords in the bundle). The panel then says "Testing only: remove before hosting". With the flag off the build has no trace of it (checked by building both ways). The build test is skipped while the flag is on.
+- Quick sign-in can be kept in a production build with `VITE_QUICK_LOGIN_IN_BUILD=true` in `apps/web/.env.local` (temporary, testing only: it puts the listed passwords in the bundle). The panel then says "Testing only: remove before hosting". With the flag off the build has no trace of it (checked by building both ways).
+- Who and why: added by Claude in commit `9912690` (author MUBASHIR, co-authored by Claude) at the user's request to keep quick sign-in for easy testing of production builds before hosting; the user will remove it at hosting time.
+- "Online now": not decided in `9912690`. The user asked to keep the old header, so the avatar group stayed as it was: faces of recent chat partners and Team Chat members, not who is online. The app has no presence data (no socket presence, no last-seen), and nothing is labelled "online".
+- Quick sign-in groups (unchanged, from Phase 12b): Admin, Creative Head, Production Head, Creative Lead, Growth Lead, SM Manager, Executive, plus "Other" for unknown roles.
+
+### Build switch fix
+- `vite.config.ts` `quickLoginGuard`: a build fails when `VITE_QUICK_LOGIN_IN_BUILD=true` and the deploy target is production (`VITE_DEPLOY_TARGET=production`, or `VERCEL_ENV=production` on a Vercel production deploy). LoginPage also ignores the switch when `VITE_DEPLOY_TARGET=production`.
+- `Phase9QuickLoginBuild.test.tsx` builds the app itself into a temp folder with the switch set through process env (which Vite ranks above `.env.local`), so it never depends on the local file and is never skipped: switch off → nothing in the bundle (also not the `.env.local` list); switch on + `staging` → included; switch on + `production` or `VERCEL_ENV=production` → the build fails.
+- Browser checks: the scratch scripts start the web app only with a test Vite config proxied to the disposable API on :8095, and refuse to run unless its `/__uicheck` marker answers with that target and the API logged `marketing_portal_uicheck`; every browser context blocks :8080. Re-run of the help check through it: 40/40, no request to :8080.
+- Gate: typecheck 0 errors, web build clean, web 493/493 (none skipped), API 1633/1633. Before/after screenshots of `9912690` at 1440, 1024 and 390 px (header, and login with Quick sign-in) in the session scratchpad (`uicheck/shots-9912690`).
 
 ## Review Studio for the step owner (Status: COMPLETE; committed locally, not pushed)
 

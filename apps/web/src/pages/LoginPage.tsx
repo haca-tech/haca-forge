@@ -29,7 +29,9 @@ import { DevQuickLogin, parseQuickLogins, type QuickLoginAccount } from '../comp
 // Quick sign in is on in the dev server, and in a production build ONLY when VITE_QUICK_LOGIN_IN_BUILD=true
 // (apps/web/.env.local). TEMPORARY: that flag puts every listed password in the bundle: remove it before hosting.
 // Vite replaces both values at build time, so with the flag off the list and its passwords are left out of the bundle.
-const QUICK_LOGIN_ON = import.meta.env.DEV || import.meta.env.VITE_QUICK_LOGIN_IN_BUILD === 'true';
+// Never with VITE_DEPLOY_TARGET=production (vite.config.ts also fails that build).
+const QUICK_LOGIN_ON =
+  import.meta.env.DEV || (import.meta.env.VITE_QUICK_LOGIN_IN_BUILD === 'true' && import.meta.env.VITE_DEPLOY_TARGET !== 'production');
 const QUICK_LOGINS: QuickLoginAccount[] =
   QUICK_LOGIN_ON && import.meta.env.MODE !== 'test' ? parseQuickLogins(import.meta.env.VITE_QUICK_LOGINS) : [];
 
