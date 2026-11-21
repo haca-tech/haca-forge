@@ -239,10 +239,11 @@ async function reroutePlan(calendar, current, next) {
   const newReviewers = reviewersChanged ? newcomers('reviewers') : [];
   const newApprovers = approversChanged ? newcomers('planApprovers') : [];
 
-  // Open Post steps move only when their owner is no longer a poster for this calendar.
+  // Post steps not started yet move only when their owner is no longer a poster for this
+  // calendar; a Post step in progress keeps its owner (Phase E fix: in-progress ones moved too).
   let postSteps = [];
   if (postersChanged) {
-    const open = await WorkItem.find({ ...inCal, stageKey: 'Post', status: { $nin: ['Published', 'Approved'] }, isSkipped: { $ne: true } })
+    const open = await WorkItem.find({ ...inCal, stageKey: 'Post', status: 'Not Started', isSkipped: { $ne: true } })
       .select('_id title ownerId')
       .populate('ownerId', 'name role status calendarScope')
       .lean();
@@ -267,8 +268,8 @@ function previewSentences(calendar, plan) {
   }
   if (plan.postersChanged) {
     out.push(plan.postSteps.length
-      ? `${plan.postSteps.length} open Post step${plan.postSteps.length === 1 ? '' : 's'} will move to ${plan.defaultPoster?.name || 'the fallback'} (their owner is no longer a poster).`
-      : 'Open Post steps keep their owners.');
+      ? `${plan.postSteps.length} Post step${plan.postSteps.length === 1 ? '' : 's'} not started yet will move to ${plan.defaultPoster?.name || 'the fallback'} (their owner is no longer a poster).`
+      : 'Post steps keep their owners.');
   }
   out.push('Steps in progress keep their owners.');
   return out;
@@ -359,7 +360,7 @@ export async function saveCalendarChange(calendar, body = {}, actor) {
   let movedPosts = 0;
   if (plan.postSteps.length && plan.defaultPoster) {
     for (const s of plan.postSteps) {
-      const res = await WorkItem.updateOne({ _id: s._id, ownerId: s.ownerId?._id || s.ownerId || null }, { $set: { ownerId: plan.defaultPoster._id } });
+      const res = await WorkItem.updateOne({ _id: s._id, status: 'Not Started', ownerId: s.ownerId?._id || s.ownerId || null }, { $set: { ownerId: plan.defaultPoster._id } });
       if (!res.modifiedCount) continue;
       movedPosts += 1;
       await logActivity({ entityType: 'work_item', entityId: s._id, actor, action: 'work_item.owner_rerouted', metadata: { from: idOf(s.ownerId), to: plan.defaultPoster._id, reason } });
