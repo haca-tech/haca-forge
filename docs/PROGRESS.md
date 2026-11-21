@@ -1,6 +1,34 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Access Phase E):** 2221 passing, 0 failing, 0 skipped: API 1706 (93 files), web 515 (65 files). Typecheck 0 errors; web build clean.
+**Current test count (after the final access fix):** 2269 passing, 0 failing, 0 skipped: API 1752 (98 files), web 517 (65 files). Typecheck 0 errors; web build clean.
+
+## Final access fix (from Phase E and the independent review) (Status: COMPLETE; committed locally, not pushed)
+
+Four commits, gate (shared build, typecheck, web build, all API and web tests) after each.
+
+**Commit 1 `d01572b` — nobody-can-act gaps (H1–H3)**
+- H1 The fallback decides: when nobody in a calendar's reviewers or plan approvers is active and eligible, its fallback people are notified, see the work in their queues and can decide (`can()` takes `primaryInactive`, set by the async resolver). Active admins are the final fallback.
+- H2 Posters: the health check blocks a calendar with no active poster who can own Post steps (admin no longer counts or appears in the picker). No more "planner becomes the poster": the row is kept with a `NO_ACTIVE_POSTER` warning, the Post step waits unowned, and `step.needs_owner` reaches the posters' role holders, SM Managers and admins. The grid's autofill only picks Post owners among the calendar's posters.
+- H3 Named people whose role, status or limit no longer fit a slot are skipped (the fallback takes over). Person changes run the health check on every calendar and are refused (409 `BREAKS_CALENDARS`) naming the calendars and settings to fix.
+
+**Commit 2 `e73cfeb` — routing and races (M1–M10)**
+- M1 default poster within calendar limits. M2 a row cannot change calendar apart from its plan (400 "Move the whole plan to change calendar"). M3 rows decided only while submitted, with a conditional write; the losing decision gets 409; `approve_all` no longer approves drafts. M4 nobody decides rows they added or submitted (`submittedById` recorded). M5 clip review and clip-feedback reopen never on your own step. M6 rating edits refused on your own work and need review on the calendar now. M7 settings saves read the database, carry the page's version, write with `findOneAndUpdate({calendar, version})`; 409 "Settings changed — reload". M8 cache generation counter. M9 team mutations guarded (PATCH keeps leads' operational edits: `user.manage` or `people.manage_operational`); every role/status route goes through `savePersonChange` (reason, self and last-admin guards, health check); invited people are never made active by the toggle; the web role dialog and status toggle ask for a reason. M10 reassignment only to an active person who can own every step.
+
+**Commit 3 `1457b21` — low (L1–L4)**
+- L1 help requests managed by people who review or post on the step's calendar, admins, the asker and the person asked. L2 workers get 404 on others' ratings, profiles and work history, teammates included. L3 no role names or display-name guessing in EditWorkspace; the plan grid names the calendar's configured plan approvers; `NoRoleLiterals` catches any value compared with a role key and `case` on role keys. L4 `/auth/me` failures sign out only on 401 or an account refusal (403 suspended, so fixed rule 9 holds); network and server errors keep the user and retry.
+
+**Commit 4 `078a613` — tests that prove the rules**
+- T1 the matrix reads the real route table (any quotes, nested routers, routes attached at start: 233 routes) and fails on any unguarded route not in `test/fixtures/unguarded_routes.js` (104 entries, each with its reason). T2 `route_guard_snapshot.json` is per route: method + path + guards + admitted roles (129 guarded routes). T4 rule 3 covers clips, rating edits, reopen and rows added to someone else's plan. T5 rule 7 requires each route's exact code and 409 `LAST_ADMIN` from the guard itself. T6 two reviewers decide one version at the same moment; plan-row races in `final_fix_m_routing_and_races`.
+- `service_only_permissions`: the 12 permissions no route guard checks, every role trying the real action. `report.configure` and `automation.manage` are used by no route or screen (checked at the resolver: admin only).
+- `OwnerReviewMode.test.tsx` waits for both of its requests. Tests remove the users they create; `scripts/purge-test-users.js` (local `marketing_portal_test` only) removed 2,722 leftover users and a full run now leaves 0.
+
+**Browser check** (disposable `marketing_portal_uicheck`, API :8095, web :5199 with the project's Vite config, requests to :8080 aborted; dropped after): 34/34 at 1440 px and 34/34 at 390 px. H1 a named fallback Creative Lead sees and approves the Ads review after the only Ads reviewer is suspended in the People panel; H2 the Ads card shows "no active poster" and blocks saving, admin is not offered as a poster; H3 suspending Sales' only poster is blocked naming "Sales Calendar (Posted by)"; M2 refused; M3 two leads press "Approve whole plan" at the same moment: one "Plan approved.", the other "already decided by someone else", row approved once; M9 role change needs a reason and is in History, invited person suspended not activated, leads refused on status but keep operational edits. No page errors, no sideways scroll.
+
+**Notes**
+- M9 deviation: the brief said `requirePermission('user.manage')` on PATCH `/api/team/:id`; that would stop leads editing workers' operational fields (an approved rule), so it is `user.manage` or `people.manage_operational`, with role/status still admin-only in the service. The same `savePersonChange` path now also covers `/api/people/:id`, `/suspend` and `/reactivate`.
+- L4: a suspended account answers 403 (not 401), so it also signs the tab out, as fixed rule 9 requires.
+- Several API instances: parked until deployment (see `docs/ACCESS.md` §7).
+- `plan_grid_pg2` "reads workload once per paste" has a 5 s timing limit that a heavily loaded full run once exceeded (6.7 s; 0.5 s alone, unchanged by this work).
 
 ## Access Phase E: verification (Status: COMPLETE; committed locally, not pushed)
 

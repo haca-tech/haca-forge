@@ -30,14 +30,20 @@ Each of the five calendars (SM, Sales, Ads, Academics & Management, Other) has f
 |---|---|---|
 | **Plans approved by** | Who approves or sends back that calendar's plan rows. | Roles and people who can approve plans |
 | **Work reviewed by** | Who reviews submitted work (approve with a rating, or request changes), decides pause requests, classifies revision flags, and is offered first in help requests. | Roles and people who can review |
-| **Posted by** | Who posts finished work. A new row's Post step goes to the first active poster. | Roles and people who can post |
-| **Fallback** | Who decides when nobody in the setting above is active (for example the only named reviewer is suspended). | Roles and people who can review |
+| **Posted by** | Who posts finished work. A new row's Post step goes to the first active poster (inside their calendar limit). Posters own Post steps, so only roles that take steps count: the admin can mark a piece posted but is never a poster. | Roles and people who can own Post steps (SM Manager) |
+| **Fallback** | Who decides (reviews, plan approvals, pauses, classify) when nobody in *Plans approved by* or *Work reviewed by* is active and able to act, for example the only named reviewer is suspended or their role changed. The fallback people are then notified, see the work in their queues and can decide. If the fallback has nobody active either, every active admin is the final fallback: notified, and always able to decide. | Roles and people who can review |
 
 Defaults (also used when no settings are stored at all): Ads → Growth Lead; the other calendars → Creative Lead; posters → SM Manager; fallback → Admin.
 
 **What a save does.** Waiting reviews, waiting plan rows and pause requests follow the new settings at once (nothing is copied; queues are read live). Each person who newly receives work is told once, with a count. Steps already in progress keep their owners. A Post step that has **not started** moves to the first poster only when its owner is no longer a poster for that calendar. Every save makes a new version and a History entry with the reason.
 
-**Health check.** Saving is blocked while any calendar would have nobody active to approve plans, review, or post (even counting the fallback), or while someone is put in a setting their role cannot do. Warnings (not blocking): a named person is suspended or invited, a named person is limited to other calendars, or a setting is only covered by the fallback.
+**Two admins saving at once.** A save carries the version the card showed. If someone saved that calendar in between, the save is refused with **"Settings changed — reload"** and the card shows the latest settings; nothing is overwritten. Every save gets its own version number.
+
+**Health check.** Saving is blocked while any calendar would have nobody active to approve plans or review (even counting the fallback), **nobody active who can own Post steps** (posters have no fallback; the admin does not count), or while someone is put in a setting their role cannot do. Warnings (not blocking): a named person is suspended or invited, a named person is limited to other calendars, or a setting is only covered by the fallback.
+
+**Person changes are checked too.** Changing someone's role, status or calendar limit (on People & Roles, or from their profile) runs the same health check on every calendar. If the change would leave a calendar without cover, for example suspending its only poster, it is refused and the message names the calendars and settings to fix first, e.g. *"Fix these calendar settings first: Sales Calendar (Posted by)."* Name a replacement there, then make the change.
+
+**If a calendar has no poster anyway** (an older or hand-edited setting): new rows are still saved, with a note that nobody can post yet. Their Post steps wait without an owner, and when one is reached the holders of the posting roles, every SM Manager and every admin are told it needs an owner. The planner is never made the poster.
 
 ---
 
@@ -45,9 +51,9 @@ Defaults (also used when no settings are stored at all): Ads → Growth Lead; th
 
 1. **Direct messages are private**, the admin included. Only the two people in a DM can read it.
 2. **No ranking or comparison.** Nothing lists people's performance side by side, ranks them, or compares one person with another. Team reports show team-level figures; each person's figures are on their own profile.
-3. **Nobody decides on their own work**: no approving or sending back your own submitted work, your own plan, your own pause request, or your own revision flag. This includes the admin.
+3. **Nobody decides on their own work**: no approving or sending back your own submitted work, your own plan, plan rows you added or submitted (even in someone else's plan), your own pause request, your own revision flag, your own clips, your own finished step (reopen), or a rating on your own work. This includes the admin.
 4. **A rating average needs at least 3 ratings.** Below that it shows "Collecting baseline".
-5. **Workers see only their own work.** Another person's step or profile answers "not found" to a worker.
+5. **Workers see only their own work.** Another person's step, profile, ratings or work history answers "not found" to a worker, teammates on the same piece included.
 6. **Workers never see other people's contact details** (email, phone, WhatsApp).
 7. **There is always at least one active admin.** The last active admin cannot be demoted, suspended or deleted by any route.
 8. **Read-only roles can still manage their own account** (profile, settings, password, sign-out).
@@ -56,6 +62,13 @@ Defaults (also used when no settings are stored at all): Ads → Growth Lead; th
 These are checked by `apps/api/test/e2e_fixed_rules.test.js`.
 
 ---
+
+**Also always true (not settings):**
+- Plan rows are decided only while they are waiting (submitted). If two approvers decide the same row at once, the first wins and the other is told it was already decided; the same holds for two reviewers deciding one version.
+- A row always belongs to its plan's calendar. To change the calendar, move the whole plan; its waiting work follows.
+- Help requests on a step are answered and resolved by the asker, the person asked, the people who review or post on that step's calendar, and admins. Other leads can read them.
+- Role and status changes always need a reason and appear in History, whichever screen they are made from.
+- Steps are reassigned only to an active person who can own every one of them (Post steps: a poster on that calendar).
 
 ## 4. Changing a reviewer safely
 
@@ -100,5 +113,11 @@ It refuses to run against anything but a local database (`localhost`, `127.0.0.1
 - **API.** Route guards: `requirePermission` / `requireAnyPermission` (each guard carries its keys). Calendar decisions: `workItems/deciders.js` (`assertDecidesOn`, `decidersFor`) over `lib/accessResolver.js` (`reviewersFor`, `planApproversFor`, `postersFor`, `recipientsFor`). Role, status and calendar limit are written only by `changePersonAccess`; calendar settings only by `updateWorkflowConfig`.
 - **Web.** `useAccess().can(permission, { calendar, ownerId })`; no role names in app code (guard test `NoRoleLiterals`).
 - **Live updates.** A change sends `access:changed` to the affected people's sockets; their tabs reload `/auth/me` (also on reconnect and when the tab regains focus). A role, status or limit change then closes their sockets so they reconnect with the new access.
-- **Cache.** Calendar settings are cached per API process, cleared on every save in that process, and re-read after **5 seconds** in any case. People (role, status, limit) are read on every request, never cached. **Several API instances:** a save on instance A applies to decisions on instance B within 5 seconds (the TTL). The live `access:changed` event, however, only reaches sockets connected to the instance that saved: users connected to another instance see the change when their tab regains focus or reconnects. Sending it across instances needs a shared Socket.IO adapter (Redis), which is not installed.
-- **Tests.** `e2e_permission_matrix` (every guarded route × every role; decisions × 5 calendars × owner / non-owner), `e2e_routing_scenarios`, `e2e_fixed_rules`, `e2e_cache_and_rollback`, `access_admin_page`, `access_parity`.
+- **Slots and the fallback.** `slotEligibleRole(role, slot)` (shared) says whether a role can fill a slot: the slot's permission, and for posters also taking steps. The resolver's `peopleFor` keeps only named people who are active, inside their limit and whose *current* role is eligible. `can()` lets the fallback decide when the API resolver sets `primaryInactive` for that slot (it does, in `accessResolver.can`, only when the main list resolves to nobody); `decisionCalendars` and `/auth/me` include such calendars.
+- **Person changes.** Role, status and limit are written only by `changePersonAccess`; every route that changes them (`/access-admin/people`, `/team/:id`, `/team/:id/status`, `/people/:id`, `/people/:id/suspend|reactivate`) goes through `savePersonChange` (reason, self and last-admin guards, health check on every calendar).
+- **Cache.** Calendar settings are cached per API process, cleared on every save in that process, and re-read after **5 seconds** in any case. A generation counter stops a read that started before a save from putting the old settings back. Saves read the database directly (`readWorkflowConfigFresh`) and write with `findOneAndUpdate({ calendar, version })`. People (role, status, limit) are read on every request, never cached.
+- **Several API instances (parked until deployment).** A save on instance A applies to decisions on instance B within 5 seconds (the TTL), and conflicting saves are refused by the version check. The live `access:changed` event, however, only reaches sockets connected to the instance that saved: users connected to another instance see the change when their tab regains focus or reconnects. Sending it across instances needs a shared Socket.IO adapter (Redis); it is not installed (no new dependencies) and is parked until the deployment is decided.
+- **Signing out.** An open tab signs out when `/auth/me` answers 401, or 403 for a suspended account (fixed rule 9). A network or server error keeps the user; the next focus, reconnect or `access:changed` tries again.
+- **Tests.** `e2e_permission_matrix` (every guarded route × every role; decisions × 5 calendars × owner / non-owner; T1: no route without a guard unless it is in `test/fixtures/unguarded_routes.js` with a reason), `access_parity` (T2: `test/fixtures/route_guard_snapshot.json`, one entry per method + path with its guards and roles; regenerate on purpose with `node apps/api/scripts/snapshot-route-guards.js` and review the diff), `service_only_permissions` (the 12 permissions no route guard checks: every role tries the real action), `e2e_routing_scenarios`, `e2e_fixed_rules`, `e2e_cache_and_rollback`, `access_admin_page`, `final_fix_h_nobody_can_act`, `final_fix_m_routing_and_races`, `final_fix_l_low`.
+- **Test database hygiene.** Tests remove the users they create. `node apps/api/scripts/purge-test-users.js` (dry run; `--confirm` to delete) clears leftovers from `marketing_portal_test` and refuses any other database.
+- **Not used yet.** `report.configure` and `automation.manage` are in the catalog (admin only), but no route or screen checks them today.
