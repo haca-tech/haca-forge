@@ -1,7 +1,8 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { ProtectedRoute } from '../components/ProtectedRoute';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../context/AuthContext';
 import { Layout } from '../components/Layout';
@@ -65,6 +66,30 @@ describe('Access changes apply without signing out', () => {
     expect(apiFetch.mock.calls.filter(([u]: any[]) => u === '/auth/me').length).toBeGreaterThanOrEqual(2);
     expect(apiFetch.mock.calls.some(([u]: any[]) => u === '/auth/logout')).toBe(false);
     expect(screen.getByText('Page')).toBeInTheDocument();
+  });
+
+  it("a suspended user's open tab signs out on access:changed (Phase E fixed rule)", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/my-work']}>
+          <AuthProvider>
+            <Routes>
+              <Route path="/my-work" element={<ProtectedRoute><div>Page</div></ProtectedRoute>} />
+              <Route path="/login" element={<div>Sign in page</div>} />
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    await screen.findByText('Page');
+    // The admin suspends them: the server sends access:changed, then /auth/me answers 403.
+    apiFetch.mockImplementation(async (url: string) => {
+      if (url === '/auth/me') throw new apiModule.ApiError('Your account has been suspended.', 'ACCOUNT_SUSPENDED', 403);
+      return { data: [] };
+    });
+    await act(async () => emitAccessChanged('access:changed'));
+    expect(await screen.findByText('Sign in page')).toBeInTheDocument();
+    expect(screen.queryByText('Page')).toBeNull();
   });
 
   it('the socket wiring forwards access:changed and reconnects (not the first connect)', () => {
