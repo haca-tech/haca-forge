@@ -302,13 +302,10 @@ export async function calculateTeamPerformance(filters = {}, actor = null) {
     )
   );
 
-  // A reviewer's turnaround is their own figure (on their own performance view), never
-  // set side by side with other people's, so the team list leaves it out.
-  const validResults = memberResults.filter(Boolean).map((r) => {
-    const { avgFeedbackResponseTimeHrs: _own, ...collaboration } = r.dimensions.collaboration;
-    return { ...r, dimensions: { ...r.dimensions, collaboration } };
-  });
-
+  // Fixed rule (no ranking or comparison): team-level figures only. Each person's own figures
+  // stay on their own performance view, never listed side by side (Phase E fix: this returned
+  // every member's score in one list).
+  const validResults = memberResults.filter(Boolean);
   const avgScore = validResults.length > 0
     ? Math.round(validResults.reduce((sum, r) => sum + r.overallScore, 0) / validResults.length)
     : 0;
@@ -316,6 +313,5 @@ export async function calculateTeamPerformance(filters = {}, actor = null) {
   return {
     overallTeamScore: avgScore,
     totalMembersEvaluated: validResults.length,
-    members: validResults,
   };
 }

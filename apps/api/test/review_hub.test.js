@@ -262,10 +262,10 @@ describe('Review Hub', () => {
     });
 
     it('reviewer turnaround is the lead own figure only: the team list never sets it beside others', async () => {
+      // Phase E: the team view is team-level only (no per-person list at all).
       const team = await calculateTeamPerformance({}, { role: 'admin', _id: P.admin._id });
-      const lead = team.members.find((m) => String(m.person._id) === String(P.creativeLead._id));
-      expect(lead).toBeTruthy();
-      expect(team.members.every((m) => !('avgFeedbackResponseTimeHrs' in m.dimensions.collaboration))).toBe(true);
+      expect(team.members).toBeUndefined();
+      expect(team.totalMembersEvaluated).toBeGreaterThan(0);
       expect(JSON.stringify(team)).not.toContain('avgFeedbackResponseTimeHrs');
       // Still on the lead's own performance view.
       const own = await calculatePersonPerformance(P.creativeLead._id, {}, { role: 'admin', _id: P.admin._id });
