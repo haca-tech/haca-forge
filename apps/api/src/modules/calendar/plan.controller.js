@@ -177,7 +177,12 @@ export async function submitPlan(req, res, next) {
 export async function reviewPlan(req, res, next) {
   try {
     const plan = await planService.reviewPlan(req.params.id, req.body, req.user);
-    res.json({ data: plan });
+    // Rows another approver decided first are reported, not lost: "2 approved, 1 already decided".
+    const lost = plan.decision?.alreadyDecided || [];
+    const message = lost.length
+      ? `${plan.decision.summary}. ${lost.map((r) => `"${r.topic}"`).join(', ')} ${lost.length === 1 ? 'was' : 'were'} already decided by someone else.`
+      : undefined;
+    res.json({ data: plan, ...(message ? { message } : {}) });
   } catch (err) {
     next(err);
   }

@@ -32,12 +32,14 @@ vi.mock('../../../../lib/api', async () => {
       if (url === '/api/calendar-plans') return { data: approvalPlans };
       if (url.startsWith('/api/calendar-plans/plan1') && method === 'GET') return { data: { ...approvalPlans[0], rows: [] } };
       if (url.endsWith('/autofill')) return { data: { stages: [] } };
+      if (url.endsWith('/review')) return reviewResponse;
       return { data: {} };
     }),
   };
 });
 
 let approvalPlans: any[] = [];
+let reviewResponse: any = { data: {} };
 const monthlyApprovalPlans = [
   { _id: 'plan1', code: 'PLAN-2031-11-001', title: 'SM November 2031', kind: 'monthly', calendar: 'sm', periodStart: '2031-11-01T00:00:00.000Z', periodEnd: '2031-11-30T23:59:59.999Z', status: 'Submitted', createdAt: '2031-10-01T00:00:00.000Z', rowCount: 2, submittedRowCount: 1, approvedRowCount: 0 },
 ];
@@ -159,6 +161,20 @@ describe('Creative Head review in the grid', () => {
     fireEvent.click(within(dlg).getByRole('button', { name: 'Approve whole plan' }));
     await waitFor(() => expect(reviewCalls()).toHaveLength(1));
     expect(reviewCalls()[0].body).toEqual({ action: 'approve_all' });
+  });
+
+  it('rows another lead decided first are reported, not shown as a plain success (issue 1)', async () => {
+    reviewResponse = { data: { decision: { summary: '1 approved, 1 already decided', alreadyDecided: [{ rowId: 'r3', topic: 'Old approved' }] } } };
+    try {
+      await show({ rows: [base, { ...base, rowId: 'r3', topic: 'Old approved', rowStatus: 'approved', editable: false }] });
+      fireEvent.click(screen.getByRole('button', { name: 'Approve whole plan' }));
+      const dlg = await screen.findByRole('alertdialog', { name: 'Approve the whole plan?' });
+      fireEvent.click(within(dlg).getByRole('button', { name: 'Approve whole plan' }));
+      expect(await screen.findByText('1 approved, 1 already decided. "Old approved" was already decided by someone else.')).toBeInTheDocument();
+      expect(screen.queryByText('Plan approved.')).not.toBeInTheDocument();
+    } finally {
+      reviewResponse = { data: {} };
+    }
   });
 });
 

@@ -186,7 +186,7 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
   const [lines, setLines] = useState<GridLine[]>([newLine()]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
+  const [notice, setNotice] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(null);
   const [savingKeys, setSavingKeys] = useState<Set<string>>(new Set());
   const [showProgress, setShowProgress] = useState(false);
   const [panelKey, setPanelKeyRaw] = useState<string | null>(null);
@@ -508,8 +508,18 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
     if (!plan) return false;
     setReviewBusy(true);
     try {
-      await apiFetch(`/api/calendar-plans/${plan._id}/review`, { method: 'POST', body: JSON.stringify(body) });
-      setNotice({ tone: 'ok', text: okText });
+      const res = await apiFetch<{ data?: { decision?: { summary?: string; alreadyDecided?: Array<{ topic: string }> } } }>(
+        `/api/calendar-plans/${plan._id}/review`,
+        { method: 'POST', body: JSON.stringify(body) }
+      );
+      // Rows another lead decided first are reported, not lost: "2 approved, 1 already decided".
+      const decision = res?.data?.decision;
+      const lostRows = decision?.alreadyDecided || [];
+      setNotice(
+        lostRows.length
+          ? { tone: 'warn', text: `${decision?.summary || ''}. ${lostRows.map((r) => `"${r.topic}"`).join(', ')} ${lostRows.length === 1 ? 'was' : 'were'} already decided by someone else.` }
+          : { tone: 'ok', text: okText }
+      );
       setSelectedIds(new Set());
       await load();
       onChanged?.();
@@ -1062,7 +1072,7 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
         )}
         {selectedPlan?.periodIssue && <p className="status-tint status-changes rounded-ui-control px-3 py-2 text-sm">This plan's saved period ends before it starts.</p>}
         {notice && (
-          <p role={notice.tone === 'error' ? 'alert' : 'status'} className={`status-tint ${notice.tone === 'error' ? 'status-changes' : 'status-approved'} rounded-ui-control px-3 py-2 text-sm`}>
+          <p role={notice.tone === 'error' ? 'alert' : 'status'} className={`status-tint ${notice.tone === 'error' ? 'status-changes' : notice.tone === 'warn' ? 'status-waiting' : 'status-approved'} rounded-ui-control px-3 py-2 text-sm`}>
             {notice.text}
           </p>
         )}

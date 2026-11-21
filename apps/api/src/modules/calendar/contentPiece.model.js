@@ -175,6 +175,11 @@ const contentPieceSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    /** Set while a repair generates the steps of an approved row that has none (one repair at a time). */
+    stageRepairClaimedAt: {
+      type: Date,
+      default: null,
+    },
     publishedAt: {
       type: Date,
       default: null,
