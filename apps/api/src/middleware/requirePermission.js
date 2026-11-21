@@ -23,19 +23,22 @@ function forbidden(res, keys) {
   });
 }
 
+/** Each guard carries its keys (read by the end-to-end permission matrix test). */
+const tagged = (guard, keys) => Object.assign(guard, { permissionKeys: keys });
+
 export function requirePermission(permissionKey) {
-  return (req, res, next) => {
+  return tagged((req, res, next) => {
     if (!req.user) return unauthorized(res);
     if (can(req.user, permissionKey)) return next();
     return forbidden(res, [permissionKey]);
-  };
+  }, [permissionKey]);
 }
 
 export function requireAnyPermission(...permissionKeys) {
   const keys = permissionKeys.flat();
-  return (req, res, next) => {
+  return tagged((req, res, next) => {
     if (!req.user) return unauthorized(res);
     if (keys.some((key) => can(req.user, key))) return next();
     return forbidden(res, keys);
-  };
+  }, keys);
 }
