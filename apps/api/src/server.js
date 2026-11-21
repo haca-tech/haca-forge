@@ -53,6 +53,7 @@ import clipsRouter, { attachWorkItemMediaRoutes } from "./modules/media/routes.j
 import { chatRouter } from "./modules/chat/routes.js";
 import publishedRoutes from "./modules/published/routes.js";
 import reviewHubRoutes from "./modules/reviewHub/routes.js";
+import accessAdminRoutes from "./modules/accessConfig/accessAdmin.routes.js";
 import { setupChatSocket, registerChatSocketIO } from "./modules/chat/socket.js";
 import { ensureAutomationRules } from "./modules/automation/runner.js";
 import { ensureBaselineUsers } from "./modules/people/baselineUsers.js";
@@ -230,6 +231,7 @@ app.use("/api/blockers", blockerRoutes);
 app.use("/api/chat", chatRouter);
 app.use("/api/published", publishedRoutes);
 app.use("/api/review-hub", reviewHubRoutes);
+app.use("/api/access-admin", accessAdminRoutes);
 app.use("/chat", chatRouter);
 
 app.set("io", io);

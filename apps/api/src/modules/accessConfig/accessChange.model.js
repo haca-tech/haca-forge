@@ -13,7 +13,12 @@ const accessChangeSchema = new mongoose.Schema(
     field: { type: String, required: true },
     before: { type: mongoose.Schema.Types.Mixed, default: null },
     after: { type: mongoose.Schema.Types.Mixed, default: null },
+    /** The reason given (required on the admin page). */
     note: { type: String, trim: true, default: '' },
+    /** Calendar settings: the whole config before and after the save, and the new version (for Restore). */
+    configBefore: { type: mongoose.Schema.Types.Mixed, default: null },
+    configAfter: { type: mongoose.Schema.Types.Mixed, default: null },
+    version: { type: Number, default: null },
   },
   { timestamps: false }
 );

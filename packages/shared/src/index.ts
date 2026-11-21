@@ -4843,3 +4843,76 @@ export function stepEligibility(
   if (role.dataScope !== "own") return false;
   return ((JOB_ROLE_STEP_ELIGIBILITY as Record<string, string[]>)[String(user?.jobRole || "")] || []).includes(stage);
 }
+
+// ==========================================
+// Access Phase D: admin page helpers (pure).
+// ==========================================
+
+/** The permission a person or role needs to be named in each calendar slot. */
+export const WORKFLOW_SLOT_PERMISSION: Record<WorkflowSlot, string> = {
+  reviewers: "review.decide",
+  planApprovers: "calendar.approve",
+  posters: "publish.post",
+  fallbackApprovers: "review.decide",
+};
+export const WORKFLOW_SLOT_LABELS: Record<WorkflowSlot, string> = {
+  planApprovers: "Plans approved by",
+  reviewers: "Work reviewed by",
+  posters: "Posted by",
+  fallbackApprovers: "Fallback",
+};
+
+/** True when this role's permissions include any calendar-routed one (so a calendar limit means something). */
+export function roleHasCalendarScopedPermissions(role: string | null | undefined): boolean {
+  const def = systemRoleOf({ role: role || "" });
+  if (!def || def.locked) return false;
+  return def.permissions.some((p) => Boolean(permissionDef(p)?.routedBy));
+}
+
+const calendarName = (key: string) => (CALENDARS as Record<string, CalendarDefinition>)[key]?.name || key;
+const listCalendars = (keys: string[]) =>
+  keys.length === CALENDAR_KEYS.length ? "every calendar" : keys.map(calendarName).join(", ");
+
+/**
+ * What a person gains and loses when their role or calendar limit changes, in catalog labels:
+ * "Review on Ads Calendar", "Plan". Calendar-routed permissions list the calendars.
+ */
+export function describeAccessChange(
+  before: AccessUser,
+  after: AccessUser,
+  configs?: Partial<Record<string, WorkflowConfigShape>>
+): { gains: string[]; losses: string[] } {
+  const gains: string[] = [];
+  const losses: string[] = [];
+  for (const p of PERMISSION_CATALOG as readonly PermissionDef[]) {
+    if (p.routedBy) {
+      const cals = (u: AccessUser) => CALENDAR_KEYS.filter((c) => can(u, p.key, { calendar: c }, configs?.[c] || null));
+      const was = cals(before);
+      const now = cals(after);
+      const added = now.filter((c) => !was.includes(c));
+      const removed = was.filter((c) => !now.includes(c));
+      if (added.length) gains.push(`${p.label} on ${listCalendars(added)}`);
+      if (removed.length) losses.push(`${p.label} on ${listCalendars(removed)}`);
+    } else {
+      const was = can(before, p.key);
+      const now = can(after, p.key);
+      if (now && !was) gains.push(p.label);
+      if (was && !now) losses.push(p.label);
+    }
+  }
+  return { gains, losses };
+}
+
+/** Role guide: what each system role can do, grouped by area (catalog labels). */
+export function roleGuide(): Array<{ role: UserRole; label: string; locked: boolean; areas: Array<{ area: string; items: string[] }> }> {
+  return ROLE_KEYS.map((role) => {
+    const def = SYSTEM_ROLES[role];
+    const areas = PERMISSION_AREAS.map((area) => ({
+      area,
+      items: (PERMISSION_CATALOG as readonly PermissionDef[])
+        .filter((p) => p.area === area && def.permissions.includes(p.key))
+        .map((p) => (p.routedBy ? `${p.label} (on the calendars where named)` : p.label)),
+    })).filter((a) => a.items.length);
+    return { role, label: ROLE_LABELS[role], locked: def.locked, areas };
+  });
+}

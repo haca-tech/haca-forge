@@ -117,6 +117,13 @@ describe('Access parity: old rules vs the resolver', () => {
       }
       if (guards.length) current[rel] = guards;
     }
+    // Route files added after the snapshot: each guard admits only the locked admin role.
+    const ADDED_LATER = ['accessConfig/accessAdmin.routes.js']; // Phase D: Access & Approvals
+    for (const file of ADDED_LATER) {
+      expect(current[file], `${file} is guarded`).toBeTruthy();
+      for (const keys of current[file]) expect(ROLE_KEYS.filter((role) => keys.some((k) => can(userOf(role), k)))).toEqual(['admin']);
+      delete current[file];
+    }
     expect(Object.keys(current).sort()).toEqual(Object.keys(snapshot).sort());
     let checked = 0;
     for (const [file, guards] of Object.entries(snapshot)) {

@@ -35,6 +35,9 @@ const TeamDashboardPage = React.lazy(() =>
 const AccessRequestsPage = React.lazy(() =>
   import('./pages/admin/AccessRequestsPage').then((m) => ({ default: m.AccessRequestsPage }))
 );
+const AccessApprovalsPage = React.lazy(() =>
+  import('./pages/admin/AccessApprovalsPage').then((m) => ({ default: m.AccessApprovalsPage }))
+);
 const NotificationsPage = React.lazy(() =>
   import('./pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage }))
 );
@@ -480,6 +483,18 @@ export const App: React.FC = () => {
                     <ProtectedRoute requiredPermission="user.approve">
                       <Layout>
                         <AccessRequestsPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Access & Approvals (Access Phase D): admin only */}
+                <Route
+                  path="/settings/access"
+                  element={
+                    <ProtectedRoute requiredPermission="settings.access.manage">
+                      <Layout>
+                        <AccessApprovalsPage />
                       </Layout>
                     </ProtectedRoute>
                   }

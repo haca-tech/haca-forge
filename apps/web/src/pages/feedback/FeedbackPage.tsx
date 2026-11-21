@@ -427,6 +427,16 @@ export const FeedbackPage: React.FC = () => {
     };
   }, [tab, q, calendar, reloadKey]);
 
+  // Access changed (role, calendar limit, a calendar's reviewers): reload the lists without signing out.
+  const firstAccess = useRef(true);
+  useEffect(() => {
+    if (firstAccess.current) {
+      firstAccess.current = false;
+      return;
+    }
+    setReloadKey((k) => k + 1);
+  }, [access]);
+
   useEffect(() => setQDraft(q), [q]);
   useEffect(() => {
     if (qDraft === q) return;
@@ -494,8 +504,8 @@ export const FeedbackPage: React.FC = () => {
 
       {error && <p role="alert" className="p-3 status-tint status-changes rounded-xl text-xs font-semibold">{error}</p>}
 
-      {activeTab === 'pauses' && <PauseRequestsTab onCount={(n) => setData((d) => (d ? { ...d, tabs: d.tabs.map((t) => (t.key === 'pauses' ? { ...t, count: n } : t)) } : d))} />}
-      {activeTab === 'plans' && <PlansApprovalTab />}
+      {activeTab === 'pauses' && <PauseRequestsTab key={reloadKey} onCount={(n) => setData((d) => (d ? { ...d, tabs: d.tabs.map((t) => (t.key === 'pauses' ? { ...t, count: n } : t)) } : d))} />}
+      {activeTab === 'plans' && <PlansApprovalTab key={reloadKey} />}
 
       {isListTab && data && (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-4 items-start">

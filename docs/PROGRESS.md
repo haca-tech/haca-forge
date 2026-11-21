@@ -1,6 +1,20 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Access Phase C):** 2166 passing, 0 failing, 0 skipped: API 1665 (87 files), web 501 (63 files). Typecheck 0 errors; web build clean.
+**Current test count (after Access Phase D):** 2187 passing, 0 failing, 0 skipped: API 1677 (88 files), web 510 (64 files). Typecheck 0 errors; web build clean.
+
+## Access Phase D: Access & Approvals admin page (Status: COMPLETE; committed locally, not pushed)
+
+Page `/settings/access` (menu "Access & Approvals"), API `/api/access-admin/*`. Only `settings.access.manage` (the locked admin role): others get 403 and no menu entry.
+
+- **People & Roles:** table (name, job role, role, calendar limit, status, last active = `lastLoginAt`) with search / role / status in the URL (`?q=&role=&status=&person=`). Side panel: role (7 system roles), status, calendar limit (All calendars or selected; shown only for roles with calendar-routed permissions: Creative Lead, Growth Lead, SM Manager), required reason, live preview "X will be able to … / They will lose …" from catalog labels (shared `describeAccessChange`). Saves through `changePersonAccess` (history, `access:changed`, socket reset). Guards: an admin can't change their own role or status (403 `SELF_DEMOTE` / `SELF_SUSPEND`); the last active admin keeps the role (409 `LAST_ADMIN`, also in the model).
+- **Calendar Approvals:** one card per calendar: Plans approved by → Work reviewed by → Posted by → Fallback, each roles and/or named people. Pickers offer only roles holding the slot's permission (`calendar.approve`, `review.decide`, `publish.post`) and active people in them. Live health check (errors block Save: a slot or the fallback resolves to nobody active, a role/person without the permission; warnings: suspended named person, person limited away from the calendar, slot covered only by the fallback). Save preview, e.g. "Changing Ads Calendar reviewers will re-route 1 waiting review and 1 pause request to Amjith Lead." Save (reason required) goes through `updateWorkflowConfig` (version bump, history with the whole config before/after). Waiting reviews, plan rows and pause requests follow the resolver at once; each new recipient gets one `access_rerouted` notification per save; steps in progress keep their owners; open Post steps move to the calendar's first poster only when their owner is no longer a poster.
+- **History:** every role, status, calendar-limit and calendar-setting change (who, when, field, before → after, reason, version), filters by type / calendar / person. "Restore this version" on calendar entries: same health check and preview, saved as a new version.
+- **Role Guide:** read-only, the 7 roles' permissions grouped by area (shared `roleGuide()`).
+- Shared: `WORKFLOW_SLOT_PERMISSION`, `WORKFLOW_SLOT_LABELS`, `roleHasCalendarScopedPermissions`, `describeAccessChange`, `roleGuide`. `AccessChange` gains `configBefore`, `configAfter`, `version`.
+- Review Hub reloads its lists (and the Plans / Pauses tabs) when the user's access changes, so a new calendar limit or a reviewer change shows without signing out or reloading.
+- Route parity test: `accessAdmin.routes.js` is listed as added after the frozen snapshot and must admit only the admin role.
+- Tests: API `access_admin_page.test.js` (12), web `AccessApprovalsPage.test.tsx` (9).
+- Browser check (disposable `marketing_portal_uicheck`, test API :8095, scratch Vite config, :8080 blocked): 35/35 at 1440 and 390 px — Ads reviewers Growth Lead → named Creative Lead moves the waiting Ads review (Creative Lead notified once, approves it; Growth Lead no longer sees it, 403); limiting the signed-in lead to Ads drops the SM review from their Review Hub live; demoting the last admin refused; previous Ads settings restored (version 2).
 
 ## Access Phase C: the app runs on the resolver (Status: COMPLETE; committed locally, not pushed)
 

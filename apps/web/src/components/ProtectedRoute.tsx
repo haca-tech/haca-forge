@@ -1,12 +1,12 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import type { PermissionKey } from '@mmp/shared';
+import type { PermissionKey, PermissionKeyV2 } from '@mmp/shared';
 import { useAccess } from '../lib/access';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredPermission?: PermissionKey;
+  requiredPermission?: PermissionKey | PermissionKeyV2;
   /** Read-only users are sent here instead of shown this page (e.g. My Work → /dashboard). */
   readOnlyRedirect?: string;
 }

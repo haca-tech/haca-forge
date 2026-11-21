@@ -67,8 +67,20 @@ export async function updateWorkflowConfig(calendar, changes = {}, actor = null,
   await doc.save();
   clearAccessCache();
 
+  const snapshot = (c) => Object.fromEntries(WORKFLOW_SLOTS.map((slot) => [slot, cleanAudience(c[slot], slot)]));
   await AccessChange.insertMany(
-    changedSlots.map((slot) => ({ actorId, entityType: 'workflow_config', entityId: calendar, field: slot, before: current[slot], after: next[slot], note }))
+    changedSlots.map((slot) => ({
+      actorId,
+      entityType: 'workflow_config',
+      entityId: calendar,
+      field: slot,
+      before: current[slot],
+      after: next[slot],
+      note,
+      configBefore: snapshot(current),
+      configAfter: snapshot(next),
+      version: doc.version,
+    }))
   );
   const affected = await peopleIn(changedSlots.flatMap((slot) => [current[slot], next[slot]]));
   sendAccessChanged(affected.map((p) => p._id));

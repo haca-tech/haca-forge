@@ -9,6 +9,7 @@ import {
   Search,
   LogOut,
   ShieldCheck,
+  KeyRound,
   Users,
   FileText,
   Film,
@@ -171,6 +172,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
   const isSmManager = access.can('calendar.plan') && !access.isSuperuser;
   const isCreativeHead = access.can('review.decide') && !access.isSuperuser;
   const isAdmin = access.can('user.approve');
+  const managesAccess = access.can('settings.access.manage');
 
   // Pending Access Requests Count Badge for Admin
   const [pendingAccessCount, setPendingAccessCount] = useState<number>(0);
@@ -448,11 +450,24 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
                 },
               ]
             : []),
+          ...(managesAccess
+            ? [
+                {
+                  id: 'access-approvals',
+                  label: 'Access & Approvals',
+                  path: '/settings/access',
+                  description: 'Roles, calendar limits and who approves, reviews and posts',
+                  icon: KeyRound,
+                  show: true,
+                  activeMatcher: (p: string) => p.startsWith('/settings/access'),
+                },
+              ]
+            : []),
         ],
       },
     ];
     return cats;
-  }, [user?.role, isAdmin, isSmManager, isCreativeHead, isTeamMember, pendingAccessCount]);
+  }, [user?.role, isAdmin, managesAccess, isSmManager, isCreativeHead, isTeamMember, pendingAccessCount]);
 
   // Flatten accessible items for quick search jump
   const allSearchableItems = [
@@ -542,9 +557,18 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
         badge: pendingAccessCount > 0 ? pendingAccessCount : undefined,
       });
     }
+    if (managesAccess) {
+      items.push({
+        id: 'access-approvals',
+        icon: KeyRound,
+        label: 'Access & Approvals',
+        path: '/settings/access',
+        active: location.pathname.startsWith('/settings/access'),
+      });
+    }
 
     return items;
-  }, [user?.role, location.pathname, isLandingActive, isTeamMember, isSmManager, isAdmin, pendingAccessCount]);
+  }, [user?.role, location.pathname, isLandingActive, isTeamMember, isSmManager, isAdmin, managesAccess, pendingAccessCount]);
 
   // Current page name for the header (sidebar is the single source of navigation)
   const PAGE_TITLE_FALLBACKS: Array<[string, string]> = [

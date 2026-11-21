@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { apiFetch, clearLegacyTokens } from '../lib/api';
-import type { UserRole, PermissionKey } from '@mmp/shared';
+import type { UserRole, PermissionKey, PermissionKeyV2 } from '@mmp/shared';
 import { accessFromUser, type AccessInfo } from '../lib/accessCore';
 import { onAccessChanged } from '../lib/accessEvents';
 
@@ -49,7 +49,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (credentials: { email: string; password: string }) => Promise<User>;
   logout: () => Promise<void>;
-  hasPermission: (permission: PermissionKey) => boolean;
+  hasPermission: (permission: PermissionKey | PermissionKeyV2) => boolean;
   refreshUser: () => Promise<void>;
 }
 
@@ -135,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const hasPermission = (permission: PermissionKey): boolean => {
+  const hasPermission = (permission: PermissionKey | PermissionKeyV2): boolean => {
     if (!user) return false;
     // The access block's keys; without one (older responses), the keys the role holds.
     const keys = access?.permissions ?? (permissions.length ? permissions : accessFromUser(user)?.permissions ?? []);
