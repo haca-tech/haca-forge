@@ -1,6 +1,33 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Access Phase D):** 2187 passing, 0 failing, 0 skipped: API 1677 (88 files), web 510 (64 files). Typecheck 0 errors; web build clean.
+**Current test count (after Access Phase E):** 2221 passing, 0 failing, 0 skipped: API 1706 (93 files), web 515 (65 files). Typecheck 0 errors; web build clean.
+
+## Access Phase E: verification (Status: COMPLETE; committed locally, not pushed)
+
+No new features. Five defects found and fixed, each with a test, in separate commits.
+
+**Defects fixed**
+1. `88820bc` An admin could approve or send back their own plan. `calendar.approve` is now self-forbidden (403 `SELF_DECISION`); the plan grid hides review controls on your own plan; the web `can()` uses the shared self-forbidden list (it knew only `review.decide`).
+2. `2664d00` A poster change moved Post steps already in progress. Only Post steps not started move (the update re-checks Not Started).
+3. `433cb3b` With a calendar's only named reviewer suspended, review / pause / help / plan notices went to nobody. `decidersFor` (and the plan-move notice) now use the resolver's people (primary, else fallback).
+4. `5b52c42` Revision-flag alerts ignored calendar limits. They now use the step's reviewers (or fallback) and the department's posters within their limits. The access-request notice now takes its recipients from `recipientsFor('access.requested')`.
+5. `daf76cd` `GET /api/people/performance/team` listed every member's score side by side (no-ranking rule). It returns team-level figures only.
+
+**Verification (tests, commits)**
+- E1 `3d9b43d` `e2e_permission_matrix`: every permission-guarded route (123) × 7 roles + a calendar-limited lead, a named reviewer and a suspended user = 1,230 HTTP checks, 0 mismatches; decisions (review, classify, pause, post, plan approval) × 5 calendars × own / other's item = 416 checks, 0 mismatches. Documented service check: `/api/team/:id/changes` needs `people.manage_operational`. 12 keys are checked only inside services and are not in this matrix (see Open).
+- E2 `58e7b5e` `e2e_routing_scenarios`: suspended named reviewer → fallback, nothing to them; plan moved to and from Ads after an approver change; two reviewers both told once, second gets 409; limit beats a naming; Post in progress keeps owner, not started moves; pause and help follow the settings; submission.ready, plan.submitted, pause, revision.flagged, step.needs_owner, step.overdue_manager, revision.flag_escalated, access.requested each reach exactly the resolver's recipients once.
+- E3 `32e481d` `e2e_fixed_rules`: one test per fixed rule (DMs, no ranking, no self-approval ×4, 3-rating minimum, worker 404s, worker contact privacy, last admin, read-only own account, suspension: API + socket + open tab), on a throwaway database.
+- E4/E5 `71f9cbf` `e2e_cache_and_rollback`: save clears the cache at once; a raw write by another process applies after the 5 s TTL (not at 4 s); people are never cached; restoring an older Ads version sends the waiting review back; with no WorkflowConfig at all the app uses the defaults and the admin page works; `scripts/reactivate-admin.js` (local only) recovers a locked-out admin.
+- Timing (600 steps, 40 runs each, 2 alternating rounds, before = `72bd64c`): `/auth/me` 4.5 → 4.4 ms, `/review-hub` 44.5 → 40.6, `/work` list 150.7 → 161.9 (+7%), `/my-work` 27.8 → 27.9, `/feedback/threads` 54.6 → 55.7 (median).
+- Browser (disposable `marketing_portal_uicheck`, :8080 blocked): 224/224 at 1440 and 390 px for every role (home, menu, plan, step, post, pause, help, Review Hub, Workload, Published, Chat, Profile, Access & Approvals as admin and refused for the others), no page errors, no sideways scroll; a calendar-settings save showed in another signed-in user's open tab in 440 ms without reload.
+
+**Docs.** New `docs/ACCESS.md` (roles in plain words, calendar settings, fixed rules, safe reviewer change, History → Restore, admin recovery, developer notes, multi-instance behaviour). `CONTEXT.md` and `ROLES_AND_FEATURES.md` updated.
+
+**Open**
+- Several API instances: settings reach every instance within 5 s, but the live `access:changed` event only reaches sockets on the instance that saved (others update on focus or reconnect). A shared Socket.IO adapter (Redis) would fix it; not added (no new dependencies).
+- Not in the HTTP matrix (checked inside services; several covered by older tests): `work.manage_steps`, `blocker.resolve.any`, `review.read_all`, `publish.edit_live_link`, `people.manage_operational`, `team.profile.report`, `report.configure`, `chat.mention_all`, `chat.share_asset`, `chat.revoke_share`, `chat.manage_groups`, `automation.manage`.
+- Flaky under load: `OwnerReviewMode.test.tsx` ("my review" for the step owner) once failed to find `owner-review-status` in time during a slow full run; it passed 13/13 alone and 515/515 on the rerun of the whole web suite.
+- The shared test database `marketing_portal_test` has collected about 400 active admin accounts from older test runs (tests that need a clean count use their own throwaway databases).
 
 ## Access Phase D: Access & Approvals admin page (Status: COMPLETE; committed locally, not pushed)
 

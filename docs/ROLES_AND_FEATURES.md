@@ -2,7 +2,9 @@
 
 **Document Authority:** Definitive Reference for System Roles, Worker Specializations, Workspaces, Step Capabilities, Permissions, and Visibility Boundaries.  
 **Scope:** Covers all 7 system roles (`admin`, `creative_head`, `production_head`, `creative_lead`, `growth_lead`, `sm_manager`, `executive`) and the 5 worker job roles.  
-**Current as of:** 18 November 2026 (Phase 12b: Roles).
+**Current as of:** 21 November 2026 (Access Phase E).
+
+> **Access Phases B–E.** Who decides on which calendar is now a setting, not code: each calendar names who approves plans, reviews work, posts, and the fallback (roles and/or people), edited by admins on **Access & Approvals** (`/settings/access`). The defaults match the routing below (Ads → Growth Lead, other calendars → Creative Lead, posters → SM Manager, fallback → Admin). A lead or SM Manager can be limited to some calendars. Read [ACCESS.md](ACCESS.md) for the roles in plain words, the calendar settings, the fixed rules and recovery; where this document differs, ACCESS.md wins.
 
 > **Phase 12b.** Two keys were reused with a new meaning: `creative_head` is now read-only leadership (it was the approver) and `executive` is now a production worker (it was read-only leadership). `team_member` no longer exists. The older wording in sections 2–4 below was renamed to match; where it conflicts with this section and the matrix in section 5, these win. Approval routing by calendar (Creative Lead for every calendar except Ads, Growth Lead for Ads) is Phase 13; in Phase 12b both leads approve on every calendar.
 
@@ -10,7 +12,7 @@
 
 ## 1. System Roles Architecture
 
-HACA Marketing OS enforces strict Role-Based Access Control (RBAC) across seven system roles. Each user account is assigned exactly one system role. The role list, labels, permission matrix and helpers (`isApprover`, `isReadOnlyViewer`, `isWorker`, `canReview`, `effectiveStepsFor`) live in `@mmp/shared` and are used by the API and the web app.
+HACA Marketing OS enforces strict Role-Based Access Control (RBAC) across seven system roles. Each user account is assigned exactly one system role. The role list, labels, the permission catalog (40 keys), the 7 fixed system roles and the resolver (`can(user, permission, { calendar, ownerId }, config)`, `effectiveStepsFor`) live in `@mmp/shared` and are used by the API and the web app. The Role Guide tab on Access & Approvals lists each role's permissions.
 
 | Role Key | Display Title | Primary Scope | Write Powers |
 |---|---|---|---|
@@ -22,7 +24,7 @@ HACA Marketing OS enforces strict Role-Based Access Control (RBAC) across seven 
 | `sm_manager` | SM Manager | Plans, schedules, owners; owns every Post step | Plan / assign / post |
 | `executive` | Executive (worker) | Their own steps | Own work only |
 
-Contact details: every role except `executive` sees them (workers see only their own). Review text (revision notes, rating feedback, clip threads): every role except `executive`, who sees it on their own steps. Nobody reviews or approves their own work.
+Contact details: every role except `executive` sees them (workers see only their own). Review text (revision notes, rating feedback, clip threads): every role except `executive`, who sees it on their own steps. Nobody decides on their own work: reviews, plans, pause requests or revision flags (the admin included).
 
 ---
 
@@ -256,14 +258,15 @@ The home screen for every creative worker:
 | Capability / Screen | `admin` | `creative_head` | `production_head` | `creative_lead` | `growth_lead` | `sm_manager` | `executive` |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | **Access Requests & Invites, role grants** | Full | No | No | No | No | No | No |
+| **Access & Approvals (roles, calendar limits, calendar settings, History)** | Full | No | No | No | No | No | No |
 | **User Role / Email Editing** | Full | No | No | No | No | No | No |
 | **Report configuration, automation** | Full | No | No | No | No | No | No |
 | **Create Calendar Plans** | Full | View | View | View | View | Full | No |
-| **Approve Plan Rows** | Backup | No | No | Full | Full | No | No |
+| **Approve Plan Rows** (on calendars where named) | Fallback (never own plan) | No | No | Full | Full | No | No |
 | **Autofill Step Assignment** | Full | No | No | No | No | Full | No |
 | **Reassign / Shift Dates** | Full | No | No | Full | Full | Full | No |
 | **Review Studio** | Full | View | View | Full | Full | View | No |
-| **Give 1-5 Star Ratings, request changes, reopen** | Backup | No | No | Full | Full | No | No |
+| **Give 1-5 Star Ratings, request changes, reopen** (on calendars where named) | Fallback | No | No | Full | Full | No | No |
 | **Classify Root Causes** | Full | No | No | Full | Full | No | No |
 | **Read review text and clip threads** | Full | View | View | Full | Full | View | Own steps |
 | **Submit own steps / Start rework** | If owner | No | No | If owner | If owner | If owner | If owner |

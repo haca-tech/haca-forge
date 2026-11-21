@@ -14,9 +14,9 @@ const lockedRoles = () => ROLE_KEYS.filter((role) => systemRoleOf({ role })?.loc
 import { WorkflowConfig, onWorkflowConfigChange } from '../modules/accessConfig/workflowConfig.model.js';
 
 /**
- * The central access resolver (Phase B). NOT used by the app yet: Phase C switches routes,
- * services, web and sockets to it. The permanent parity test (test/access_parity.test.js)
- * proves it returns exactly what today's hard-coded rules return.
+ * The central access resolver (Phase B; used by routes, services and sockets since Phase C).
+ * The parity test (test/access_parity.test.js) proves the defaults match the old rules;
+ * docs/ACCESS.md describes the model.
  *
  * Workflow configs are read through a cache keyed by calendar and version: cleared when a
  * config changes, and re-read after CACHE_TTL_MS as a safety net (several API processes).

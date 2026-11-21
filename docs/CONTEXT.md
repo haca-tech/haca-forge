@@ -56,24 +56,24 @@
 
 ## 4. Current Product Definition
 
-### 4.1 Roles & Permissions (Phase 12b: 7 roles)
-Two keys were reused with a new meaning in Phase 12b: `creative_head` is now read-only leadership (it was the approver) and `executive` is now a production worker (it was read-only leadership). `team_member` no longer exists. Code uses the shared helpers (`isApprover`, `isReadOnlyViewer`, `isWorker`) and role groups in `@mmp/shared`, never the two reused keys as literals; a guard test enforces it.
+### 4.1 Roles & Permissions (7 roles; Access Phases B–E)
+**Full reference: [ACCESS.md](ACCESS.md)** (roles in plain words, calendar settings, fixed rules, safe changes, recovery). Access comes from one resolver: the permission catalog and the 7 fixed system roles in `@mmp/shared`, plus per-calendar settings (who approves plans, reviews, posts, and the fallback) that admins edit on **Access & Approvals** (`/settings/access`). Code asks for permissions (`can(permission, { calendar, ownerId })`), never role names; guard tests enforce it. Two keys were reused in Phase 12b: `creative_head` is read-only leadership and `executive` is a production worker; `team_member` no longer exists.
 
 | Role Key | Title | Core Powers & Screen Permissions |
 |---|---|---|
 | `admin` | Admin | Full platform control: users, invites, access approvals, role grants, suspensions, password resets, forced logouts. Also approves and reviews any calendar as a backup. Only role with `report.configure` and `automation.manage`. |
 | `creative_head` | Creative Head | Views everything, read-only: every write is refused (`HTTP 403 READ_ONLY_ROLE`) except their own account (sign-out, password, own profile and settings, notification and chat read markers). Sees contact details and review text (revision notes, rating feedback, clip threads). Cannot comment, rate or decide. |
 | `production_head` | Production Head | Same access as Creative Head: views all calendars and works, read-only. |
-| `creative_lead` | Creative Lead | Approves plan rows, reviews steps (mandatory 1–5 rating on approval), requests changes, reopens, classifies root causes. Manages workers' operational fields (job role, preferences, capacity, department). Views and downloads profile reports. In Phase 12b this covers every calendar; Phase 13 limits it to every calendar except Ads. |
-| `growth_lead` | Growth Lead | Same powers as Creative Lead. Phase 13 limits approving to the Ads calendar; other calendars stay view-only. |
+| `creative_lead` | Creative Lead | Approves plan rows, reviews steps (mandatory 1–5 rating on approval), requests changes, reopens, classifies root causes. Manages workers' operational fields (job role, preferences, capacity, department). Views and downloads profile reports. Decides on the calendars where the calendar settings name them (default: every calendar except Ads). |
+| `growth_lead` | Growth Lead | Same powers as Creative Lead, on the calendars where named (default: Ads); other calendars stay view-only. |
 | `sm_manager` | SM Manager | Main planner: plans, owners, deadlines, reschedules, blockers. Owns every Post step and marks it posted with its live link. Cannot approve. |
 | `executive` | Executive | Production worker (was `team_member`, unchanged access, including the 404s): works their own steps, sees their own work, profile and the pipeline of projects they belong to. Sees no one else's contact details. |
 
-Nobody reviews or approves their own work. Anti-ranking, the 3-rating minimum and the privacy rules apply as before. Public access requests can ask for `executive` or `sm_manager` only; only an Admin grants `admin`, `creative_head`, `production_head`, `creative_lead` or `growth_lead`.
+Fixed rules (no setting changes them; see ACCESS.md §3): nobody decides on their own work (reviews, plans, pauses, revision flags), DMs are private (admin included), no ranking or comparison, the 3-rating minimum, workers' 404s and contact privacy, at least one active admin, read-only roles manage their own account, suspension is immediate. A Creative Lead, Growth Lead or SM Manager can be limited to some calendars; the limit wins over any calendar setting. Public access requests can ask for `executive` or `sm_manager` only; only an Admin grants `admin`, `creative_head`, `production_head`, `creative_lead` or `growth_lead`.
 
 **Worker job roles and step eligibility.** Job role sets eligibility; preferences can only narrow it (eligible steps are the ones in both, so a worker with no preferences is not suggested, as before; a preference outside it is refused with `400 PREFERENCE_NOT_ELIGIBLE`, and a job role change drops preferences the new job role does not allow). Writer: Script, Content. Cinematographer: Shoot. Graphic Designer: Design. Video Editor: Edit. All Rounder: Script, Content, Shoot, Design, Edit. Post: SM Managers only. Autofill, owner suggestions, plan validation and Excel import all use this one rule (`effectiveStepsFor`). Job titles kept: the 5 worker titles plus "Creative Manager (TL)" and "Social Media Manager"; Videographer, Designer, Social Specialist and the unused titles were removed.
 
-**Role changes.** A role change ends the person's live sockets; the web app reloads `/auth/me` and reconnects, joining the new role's room. Live review comments go to the `role:creative_lead`, `role:growth_lead` and `role:admin` rooms.
+**Access changes.** Role, status and calendar limit change only through `changePersonAccess` (History, `access:changed`, then the person's sockets close and reconnect); calendar settings only through `updateWorkflowConfig` (new version, History, `access:changed` to the old and new people). Open tabs reload `/auth/me` on `access:changed`, on reconnect and on focus. Socket events go to user rooms chosen by the resolver (no role rooms). With several API instances, settings reach every instance within 5 s (cache TTL); the live event reaches only the saving instance's sockets (no shared Socket.IO adapter).
 
 **Migration.** `apps/api/scripts/migrate-roles.js` moves an existing database to this model (dry run by default; `--confirm --db-name=<db>` backs up with mongodump to `D:\haca-backups\<timestamp>\` first, local databases only, API stopped). Until it runs, accounts still on `team_member` are refused with `403 ROLE_MIGRATION_PENDING`.
 
@@ -181,6 +181,7 @@ Seeded only by `apps/api/scripts/reset-and-seed.js` (Phase 9: dry run by default
 | 21 | Phase 6: blockers, reopening, plan delete, small fixes | **Done** | Phase 6 tests; see docs/PROGRESS.md |
 | 22 | Phase 7: live reports, overdue and lateness labels, project KPIs | **Done** | Phase 7 tests; 49/49 browser checks; see docs/PROGRESS.md |
 | 23 | Phase 8: worker and Creative Lead profile KPIs, profile report (PDF, CSV) | **Done** | Phase 8 tests; 41/41 browser checks; see docs/PROGRESS.md |
+| 24 | Access Phases B–E: resolver, calendar settings, Access & Approvals page, verification | **Done** | `e2e_permission_matrix`, `e2e_routing_scenarios`, `e2e_fixed_rules`, `e2e_cache_and_rollback`; see docs/ACCESS.md and docs/PROGRESS.md |
 
 ---
 
