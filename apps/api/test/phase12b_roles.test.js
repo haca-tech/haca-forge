@@ -351,7 +351,7 @@ describe('Phase 12b: the 7-role model', () => {
       expect(socket).toBeTruthy();
       const told = new Promise((resolve) => socket.once('access:changed', () => resolve(true)));
       const gone = new Promise((resolve) => socket.once('disconnect', resolve));
-      expect((await as('admin').patch(`/api/team/${P.mover._id}`, { role: 'sm_manager', workPreferences: [] })).status).toBe(200);
+      expect((await as('admin').patch(`/api/team/${P.mover._id}`, { role: 'sm_manager', workPreferences: [], reason: 'Now posts' })).status).toBe(200);
       expect(await told).toBe(true);
       expect(await gone).toBe('io server disconnect');
 

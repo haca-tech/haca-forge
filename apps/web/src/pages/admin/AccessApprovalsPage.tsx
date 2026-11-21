@@ -491,13 +491,19 @@ const CalendarCard: React.FC<{ view: CalendarView; options: Record<Slot, SlotOpt
     try {
       const res = await apiFetch<{ data: { sentences: string[]; notified: number; movedPosts: number } }>(`/access-admin/calendars/${view.calendar}`, {
         method: 'PUT',
-        body: JSON.stringify({ changes, reason: reason.trim() }),
+        // The version this card shows: if someone saved in between, the API answers 409.
+        body: JSON.stringify({ changes, reason: reason.trim(), version: view.version }),
       });
       toast.success(`${view.name} saved.${res.data.notified ? ` ${res.data.notified} ${res.data.notified === 1 ? 'person was' : 'people were'} told what now comes to them.` : ''}`);
       setReason('');
       onSaved();
     } catch (e) {
-      toast.error(errorMessage(e));
+      if (e instanceof ApiError && e.code === 'SETTINGS_CHANGED') {
+        toast.error(`${view.name}: settings changed — reload. Someone saved them a moment ago; the latest settings are shown now.`);
+        onSaved();
+      } else {
+        toast.error(errorMessage(e));
+      }
     } finally {
       setSaving(false);
     }

@@ -30,8 +30,20 @@ const postingRoles = () => ROLE_KEYS.filter((role) => slotEligibleRole(role, 'po
 
 const CACHE_TTL_MS = 5000;
 const cache = new Map(); // calendar -> { config, version, loadedAt }
-onWorkflowConfigChange((calendar) => (calendar ? cache.delete(calendar) : cache.clear()));
-export const clearAccessCache = () => cache.clear();
+/**
+ * Bumped on every clear. A read that started before a save only fills the cache if no clear
+ * happened meanwhile, so it cannot put the old settings back after the save cleared them.
+ */
+let generation = 0;
+onWorkflowConfigChange((calendar) => {
+  generation += 1;
+  if (calendar) cache.delete(calendar);
+  else cache.clear();
+});
+export const clearAccessCache = () => {
+  generation += 1;
+  cache.clear();
+};
 
 const calOf = (item) => (item && item.calendar) || 'sm';
 const idOf = (v) => String(v?._id || v || '');
@@ -56,10 +68,17 @@ export async function getWorkflowConfig(calendar) {
   const cal = calendar || 'sm';
   const hit = cache.get(cal);
   if (hit && Date.now() - hit.loadedAt < CACHE_TTL_MS) return hit.config;
-  const doc = mongoose.connection.readyState === 1 ? await WorkflowConfig.findOne({ calendar: cal }).lean() : null;
-  const config = plainConfig(doc, cal);
-  cache.set(cal, { config, version: config.version, loadedAt: Date.now() });
+  const startedAt = generation;
+  const config = await readWorkflowConfigFresh(cal);
+  if (startedAt === generation) cache.set(cal, { config, version: config.version, loadedAt: Date.now() });
   return config;
+}
+
+/** A calendar's settings straight from the database, never the cache (saves compare against this). */
+export async function readWorkflowConfigFresh(calendar) {
+  const cal = calendar || 'sm';
+  const doc = mongoose.connection.readyState === 1 ? await WorkflowConfig.findOne({ calendar: cal }).lean() : null;
+  return plainConfig(doc, cal);
 }
 
 export async function getAllWorkflowConfigs() {
@@ -164,8 +183,8 @@ export async function postersFor(piece) {
   const calendar = calOf(piece);
   const config = await getWorkflowConfig(calendar);
   const people = await peopleFor(config.posters, calendar, { slot: 'posters' });
-  const first = people.length ? await Person.findOne(audienceQuery(config.posters)).lean() : null;
-  const defaultPoster = first && people.some((p) => String(p._id) === String(first._id)) ? first : people[0]?.toObject?.() || people[0] || null;
+  // The first of the scoped list: active, able to own Post steps, inside their calendar limit.
+  const defaultPoster = people[0] || null;
   return { calendar, people, defaultPoster };
 }
 

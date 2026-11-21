@@ -46,7 +46,7 @@ import {
   JOB_ROLES,
   formatDuration,
 } from '@mmp/shared';
-import { confirmDialog, toast } from '../../lib/uiFeedback';
+import { promptDialog, toast } from '../../lib/uiFeedback';
 import { roleAccess, useAccess } from '../../lib/access';
 
 export const WorkerProfilePage: React.FC = () => {
@@ -579,15 +579,20 @@ export const WorkerProfilePage: React.FC = () => {
 
   // Status toggle
   const handleToggleStatus = async () => {
-    const suspending = profile.status === 'active';
-    if (!(await confirmDialog({
+    // Invited people are suspended (invitation withdrawn), never made active here.
+    const suspending = profile.status !== 'suspended';
+    const reason = await promptDialog({
       title: suspending ? `Suspend ${profile.name || 'this person'}?` : `Reactivate ${profile.name || 'this person'}?`,
-      message: suspending ? 'They are signed out and cannot sign in until reactivated.' : 'They can sign in again.',
+      label: suspending
+        ? 'They are signed out and cannot sign in until reactivated. Reason (kept in the access History):'
+        : 'They can sign in again. Reason (kept in the access History):',
       confirmLabel: suspending ? 'Suspend' : 'Reactivate',
-      danger: suspending,
-    }))) return;
+      required: true,
+      validate: (v) => (v.trim().length < 3 ? 'Give a reason of at least 3 characters.' : null),
+    });
+    if (reason === null) return;
     try {
-      await apiFetch(`/api/team/${targetId}/status`, { method: 'POST' });
+      await apiFetch(`/api/team/${targetId}/status`, { method: 'POST', body: JSON.stringify({ reason }) });
       fetchBaseProfile();
     } catch (err: any) {
       toast.error(err?.message || 'Failed to toggle status');

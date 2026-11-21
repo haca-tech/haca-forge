@@ -23,7 +23,7 @@ import { calculateIndividualWorkMeasures, formatDuration, normalizeRole, ROLE_LA
 } from '@mmp/shared';
 import * as access from '../../lib/accessResolver.js';
 import { canSeeContacts, hasPermission, isOperationalManager, isOwnScope, isProtectedAccount, isSuperuser } from '../../lib/roleAccess.js';
-import { changePersonAccess } from '../accessConfig/personAccess.service.js';
+import { savePersonChange } from '../accessConfig/accessAdmin.service.js';
 
 /**
  * Worker isolation guard: A executive (worker) accessing someone else's profile gets HTTP 404 (strictly anti-harvesting).
@@ -943,8 +943,8 @@ export async function updatePersonDetails(targetPersonId, updates, actor) {
     if (updates.name !== undefined) target.name = updates.name.trim();
     if (updates.preferredName !== undefined) target.preferredName = updates.preferredName.trim();
     if (updates.email !== undefined) target.email = updates.email.toLowerCase().trim();
-    // Role and status go through changePersonAccess after the other fields are saved.
-    if (updates.role !== undefined || updates.status !== undefined) accessChanges = { role: updates.role, status: updates.status };
+    // Role and status go through the admin page's savePersonChange (reason, guards, health check).
+    if (updates.role !== undefined || updates.status !== undefined) accessChanges = { role: updates.role, status: updates.status, reason: updates.reason };
     if (updates.skills !== undefined) target.skills = updates.skills;
     if (updates.languages !== undefined) target.languages = updates.languages;
     if (updates.about !== undefined) target.about = updates.about;
@@ -952,8 +952,10 @@ export async function updatePersonDetails(targetPersonId, updates, actor) {
     if (updates.whatsappNumber !== undefined) target.whatsappNumber = updates.whatsappNumber;
   }
 
+  // The access change first: when it is refused (no reason, self, last admin, a calendar left
+  // without cover), nothing else is saved either.
+  if (accessChanges) await savePersonChange(String(target._id), accessChanges, actor);
   await target.save();
-  if (accessChanges) await changePersonAccess(target, accessChanges, actor);
 
   if (auditEntries.length > 0) {
     await PersonChangeAudit.insertMany(auditEntries);
@@ -990,6 +992,13 @@ export async function reassignSteps(sourcePersonId, { targetPersonId, workItemId
     throw error;
   }
 
+  if (targetPerson.status !== 'active') {
+    const error = new Error(`${targetPerson.name || 'This person'} is not active, so they cannot take steps.`);
+    error.code = 'TARGET_NOT_ACTIVE';
+    error.statusCode = 409;
+    throw error;
+  }
+
   const query = { ownerId: sourcePersonId };
   if (Array.isArray(workItemIds) && workItemIds.length > 0) {
     query._id = { $in: workItemIds };
@@ -998,7 +1007,25 @@ export async function reassignSteps(sourcePersonId, { targetPersonId, workItemId
     query.status = { $nin: ['Approved', 'Published'] };
   }
 
-  const movingIds = (await WorkItem.find(query).select('_id').lean()).map((w) => w._id);
+  // Every step must be one the target can own: their job role for production steps, a poster on
+  // that step's calendar for Post. All or nothing.
+  const moving = await WorkItem.find(query).select('_id title stageKey calendar').lean();
+  const refused = [];
+  for (const step of moving) {
+    if (!step.stageKey) continue; // standalone work items have no step eligibility
+    if (!(await access.stepEligibility(targetPerson, step))) refused.push(step);
+  }
+  if (refused.length) {
+    const error = new Error(
+      `${targetPerson.name || 'This person'} cannot own ${refused.length === 1 ? `"${refused[0].title}"` : `${refused.length} of these steps`} (${[...new Set(refused.map((s) => s.stageKey))].join(', ')}). Nothing was moved.`
+    );
+    error.code = 'TARGET_NOT_ELIGIBLE';
+    error.statusCode = 409;
+    error.details = { steps: refused.map((s) => String(s._id)) };
+    throw error;
+  }
+
+  const movingIds = moving.map((w) => w._id);
   const result = await WorkItem.updateMany(query, {
     $set: {
       ownerId: targetPerson._id,
@@ -1031,7 +1058,7 @@ export async function reassignSteps(sourcePersonId, { targetPersonId, workItemId
 /**
  * Toggle Status (Suspend / Reactivate)
  */
-export async function toggleStatus(personId, actor) {
+export async function toggleStatus(personId, actor, { reason } = {}) {
   const actorRole = normalizeRole(actor?.role);
   if (!hasPermission(actor, 'user.manage')) {
     const error = new Error('Forbidden: Only Administrator can suspend or reactivate users');
@@ -1048,15 +1075,19 @@ export async function toggleStatus(personId, actor) {
     throw error;
   }
 
-  await changePersonAccess(person, { status: person.status === 'active' ? 'suspended' : 'active' }, actor);
+  // Suspended → active; active or invited → suspended. An invited person becomes active only by
+  // setting their password, never here. Goes through savePersonChange: reason, self-suspend and
+  // last-admin guards, and the calendar health check.
+  const nextStatus = person.status === 'suspended' ? 'active' : 'suspended';
+  const saved = await savePersonChange(String(person._id), { status: nextStatus, reason }, actor);
 
-  if (person.status === 'suspended') {
+  if (nextStatus === 'suspended') {
     await Session.deleteMany({ userId: person._id });
   }
 
   return {
     _id: person._id,
-    status: person.status,
+    status: saved?.status || nextStatus,
   };
 }
 

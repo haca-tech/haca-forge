@@ -993,6 +993,21 @@ export async function editRating(ratingId, editData, user) {
     err.code = 'FORBIDDEN_ACTION';
     throw err;
   }
+  // Fixed rule: nobody rates their own work, the admin included.
+  if (String(rating.workerId) === userId) {
+    const err = new Error('You cannot edit a rating on your own work.');
+    err.statusCode = 403;
+    err.code = 'SELF_DECISION';
+    throw err;
+  }
+  // A rating is a review decision: only someone who reviews on the step's calendar now may change it.
+  const ratedStep = rating.workItemId ? await WorkItem.findById(rating.workItemId).select('calendar ownerId').lean() : null;
+  if (!(await canDecideOn(user, calendarOf(ratedStep), { ownerId: ratedStep?.ownerId || rating.workerId }))) {
+    const err = new Error('Only a reviewer of this calendar can edit this rating.');
+    err.statusCode = 403;
+    err.code = 'WRONG_CALENDAR';
+    throw err;
+  }
 
   if (!editData.reason || !editData.reason.trim()) {
     const err = new Error('Reason for editing rating is required');

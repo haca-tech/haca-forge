@@ -627,7 +627,8 @@ export async function toggleMessageDone(clipId, messageId, done, user) {
   const userIdStr = (user.userId || user._id || user.id)?.toString();
   const ownerIdStr = (workItem.ownerId?._id || workItem.ownerId)?.toString();
   const isOwner = Boolean(userIdStr && ownerIdStr && userIdStr === ownerIdStr);
-  const isReviewer = await canDecideOn(user, calendarOf(workItem));
+  // A reviewer of the step's calendar, never on their own step (no self-decisions).
+  const isReviewer = await canDecideOn(user, calendarOf(workItem), { ownerId: workItem.ownerId?._id || workItem.ownerId || null });
 
   if (done === false) {
     // Reopening is restricted to reviewers
@@ -681,7 +682,8 @@ export async function reviewClip(clipId, { action, message }, user) {
     throw error;
   }
   // Phase 13: the lead of the step's calendar (or admin) reviews its clips.
-  await assertDecidesOn(user, calendarOf(workItem), { roleCode: 'FORBIDDEN_ACTION' });
+  // Never on your own step (SELF_DECISION), the admin included.
+  await assertDecidesOn(user, calendarOf(workItem), { roleCode: 'FORBIDDEN_ACTION', ownerId: workItem.ownerId?._id || workItem.ownerId || null });
 
   const userIdStr = (user.userId || user._id || user.id)?.toString();
 

@@ -60,7 +60,7 @@ describe('Phase 6f: small fixes', () => {
     });
 
     it('a known role still changes', async () => {
-      const res = await request(app).patch(`/api/team/${people.worker._id}`).set(as('admin')).send({ role: 'sm_manager' });
+      const res = await request(app).patch(`/api/team/${people.worker._id}`).set(as('admin')).send({ role: 'sm_manager', reason: 'Now posts' });
       expect(res.status).toBe(200);
       expect((await Person.findById(people.worker._id).lean()).role).toBe('sm_manager');
       await Person.updateOne({ _id: people.worker._id }, { $set: { role: 'executive' } });

@@ -663,6 +663,18 @@ export async function updateRow(planId, rowId, updates, user) {
     throw error;
   }
 
+  // A row always has its plan's calendar: approval is routed by the plan's calendar, so a single
+  // row cannot move to another one (it would be approved by the wrong calendar's approvers).
+  if (updates.calendar !== undefined && updates.calendar !== null && updates.calendar !== '') {
+    const rowPlan = await CalendarPlan.findById(planId).select('calendar').lean();
+    if (updates.calendar !== ((rowPlan && rowPlan.calendar) || 'sm')) {
+      const error = new Error('Move the whole plan to change calendar');
+      error.statusCode = 400;
+      error.code = 'ROW_CALENDAR_CHANGE';
+      throw error;
+    }
+  }
+
   if (updates.topic) piece.topic = updates.topic;
   if (updates.postingDate) piece.postingDate = new Date(updates.postingDate);
   if (updates.postingTime !== undefined) piece.postingTime = updates.postingTime;
@@ -833,6 +845,7 @@ export async function submitRow(planId, rowId, user) {
 
   const wasSentBack = piece.rowStatus === 'changes_requested';
   piece.rowStatus = 'submitted';
+  piece.submittedById = user._id || user.userId;
   piece.reviewComment = null;
   piece.changeRequest = null;
   await piece.save();
@@ -978,7 +991,7 @@ export async function submitPlan(id, user) {
   const resubmitting = await ContentPiece.find({ planId: plan._id, rowStatus: 'changes_requested' }).select('_id topic').lean();
   const updatedRows = await ContentPiece.updateMany(
     { planId: plan._id, rowStatus: { $in: ['draft', 'changes_requested'] } },
-    { $set: { rowStatus: 'submitted', reviewComment: null, changeRequest: null } }
+    { $set: { rowStatus: 'submitted', reviewComment: null, changeRequest: null, submittedById: user._id || user.userId } }
   );
   for (const row of resubmitting) {
     await logRowHistory(row._id, user, 'row.resubmitted', { planId: plan._id, topic: row.topic, withPlan: true });
@@ -1200,20 +1213,40 @@ export async function reviewPlan(id, reviewData, user) {
   }
   const rowsToApprove = [];
   const changesRequestedRows = [];
+  const me = String(user._id || user.userId || user.id || '');
+  const fail = (statusCode, code, message) => Object.assign(new Error(message), { statusCode, code });
 
+  /**
+   * Fixed rule: nobody decides on rows they added or submitted (an approver who also plans may
+   * add rows to someone else's plan; another approver decides those).
+   */
+  const assertNotOwnRows = (rows) => {
+    const own = rows.filter((r) => String(r.createdById || '') === me || String(r.submittedById || '') === me);
+    if (own.length) {
+      throw fail(403, 'SELF_DECISION', `You added or submitted ${own.length === 1 ? `"${own[0].topic}"` : `${own.length} of these rows`}. Another approver decides ${own.length === 1 ? 'it' : 'them'}.`);
+    }
+  };
+  /** Only rows still waiting (rowStatus 'submitted'); the first decision wins, the second gets 409. */
+  const assertWaiting = (rows) => {
+    const notWaiting = rows.find((r) => r.rowStatus !== 'submitted');
+    if (notWaiting) throw fail(409, 'ROW_NOT_SUBMITTED', `"${notWaiting.topic}" is not waiting for review.`);
+  };
+  const decideRow = async (row, set) => {
+    const res = await ContentPiece.updateOne({ _id: row._id, rowStatus: 'submitted' }, { $set: set });
+    if (!res.matchedCount) throw fail(409, 'ROW_ALREADY_DECIDED', `"${row.topic}" was already decided by someone else.`);
+    return ContentPiece.findById(row._id);
+  };
   const approveRow = async (row) => {
-    const wasApproved = row.rowStatus === 'approved';
-    row.rowStatus = 'approved';
-    row.reviewComment = null;
-    row.changeRequest = null;
-    await row.save();
-    rowsToApprove.push(row);
-    if (!wasApproved) await logRowHistory(row._id, user, 'row.approved', { planId: plan._id, topic: row.topic });
+    const saved = await decideRow(row, { rowStatus: 'approved', reviewComment: null, changeRequest: null });
+    rowsToApprove.push(saved);
+    await logRowHistory(row._id, user, 'row.approved', { planId: plan._id, topic: row.topic });
   };
 
   if (action === 'approve_all') {
-    const allRows = await ContentPiece.find({ planId: plan._id });
-    for (const row of allRows) await approveRow(row);
+    const rows = await ContentPiece.find({ planId: plan._id, rowStatus: 'submitted' });
+    if (!rows.length) throw fail(409, 'NOTHING_WAITING', 'No row of this plan is waiting for review.');
+    assertNotOwnRows(rows);
+    for (const row of rows) await approveRow(row);
   } else if (action === 'approve_selected') {
     if (!Array.isArray(approvedRowIds) || approvedRowIds.length === 0) {
       const error = new Error('approvedRowIds array is required for approve_selected action');
@@ -1221,6 +1254,9 @@ export async function reviewPlan(id, reviewData, user) {
       throw error;
     }
     const rows = await ContentPiece.find({ _id: { $in: approvedRowIds }, planId: plan._id });
+    if (!rows.length) throw fail(409, 'NOTHING_WAITING', 'None of these rows is waiting for review.');
+    assertNotOwnRows(rows);
+    assertWaiting(rows);
     for (const row of rows) await approveRow(row);
   } else if (action === 'request_changes') {
     if (!Array.isArray(changes) || changes.length === 0) {
@@ -1242,20 +1278,19 @@ export async function reviewPlan(id, reviewData, user) {
       if (!row) continue;
       if (row.rowStatus !== 'submitted') {
         const error = new Error(`"${row.topic}" is not waiting for review, so changes cannot be requested on it.`);
-        error.statusCode = 400;
+        error.statusCode = 409;
         error.code = 'ROW_NOT_SUBMITTED';
         throw error;
       }
       const suggestions = normalizeSuggestions(row.toObject(), plan, ch.suggestions);
       planned.push({ row, message, suggestions });
     }
+    if (!planned.length) throw fail(409, 'NOTHING_WAITING', 'None of these rows is waiting for review.');
+    assertNotOwnRows(planned.map((p) => p.row));
     for (const { row, message, suggestions } of planned) {
       const before = suggestions ? currentRowValues(row) : null;
-      row.rowStatus = 'changes_requested';
-      row.reviewComment = message;
-      row.changeRequest = buildChangeRequest(message, suggestions, user);
-      await row.save();
-      changesRequestedRows.push(row);
+      const saved = await decideRow(row, { rowStatus: 'changes_requested', reviewComment: message, changeRequest: buildChangeRequest(message, suggestions, user) });
+      changesRequestedRows.push(saved);
       await logRowHistory(row._id, user, 'row.changes_requested', {
         planId: plan._id,
         topic: row.topic,
@@ -1274,12 +1309,11 @@ export async function reviewPlan(id, reviewData, user) {
       throw error;
     }
     const rows = await ContentPiece.find({ planId: plan._id, rowStatus: 'submitted' });
+    if (!rows.length) throw fail(409, 'NOTHING_WAITING', 'No row of this plan is waiting for review.');
+    assertNotOwnRows(rows);
     for (const row of rows) {
-      row.rowStatus = 'changes_requested';
-      row.reviewComment = message;
-      row.changeRequest = buildChangeRequest(message, null, user);
-      await row.save();
-      changesRequestedRows.push(row);
+      const saved = await decideRow(row, { rowStatus: 'changes_requested', reviewComment: message, changeRequest: buildChangeRequest(message, null, user) });
+      changesRequestedRows.push(saved);
       await logRowHistory(row._id, user, 'row.changes_requested', { planId: plan._id, topic: row.topic, message, withPlan: true });
     }
   }

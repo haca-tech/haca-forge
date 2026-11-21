@@ -93,7 +93,7 @@ export async function reassign(req, res, next) {
 
 export async function toggleStatusHandler(req, res, next) {
   try {
-    const result = await teamService.toggleStatus(req.params.id, req.user);
+    const result = await teamService.toggleStatus(req.params.id, req.user, { reason: req.body?.reason });
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);

@@ -143,7 +143,7 @@ describe('Phase 4d: sockets', () => {
     it('suspension disconnects, and a new connection is refused', async () => {
       const { socket } = await connect(people.suspendee);
       const reason = disconnected(socket);
-      const res = await request(app).post(`/api/people/${people.suspendee._id}/suspend`).set('Authorization', `Bearer ${tokenFor(people.admin)}`).send({});
+      const res = await request(app).post(`/api/people/${people.suspendee._id}/suspend`).set('Authorization', `Bearer ${tokenFor(people.admin)}`).send({ reason: 'Left the team' });
       expect(res.status).toBe(200);
       expect(await reason).toBe('io server disconnect');
       expect((await connect(people.suspendee)).ok).toBe(false);
@@ -168,7 +168,7 @@ describe('Phase 4d: sockets', () => {
     it('a role change sends access:changed, then disconnects; the reconnect carries the new role', async () => {
       const { socket } = await connect(people.promotee);
       const reason = disconnected(socket);
-      const res = await request(app).patch(`/api/people/${people.promotee._id}`).set('Authorization', `Bearer ${tokenFor(people.admin)}`).send({ role: 'sm_manager' });
+      const res = await request(app).patch(`/api/people/${people.promotee._id}`).set('Authorization', `Bearer ${tokenFor(people.admin)}`).send({ role: 'sm_manager', reason: 'Now posts' });
       expect(res.status).toBe(200);
       expect(await reason).toBe('io server disconnect');
       expect(got(socket, 'access:changed')).toHaveLength(1); // delivered before the disconnect

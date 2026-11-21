@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate } from '../../middleware/auth.js';
-import { requirePermission } from '../../middleware/requirePermission.js';
+import { requireAnyPermission, requirePermission } from '../../middleware/requirePermission.js';
 import * as teamController from './controller.js';
 import { hasPermission } from '../../lib/roleAccess.js';
 
@@ -70,11 +70,13 @@ router.get('/:id/ratings', requireProfileAccess, teamController.getRatings);
 router.get('/:id/activity', requireProfileAccess, teamController.getActivity);
 router.get('/:id/changes', notFoundForWorkers, requirePermission('team.profile.view'), teamController.getChanges);
 
-// Mutations
-router.patch('/:id', teamController.updateDetails);
-router.post('/:id/reassign', teamController.reassign);
-router.post('/:id/status', teamController.toggleStatusHandler);
-router.post('/:id/reset-password', teamController.resetPasswordHandler);
-router.post('/:id/force-logout', teamController.forceLogoutHandler);
+// Mutations. PATCH: admins (every field) and leads (operational fields of workers and SM
+// Managers only); a role or status change also needs user.manage and goes through the admin
+// page's savePersonChange (reason, self and last-admin guards, calendar health check).
+router.patch('/:id', requireAnyPermission('user.manage', 'people.manage_operational'), teamController.updateDetails);
+router.post('/:id/reassign', requirePermission('assignment.override'), teamController.reassign);
+router.post('/:id/status', requirePermission('user.manage'), teamController.toggleStatusHandler);
+router.post('/:id/reset-password', requirePermission('user.manage'), teamController.resetPasswordHandler);
+router.post('/:id/force-logout', requirePermission('user.manage'), teamController.forceLogoutHandler);
 
 export default router;

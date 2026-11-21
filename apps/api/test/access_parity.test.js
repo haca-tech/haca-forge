@@ -124,6 +124,16 @@ describe('Access parity: old rules vs the resolver', () => {
       for (const keys of current[file]) expect(ROLE_KEYS.filter((role) => keys.some((k) => can(userOf(role), k)))).toEqual(['admin']);
       delete current[file];
     }
+    // Guards added by the final access fix (M9: the team mutations were guarded only inside the
+    // service). They come after the file's older guards; each admits exactly these roles.
+    const LEADS = ['admin', 'creative_lead', 'growth_lead'];
+    const FINAL_FIX_ADDED = {
+      'team/routes.js': [LEADS, [...LEADS, 'sm_manager'], ['admin'], ['admin'], ['admin']],
+    };
+    for (const [file, added] of Object.entries(FINAL_FIX_ADDED)) {
+      const extra = current[file].splice(current[file].length - added.length, added.length);
+      extra.forEach((keys, i) => expect(ROLE_KEYS.filter((role) => keys.some((k) => can(userOf(role), k))), `${file} added guard #${i}`).toEqual(added[i]));
+    }
     expect(Object.keys(current).sort()).toEqual(Object.keys(snapshot).sort());
     let checked = 0;
     for (const [file, guards] of Object.entries(snapshot)) {

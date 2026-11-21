@@ -21,7 +21,7 @@ import { AccessChange } from './accessChange.model.js';
 import { WorkflowConfig } from './workflowConfig.model.js';
 import { changePersonAccess } from './personAccess.service.js';
 import { updateWorkflowConfig } from './workflowConfig.service.js';
-import { getAllWorkflowConfigs, getWorkflowConfig } from '../../lib/accessResolver.js';
+import { getAllWorkflowConfigs, readWorkflowConfigFresh } from '../../lib/accessResolver.js';
 import { countAwaitingReview } from '../workItems/reviewState.js';
 import { calendarQueryFor } from '../workItems/deciders.js';
 import { createNotification } from '../notifications/service.js';
@@ -326,7 +326,7 @@ function previewSentences(calendar, plan) {
 }
 
 async function calendarView(calendar) {
-  const config = await getWorkflowConfig(calendar);
+  const config = await readWorkflowConfigFresh(calendar); // the same version the page sends back on save
   const doc = await WorkflowConfig.findOne({ calendar }).populate('updatedBy', 'name').lean();
   const health = await healthCheck(calendar, config);
   const names = {};
@@ -336,7 +336,7 @@ async function calendarView(calendar) {
     calendar,
     name: calName(calendar),
     config: Object.fromEntries(WORKFLOW_SLOTS.map((s) => [s, config[s]])),
-    version: doc?.version ?? 0,
+    version: config.version ?? 0,
     stored: Boolean(doc),
     updatedAt: doc?.updatedAt || null,
     updatedBy: doc?.updatedBy?.name || null,
@@ -355,7 +355,7 @@ function assertCalendar(calendar) {
 
 export async function previewCalendarChange(calendar, changes = {}) {
   assertCalendar(calendar);
-  const current = await getWorkflowConfig(calendar);
+  const current = await readWorkflowConfigFresh(calendar);
   const next = mergeChanges(current, changes);
   const plan = await reroutePlan(calendar, current, next);
   return {
@@ -370,12 +370,16 @@ export async function saveCalendarChange(calendar, body = {}, actor) {
   assertCalendar(calendar);
   const reason = requireReason(body.reason);
   const changes = Object.fromEntries(WORKFLOW_SLOTS.filter((s) => s in (body.changes || {})).map((s) => [s, body.changes[s]]));
-  const current = await getWorkflowConfig(calendar);
+  // Compared with the stored settings (never the cache), at the version the page showed.
+  const current = await readWorkflowConfigFresh(calendar);
+  const expectedVersion = body.version === undefined || body.version === null ? current.version || 0 : Number(body.version);
+  if ((current.version || 0) !== expectedVersion) throw fail(409, 'SETTINGS_CHANGED', 'Settings changed — reload');
   const next = mergeChanges(current, changes);
   const plan = await reroutePlan(calendar, current, next);
   if (!plan.health.ok) throw fail(409, 'HEALTH_CHECK_FAILED', 'Fix the health check before saving.', { errors: plan.health.errors });
 
-  await updateWorkflowConfig(calendar, changes, actor, { note: reason });
+  // The write itself checks the version again (atomic), so a save in between still gets 409.
+  await updateWorkflowConfig(calendar, changes, actor, { note: reason, expectedVersion });
 
   // Tell each new person once what now comes to them.
   const counts = new Map();
@@ -457,13 +461,13 @@ export async function listHistory({ person = '', calendar = '', type = '' } = {}
 }
 
 /** Restore a calendar's settings to what they were before a history entry (same checks as a save). */
-export async function restoreCalendarVersion(changeId, { preview = false, reason } = {}, actor) {
+export async function restoreCalendarVersion(changeId, { preview = false, reason, version } = {}, actor) {
   if (!mongoose.isValidObjectId(changeId)) throw fail(404, 'NOT_FOUND', 'History entry not found');
   const entry = await AccessChange.findById(changeId).lean();
   if (!entry || entry.entityType !== 'workflow_config' || !entry.configBefore) throw fail(404, 'NOT_FOUND', 'This entry cannot be restored.');
   const changes = Object.fromEntries(WORKFLOW_SLOTS.map((s) => [s, entry.configBefore[s]]));
   if (preview) return previewCalendarChange(entry.entityId, changes);
-  return saveCalendarChange(entry.entityId, { changes, reason: reason || `Restored the settings from before version ${entry.version ?? ''}`.trim() }, actor);
+  return saveCalendarChange(entry.entityId, { changes, version, reason: reason || `Restored the settings from before version ${entry.version ?? ''}`.trim() }, actor);
 }
 
 export const __test = { healthCheck, cleanPersonChange };

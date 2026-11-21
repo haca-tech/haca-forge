@@ -193,6 +193,12 @@ const contentPieceSchema = new mongoose.Schema(
       ref: 'Person',
       default: null,
     },
+    /** Who last submitted the row for approval (nobody approves a row they submitted). */
+    submittedById: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Person',
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -4,7 +4,7 @@ import { Person } from '../people/model.js';
 import { WorkflowConfig } from './workflowConfig.model.js';
 import { AccessChange } from './accessChange.model.js';
 import { sendAccessChanged } from './personAccess.service.js';
-import { clearAccessCache, getWorkflowConfig } from '../../lib/accessResolver.js';
+import { clearAccessCache, getWorkflowConfig, readWorkflowConfigFresh } from '../../lib/accessResolver.js';
 
 /**
  * Changing a calendar's reviewers, plan approvers, posters or fallback approvers (Phase C4; the
@@ -41,9 +41,25 @@ async function peopleIn(audiences) {
   return Person.find({ $or: or }).select('_id').lean();
 }
 
-export async function updateWorkflowConfig(calendar, changes = {}, actor = null, { note = '' } = {}) {
+function settingsChanged() {
+  const error = new Error('Settings changed — reload');
+  error.statusCode = 409;
+  error.code = 'SETTINGS_CHANGED';
+  return error;
+}
+
+/**
+ * Saves the given slots. Compares against the settings in the database (never the cache), and
+ * writes only if the stored version is still `expectedVersion` (the version the admin page
+ * showed; when omitted, the version just read), so two saves can't overwrite each other and every
+ * save gets its own version number. A mismatch is 409 SETTINGS_CHANGED.
+ */
+export async function updateWorkflowConfig(calendar, changes = {}, actor = null, { note = '', expectedVersion } = {}) {
   if (!CALENDAR_KEYS.includes(calendar)) throw badRequest(`Unknown calendar: ${calendar}`, 'calendar');
-  const current = await getWorkflowConfig(calendar);
+  const current = await readWorkflowConfigFresh(calendar);
+  const expected = expectedVersion === undefined || expectedVersion === null ? current.version || 0 : Number(expectedVersion);
+  if (!Number.isInteger(expected) || expected < 0) throw badRequest('version must be a whole number', 'version');
+  if ((current.version || 0) !== expected) throw settingsChanged();
   const next = { ...current };
   const changedSlots = [];
   for (const slot of WORKFLOW_SLOTS) {
@@ -57,14 +73,23 @@ export async function updateWorkflowConfig(calendar, changes = {}, actor = null,
   if (!changedSlots.length) return current;
 
   const actorId = actor?._id || actor?.id || actor?.userId || null;
-  let doc = await WorkflowConfig.findOne({ calendar });
-  if (!doc) {
+  const set = { updatedBy: actorId, version: expected + 1 };
+  for (const slot of changedSlots) set[slot] = next[slot];
+  let doc;
+  if (expected === 0) {
+    // No stored settings yet: the first save creates them (the unique calendar index makes a
+    // concurrent first save fail instead of overwriting).
     const d = defaultWorkflowConfig(calendar);
-    doc = new WorkflowConfig({ calendar, reviewers: d.reviewers, planApprovers: d.planApprovers, posters: d.posters, fallbackApprovers: d.fallbackApprovers });
+    try {
+      doc = await WorkflowConfig.create({ calendar, reviewers: d.reviewers, planApprovers: d.planApprovers, posters: d.posters, fallbackApprovers: d.fallbackApprovers, ...set });
+    } catch (err) {
+      if (err?.code === 11000) throw settingsChanged();
+      throw err;
+    }
+  } else {
+    doc = await WorkflowConfig.findOneAndUpdate({ calendar, version: expected }, { $set: set }, { new: true });
+    if (!doc) throw settingsChanged();
   }
-  for (const slot of changedSlots) doc[slot] = next[slot];
-  doc.updatedBy = actorId;
-  await doc.save();
   clearAccessCache();
 
   const snapshot = (c) => Object.fromEntries(WORKFLOW_SLOTS.map((slot) => [slot, cleanAudience(c[slot], slot)]));

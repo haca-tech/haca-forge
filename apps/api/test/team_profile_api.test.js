@@ -468,6 +468,8 @@ describe('Team Directory and Worker Profile API Suite', () => {
 
   describe('6. Reassign Steps Action', () => {
     it('SM Manager can reassign steps from one worker to another', async () => {
+      // Final fix M10: the target must be able to own the step (a Graphic Designer owns Design).
+      await WorkItem.updateOne({ _id: workItem1._id }, { $set: { stageKey: 'Design' } });
       const res = await request(app)
         .post(`/api/team/${worker1._id}/reassign`)
         .set('Authorization', `Bearer ${smToken}`)

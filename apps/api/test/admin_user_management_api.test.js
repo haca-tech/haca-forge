@@ -139,7 +139,7 @@ describe('Admin user-management API', () => {
       const res = await request(app)
         .patch(`/api/team/${target._id}`)
         .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ role: 'sm_manager' });
+        .send({ role: 'sm_manager', reason: 'Now posts' });
       expect(res.status).toBe(200);
       expect((await Person.findById(target._id)).role).toBe('sm_manager');
     });

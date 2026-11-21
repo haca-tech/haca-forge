@@ -7,7 +7,7 @@ import { logActivity } from '../activity/service.js';
 import { syncUserTeamChatMembership } from '../chat/service.js';
 import { normalizeRole, APPROVER_ROLES, READ_ONLY_VIEWER_ROLES, WORKER_ROLE, isApprover, isReadOnlyViewer, isWorker, canSeeContactDetails } from '@mmp/shared';
 import { canSeeContacts, hasPermission, isOperationalManager, isOwnScope, isProtectedAccount, isSuperuser, rolesOutsidePools, seesAll } from '../../lib/roleAccess.js';
-import { changePersonAccess } from '../accessConfig/personAccess.service.js';
+import { savePersonChange } from '../accessConfig/accessAdmin.service.js';
 
 /** Active-step limit (workload): a whole number from 1 to 20, else 400. */
 function validLimit(value) {
@@ -243,8 +243,8 @@ export async function updatePerson(id, updates, actor) {
     // Admin has full control
     if (updates.name !== undefined) target.name = updates.name;
     if (updates.email !== undefined) target.email = updates.email.toLowerCase().trim();
-    // Role and status go through changePersonAccess after the other fields are saved.
-    if (updates.role !== undefined || updates.status !== undefined) accessChanges = { role: updates.role, status: updates.status };
+    // Role and status go through the admin page's savePersonChange (reason, guards, health check).
+    if (updates.role !== undefined || updates.status !== undefined) accessChanges = { role: updates.role, status: updates.status, reason: updates.reason };
     if (updates.jobRole !== undefined) target.jobRole = updates.jobRole;
     if (updates.departmentId !== undefined) target.departmentId = updates.departmentId;
     if (updates.reportsToIds !== undefined) target.reportsToIds = updates.reportsToIds;
@@ -264,8 +264,9 @@ export async function updatePerson(id, updates, actor) {
     throw error;
   }
 
+  // The access change first: when it is refused, nothing else is saved either.
+  if (accessChanges) await savePersonChange(String(target._id), accessChanges, actor);
   await target.save();
-  if (accessChanges) await changePersonAccess(target, accessChanges, actor);
 
   await logActivity({
     entityType: 'person',
@@ -275,10 +276,10 @@ export async function updatePerson(id, updates, actor) {
     metadata: { updatedFields: Object.keys(updates) },
   });
 
-  return target;
+  return Person.findById(target._id); // fresh: role and status were saved by savePersonChange
 }
 
-export async function suspendPerson(id, actor) {
+export async function suspendPerson(id, actor, { reason } = {}) {
   const actorRole = normalizeRole(actor?.role);
   if (!hasPermission(actor, 'user.manage')) {
     const error = new Error('Forbidden: only Administrator can suspend users');
@@ -302,9 +303,9 @@ export async function suspendPerson(id, actor) {
     throw error;
   }
 
+  await savePersonChange(String(target._id), { status: 'suspended', reason }, actor);
   target.refreshTokenHash = undefined; // Force logout
-  await target.save();
-  await changePersonAccess(target, { status: 'suspended' }, actor);
+  await Person.updateOne({ _id: target._id }, { $unset: { refreshTokenHash: 1 } });
 
   await logActivity({
     entityType: 'person',
@@ -317,10 +318,10 @@ export async function suspendPerson(id, actor) {
 
   await syncUserTeamChatMembership(target._id).catch(() => {});
 
-  return target;
+  return Person.findById(target._id);
 }
 
-export async function reactivatePerson(id, actor) {
+export async function reactivatePerson(id, actor, { reason } = {}) {
   const actorRole = normalizeRole(actor?.role);
   if (!hasPermission(actor, 'user.manage')) {
     const error = new Error('Forbidden: only Administrator can reactivate users');
@@ -337,7 +338,7 @@ export async function reactivatePerson(id, actor) {
     throw error;
   }
 
-  await changePersonAccess(target, { status: 'active' }, actor);
+  await savePersonChange(String(target._id), { status: 'active', reason }, actor);
 
   await logActivity({
     entityType: 'person',
@@ -350,7 +351,7 @@ export async function reactivatePerson(id, actor) {
 
   await syncUserTeamChatMembership(target._id).catch(() => {});
 
-  return target;
+  return Person.findById(target._id);
 }
 
 export async function getAssignmentCandidates({ departmentId, excludeIds = [] }) {

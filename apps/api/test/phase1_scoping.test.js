@@ -167,11 +167,11 @@ describe('Phase 1: Profiles, People & Access Scoping Tests', () => {
     });
 
     it('Admin can suspend users', async () => {
-      const suspended = await peopleService.suspendPerson(member2User._id, adminUser);
+      const suspended = await peopleService.suspendPerson(member2User._id, adminUser, { reason: 'Left the team' });
       expect(suspended.status).toBe('suspended');
 
       // Reactivate
-      const active = await peopleService.reactivatePerson(member2User._id, adminUser);
+      const active = await peopleService.reactivatePerson(member2User._id, adminUser, { reason: 'Back again' });
       expect(active.status).toBe('active');
     });
 

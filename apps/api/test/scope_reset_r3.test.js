@@ -513,6 +513,8 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
     });
 
     it('verifies generated stage offsets, due dates, and locked/unlocked state', async () => {
+      // Final fix M3: rows are approved only once submitted.
+      await request(app).post(`/api/calendar-plans/${testPlan._id}/submit`).set('Authorization', `Bearer ${smToken}`);
       // Approve rowReelA
       await request(app)
         .post(`/api/calendar-plans/${testPlan._id}/review`)

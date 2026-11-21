@@ -18,6 +18,7 @@ import { Department } from '../src/modules/departments/model.js';
 import { WorkItem } from '../src/modules/workItems/model.js';
 import { AccessRequest } from '../src/modules/access/model.js';
 import { CalendarPlan } from '../src/modules/calendar/plan.model.js';
+import { ContentPiece } from '../src/modules/calendar/contentPiece.model.js';
 import * as peopleService from '../src/modules/people/service.js';
 import * as transitionService from '../src/modules/workItems/transition.service.js';
 import * as accessService from '../src/modules/access/service.js';
@@ -510,12 +511,16 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
 
     describe('D. Creative Head: Approvals Allowed, User/Plan Creation Forbidden', () => {
       it('POST /api/calendar-plans/:id/review -> 200 (Has calendar.approve)', async () => {
+        // Final fix M3: only rows waiting for review are decided, so the plan needs a submitted row.
+        await ContentPiece.create({ planId: testCalEntry._id, topic: 'R2 waiting row', contentType: 'Static Post', type: 'Static Post', pipeline: 'design', postingDate: new Date(Date.now() + 10 * 86400000), status: 'Not Started', calendar: 'sm', rowStatus: 'submitted', createdById: smUser._id, submittedById: smUser._id, brief: 'Brief.' });
         const res = await request(app)
           .post(`/api/calendar-plans/${testCalEntry._id}/review`)
           .set('Authorization', `Bearer ${headToken}`)
           .send({ action: 'approve_all' });
         expect(res.status).toBe(200);
         expect(res.body.data).toBeDefined();
+        await WorkItem.deleteMany({ calendarPlanId: testCalEntry._id });
+        await ContentPiece.deleteMany({ planId: testCalEntry._id });
       });
 
       it('POST /api/calendar-plans -> 403 (Cannot create calendar plans)', async () => {
@@ -645,7 +650,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
       // Admin promotes member to sm_manager -> allowed
       const promoted = await peopleService.updatePerson(
         memberUser._id,
-        { role: 'sm_manager' },
+        { role: 'sm_manager', reason: 'Now posts' },
         adminUser
       );
       expect(promoted.role).toBe('sm_manager');

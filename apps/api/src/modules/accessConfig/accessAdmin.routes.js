@@ -35,7 +35,7 @@ router.get('/history', async (req, res) => {
   res.json({ data: await svc.listHistory({ person: q(req.query.person), calendar: q(req.query.calendar), type: q(req.query.type) }) });
 });
 router.post('/history/:id/restore', async (req, res) => {
-  res.json({ data: await svc.restoreCalendarVersion(req.params.id, { preview: Boolean(req.body?.preview), reason: req.body?.reason }, req.user) });
+  res.json({ data: await svc.restoreCalendarVersion(req.params.id, { preview: Boolean(req.body?.preview), reason: req.body?.reason, version: req.body?.version }, req.user) });
 });
 
 router.get('/role-guide', (_req, res) => {

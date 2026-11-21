@@ -125,9 +125,14 @@ describe('Admin user-management actions', () => {
       expect(within(dialog).getByText('Current role').nextSibling).toHaveTextContent('Executive');
       expect(within(dialog).getByText('New role').nextSibling).toHaveTextContent('SM Manager');
 
+      // A reason is required (it goes to the access History).
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm role change' }));
+      expect(await within(dialog).findByText('Give a reason for this change.')).toBeInTheDocument();
+      expect(apiFetch).not.toHaveBeenCalled();
+      fireEvent.change(within(dialog).getByLabelText(/Reason/), { target: { value: 'Now posts for SM' } });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm role change' }));
       await waitFor(() => expect(onDone).toHaveBeenCalledWith("Test Writer One's role is now SM Manager.", 'role'));
-      expect(apiFetch).toHaveBeenCalledWith('/api/team/user-1', { method: 'PATCH', body: JSON.stringify({ role: 'sm_manager' }) });
+      expect(apiFetch).toHaveBeenCalledWith('/api/team/user-1', { method: 'PATCH', body: JSON.stringify({ role: 'sm_manager', reason: 'Now posts for SM' }) });
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
@@ -198,6 +203,7 @@ describe('Admin user-management actions', () => {
       const dialog = screen.getByRole('dialog');
       fireEvent.change(within(dialog).getByLabelText('New role'), { target: { value: 'creative_head' } });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Review change' }));
+      fireEvent.change(within(dialog).getByLabelText(/Reason/), { target: { value: 'Team change' } });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm role change' }));
       expect(await within(dialog).findByRole('alert')).toHaveTextContent('Person not found');
       expect(onDone).not.toHaveBeenCalled();
@@ -215,6 +221,7 @@ describe('Admin user-management actions', () => {
       const dialog = screen.getByRole('dialog');
       fireEvent.change(within(dialog).getByLabelText('New role'), { target: { value: 'creative_head' } });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Review change' }));
+      fireEvent.change(within(dialog).getByLabelText(/Reason/), { target: { value: 'Team change' } });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm role change' }));
       expect(await within(dialog).findByRole('alert')).toHaveTextContent('Server error');
       expect(screen.queryByText(/role is now/)).not.toBeInTheDocument();

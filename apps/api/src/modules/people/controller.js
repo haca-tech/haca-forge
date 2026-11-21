@@ -57,7 +57,7 @@ export async function updatePerson(req, res, next) {
 
 export async function suspendPerson(req, res, next) {
   try {
-    const person = await peopleService.suspendPerson(req.params.id, req.user);
+    const person = await peopleService.suspendPerson(req.params.id, req.user, { reason: req.body?.reason });
     res.json({
       message: 'User account suspended successfully',
       data: person,
@@ -69,7 +69,7 @@ export async function suspendPerson(req, res, next) {
 
 export async function reactivatePerson(req, res, next) {
   try {
-    const person = await peopleService.reactivatePerson(req.params.id, req.user);
+    const person = await peopleService.reactivatePerson(req.params.id, req.user, { reason: req.body?.reason });
     res.json({
       message: 'User account reactivated successfully',
       data: person,

@@ -75,11 +75,14 @@ export const AdminAccountActions: React.FC<AdminAccountActionsProps> = ({ person
     setStep(next);
   };
 
+  // Role changes are recorded in the access History with a reason (the API requires one).
+  const [reason, setReason] = useState('');
   const openAction = (action: Action) => {
     setError(null);
     setBusy(false);
     setStep('choose');
     setNewRole(person.role);
+    setReason('');
     setOpen(action);
   };
   const close = () => {
@@ -94,7 +97,12 @@ export const AdminAccountActions: React.FC<AdminAccountActionsProps> = ({ person
     setError(null);
     try {
       if (action === 'role') {
-        await apiFetch(`/api/team/${person._id}`, { method: 'PATCH', body: JSON.stringify({ role: newRole }) });
+        if (reason.trim().length < 3) {
+          setBusy(false);
+          setError('Give a reason for this change.');
+          return;
+        }
+        await apiFetch(`/api/team/${person._id}`, { method: 'PATCH', body: JSON.stringify({ role: newRole, reason: reason.trim() }) });
         onDone(`${person.name}'s role is now ${roleName(newRole)}.`, action);
       } else if (action === 'reset') {
         await apiFetch(`/api/team/${person._id}/reset-password`, { method: 'POST' });
@@ -182,6 +190,19 @@ export const AdminAccountActions: React.FC<AdminAccountActionsProps> = ({ person
               <p className="text-[13px] text-ui-text">
                 Their permissions change straight away, including which pages and data they can open.
               </p>
+              <div className="space-y-1.5">
+                <label htmlFor="admin-role-reason" className="text-[13px] font-medium text-ui-muted block">
+                  Reason (kept in the access History)
+                </label>
+                <input
+                  id="admin-role-reason"
+                  type="text"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  className="ui-input w-full h-11"
+                  placeholder="For example: moved to the Ads team"
+                />
+              </div>
               <ErrorNotice message={error} />
               <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
                 <button type="button" onClick={() => goToStep('choose')} disabled={busy} className="ui-btn ui-btn-secondary h-11">
