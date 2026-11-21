@@ -75,6 +75,7 @@ describe('Access & Approvals admin API (Phase D)', () => {
     await person('growth', 'growth_lead');
     await person('lead', 'creative_lead');
     await person('sm', 'sm_manager');
+    await person('sm2', 'sm_manager');
     await person('worker', 'executive', { jobRole: 'Video Editor' });
     await person('gone', 'creative_lead', { status: 'suspended' });
   }, 60000);
@@ -292,15 +293,18 @@ describe('Access & Approvals admin API (Phase D)', () => {
       const piece = await ContentPiece.create({ planId: new mongoose.Types.ObjectId(), topic: `${TAG} post piece`, contentType: 'Reel', pipeline: 'reel_a', postingDate: new Date(), status: 'In Progress', calendar: 'sales' });
       const post = await WorkItem.create({ title: `${TAG} sales Post`, workType: 'Reel', stageKey: 'Post', stageOrder: 5, status: 'Not Started', calendar: 'sales', ownerId: P.sm._id, departmentId: new mongoose.Types.ObjectId(), contentPieceId: piece._id, deadline: new Date(Date.now() + 864e5) });
       // Adding a named poster keeps the SM Manager a poster: nothing moves.
-      const keep = await request(app).put(`${BASE}/calendars/sales`).set(as('admin')).send({ reason: 'add', changes: { posters: { roles: ['sm_manager'], userIds: [String(P.admin2._id)] } } });
+      const keep = await request(app).put(`${BASE}/calendars/sales`).set(as('admin')).send({ reason: 'add', changes: { posters: { roles: ['sm_manager'], userIds: [String(P.sm2._id)] } } });
       expect(keep.body.data.movedPosts).toBe(0);
       expect(String((await WorkItem.findById(post._id).lean()).ownerId)).toBe(String(P.sm._id));
-      // Only the named person posts now: the open Post step moves to them.
-      const move = await request(app).put(`${BASE}/calendars/sales`).set(as('admin')).send({ reason: 'only admin2', changes: { posters: { roles: [], userIds: [String(P.admin2._id)] } } });
+      // An admin never counts as a poster (cannot own Post steps): blocked.
+      const adminOnly = await request(app).put(`${BASE}/calendars/sales`).set(as('admin')).send({ reason: 'only admin2', changes: { posters: { roles: [], userIds: [String(P.admin2._id)] } } });
+      expect([adminOnly.status, adminOnly.body.error.code]).toEqual([409, 'HEALTH_CHECK_FAILED']);
+      // Only the named SM Manager posts now: the open Post step moves to them.
+      const move = await request(app).put(`${BASE}/calendars/sales`).set(as('admin')).send({ reason: 'only sm2', changes: { posters: { roles: [], userIds: [String(P.sm2._id)] } } });
       expect(move.status).toBe(200);
       expect(move.body.data.movedPosts).toBe(1);
-      expect(String((await WorkItem.findById(post._id).lean()).ownerId)).toBe(String(P.admin2._id));
-      expect(await Notification.countDocuments({ recipient: P.admin2._id, type: 'access_rerouted' })).toBe(1);
+      expect(String((await WorkItem.findById(post._id).lean()).ownerId)).toBe(String(P.sm2._id));
+      expect(await Notification.countDocuments({ recipient: P.sm2._id, type: 'access_rerouted' })).toBe(1);
     });
   });
 

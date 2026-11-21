@@ -302,7 +302,11 @@ describe('Routing parity: reviewers, plan approvers, posters, recipients', () =>
     await doc.save();
     const after = await resolver.getWorkflowConfig('sales');
     expect(after.version).toBe(before.version + 1);
-    expect(ids((await resolver.reviewersFor({ calendar: 'sales' })).people)).toEqual(ids([P.smA1]));
+    // Final fix H3: a named person whose role cannot review is skipped, so the fallback (every
+    // active admin) takes the work instead of someone who cannot act on it.
+    const named = await resolver.reviewersFor({ calendar: 'sales' });
+    expect(named.primary).toEqual([]);
+    expect(ids(named.people)).toEqual(ids(await Person.find({ role: 'admin', status: 'active' })));
     // SM Manager lacks review.decide: being named does not grant the permission.
     expect(await resolver.can(P.smA1, 'review.decide', { calendar: 'sales', ownerId: OTHER })).toBe(false);
     expect(await resolver.can(P.cl1, 'review.decide', { calendar: 'sales', ownerId: OTHER })).toBe(false);

@@ -624,7 +624,9 @@ export async function saveGridRows(body = {}, user) {
   const people = (await activeOwnerCandidates()).map((p) => ({ _id: String(p._id), name: p.name }));
   const existingRows = plan ? await ContentPiece.find({ planId: plan._id }).lean() : [];
   const existingById = new Map(existingRows.map((r) => [String(r._id), r]));
-  const defaultPoster = (await access.postersFor({ calendar: plan?.calendar || calendar })).defaultPoster;
+  const posterInfo = await access.postersFor({ calendar: plan?.calendar || calendar });
+  const defaultPoster = posterInfo.defaultPoster;
+  const posterIds = new Set(posterInfo.people.map((p) => String(p._id)));
 
   const results = [];
   const built = [];
@@ -673,6 +675,11 @@ export async function saveGridRows(body = {}, user) {
       : null;
     const stagePlan = buildStagePlan(draft, existing, suggestion);
     const postStage = stagePlan.find((s) => s.stageKey === 'Post');
+    // Autofill picks Post owners from every SM Manager; only this calendar's posters may own it
+    // (none active: the Post step waits unowned). A manual pick is kept as typed.
+    if (postStage && postStage.ownerId && postStage.ownerSource !== 'manual' && !posterIds.has(String(postStage.ownerId))) {
+      postStage.ownerId = defaultPoster ? String(defaultPoster._id) : null;
+    }
     const postingOwnerId = draft.pipelineInfo.hasPostStage
       ? postStage?.ownerId || (existing?.postingOwnerId ? String(existing.postingOwnerId) : null) || (defaultPoster ? String(defaultPoster._id) : null)
       : null;

@@ -1,17 +1,22 @@
 import mongoose from 'mongoose';
 import {
   CALENDAR_KEYS,
+  ROLE_KEYS,
+  audienceIncludes,
   can as canPure,
-  decisionCalendars as decisionCalendarsPure,
   defaultWorkflowConfig,
+  permissionDef,
+  slotEligibleRole,
   stepEligibility as stepEligibilityPure,
+  systemRoleOf,
   withinCalendarScope,
 } from '@mmp/shared';
 import { Person } from '../modules/people/model.js';
-import { ROLE_KEYS, systemRoleOf } from '@mmp/shared';
+import { WorkflowConfig, onWorkflowConfigChange } from '../modules/accessConfig/workflowConfig.model.js';
 
 const lockedRoles = () => ROLE_KEYS.filter((role) => systemRoleOf({ role })?.locked);
-import { WorkflowConfig, onWorkflowConfigChange } from '../modules/accessConfig/workflowConfig.model.js';
+/** Step-taking roles that post (today: the SM Manager), for "needs an owner" notices. */
+const postingRoles = () => ROLE_KEYS.filter((role) => slotEligibleRole(role, 'posters'));
 
 /**
  * The central access resolver (Phase B; used by routes, services and sockets since Phase C).
@@ -62,14 +67,29 @@ export async function getAllWorkflowConfigs() {
   return Object.fromEntries(entries);
 }
 
-/** can(user, permission, { calendar, ownerId }) with the stored config for that calendar. */
+/**
+ * can(user, permission, { calendar, ownerId }) with the stored config for that calendar. For a
+ * decision (review, classify, plan approval) by someone in the calendar's fallback, it also works
+ * out whether the main list has anybody active and eligible: if not, the fallback decides.
+ */
 export async function can(user, permission, ctx = {}) {
-  const config = ctx.calendar !== undefined ? await getWorkflowConfig(ctx.calendar) : null;
-  return canPure(user, permission, ctx, config);
+  if (ctx.calendar === undefined) return canPure(user, permission, ctx, null);
+  const calendar = ctx.calendar || 'sm';
+  const config = await getWorkflowConfig(calendar);
+  if (canPure(user, permission, ctx, config)) return true;
+  const slot = permissionDef(permission)?.routedBy;
+  if (slot !== 'reviewers' && slot !== 'planApprovers') return false;
+  if (!audienceIncludes(config.fallbackApprovers, user)) return false;
+  if ((await peopleFor(config[slot], calendar, { slot })).length) return false;
+  return canPure(user, permission, ctx, { ...config, primaryInactive: { [slot]: true } });
 }
 
+/** The calendars this user reviews on (queues), counting calendars where they are the acting fallback. */
 export async function decisionCalendars(user) {
-  return decisionCalendarsPure(user, await getAllWorkflowConfigs());
+  if (!systemRoleOf(user) || user?.status === 'suspended') return [];
+  const out = [];
+  for (const calendar of CALENDAR_KEYS) if (await can(user, 'review.decide', { calendar })) out.push(calendar);
+  return out;
 }
 
 export async function stepEligibility(user, step) {
@@ -91,25 +111,38 @@ function audienceQuery(audience, statusFilter = 'active') {
   return { $or: or, status };
 }
 
-async function peopleFor(audience, calendar, { statusFilter = 'active' } = {}) {
+/**
+ * The people a slot names who can act now: active (or not suspended, when asked), inside their
+ * calendar limit, and whose current role can fill the slot (a named person whose role changed is
+ * skipped, so the fallback takes over). Posters must also be able to own Post steps.
+ */
+async function peopleFor(audience, calendar, { slot, statusFilter = 'active' } = {}) {
   if (!audience || (!(audience.roles || []).length && !(audience.userIds || []).length)) return [];
   const people = await Person.find(audienceQuery(audience, statusFilter));
-  return people.filter((p) => withinCalendarScope(p, calendar));
+  return people.filter((p) => withinCalendarScope(p, calendar) && (!slot || slotEligibleRole(p.role, slot)));
 }
 
-/** Fallback people (fixed rule 12): every active admin plus the named fallback people. */
+/** Every active admin: the final fallback on every calendar. */
+const activeAdmins = () => Person.find({ role: { $in: lockedRoles() }, status: 'active' });
+
+/**
+ * Fallback people: the calendar's fallback list (active, eligible, within their limit), or every
+ * active admin when that list has nobody (admins are always the final fallback).
+ */
 async function fallbackFor(config, calendar) {
-  return peopleFor(config.fallbackApprovers, calendar);
+  const named = await peopleFor(config.fallbackApprovers, calendar, { slot: 'fallbackApprovers' });
+  return named.length ? named : activeAdmins();
 }
 
 /**
- * Who reviews a step. `primary`: the calendar's reviewers (today: the calendar's lead role,
- * active). `people`: primary, or the fallback when no primary is active.
+ * Who reviews a step. `primary`: the calendar's reviewers who can act now (active, eligible role,
+ * inside their limit). `people`: primary, or the fallback when there is no primary (the named
+ * fallback, or every active admin when that has nobody either).
  */
 export async function reviewersFor(step) {
   const calendar = calOf(step);
   const config = await getWorkflowConfig(calendar);
-  const primary = await peopleFor(config.reviewers, calendar);
+  const primary = await peopleFor(config.reviewers, calendar, { slot: 'reviewers' });
   const fallback = primary.length ? [] : await fallbackFor(config, calendar);
   return { calendar, primary, fallback, people: primary.length ? primary : fallback };
 }
@@ -117,32 +150,40 @@ export async function reviewersFor(step) {
 export async function planApproversFor(plan) {
   const calendar = calOf(plan);
   const config = await getWorkflowConfig(calendar);
-  const primary = await peopleFor(config.planApprovers, calendar);
+  const primary = await peopleFor(config.planApprovers, calendar, { slot: 'planApprovers' });
   const fallback = primary.length ? [] : await fallbackFor(config, calendar);
   return { calendar, primary, fallback, people: primary.length ? primary : fallback };
 }
 
 /**
- * Posters of a calendar. `people`: every active poster. `defaultPoster`: the person a new row's
- * Post step goes to, the first active poster as today (unsorted findOne, plan.service.js:508,880).
+ * Posters of a calendar. `people`: every active poster who can own Post steps on it.
+ * `defaultPoster`: the person a new row's Post step goes to; null when the calendar has no active
+ * poster (the Post step then waits unowned and "needs an owner" is sent).
  */
 export async function postersFor(piece) {
   const calendar = calOf(piece);
   const config = await getWorkflowConfig(calendar);
-  const people = await peopleFor(config.posters, calendar);
-  const defaultPoster = config.posters.roles.length || config.posters.userIds.length
-    ? await Person.findOne(audienceQuery(config.posters)).lean()
-    : null;
+  const people = await peopleFor(config.posters, calendar, { slot: 'posters' });
+  const first = people.length ? await Person.findOne(audienceQuery(config.posters)).lean() : null;
+  const defaultPoster = first && people.some((p) => String(p._id) === String(first._id)) ? first : people[0]?.toObject?.() || people[0] || null;
   return { calendar, people, defaultPoster };
 }
 
+/** Posters of the step's department (when it has one), eligible and inside their limit. */
+async function departmentPosters(config, calendar, departmentId, { sort = false } = {}) {
+  if (!departmentId) return [];
+  let q = Person.find({ ...audienceQuery(config.posters), departmentId });
+  if (sort) q = q.sort({ createdAt: 1 });
+  return (await q.lean()).filter((p) => withinCalendarScope(p, calendar) && slotEligibleRole(p.role, 'posters'));
+}
+
 /**
- * Notification recipients, by event. Each mirrors today's query exactly (Phase B parity),
- * including "first SM Manager only" where that is today's rule; Phase C changes those on purpose.
- *  - submission.ready / plan.submitted: the calendar's reviewers / plan approvers (active).
- *  - revision.flagged: reviewers (active) and the step department's SM Managers (active).
+ * Notification recipients, by event:
+ *  - submission.ready / plan.submitted: the calendar's reviewers / plan approvers, or the fallback.
+ *  - revision.flagged: reviewers (or the fallback) and the step department's posters.
  *  - revision.flag_escalated: reviewers and admins, every status but suspended.
- *  - step.needs_owner: every active poster (SM Manager).
+ *  - step.needs_owner: every active poster; when the calendar has none, the holders of the posters'
+ *    roles, every SM Manager (posting role) and every admin, so somebody can assign it.
  *  - step.overdue_manager: every active poster of the step's department, else every active poster (Phase C5).
  *  - access.requested: every active admin.
  */
@@ -151,33 +192,35 @@ export async function recipientsFor(event, item = {}) {
   const config = await getWorkflowConfig(calendar);
   switch (event) {
     case 'submission.ready':
-      return peopleFor(config.reviewers, calendar);
+      return (await reviewersFor(item)).people;
     case 'plan.submitted':
-      return peopleFor(config.planApprovers, calendar);
+      return (await planApproversFor(item)).people;
     case 'revision.flagged': {
       // The step's reviewers (or the fallback) and its department's posters; active, within their
       // calendar limit (Phase E fix: the limit was ignored here).
       const { people: reviewers } = await reviewersFor(item);
-      const posters = item.departmentId
-        ? (await Person.find({ ...audienceQuery(config.posters), departmentId: item.departmentId })).filter((p) => withinCalendarScope(p, calendar))
-        : [];
+      const posters = await departmentPosters(config, calendar, item.departmentId);
       return [...new Map([...reviewers, ...posters].map((p) => [String(p._id), p])).values()];
     }
     case 'revision.flag_escalated': {
-      const reviewers = await peopleFor(config.reviewers, calendar, { statusFilter: 'not_suspended' });
-      const admins = await Person.find({ role: 'admin', status: { $ne: 'suspended' } }).lean();
-      return [...reviewers, ...admins];
+      const reviewers = await peopleFor(config.reviewers, calendar, { slot: 'reviewers', statusFilter: 'not_suspended' });
+      const admins = await Person.find({ role: { $in: lockedRoles() }, status: { $ne: 'suspended' } }).lean();
+      return [...new Map([...reviewers, ...admins].map((p) => [String(p._id), p])).values()];
     }
-    case 'step.needs_owner':
-      return peopleFor(config.posters, calendar);
+    case 'step.needs_owner': {
+      const posters = await peopleFor(config.posters, calendar, { slot: 'posters' });
+      if (posters.length) return posters;
+      const roles = [...new Set([...(config.posters.roles || []), ...postingRoles(), ...lockedRoles()])];
+      return Person.find({ role: { $in: roles }, status: 'active' });
+    }
     case 'step.overdue_manager': {
       // Phase C5: every SM Manager of the step's department, or every SM Manager when it has none
       // (was: the first one only).
-      const inDept = item.departmentId
-        ? (await Person.find({ departmentId: item.departmentId, ...audienceQuery(config.posters) }).sort({ createdAt: 1 }).lean()).filter((p) => withinCalendarScope(p, calendar))
-        : [];
+      const inDept = await departmentPosters(config, calendar, item.departmentId, { sort: true });
       if (inDept.length) return inDept;
-      return (await Person.find(audienceQuery(config.posters)).sort({ createdAt: 1 }).lean()).filter((p) => withinCalendarScope(p, calendar));
+      return (await Person.find(audienceQuery(config.posters)).sort({ createdAt: 1 }).lean()).filter(
+        (p) => withinCalendarScope(p, calendar) && slotEligibleRole(p.role, 'posters')
+      );
     }
     case 'comment.posted': {
       // Live review comments: the step calendar's reviewers (or the fallback) and every active admin.

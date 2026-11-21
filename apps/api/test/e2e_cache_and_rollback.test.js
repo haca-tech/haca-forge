@@ -130,7 +130,7 @@ describe('Phase E4/E5: cache and rollback', () => {
       // The admin page still works: every calendar healthy at version 0, and a save creates the record.
       const cals = await request(app).get('/api/access-admin/calendars').set(as('admin'));
       expect(cals.body.data.calendars.map((c) => [c.calendar, c.version, c.health.ok])).toEqual([['sm', 0, true], ['sales', 0, true], ['ads', 0, true], ['academics_management', 0, true], ['other', 0, true]]);
-      expect((await request(app).put('/api/access-admin/calendars/sm').set(as('admin')).send({ reason: 'first save', changes: { posters: { roles: ['sm_manager'], userIds: [String(P.admin._id)] } } })).body.data.calendar.version).toBe(1);
+      expect((await request(app).put('/api/access-admin/calendars/sm').set(as('admin')).send({ reason: 'first save', changes: { posters: { roles: [], userIds: [String(P.sm._id)] } } })).body.data.calendar.version).toBe(1);
     });
 
     it('admin recovery: local databases only; re-activates an account as an active admin, in the History', async () => {

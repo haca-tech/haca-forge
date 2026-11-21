@@ -1908,6 +1908,8 @@ export const VALIDATION_WARNING_CODES = {
   TIGHT_CREATION_BUFFER: "TIGHT_CREATION_BUFFER",
   WORKLOAD_SATURATION: "WORKLOAD_SATURATION",
   MONTH_MISMATCH: "MONTH_MISMATCH",
+  /** The calendar has no active poster: the Post step waits unowned and the posters are told. */
+  NO_ACTIVE_POSTER: "NO_ACTIVE_POSTER",
 } as const;
 export type ValidationWarningCode = (typeof VALIDATION_WARNING_CODES)[keyof typeof VALIDATION_WARNING_CODES];
 
@@ -4734,9 +4736,18 @@ export interface WorkflowConfigShape {
   reviewers: AccessAudience;
   planApprovers: AccessAudience;
   posters: AccessAudience;
-  /** Used when no active primary resolves (fixed rule 12): any active admin plus optional named people. */
+  /**
+   * Who decides (reviews, plan approvals) when nobody in the main list is active and eligible.
+   * Active admins are always the final fallback: they decide on every calendar (locked role), and
+   * they are notified when this list also has nobody active.
+   */
   fallbackApprovers: AccessAudience;
   version?: number;
+  /**
+   * Set by the API resolver, never stored: the main list of this slot has nobody active and
+   * eligible right now, so the fallback members decide on this calendar.
+   */
+  primaryInactive?: Partial<Record<"reviewers" | "planApprovers", boolean>>;
 }
 export const WORKFLOW_SLOTS = ["reviewers", "planApprovers", "posters", "fallbackApprovers"] as const;
 export type WorkflowSlot = (typeof WORKFLOW_SLOTS)[number];
@@ -4807,7 +4818,14 @@ export function can(user: AccessUser | null | undefined, permission: string, ctx
     const cal = ctx.calendar || "sm";
     if (!withinCalendarScope(user, cal)) return false;
     const cfg = config && config.calendar === cal ? config : defaultWorkflowConfig(cal);
-    return audienceIncludes(cfg[def.routedBy], user);
+    if (audienceIncludes(cfg[def.routedBy], user)) return true;
+    // The fallback decides while nobody in the main list is active and eligible (the API resolver
+    // works that out and sets primaryInactive; a pure call without it never uses the fallback).
+    const slot = def.routedBy;
+    if ((slot === "reviewers" || slot === "planApprovers") && cfg.primaryInactive?.[slot]) {
+      return audienceIncludes(cfg.fallbackApprovers, user);
+    }
+    return false;
   }
   return true;
 }
@@ -4856,6 +4874,19 @@ export const WORKFLOW_SLOT_PERMISSION: Record<WorkflowSlot, string> = {
   posters: "publish.post",
   fallbackApprovers: "review.decide",
 };
+/**
+ * Can this person's role fill a calendar slot? Reviewers, plan approvers and fallback: the role
+ * holds the slot's permission. Posters: the role also takes steps, because a poster owns Post
+ * steps (the locked admin can mark posted but never owns steps, so it does not count as a poster).
+ * Status and calendar limit are checked separately.
+ */
+export function slotEligibleRole(role: string | null | undefined, slot: WorkflowSlot): boolean {
+  const def = systemRoleOf({ role: role || "" });
+  if (!def) return false;
+  if (slot === "posters") return def.takesSteps && def.permissions.includes("publish.post");
+  return can({ role: role || "", status: "active" }, WORKFLOW_SLOT_PERMISSION[slot]);
+}
+
 export const WORKFLOW_SLOT_LABELS: Record<WorkflowSlot, string> = {
   planApprovers: "Plans approved by",
   reviewers: "Work reviewed by",

@@ -4,8 +4,10 @@ import {
   CALENDAR_KEYS,
   ROLE_KEYS,
   WORKFLOW_SLOTS,
+  WORKFLOW_SLOT_LABELS,
   WORKFLOW_SLOT_PERMISSION,
   can,
+  slotEligibleRole,
   describeAccessChange,
   roleHasCalendarScopedPermissions,
   systemRoleOf,
@@ -96,7 +98,7 @@ export async function previewPersonChange(id, body, actor) {
   const before = { _id: idOf(target), role: target.role, status: target.status, calendarScope: target.calendarScope || null };
   const after = { ...before, role: next.role, status: next.status, calendarScope: next.calendarScope };
   const { gains, losses } = describeAccessChange(before, after, await getAllWorkflowConfigs());
-  const guard = selfGuard(target, next, actor) || (await lastAdminGuard(target, next));
+  const guard = selfGuard(target, next, actor) || (await lastAdminGuard(target, next)) || (await calendarGuard(target, next));
   return {
     name: target.name,
     before: { role: before.role, status: before.status, calendarScope: before.calendarScope?.length ? before.calendarScope : null },
@@ -125,6 +127,31 @@ async function lastAdminGuard(target, next) {
   return { code: 'LAST_ADMIN', message: 'This is the last active admin. Make someone else an admin first.' };
 }
 
+/**
+ * Would this person change leave a calendar without anybody to approve plans, review or post?
+ * Runs the health check on every calendar with and without the change; a problem the change
+ * introduces blocks it, naming the calendars and settings to fix first.
+ */
+async function calendarGuard(target, next) {
+  const override = { _id: idOf(target), role: next.role, status: next.status, calendarScope: next.calendarScope };
+  const configs = await getAllWorkflowConfigs();
+  const calendars = [];
+  for (const calendar of CALENDAR_KEYS) {
+    const before = await healthCheck(calendar, configs[calendar]);
+    const after = await healthCheck(calendar, configs[calendar], { override });
+    const had = new Set(before.errors.map((e) => `${e.slot}|${e.message}`));
+    const added = after.errors.filter((e) => !had.has(`${e.slot}|${e.message}`));
+    if (added.length) calendars.push({ calendar, name: calName(calendar), slots: [...new Set(added.map((e) => e.slot))], errors: added });
+  }
+  if (!calendars.length) return null;
+  const list = calendars.map((c) => `${c.name} (${c.slots.map((s) => WORKFLOW_SLOT_LABELS[s] || s).join(', ')})`).join('; ');
+  return {
+    code: 'BREAKS_CALENDARS',
+    message: `This change would leave a calendar without anyone to act. Fix these calendar settings first: ${list}.`,
+    calendars,
+  };
+}
+
 export async function savePersonChange(id, body = {}, actor) {
   const reason = requireReason(body.reason);
   if (!mongoose.isValidObjectId(id)) throw fail(404, 'NOT_FOUND', 'Person not found');
@@ -135,13 +162,15 @@ export async function savePersonChange(id, body = {}, actor) {
   if (blocked) throw fail(403, blocked.code, blocked.message);
   const lastAdmin = await lastAdminGuard(target, next);
   if (lastAdmin) throw fail(409, lastAdmin.code, lastAdmin.message);
+  const breaks = await calendarGuard(target, next);
+  if (breaks) throw fail(409, breaks.code, breaks.message, { calendars: breaks.calendars });
   const saved = await changePersonAccess(target, { role: next.role, status: next.status, calendarScope: next.calendarScope }, actor, { note: reason });
   return (await listPeople({ search: saved.email || saved.name })).find((p) => p._id === idOf(saved)) || { _id: idOf(saved) };
 }
 
 // ---------------------------------------------------------------- calendars
 
-const rolesFor = (perm) => ROLE_KEYS.filter((role) => can({ role, status: 'active' }, perm));
+const rolesForSlot = (slot) => ROLE_KEYS.filter((role) => slotEligibleRole(role, slot));
 
 /** What each slot's picker may offer: roles holding the permission and active people in them. */
 export async function slotOptions() {
@@ -149,7 +178,7 @@ export async function slotOptions() {
   const out = {};
   for (const slot of WORKFLOW_SLOTS) {
     const perm = WORKFLOW_SLOT_PERMISSION[slot];
-    const roles = rolesFor(perm);
+    const roles = rolesForSlot(slot);
     out[slot] = {
       permission: perm,
       roles,
@@ -159,47 +188,68 @@ export async function slotOptions() {
   return out;
 }
 
-async function resolveAudience(audience, calendar) {
+/**
+ * The people an audience names: `active` (active and inside their calendar limit) and `named`
+ * (each named id, or a missing marker). `override` replaces one person's role, status and limit
+ * (to test a person change before saving it).
+ */
+async function resolveAudience(audience, calendar, { override } = {}) {
   const roles = audience?.roles || [];
   const ids = (audience?.userIds || []).filter((x) => mongoose.isValidObjectId(x));
   const or = [];
   if (roles.length) or.push({ role: { $in: roles } });
   if (ids.length) or.push({ _id: { $in: ids } });
   if (!or.length) return { active: [], named: [] };
-  const all = await Person.find({ $or: or }).select('name role status calendarScope').lean();
+  let all = await Person.find({ $or: or }).select('name role status calendarScope').lean();
+  if (override) {
+    all = all.filter((p) => idOf(p) !== override._id);
+    const p = await Person.findById(override._id).select('name role status calendarScope').lean();
+    if (p) {
+      const changed = { ...p, role: override.role, status: override.status, calendarScope: override.calendarScope || null };
+      if (roles.includes(changed.role) || ids.map(String).includes(override._id)) all.push(changed);
+    }
+  }
   const active = all.filter((p) => p.status === 'active' && withinCalendarScope(p, calendar));
   const named = ids.map((id) => all.find((p) => idOf(p) === String(id)) || { _id: id, missing: true });
   return { active, named };
 }
 
-/** The health check for one calendar's settings: errors block saving, warnings do not. */
-export async function healthCheck(calendar, config) {
+const SLOT_NOUN = { posters: 'poster who can own Post steps', reviewers: 'reviewer', planApprovers: 'plan approver' };
+
+/**
+ * The health check for one calendar's settings: errors block saving, warnings do not.
+ * Reviewers and plan approvers may be covered by the fallback; posters have no fallback (a Post
+ * step needs an owner who takes steps, so the admin does not count as a poster).
+ */
+export async function healthCheck(calendar, config, { override } = {}) {
   const errors = [];
   const warnings = [];
   const resolved = {};
   for (const slot of WORKFLOW_SLOTS) {
-    const perm = WORKFLOW_SLOT_PERMISSION[slot];
     const aud = config[slot] || { roles: [], userIds: [] };
     for (const role of aud.roles || []) {
-      if (!can({ role, status: 'active' }, perm)) errors.push({ slot, message: `The ${role} role cannot ${perm === 'publish.post' ? 'post' : 'decide'}.` });
+      if (!slotEligibleRole(role, slot)) errors.push({ slot, message: `The ${role} role cannot ${slot === 'posters' ? 'own Post steps' : 'decide'}.` });
     }
-    const { active, named } = await resolveAudience(aud, calendar);
+    const { active, named } = await resolveAudience(aud, calendar, { override });
     for (const p of named) {
       if (p.missing) errors.push({ slot, message: 'A named person no longer exists.' });
-      else if (!can({ role: p.role, status: 'active' }, perm)) errors.push({ slot, message: `${p.name}'s role cannot do this.` });
+      else if (!slotEligibleRole(p.role, slot)) errors.push({ slot, message: `${p.name}'s role cannot do this.` });
       else if (p.status !== 'active') warnings.push({ slot, message: `${p.name} is ${p.status}.` });
       else if (!withinCalendarScope(p, calendar)) warnings.push({ slot, message: `${p.name} is limited to other calendars.` });
     }
-    resolved[slot] = active.filter((p) => can(p, perm)).map((p) => ({ _id: idOf(p), name: p.name, role: p.role }));
+    resolved[slot] = active.filter((p) => slotEligibleRole(p.role, slot)).map((p) => ({ _id: idOf(p), name: p.name, role: p.role }));
   }
   const fallback = resolved.fallbackApprovers;
   if (!fallback.length) errors.push({ slot: 'fallbackApprovers', message: 'The fallback resolves to nobody active.' });
-  for (const slot of ['planApprovers', 'reviewers', 'posters']) {
+  if (!resolved.posters.length) {
+    errors.push({ slot: 'posters', message: `${calName(calendar)} has no active ${SLOT_NOUN.posters}.` });
+  }
+  for (const slot of ['planApprovers', 'reviewers']) {
     if (resolved[slot].length) continue;
     const perm = WORKFLOW_SLOT_PERMISSION[slot];
-    const fb = (await resolveAudience(config.fallbackApprovers, calendar)).active.filter((p) => can(p, perm));
+    const fb = (await resolveAudience(config.fallbackApprovers, calendar, { override })).active.filter((p) => can({ role: p.role, status: 'active' }, perm));
     if (fb.length) warnings.push({ slot, message: `Nobody active here: the fallback (${fb.map((p) => p.name).join(', ')}) takes it.` });
-    else errors.push({ slot, message: `${calName(calendar)} has no active ${slot === 'posters' ? 'poster' : slot === 'reviewers' ? 'reviewer' : 'plan approver'}, even with the fallback.` });
+    else errors.push({ slot, message: `${calName(calendar)} has no active ${SLOT_NOUN[slot]}, even with the fallback.` });
   }
   return { ok: errors.length === 0, errors, warnings, resolved };
 }

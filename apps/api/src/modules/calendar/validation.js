@@ -15,6 +15,7 @@ import {
 import { Person } from '../people/model.js';
 import { ownerCandidates } from '../workload/service.js';
 import { ownerCandidateRoles } from '../../lib/roleAccess.js';
+import { postersFor } from '../../lib/accessResolver.js';
 
 /**
  * Standard start-of-day for comparison
@@ -36,6 +37,11 @@ function toStartOfDay(d) {
  * @returns {Promise<{ isValid: boolean, errors: Array, warnings: Array }>}
  */
 export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting = false }) {
+  const posterCache = new Map();
+  const calendarHasPoster = async (calendar) => {
+    if (!posterCache.has(calendar)) posterCache.set(calendar, (await postersFor({ calendar })).people.length > 0);
+    return posterCache.get(calendar);
+  };
   const errors = [];
   const warnings = [];
 
@@ -210,7 +216,18 @@ export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting =
     const isPostable = isPostableWorkType(deliverableType);
     if (isPostable) {
       const postingOwnerId = row.postingOwnerId ? String(row.postingOwnerId).trim() : '';
-      if (!postingOwnerId) {
+      const rowCalendar = row.calendar || plan.calendar || 'sm';
+      if (!postingOwnerId && !(await calendarHasPoster(rowCalendar))) {
+        // Nobody can post on this calendar right now: the row is kept, its Post step waits
+        // unowned, and the posting roles and admins are told it needs an owner.
+        warnings.push({
+          rowNumber: rowNum,
+          topic,
+          field: 'postingOwnerId',
+          code: VALIDATION_WARNING_CODES.NO_ACTIVE_POSTER,
+          message: `Nobody can post on this calendar yet. The Post step will wait for an owner.`,
+        });
+      } else if (!postingOwnerId) {
         errors.push({
           rowNumber: rowNum,
           topic,

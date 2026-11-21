@@ -507,8 +507,9 @@ export async function addRowsToPlan(id, rows, user) {
   }
 
   const scope = await resolveScope(user);
-  const smManager = (await access.postersFor(plan)).defaultPoster || user;
-  const defaultPosterId = (smManager?._id || user._id || user.userId)?.toString();
+  // The calendar's first active poster. None: the Post step waits unowned ("needs an owner").
+  const defaultPoster = (await access.postersFor(plan)).defaultPoster;
+  const defaultPosterId = defaultPoster?._id ? String(defaultPoster._id) : null;
 
   // Validate incoming rows
   const validation = await validatePlanAndRows({
@@ -879,8 +880,9 @@ export async function submitPlan(id, user) {
   }
 
   // Auto-heal incomplete draft rows before validation
-  const smManager = (await access.postersFor(plan)).defaultPoster || user;
-  const defaultPosterId = (smManager?._id || user._id || user.userId)?.toString();
+  // The calendar's first active poster. None: the Post step waits unowned ("needs an owner").
+  const defaultPoster = (await access.postersFor(plan)).defaultPoster;
+  const defaultPosterId = defaultPoster?._id ? String(defaultPoster._id) : null;
 
   const existingRows = await ContentPiece.find({ planId: plan._id });
   for (const row of existingRows) {

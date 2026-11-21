@@ -21,7 +21,6 @@ import { Person } from '../people/model.js';
 import { logActivity } from '../activity/service.js';
 import { createNotification } from '../notifications/service.js';
 import { logger } from '../../lib/logger.js';
-import { can as canPure } from '@mmp/shared';
 import * as access from '../../lib/accessResolver.js';
 import { hasPermission, isReadOnly } from '../../lib/roleAccess.js';
 
@@ -377,18 +376,20 @@ export async function listPauseRequests(user, { status = 'pending' } = {}) {
     .populate('urgentStepId', 'title')
     .populate('workItemId', 'title stageKey status calendar ownerId deadline isLocked')
     .lean();
-  const configs = await access.getAllWorkflowConfigs();
   const calendars = await decisionCalendarFilter(user);
+  // Per calendar: may this user decide there (main list or acting fallback)?
+  const decides = {};
+  for (const cal of new Set(pending.map((r) => calendarOf(r.workItemId || {})))) decides[cal] = await access.can(user, 'review.decide', { calendar: cal });
   if (!calendars && !hasPermission(user, 'review.decide') && !isReadOnly(user)) {
     // Others (SM Manager, workers): their own requests only.
-    return pending.filter((r) => idOf(r.ownerId) === userIdOf(user)).map((r) => itemView(r, user, configs));
+    return pending.filter((r) => idOf(r.ownerId) === userIdOf(user)).map((r) => itemView(r, user, decides));
   }
   return pending
     .filter((r) => r.workItemId && (!calendars || calendars.includes(calendarOf(r.workItemId))))
-    .map((r) => itemView(r, user, configs));
+    .map((r) => itemView(r, user, decides));
 }
 
-function itemView(r, user, configs) {
+function itemView(r, user, decides) {
   const step = r.workItemId || {};
   return {
     _id: String(r._id),
@@ -400,7 +401,7 @@ function itemView(r, user, configs) {
     urgentStep: r.urgentStepId ? { _id: idOf(r.urgentStepId), title: r.urgentStepId.title || '' } : null,
     pauseUntil: r.pauseUntil,
     requestedAt: r.requestedAt,
-    canDecide: canPure(user, 'review.decide', { calendar: calendarOf(step) }, configs[calendarOf(step)]) && idOf(r.ownerId) !== userIdOf(user),
+    canDecide: Boolean(decides[calendarOf(step)]) && idOf(r.ownerId) !== userIdOf(user) && idOf(step.ownerId) !== userIdOf(user),
   };
 }
 
