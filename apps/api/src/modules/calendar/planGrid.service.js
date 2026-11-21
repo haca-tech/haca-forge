@@ -132,6 +132,7 @@ async function summarizePlans(plans) {
       // Stored data from the old wizard bug; reported, not rewritten.
       periodIssue: new Date(p.periodEnd) < new Date(p.periodStart) ? 'END_BEFORE_START' : null,
       createdAt: p.createdAt,
+      createdById: p.createdById ? String(p.createdById) : null,
     };
   });
 }
@@ -339,7 +340,8 @@ export async function loadGrid({ calendar = 'sm', month, planId } = {}, user) {
     selectionRequired: !selected && plans.length > 1,
     plan: selected,
     rows: selected ? await loadGridRows(selected._id) : [],
-    permissions: { canEdit: perms.canEdit, canReview: perms.canReview, readOnly: perms.readOnly },
+    // Nobody reviews their own plan (fixed rule).
+    permissions: { canEdit: perms.canEdit, canReview: perms.canReview && !(selected && selected.createdById === String(user._id || user.userId)), readOnly: perms.readOnly },
     people,
   };
 }

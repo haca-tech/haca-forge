@@ -1,4 +1,4 @@
-import { CALENDAR_KEYS, can as canPure, permissionDef, systemRoleOf, type AccessUser } from '@mmp/shared';
+import { CALENDAR_KEYS, SELF_FORBIDDEN_PERMISSIONS, can as canPure, permissionDef, systemRoleOf, type AccessUser } from '@mmp/shared';
 
 /**
  * What the signed-in user may do, from /auth/me (Phase C3): their catalog-v2 permissions, and
@@ -58,7 +58,7 @@ export function makeAccess(info: AccessInfo | null, user: AccessUser | null | un
   const me = idString((user as any)?._id || (user as any)?.id || (user as any)?.userId);
   const can: Access['can'] = (permission, ctx = {}) => {
     if (!info || !info.permissions.includes(permission)) return false;
-    if (permission === 'review.decide' && ctx.ownerId && me && idString(ctx.ownerId) === me) return false;
+    if (SELF_FORBIDDEN_PERMISSIONS.includes(permission) && ctx.ownerId && me && idString(ctx.ownerId) === me) return false;
     if (ctx.calendar !== undefined && permissionDef(permission)?.routedBy) {
       return (info.calendars[permission] || []).includes(ctx.calendar || 'sm');
     }

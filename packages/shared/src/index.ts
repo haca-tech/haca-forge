@@ -4670,7 +4670,8 @@ export const PORTAL_VIEW_SPLIT: Record<string, PermissionKeyV2> = {
  * Permissions that can never be used on your own work (no self-approval). Phase C5: classifying a
  * revision flag on your own step is blocked too, like every other decision.
  */
-export const SELF_FORBIDDEN_PERMISSIONS: readonly string[] = ["review.decide", "revision.classify"];
+/** Nobody decides on their own work: versions, revision flags, and their own plans (Phase E fix). */
+export const SELF_FORBIDDEN_PERMISSIONS: readonly string[] = ["review.decide", "revision.classify", "calendar.approve"];
 
 export type DataScope = "all" | "own";
 export interface SystemRoleDef {

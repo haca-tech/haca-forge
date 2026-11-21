@@ -51,7 +51,9 @@ export const PlansApprovalTab: React.FC = () => {
   // Plan row review is the Creative Lead's alone (PG-3); others see the queue read-only.
   // The leads review plan rows; admin is a backup reviewer.
   // Phase 13: the lead of the plan's calendar decides (Growth Lead: Ads; Creative Lead: the rest).
-  const canReviewPlan = (plan: { calendar?: string }) => access.can('calendar.approve', { calendar: plan.calendar || 'sm' });
+  // Nobody reviews their own plan (fixed rule).
+  const canReviewPlan = (plan: { calendar?: string; createdById?: { _id: string } }) =>
+    access.can('calendar.approve', { calendar: plan.calendar || 'sm', ownerId: plan.createdById?._id });
   // Review controls on this page are for individual plans; monthly plans are reviewed in the plan grid.
   const canReviewHere = (plan: { kind: string; calendar?: string }) => canReviewPlan(plan) && plan.kind !== 'monthly';
   const [plans, setPlans] = useState<CalendarPlanWaiting[]>([]);

@@ -165,7 +165,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
   const [selectedPlan, setSelectedPlan] = useState<CalendarPlan | null>(null);
   // Reviews the open plan's rows (Phase 13): the lead of its calendar (Growth Lead for Ads,
   // Creative Lead otherwise), and admin as a backup.
-  const isRowReviewer = access.can('calendar.approve', { calendar: selectedPlan?.calendar || 'sm' });
+  const isRowReviewer = access.can('calendar.approve', { calendar: selectedPlan?.calendar || 'sm', ownerId: selectedPlan?.createdById?._id });
 
   // The plan grid is a full-screen route (/calendar/plan-grid). One entry point per role, below.
   const navigate = useNavigate();

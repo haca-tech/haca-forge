@@ -1168,7 +1168,8 @@ export async function reviewPlan(id, reviewData, user) {
 
   const plan = await CalendarPlan.findById(id);
   // Phase 13: the lead of the plan's calendar (Growth Lead for Ads) or admin.
-  if (plan) await assertDecidesOn(user, calendarOf(plan), { roleCode: 'FORBIDDEN_APPROVAL', permission: 'calendar.approve' });
+  // Fixed rule: nobody approves or sends back their own plan (403 SELF_DECISION).
+  if (plan) await assertDecidesOn(user, calendarOf(plan), { roleCode: 'FORBIDDEN_APPROVAL', permission: 'calendar.approve', ownerId: plan.createdById });
   if (!plan) {
     const error = new Error('Calendar plan not found');
     error.statusCode = 404;
