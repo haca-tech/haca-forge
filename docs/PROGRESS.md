@@ -1,6 +1,40 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after Access Phase B):** 2149 passing, 0 failing, 0 skipped: API 1652 (85 files), web 497 (61 files). Typecheck 0 errors; web build clean.
+**Current test count (after Access Phase C):** 2166 passing, 0 failing, 0 skipped: API 1665 (87 files), web 501 (63 files). Typecheck 0 errors; web build clean.
+
+## Access Phase C: the app runs on the resolver (Status: COMPLETE; committed locally, not pushed)
+
+No visible change except the documented fixes below. Commits: `a8e426f` C1, `909a7ee` C2, `02a0aae` C3, `2f38431` C4, `80e27a8` C5 (gate after each).
+
+### C1: API services
+- Every hard-coded role check from the Phase A table asks the resolver: `lib/roleAccess.js` (sync, over the shared resolver: `hasPermission`, `isOwnScope`, `seesAll`, `isReadOnly`, `isSuperuser`, `canTakeSteps`, `rolesWith`, `stepTakingRoles`, `ownerCandidateRoles`, ...) and the calendar-routed decisions in `workItems/deciders.js` over `lib/accessResolver.js` (`assertDecidesOn` with `review.decide` / `calendar.approve` / `revision.classify`, `canDecideOn`, `decidersFor`, `decisionCalendarFilter`). People for routing come from `reviewersFor`, `planApproversFor`, `postersFor`, `recipientsFor`. Fixed rules stay fixed code (last-admin guard, no self-approval, own-scope privacy).
+- Test fix: `CalendarTabs.test.tsx` pins Date to 2026-11-10 (its fixture due dates had started to pass).
+
+### C2: API routes
+- `requirePermission` / `requireAnyPermission` ask the shared resolver (no admin role bypass; the locked role holds every key). `portal.view` replaced per module by its split key. `req.ability` from the system role (locked role: manage-all).
+- `test/fixtures/route_guard_snapshot.json` (from `scripts/snapshot-route-guards.js`, pre-C2) freezes the roles each of the 101 guards admitted; the parity test checks the v2 guards admit exactly the same.
+
+### C3: web
+- `/auth/me` and login return `access`: v2 permissions, calendars per routed permission, `dataScope`, `readOnly`, `takesSteps`, `superuser`, `calendarScope`.
+- `lib/access` (`useAccess`, `roleAccess`, `homePathFor`) over `lib/accessCore` (pure; falls back to the role with the default config). `RoleBoundary` takes `permission` or `seesAll`; `ProtectedRoute` has `readOnlyRedirect`. Routes, navigation, buttons and pages use `can(permission, { calendar, ownerId })` and role attributes.
+- Guard `NoRoleLiterals.test.ts`: fails on role helpers, role-key comparisons, role-group lists or `portal.view` in app code (Quick sign in allow-listed).
+
+### C4: sockets and refresh (documented changes 3, 4, 5, 6)
+- `accessConfig/personAccess.service.js` `changePersonAccess`: the only way to change role, status or calendar limit (people, team, access-request and suspend paths use it): validates, saves (last-admin guard), AccessChange history, `access:changed` to that user, then closes their sockets (400 ms later). The Person save hook no longer disconnects. Guard test: no other writes of these fields.
+- `accessConfig/workflowConfig.service.js` `updateWorkflowConfig` (for Phase D): version bump, history, cache cleared, `access:changed` to everyone in the old or new lists.
+- Role rooms removed; `comment:new` goes to the user rooms from `recipientsFor('comment.posted')` (the step calendar's reviewers or fallback, plus the admins) instead of both lead rooms and admin.
+- Web: `lib/accessEvents` — `access:changed` and reconnects reload `/auth/me`; so does the tab regaining focus (throttled 5 s).
+- Tests updated for these changes: phase4d and phase12b socket tests.
+
+### C5: fixes (documented changes 1 and 2)
+- Classifying a revision flag on your own step: 403 `SELF_DECISION` (`revision.classify` self-forbidden; Review Hub no longer offers it).
+- Overdue escalation: every active SM Manager of the step's department, or every active SM Manager when it has none (was the first one only); still once per person per due date. Parity and phase7h expectations updated for exactly these two.
+
+### Gate
+- Per commit: typecheck 0 errors, web build clean, all tests. Final: web 501/501 (63 files), API 1665/1665 (87 files).
+- New tests: route parity against the snapshot; `access_changes.test.js` (8: one change path, history, access:changed before disconnect, calendar limit, last admin, WorkflowConfig changes, comment:new reaches exactly the resolver's recipients, write guard); `access_fixes.test.js` (5); web `AccessChangedRefresh` (2), `NoRoleLiterals` (2).
+- Browser regression 163/163 on the disposable `marketing_portal_uicheck` (dropped after; test Vite config proxied to :8095, `/__uicheck` marker required, :8080 blocked): all 7 roles at 1440 and 390 px land on their home page with their menu, and open Review Hub, Workload (hidden for workers), Published and Chat with no error screen or sideways scroll; an Ads plan created and submitted by the SM Manager, refused for the Creative Lead (403 WRONG_CALENDAR) and approved by the Growth Lead; an Ads step submitted by the editor, refused for the Creative Lead, approved with 4 stars by the Growth Lead and posted by the SM Manager; a pause request decided by the right lead (wrong lead 403); a help request answered and resolved by the lead (head 403); and a live role change: the writer's menu switched to the SM Manager's while signed in, with no reload. The flows used the app's own API calls from each signed-in browser session; navigation and pages were checked in the UI. Screenshots in the session scratchpad (`uicheck/shots-phase-c`).
+- Not changed: the WorkflowConfig seed was not run with `--confirm`; the resolver's default covers missing configs.
 
 ## Access Phase B: catalog v2, models, seed, resolver, parity (Status: COMPLETE; committed locally, not pushed)
 
