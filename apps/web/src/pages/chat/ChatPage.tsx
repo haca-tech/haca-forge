@@ -37,15 +37,9 @@ import { EmojiPicker, QuickReactionsBar } from './EmojiPicker';
 import { MediaCardPlayer } from './MediaCardPlayer';
 import { GroupModal } from './GroupModal';
 import { safeUrl } from '../../lib/safeUrl';
-import {
-  ChatChannelTypeDetail,
-  ChatMessageType,
-  ChannelMemberType,
-  ChatReactionEmoji,
-  APPROVER_ROLES,
-  isReadOnlyViewer,
-} from '@mmp/shared';
+import { ChatChannelTypeDetail, ChatMessageType, ChannelMemberType, ChatReactionEmoji } from '@mmp/shared';
 import { confirmDialog, toast } from '../../lib/uiFeedback';
+import { useAccess } from '../../lib/access';
 
 const ENTER_TO_SEND_KEY = 'haca.chat.enterToSend';
 const GROUPING_WINDOW_MS = 5 * 60 * 1000;
@@ -169,6 +163,7 @@ export default function ChatPage() {
   const navigate = useNavigate();
 
   const { user } = useAuth();
+  const access = useAccess();
   const socket = useSocket();
   const myId = (user?._id || user?.id || '') as string;
 
@@ -229,9 +224,9 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const detailsRequestRef = useRef(0);
 
-  const canCreateGroup = !!user && ['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role);
-  const isExecutive = isReadOnlyViewer(user?.role);
-  const isAdmin = user?.role === 'admin';
+  const canCreateGroup = !!user && access.can('chat.group.create');
+  const isExecutive = access.isReadOnly;
+  const isAdmin = access.can('chat.manage_groups');
 
   const myMembership = members.find((m) => String(m.userId ?? m.user?._id ?? '') === String(myId));
   const isGroupOwner = myMembership?.role === 'owner';

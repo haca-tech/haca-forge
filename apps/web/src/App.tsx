@@ -1,4 +1,4 @@
-import { READ_ONLY_VIEWER_ROLES, WORKER_ROLE, isWorker } from '@mmp/shared';
+import { useAccess } from './lib/access';
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -6,7 +6,6 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { GlobalFilterProvider } from './context/GlobalFilterContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { RoleBoundary } from './components/RoleBoundary';
-import type { UserRole } from '@mmp/shared';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PageSkeleton } from './components/Skeleton';
@@ -16,10 +15,8 @@ import { LoginPage } from './pages/LoginPage';
 import { SetPasswordPage } from './pages/SetPasswordPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 
-// My Work is for people who own steps: the read-only heads go to the dashboard.
-const READ_ONLY_TO_DASHBOARD = Object.fromEntries(READ_ONLY_VIEWER_ROLES.map((role) => [role, '/dashboard'])) as Partial<Record<UserRole, string>>;
-// Pages workers must not see. They get the not-found state, as on /team/:id.
-const TEAM_MEMBER_HIDDEN: UserRole[] = [WORKER_ROLE];
+// Pages are gated by permission or by data scope (RoleBoundary); read-only users skip My Work
+// for the dashboard (ProtectedRoute readOnlyRedirect). No role names here.
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -109,6 +106,7 @@ const ChatPage = React.lazy(() => import('./pages/chat/ChatPage'));
  */
 const RootRedirect: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const access = useAccess();
 
   if (isLoading) {
     return (
@@ -131,15 +129,11 @@ const RootRedirect: React.FC = () => {
     return <Navigate to="/calendar" replace />;
   }
   if (startPage === 'Home') {
-    return <Navigate to={isWorker(user.role) ? '/my-work' : '/dashboard'} replace />;
+    return <Navigate to={access.homePath} replace />;
   }
 
-  // Role default fallback
-  if (isWorker(user.role)) {
-    return <Navigate to="/my-work" replace />;
-  }
-
-  return <Navigate to="/dashboard" replace />;
+  // Default: the home page for this user's access (own-scope users: My Work).
+  return <Navigate to={access.homePath} replace />;
 };
 
 export const App: React.FC = () => {
@@ -176,7 +170,7 @@ export const App: React.FC = () => {
                   path="/my-work"
                   element={
                     // Executives have no work queue: My Work by URL goes to the dashboard (Phase 6).
-                    <ProtectedRoute redirectRoles={READ_ONLY_TO_DASHBOARD}>
+                    <ProtectedRoute readOnlyRedirect="/dashboard">
                       <Layout>
                         <MyWorkPage />
                       </Layout>
@@ -214,7 +208,7 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Layout focusMode>
-                        <RoleBoundary hiddenFor={TEAM_MEMBER_HIDDEN}>
+                        <RoleBoundary permission="calendar.view">
                           <PlanGridPage />
                         </RoleBoundary>
                       </Layout>
@@ -350,7 +344,7 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Layout>
-                        <RoleBoundary hiddenFor={TEAM_MEMBER_HIDDEN}>
+                        <RoleBoundary seesAll>
                           <TeamWorkloadPage />
                         </RoleBoundary>
                       </Layout>
@@ -415,7 +409,7 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Layout>
-                        <RoleBoundary hiddenFor={TEAM_MEMBER_HIDDEN}>
+                        <RoleBoundary seesAll>
                           <IssuesBlockersPage />
                         </RoleBoundary>
                       </Layout>
@@ -429,7 +423,7 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Layout>
-                        <RoleBoundary hiddenFor={TEAM_MEMBER_HIDDEN}>
+                        <RoleBoundary permission="report.view">
                           <ReportsPage />
                         </RoleBoundary>
                       </Layout>
@@ -440,7 +434,7 @@ export const App: React.FC = () => {
                   path="/reports/print"
                   element={
                     <ProtectedRoute>
-                      <RoleBoundary hiddenFor={TEAM_MEMBER_HIDDEN}>
+                      <RoleBoundary permission="report.view">
                         <ReportPrintPage />
                       </RoleBoundary>
                     </ProtectedRoute>
@@ -451,7 +445,7 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Layout>
-                        <RoleBoundary hiddenFor={TEAM_MEMBER_HIDDEN}>
+                        <RoleBoundary permission="report.view">
                           <ProjectKpiPage />
                         </RoleBoundary>
                       </Layout>

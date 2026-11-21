@@ -1,4 +1,3 @@
-import { isApprover, isWorker } from '@mmp/shared';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +26,7 @@ import { NotificationCenter } from './NotificationCenter';
 import { NotificationToastContainer } from './NotificationToast';
 import { UserMenuDropdown } from './UserMenuDropdown';
 import { Avatar } from './Avatar';
+import { useAccess } from '../lib/access';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -63,6 +63,7 @@ interface SidebarItem {
 
 export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) => {
   const { user, logout } = useAuth();
+  const access = useAccess();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
@@ -165,11 +166,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
   }, [location.pathname]);
 
   // Role flags
-  const role = user?.role;
-  const isTeamMember = isWorker(role);
-  const isSmManager = role === 'sm_manager';
-  const isCreativeHead = isApprover(role);
-  const isAdmin = role === 'admin';
+  const isTeamMember = access.isOwnScope;
+  // Planner navigation (calendar.plan, not the locked admin); access requests (user.approve).
+  const isSmManager = access.can('calendar.plan') && !access.isSuperuser;
+  const isCreativeHead = access.can('review.decide') && !access.isSuperuser;
+  const isAdmin = access.can('user.approve');
 
   // Pending Access Requests Count Badge for Admin
   const [pendingAccessCount, setPendingAccessCount] = useState<number>(0);

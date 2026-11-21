@@ -19,22 +19,14 @@ import {
   HelpCircle,
   X,
 } from 'lucide-react';
-import {
-  CALENDAR_LIST,
-  CANONICAL_REVISION_ROOT_CAUSES,
-  formatShortDate,
-  formatShortDateTime,
-  isApprover,
-  isReadOnlyViewer,
-  type CanonicalRevisionRootCause,
-} from '@mmp/shared';
+import { CALENDAR_LIST, CANONICAL_REVISION_ROOT_CAUSES, formatShortDate, formatShortDateTime, type CanonicalRevisionRootCause } from '@mmp/shared';
 import { apiFetch } from '../../lib/api';
-import { useAuth } from '../../context/AuthContext';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import { TimeLabelChips, type TimeLabel } from '../../components/TimeLabelChips';
 import { StepSubmitDialog } from '../../components/StepSubmitDialog';
 import { PlansApprovalTab } from './PlansApprovalTab';
 import { PauseRequestsTab } from './PauseRequestsTab';
+import { useAccess } from '../../lib/access';
 
 /**
  * Review Hub: an inbox of review rounds and their history. Decisions happen in Review Studio
@@ -399,7 +391,7 @@ const DetailPanel: React.FC<{ workItemId: string; onBack: () => void; onChanged:
 };
 
 export const FeedbackPage: React.FC = () => {
-  const { user } = useAuth();
+  const access = useAccess();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const tab = params.get('tab') || '';
@@ -410,7 +402,7 @@ export const FeedbackPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [qDraft, setQDraft] = useState(q);
   const [reloadKey, setReloadKey] = useState(0);
-  const canOpenStudio = isApprover(user?.role) || user?.role === 'admin';
+  const canOpenStudio = access.can('review.decide');
 
   const setParam = (next: Record<string, string>) => {
     const out = new URLSearchParams(params);
@@ -445,7 +437,7 @@ export const FeedbackPage: React.FC = () => {
 
   const activeTab = data?.tab || tab;
   const isListTab = !['pauses', 'plans'].includes(activeTab);
-  const readOnly = isReadOnlyViewer(user?.role);
+  const readOnly = access.isReadOnly;
   const items = useMemo(() => data?.items || [], [data]);
 
   return (

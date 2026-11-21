@@ -1,4 +1,4 @@
-import { isApprover, ROLE_LABELS, type UserRole } from '@mmp/shared';
+import { ROLE_LABELS, type UserRole } from '@mmp/shared';
 import React, { useState } from 'react';
 import {
   FileText,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { ReviewComment } from './ImageViewer';
 import { Avatar } from '../../../components/Avatar';
+import { roleAccess } from '../../../lib/access';
 
 interface VersionItem {
   id: string;
@@ -110,7 +111,7 @@ export const ReviewStudioSidebar: React.FC<ReviewStudioSidebarProps> = ({
     if (isOwnerAuthor(c)) return 'Owner';
     const role = typeof c.author === 'object' ? c.author?.role : undefined;
     if (!role) return '';
-    return ROLE_LABELS[role as UserRole] || (isApprover(role) ? 'Lead' : role);
+    return ROLE_LABELS[role as UserRole] || (roleAccess(role).can('review.decide') ? 'Lead' : role);
   };
   const sendReply = async (rootId: string) => {
     const text = (replyDrafts[rootId] || '').trim();

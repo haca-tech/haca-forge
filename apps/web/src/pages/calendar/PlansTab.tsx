@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { planGridHref } from './PlanGridPage';
 import { apiFetch } from '../../lib/api';
 import { ownerOptionLabel, useTeamWorkload } from '../../lib/workload';
-import { useAuth } from '../../context/AuthContext';
 import { statusClass, type StatusTone } from '../../lib/statusTone';
 import {
   FileSpreadsheet,
@@ -21,34 +20,11 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import {
-  CALENDAR_LIST,
-  getCalendarDefinition,
-  type CalendarKey,
-  type CalendarPlanStatus,
-  type RowStatus,
-  formatPlanRowCounts,
-  isPostableWorkType,
-  normalizeWorkType,
-  planMonthKey,
-  isApprover,
-  canDecide,
-  isReadOnlyViewer,
-} from '@mmp/shared';
+import { CALENDAR_LIST, getCalendarDefinition, type CalendarKey, type CalendarPlanStatus, type RowStatus, formatPlanRowCounts, isPostableWorkType, normalizeWorkType, planMonthKey } from '@mmp/shared';
 import { Avatar } from '../../components/Avatar';
-import {
-  type StepLineState,
-  calculateDueDateString,
-  getExpectedStepDefs,
-  buildDefaultSteps,
-  applyAutofill,
-  applyPostingDateChange,
-  applyTypeChange,
-  setStepDueDate,
-  setStepOwner,
-  validateRowSteps,
-} from './planRowSteps';
+import { type StepLineState, calculateDueDateString, getExpectedStepDefs, buildDefaultSteps, applyAutofill, applyPostingDateChange, applyTypeChange, setStepDueDate, setStepOwner, validateRowSteps } from './planRowSteps';
 import { confirmDialog, toast } from '../../lib/uiFeedback';
+import { useAccess } from '../../lib/access';
 
 export interface StagePlanPreviewItem {
   stageKey: 'Content' | 'Script' | 'Design' | 'Shoot' | 'Edit' | 'Post';
@@ -174,12 +150,12 @@ export const PlansTab: React.FC<PlansTabProps> = ({
   isIndividualCreateRequested,
   onIndividualCreateHandled,
 }) => {
-  const { user } = useAuth();
-  const isExecutive = isReadOnlyViewer(user?.role);
+  const access = useAccess();
+  const isExecutive = access.isReadOnly;
   // Plan row review is the Creative Lead's alone (PG-3); admin keeps planning and every other permission.
-  const isCreativeHead = isApprover(user?.role);
-  const isSMManager = user?.role === 'sm_manager' || user?.role === 'admin';
-  const isAdmin = user?.role === 'admin';
+  const isCreativeHead = access.can('calendar.approve') && !access.isSuperuser;
+  const isSMManager = access.can('calendar.plan');
+  const isAdmin = access.isSuperuser;
   // Owner options show each person's load (band dot, "N due this week").
   const teamWorkload = useTeamWorkload(isSMManager || isCreativeHead);
 
@@ -189,7 +165,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
   const [selectedPlan, setSelectedPlan] = useState<CalendarPlan | null>(null);
   // Reviews the open plan's rows (Phase 13): the lead of its calendar (Growth Lead for Ads,
   // Creative Lead otherwise), and admin as a backup.
-  const isRowReviewer = canDecide(user?.role, selectedPlan?.calendar || 'sm');
+  const isRowReviewer = access.can('calendar.approve', { calendar: selectedPlan?.calendar || 'sm' });
 
   // The plan grid is a full-screen route (/calendar/plan-grid). One entry point per role, below.
   const navigate = useNavigate();

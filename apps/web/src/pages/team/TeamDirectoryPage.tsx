@@ -11,12 +11,12 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../../lib/api';
 import { OverdueChip } from '../../components/OverdueChip';
-import { useAuth } from '../../context/AuthContext';
 import { InviteUserDialog } from './InviteUserDialog';
 import { roleClass } from '../../lib/statusTone';
 import { BandChip, countsText, type WorkloadFigures } from '../../lib/workload';
 import { Avatar } from '../../components/Avatar';
 import { ROLE_LABELS, ROLE_KEYS } from '@mmp/shared';
+import { useAccess } from '../../lib/access';
 
 interface DirectoryMember {
   _id: string;
@@ -44,8 +44,8 @@ interface DirectoryMember {
 }
 
 export const TeamDirectoryPage: React.FC = () => {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const access = useAccess();
+  const isAdmin = access.can('user.manage');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 

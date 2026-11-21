@@ -11,23 +11,10 @@ import {
   Lock,
   Mail,
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
-import {
-  START_PAGE_OPTIONS,
-  DATE_FORMAT_OPTIONS,
-  TIME_FORMAT_OPTIONS,
-  WEEK_START_OPTIONS,
-  StartPageOption,
-  DateFormatOption,
-  TimeFormatOption,
-  WeekStartOption,
-  WORKER_ROLE,
-  isApprover,
-  isReadOnlyViewer,
-  isWorker,
-} from '@mmp/shared';
+import { START_PAGE_OPTIONS, DATE_FORMAT_OPTIONS, TIME_FORMAT_OPTIONS, WEEK_START_OPTIONS, StartPageOption, DateFormatOption, TimeFormatOption, WeekStartOption } from '@mmp/shared';
 import { confirmDialog, toast } from '../lib/uiFeedback';
+import { useAccess } from '../lib/access';
 
 interface SessionItem {
   id: string;
@@ -39,7 +26,7 @@ interface SessionItem {
 }
 
 export const SettingsPage: React.FC = () => {
-  const { user } = useAuth();
+  const access = useAccess();
   const [activeTab, setActiveTab] = useState<'security' | 'notifications' | 'preferences'>('security');
 
   // Security - Password Change State
@@ -240,12 +227,11 @@ export const SettingsPage: React.FC = () => {
   };
 
   // Role Category Visibility
-  const role = user?.role || WORKER_ROLE;
-  const isAdmin = role === 'admin';
-  const isCreativeHead = isApprover(role);
-  const isSMManager = role === 'sm_manager';
-  const isExecutive = isReadOnlyViewer(role);
-  const isTeamMember = isWorker(role);
+  const isAdmin = access.isSuperuser;
+  const isCreativeHead = access.can('review.decide') && !access.isSuperuser;
+  const isSMManager = access.can('calendar.plan') && !access.isSuperuser;
+  const isExecutive = access.isReadOnly;
+  const isTeamMember = access.isOwnScope;
 
   const notificationCategories = [
     {

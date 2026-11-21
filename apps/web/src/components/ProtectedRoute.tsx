@@ -1,23 +1,23 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import type { PermissionKey, UserRole } from '@mmp/shared';
+import type { PermissionKey } from '@mmp/shared';
+import { useAccess } from '../lib/access';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredPermission?: PermissionKey;
-  allowedRoles?: UserRole[];
-  /** Roles sent elsewhere instead of shown this page, e.g. { creative_head/production_head: '/dashboard' }. */
-  redirectRoles?: Partial<Record<UserRole, string>>;
+  /** Read-only users are sent here instead of shown this page (e.g. My Work → /dashboard). */
+  readOnlyRedirect?: string;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requiredPermission,
-  allowedRoles,
-  redirectRoles,
+  readOnlyRedirect,
 }) => {
   const { user, isAuthenticated, isLoading, hasPermission } = useAuth();
+  const access = useAccess();
   const location = useLocation();
 
   if (isLoading) {
@@ -35,13 +35,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const redirectTo = redirectRoles?.[user.role];
-  if (redirectTo) {
-    return <Navigate to={redirectTo} replace />;
-  }
-
-  if (allowedRoles && !allowedRoles.includes(user.role) && user.role !== 'admin') {
-    return <Navigate to="/unauthorized" replace />;
+  if (readOnlyRedirect && access.isReadOnly) {
+    return <Navigate to={readOnlyRedirect} replace />;
   }
 
   if (requiredPermission && !hasPermission(requiredPermission)) {

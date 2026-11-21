@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { apiFetch, clearLegacyTokens } from '../lib/api';
 import type { UserRole, PermissionKey } from '@mmp/shared';
+import { accessFromUser, type AccessInfo } from '../lib/accessCore';
 
 export interface User {
   id: string;
@@ -39,7 +40,10 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
+  /** Catalog-v2 permission keys (from the access block). */
   permissions: PermissionKey[];
+  /** The user's access (permissions, calendars per routed permission, role attributes); null until loaded. */
+  access?: AccessInfo | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (credentials: { email: string; password: string }) => Promise<User>;
@@ -53,16 +57,22 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [permissions, setPermissions] = useState<PermissionKey[]>([]);
+  const [access, setAccess] = useState<AccessInfo | null>(null);
+  const applyAccess = (data: { permissions?: PermissionKey[]; access?: AccessInfo | null }) => {
+    setAccess(data.access || null);
+    setPermissions(((data.access?.permissions as PermissionKey[]) || data.permissions || []) as PermissionKey[]);
+  };
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const refreshUser = useCallback(async () => {
     try {
-      const data = await apiFetch<{ user: User; role: UserRole; permissions: PermissionKey[] }>('/auth/me');
+      const data = await apiFetch<{ user: User; role: UserRole; permissions: PermissionKey[]; access?: AccessInfo }>('/auth/me');
       setUser(data.user);
-      setPermissions(data.permissions || []);
+      applyAccess(data);
     } catch {
       setUser(null);
       setPermissions([]);
+      setAccess(null);
     } finally {
       setIsLoading(false);
     }
@@ -77,12 +87,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       // The API sets httpOnly login cookies; nothing is kept in browser storage.
-      const data = await apiFetch<{ user: User; permissions: PermissionKey[] }>('/auth/login', {
+      const data = await apiFetch<{ user: User; permissions: PermissionKey[]; access?: AccessInfo }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify(credentials),
       });
       setUser(data.user);
-      setPermissions(data.permissions || []);
+      applyAccess(data);
       return data.user;
     } finally {
       setIsLoading(false);
@@ -96,13 +106,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearLegacyTokens();
       setUser(null);
       setPermissions([]);
+      setAccess(null);
     }
   };
 
   const hasPermission = (permission: PermissionKey): boolean => {
     if (!user) return false;
-    if (user.role === 'admin') return true;
-    return permissions.includes(permission);
+    // The access block's keys; without one (older responses), the keys the role holds.
+    const keys = access?.permissions ?? (permissions.length ? permissions : accessFromUser(user)?.permissions ?? []);
+    return keys.includes(permission);
   };
 
   return (
@@ -110,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         permissions,
+        access,
         isLoading,
         isAuthenticated: !!user,
         login,

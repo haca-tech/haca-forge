@@ -3,9 +3,10 @@ import { Link2, X } from 'lucide-react';
 import { embedPreviewText, livePostUrlError } from '@mmp/shared';
 import { apiFetch } from '../lib/api';
 import { useDialogFocus } from '../lib/useDialogFocus';
+import { roleAccess } from '../lib/access';
 
 /** Who may correct a posted piece's live link (the API checks again). */
-export const canEditLiveLink = (role: string | null | undefined) => role === 'sm_manager' || role === 'admin';
+export const canEditLiveLink = (role: string | null | undefined) => roleAccess(role).can('publish.edit_live_link');
 
 interface Props {
   pieceId: string;

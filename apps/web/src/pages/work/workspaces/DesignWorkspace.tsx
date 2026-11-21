@@ -22,8 +22,9 @@ import { useAuth } from '../../../context/AuthContext';
 import { ShareToChatModal } from '../../chat/ShareToChatModal';
 import { ResumableUploadTask } from '../../../lib/uploadManager';
 import type { RevisionComment } from './EditWorkspace';
-import { isDriveLink, APPROVER_ROLES, isApprover } from '@mmp/shared';
+import { isDriveLink } from '@mmp/shared';
 import { DriveLinkInput, driveLinkError } from '../../../components/DriveLinkInput';
+import { roleAccess, useAccess } from '../../../lib/access';
 
 interface SlideItem {
   id: string;
@@ -91,11 +92,12 @@ export const DesignWorkspace: React.FC<DesignWorkspaceProps> = ({
   const [showShareModal, setShowShareModal] = useState<boolean>(false);
 
   const { user } = useAuth();
+  const access = useAccess();
   const currentUserId = (user?._id || user?.id || (user as any)?.userId)?.toString();
   const ownerId = (workItem.ownerId?._id || workItem.ownerId)?.toString();
   const isOwner = ownerId && ownerId === currentUserId;
   const isApproved = workItem.status === 'Approved';
-  const canShare = isApproved && user && (['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role) || isOwner);
+  const canShare = isApproved && user && (access.can('chat.share_asset') || isOwner);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [designNotes, setDesignNotes] = useState('');
@@ -111,7 +113,7 @@ export const DesignWorkspace: React.FC<DesignWorkspaceProps> = ({
 
   // Creative Lead / Admin revision feedback (read-only here; comments without a role are kept).
   const reviewerFeedback = revisionComments.filter(
-    (c) => !c.authorRole || isApprover(c.authorRole) || c.authorRole === 'admin'
+    (c) => !c.authorRole || roleAccess(c.authorRole).can('review.decide')
   );
 
   const copyToClipboard = (key: string, text: string) => {

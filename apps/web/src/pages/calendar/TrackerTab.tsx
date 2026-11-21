@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Table, Sparkles, X, Check } from 'lucide-react';
-import { formatShortDate, formatShortDateTime, getStepStatusLabel, isApprover, isReadOnlyViewer, isWorker, INTERVAL_KIND_LABELS, PAUSE_REASON_LABELS } from '@mmp/shared';
+import { formatShortDate, formatShortDateTime, getStepStatusLabel, INTERVAL_KIND_LABELS, PAUSE_REASON_LABELS } from '@mmp/shared';
 import { withDisplayStatus } from '../../lib/statusTone';
 import { apiFetch } from '../../lib/api';
 import { useDialogFocus } from '../../lib/useDialogFocus';
@@ -22,6 +22,7 @@ import {
   type TrackerPiece,
 } from './tracker/trackerModel';
 import { toast } from '../../lib/uiFeedback';
+import { useAccess } from '../../lib/access';
 
 type ContentPieceTrackerRow = TrackerPiece;
 
@@ -45,12 +46,13 @@ interface AssignRecommendation {
  */
 export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
   const { user } = useAuth();
-  const isExecutive = isReadOnlyViewer(user?.role);
-  const canAssign = user?.role === 'admin' || isApprover(user?.role) || user?.role === 'sm_manager';
+  const access = useAccess();
+  const isExecutive = access.isReadOnly;
+  const canAssign = access.can('assignment.override');
   // Owner options show each person's load (band dot, "N due this week"); only people who assign need it.
   const teamWorkload = useTeamWorkload(canAssign);
-  const canManageSteps = user?.role === 'admin' || user?.role === 'sm_manager';
-  const showOwnerFilter = !isWorker(user?.role);
+  const canManageSteps = access.can('work.manage_steps');
+  const showOwnerFilter = !access.isOwnScope;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => filtersFromParams(searchParams), [searchParams]);

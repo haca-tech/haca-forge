@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import { Play, Download, Eye, AlertCircle, FileText, CheckCircle2, Trash2 } from 'lucide-react';
-import { ChatSharedMediaCard, isApprover } from '@mmp/shared';
+import { ChatSharedMediaCard } from '@mmp/shared';
 import { Avatar } from '../../components/Avatar';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../lib/api';
 import { safeUrl } from '../../lib/safeUrl';
 import { confirmDialog } from '../../lib/uiFeedback';
+import { useAccess } from '../../lib/access';
 
 interface MediaCardPlayerProps {
   card: ChatSharedMediaCard;
@@ -15,6 +16,7 @@ interface MediaCardPlayerProps {
 
 export function MediaCardPlayer({ card, onRevoked }: MediaCardPlayerProps) {
   const { user } = useAuth();
+  const access = useAccess();
   const [showPlayer, setShowPlayer] = useState(false);
   // Player keyboard behaviour: focus in on open, Escape closes, Tab stays inside, focus returns.
   const playerRef = useRef<HTMLDivElement>(null);
@@ -25,8 +27,7 @@ export function MediaCardPlayer({ card, onRevoked }: MediaCardPlayerProps) {
   const currentUserId = (user?._id || user?.id || (user as any)?.userId)?.toString();
   const cardOwnerId = (card.owner?._id || (card.owner as any)?.id)?.toString();
   const canUnshare =
-    user?.role === 'admin' ||
-    isApprover(user?.role) ||
+    access.can('chat.revoke_share') ||
     (cardOwnerId && cardOwnerId === currentUserId);
 
   async function handleUnshare() {

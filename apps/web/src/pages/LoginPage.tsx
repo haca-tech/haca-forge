@@ -2,16 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch, ApiError } from '../lib/api';
-import {
-  DEPARTMENTS,
-  JOB_ROLES,
-  requestAccessSchema,
-  type RequestableRole,
-  WORKER_ROLE,
-  isWorker,
-  REQUESTABLE_ROLES,
-  ROLE_LABELS,
-} from '@mmp/shared';
+import { DEPARTMENTS, JOB_ROLES, requestAccessSchema, type RequestableRole, WORKER_ROLE, REQUESTABLE_ROLES, ROLE_LABELS } from '@mmp/shared';
 import {
   Lock,
   Mail,
@@ -25,6 +16,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { DevQuickLogin, devQuickLogins } from '../components/DevQuickLogin';
+import { homePathFor } from '../lib/access';
 
 // Dev server only: DEV is false in a production build, so the list and its passwords are left out.
 const QUICK_LOGINS = devQuickLogins();
@@ -113,11 +105,7 @@ export const LoginPage: React.FC = () => {
 
     try {
       const loggedUser = await login({ email: cleanEmail, password: signInPassword });
-      if (isWorker(loggedUser.role)) {
-        navigate('/my-work');
-      } else {
-        navigate('/dashboard');
-      }
+      navigate(homePathFor(loggedUser));
     } catch (err: any) {
       if (err instanceof ApiError) {
         setLoginError({ code: err.code, message: err.message });

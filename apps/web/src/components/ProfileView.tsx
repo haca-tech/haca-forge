@@ -30,15 +30,9 @@ import { RatingsFeedbackSection } from './RatingsFeedbackSection';
 import { apiFetch } from '../lib/api';
 import { roleClass } from '../lib/statusTone';
 import { BandChip, countsText, type WorkloadFigures } from '../lib/workload';
-import {
-  WORK_PREFERENCES,
-  ROLE_LABELS,
-  UserRole,
-  isApprover,
-  isReadOnlyViewer,
-  isWorker,
-} from '@mmp/shared';
+import { WORK_PREFERENCES, ROLE_LABELS, UserRole } from '@mmp/shared';
 import { confirmDialog, toast } from '../lib/uiFeedback';
+import { roleAccess } from '../lib/access';
 
 export interface ProfileData {
   id: string;
@@ -131,7 +125,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
     const fetchRoleData = async () => {
       try {
-        if (profile.role === 'admin') {
+        if (roleAccess(profile.role).isSuperuser) {
           // Access requests count + users count
           const [reqRes, usersRes] = await Promise.allSettled([
             apiFetch<{ data: any[] }>('/api/admin/access-requests?status=pending'),
@@ -143,7 +137,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               totalUsers: usersRes.status === 'fulfilled' ? usersRes.value.data?.length || 0 : 0,
             });
           }
-        } else if (isApprover(profile.role)) {
+        } else if (roleAccess(profile.role).can('review.decide')) {
           // Approvals and pending plans
           const [feedRes, planRes] = await Promise.allSettled([
             apiFetch<{ data: any[] }>('/api/feedback?status=Feedback'),
@@ -155,7 +149,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               waitingPlans: planRes.status === 'fulfilled' ? planRes.value.data?.length || 0 : 0,
             });
           }
-        } else if (profile.role === 'sm_manager') {
+        } else if (roleAccess(profile.role).can('calendar.plan')) {
           // Plans and tracker items
           const [planRes, trackerRes] = await Promise.allSettled([
             apiFetch<{ data: any[] }>('/api/calendar-plans'),
@@ -169,7 +163,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               needsOwnerCount: trackerRes.status === 'fulfilled' ? trackerRes.value.data?.length || 0 : 0,
             });
           }
-        } else if (isWorker(profile.role)) {
+        } else if (roleAccess(profile.role).isOwnScope) {
           // My active steps & workload
           const [myWorkRes, workloadRes] = await Promise.allSettled([
             apiFetch<{ data: any[] }>('/api/my-work?status=active'),
@@ -182,7 +176,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               workload: workloadRes.status === 'fulfilled' ? workloadRes.value.data?.people?.[0] || null : null,
             });
           }
-        } else if (isReadOnlyViewer(profile.role)) {
+        } else if (roleAccess(profile.role).isReadOnly) {
           // Executive summary
           const dashRes = await apiFetch<any>('/api/dashboard').catch(() => null);
           if (isMounted && dashRes) {
@@ -959,7 +953,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         ) : (
           <div>
             {/* 1. Admin Role Panel */}
-            {profile.role === 'admin' && (
+            {roleAccess(profile.role).isSuperuser && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Link
                   to="/admin/access-requests"
@@ -1006,7 +1000,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             )}
 
             {/* 2. Creative Lead Role Panel */}
-            {isApprover(profile.role) && (
+            {roleAccess(profile.role).can('review.decide') && !roleAccess(profile.role).isSuperuser && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Link
                   to="/feedback"
@@ -1045,7 +1039,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             )}
 
             {/* 3. SM Manager Role Panel */}
-            {profile.role === 'sm_manager' && (
+            {roleAccess(profile.role).can('calendar.plan') && !roleAccess(profile.role).isSuperuser && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-4 rounded-2xl bg-white/70 border border-slate-200 shadow-xs">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -1083,7 +1077,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             )}
 
             {/* 4. Executive Role Panel (Read-only Company Summary) */}
-            {isReadOnlyViewer(profile.role) && (
+            {roleAccess(profile.role).isReadOnly && (
               <div className="p-4 rounded-2xl bg-white/70 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -1105,7 +1099,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             )}
 
             {/* 5. Team Member Role Panel */}
-            {isWorker(profile.role) && (
+            {roleAccess(profile.role).isOwnScope && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Link
                   to="/my-work"
@@ -1165,7 +1159,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           personId={profile.id || profile._id || ''}
           personName={profile.name}
           isOwnProfile={isSelf}
-          canEditRating={isApprover(profile.role) || profile.role === 'admin'}
+          canEditRating={roleAccess(profile.role).can('review.decide')}
         />
       </div>
 

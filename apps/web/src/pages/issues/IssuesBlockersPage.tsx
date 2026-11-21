@@ -2,14 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-import {
-  BLOCKER_REASONS,
-  BLOCKER_DEPENDENCY_REASONS,
-  CANONICAL_REVISION_ROOT_CAUSES,
-  type BlockerReason,
-  type CanonicalRevisionRootCause,
-  isApprover,
-} from '@mmp/shared';
+import { BLOCKER_REASONS, BLOCKER_DEPENDENCY_REASONS, CANONICAL_REVISION_ROOT_CAUSES, type BlockerReason, type CanonicalRevisionRootCause } from '@mmp/shared';
 import {
   ShieldAlert,
   Clock,
@@ -25,6 +18,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { toast } from '../../lib/uiFeedback';
+import { useAccess } from '../../lib/access';
 
 interface BlockerItem {
   _id: string;
@@ -117,13 +111,14 @@ interface OpenWorkItemOption {
 
 export const IssuesBlockersPage: React.FC = () => {
   const { user, hasPermission } = useAuth();
+  const access = useAccess();
   // Same permissions the API checks on /api/blockers create, resolve and notify (blockers/routes.js).
   // Every role except creative_head/production_head holds one of them, so only creative_head/production_head loses these actions.
   const canManageBlockers = hasPermission('work.request') || hasPermission('work.update.own');
   // Same rule as the API: resolving or reminding is for the step owner, an SM Manager or an Admin.
   const canActOnBlocker = (blocker: BlockerItem) => {
     if (!canManageBlockers) return false;
-    if (user?.role === 'admin' || user?.role === 'sm_manager') return true;
+    if (access.can('blocker.resolve.any')) return true;
     const viewerId = (user as any)?._id || (user as any)?.id || (user as any)?.userId;
     return Boolean(viewerId && blocker.workItemId?.ownerId?._id === viewerId);
   };
@@ -340,7 +335,7 @@ export const IssuesBlockersPage: React.FC = () => {
     });
   }, [revisionFlags, searchQuery]);
 
-  const isLeadOrAdmin = user?.role === 'admin' || isApprover(user?.role) || user?.role === 'sm_manager';
+  const isLeadOrAdmin = access.can('assignment.override');
 
   return (
     <div className="space-y-6 pb-12">

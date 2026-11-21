@@ -3,7 +3,7 @@ import { useDialogFocus } from '../../lib/useDialogFocus';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
 import { TimeLabelChips, type TimeLabel } from '../../components/TimeLabelChips';
-import { hasTimeLabel, formatDuration, reworkTimeMs, stepReviewState, isApprover, canDecide } from '@mmp/shared';
+import { hasTimeLabel, formatDuration, reworkTimeMs, stepReviewState } from '@mmp/shared';
 import { workspacesLocked } from '../../lib/workspaceLock';
 import { StepSubmitDialog } from '../../components/StepSubmitDialog';
 import { statusClass, statusTone } from '../../lib/statusTone';
@@ -64,6 +64,7 @@ import { resolveStepBlocker } from '../../lib/blockers';
 import { FromPlanCard, type FromPlan } from './FromPlanCard';
 import { AskForHelpDialog, HelpRequestsCard, useHelpRequests } from '../../components/help/HelpRequests';
 import { confirmDialog, promptDialog, toast } from '../../lib/uiFeedback';
+import { useAccess } from '../../lib/access';
 
 const NO_SUBMISSION_TO_REVIEW =
   'This step has no submission to review yet. It can be approved or sent back once the owner submits their work.';
@@ -206,6 +207,7 @@ export const WorkDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const access = useAccess();
   const [editingLiveLink, setEditingLiveLink] = useState(false);
   // Help requests on this step (null when the viewer has no share in them).
   const help = useHelpRequests(id);
@@ -670,7 +672,7 @@ export const WorkDetailPage: React.FC = () => {
     user && (user.userId || user.id || user._id) === (item.ownerId?._id || item.ownerId?.id || item.ownerId)
   );
   // Phase 13: the lead of this step's calendar (Growth Lead for Ads, Creative Lead otherwise) or admin.
-  const isReviewer = canDecide(user?.role, item.calendar || 'sm');
+  const isReviewer = access.can('review.decide', { calendar: item.calendar || 'sm' });
   const hasOutput = Boolean(
     item.deliverableUrl ||
     item.latestSubmission?.fileUrl ||
@@ -1269,7 +1271,7 @@ export const WorkDetailPage: React.FC = () => {
               )}
 
               {/* Creative Lead / Admin Edit Button */}
-              {(isApprover(user?.role) || user?.role === 'admin') && (
+              {access.can('review.decide') && (
                 <button
                   onClick={openEditRatingModal}
                   type="button"

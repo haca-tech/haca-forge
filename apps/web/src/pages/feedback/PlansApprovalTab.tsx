@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
-import { useAuth } from '../../context/AuthContext';
 import { planGridHref } from '../calendar/PlanGridPage';
 import {
   CheckCircle2,
@@ -11,8 +10,9 @@ import {
   ChevronUp,
   FileSpreadsheet,
 } from 'lucide-react';
-import { planMonthKey, type CalendarPlanStatus, type RowStatus, isApprover, canDecide, decisionCalendarsFor } from '@mmp/shared';
+import { planMonthKey, type CalendarPlanStatus, type RowStatus } from '@mmp/shared';
 import { toast } from '../../lib/uiFeedback';
+import { useAccess } from '../../lib/access';
 
 interface PlanRow {
   _id: string;
@@ -46,12 +46,12 @@ interface CalendarPlanWaiting {
 }
 
 export const PlansApprovalTab: React.FC = () => {
-  const { user } = useAuth();
+  const access = useAccess();
   const navigate = useNavigate();
   // Plan row review is the Creative Lead's alone (PG-3); others see the queue read-only.
   // The leads review plan rows; admin is a backup reviewer.
   // Phase 13: the lead of the plan's calendar decides (Growth Lead: Ads; Creative Lead: the rest).
-  const canReviewPlan = (plan: { calendar?: string }) => canDecide(user?.role, plan.calendar || 'sm');
+  const canReviewPlan = (plan: { calendar?: string }) => access.can('calendar.approve', { calendar: plan.calendar || 'sm' });
   // Review controls on this page are for individual plans; monthly plans are reviewed in the plan grid.
   const canReviewHere = (plan: { kind: string; calendar?: string }) => canReviewPlan(plan) && plan.kind !== 'monthly';
   const [plans, setPlans] = useState<CalendarPlanWaiting[]>([]);
@@ -72,7 +72,7 @@ export const PlansApprovalTab: React.FC = () => {
       const waiting = (res.data || [])
         .filter((p) => p.status === 'Submitted' || p.submittedRowCount > 0)
         // A lead sees the plans of their own calendars (admin and the others see every plan).
-        .filter((p) => !isApprover(user?.role) || decisionCalendarsFor(user?.role).includes(p.calendar || 'sm'))
+        .filter((p) => !(access.can('calendar.approve') && !access.isSuperuser) || access.can('calendar.approve', { calendar: p.calendar || 'sm' }))
         .sort((a, b) => {
           const dateA = new Date(a.submittedAt || a.createdAt).getTime();
           const dateB = new Date(b.submittedAt || b.createdAt).getTime();

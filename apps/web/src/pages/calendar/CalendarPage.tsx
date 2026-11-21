@@ -1,18 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
-import { useAuth } from '../../context/AuthContext';
-import {
-  WORK_ITEM_STATUSES,
-  CALENDAR_LIST,
-  getCalendarDefinition,
-  getStepStatusLabel,
-  type CalendarKey,
-  type WorkType,
-  type Priority,
-  type WorkItemStatus,
-  isWorker,
-} from '@mmp/shared';
+import { WORK_ITEM_STATUSES, CALENDAR_LIST, getCalendarDefinition, getStepStatusLabel, type CalendarKey, type WorkType, type Priority, type WorkItemStatus } from '@mmp/shared';
 import { statusClass, statusTone, withDisplayStatus } from '../../lib/statusTone';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import {
@@ -30,6 +19,7 @@ import {
 import { PlansTab } from './PlansTab';
 import { OverdueChip, overdueLabel } from '../../components/OverdueChip';
 import { TrackerTab } from './TrackerTab';
+import { useAccess } from '../../lib/access';
 
 interface WorkItemCalendar {
   _id: string;
@@ -114,7 +104,7 @@ function fromInputLabel(value: string): string {
 export const CalendarPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
+  const access = useAccess();
 
   const tabParam = searchParams.get('tab');
   const activeTab: 'month' | 'plans' | 'tracker' =
@@ -346,7 +336,7 @@ export const CalendarPage: React.FC = () => {
   useDialogFocus(previewRef, Boolean(selectedItem), () => setSelectedItem(null), { initialFocusRef: previewCloseRef });
 
   // Plan creation is SM Manager / Admin only (the API refuses the Creative Lead), so only they see Add individual work.
-  const canCreatePlans = user?.role === 'sm_manager' || user?.role === 'admin';
+  const canCreatePlans = access.can('calendar.plan');
 
   // Shared text styles for this screen
   const fieldLabel = 'text-[13px] font-medium text-ui-muted';
@@ -403,7 +393,7 @@ export const CalendarPage: React.FC = () => {
         )}
       </div>
 
-      {isWorker(user?.role) && (
+      {access.isOwnScope && (
         <div className="p-4 rounded-2xl status-tint status-waiting text-[13px] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />

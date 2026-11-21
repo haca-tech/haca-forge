@@ -15,7 +15,7 @@ import {
   CheckCircle,
   Share2,
 } from 'lucide-react';
-import { ROLE_LABELS, type UserRole, isApprover, isReadOnlyViewer, isWorker, canSeeAllReviewText, canDecide as canDecideOn } from '@mmp/shared';
+import { ROLE_LABELS, type UserRole, canSeeAllReviewText } from '@mmp/shared';
 
 import { DocumentViewer, DocumentCommentAnchor } from './DocumentViewer';
 import { VideoPlayerViewer } from './VideoPlayerViewer';
@@ -29,6 +29,7 @@ import { ShareToChatModal } from '../../chat/ShareToChatModal';
 import { DRIVE_LINK_HINT, isAppUploadPath } from '@mmp/shared';
 import { AssetLinks, assetKind, type AssetItem } from '../../../components/AssetLinks';
 import { toast } from '../../../lib/uiFeedback';
+import { useAccess } from '../../../lib/access';
 
 interface ReviewQueueItem {
   id: string;
@@ -94,6 +95,7 @@ const hasDocumentText = (sub: any) =>
 
 export const ReviewStudioPage: React.FC = () => {
   const { user } = useAuth();
+  const access = useAccess();
   const { on } = useSocket();
   const navigate = useNavigate();
   const { id: routeWorkItemId } = useParams<{ id: string }>();
@@ -128,7 +130,7 @@ export const ReviewStudioPage: React.FC = () => {
     try {
       setLoading(true);
       setErrorMsg(null);
-      if (isWorker(user?.role)) {
+      if (access.isOwnScope) {
         // "My review": the step owner opens their own step; the review queue is the reviewers'.
         if (routeWorkItemId) fetchSubmissionByWorkItem(routeWorkItemId);
         else {
@@ -747,9 +749,9 @@ export const ReviewStudioPage: React.FC = () => {
   const isOwner = Boolean(ownerId && ownerId === currentUserId);
   // Same reviewer rule as the API: the lead of the step's calendar (Growth Lead for Ads,
   // Creative Lead otherwise) and admin decide, never on their own work (Phase 13).
-  const isDecisionRole = isApprover(user?.role) || user?.role === 'admin';
+  const isDecisionRole = access.can('review.decide');
   const stepCalendar = activeSubmission?.calendar || activeSubmission?.workItemId?.calendar || 'sm';
-  const canDecide = canDecideOn(user?.role, stepCalendar) && !isOwner;
+  const canDecide = access.can('review.decide', { calendar: stepCalendar }) && !isOwner;
   // Pins, new comments and resolving are the reviewers'; the owner reads everything and replies.
   const canComment = isDecisionRole && !isOwner;
   const canReply = canComment || isOwner;
@@ -771,8 +773,8 @@ export const ReviewStudioPage: React.FC = () => {
     document.getElementById(`comment-${commentId}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   };
   const canSeePins = canSeeAllReviewText(user?.role) || isOwner;
-  const isPrivileged = user?.role === 'admin' || isApprover(user?.role) || user?.role === 'sm_manager';
-  const canShare = Boolean(isApproved && (isPrivileged || isOwner) && !isReadOnlyViewer(user?.role));
+  const isPrivileged = access.can('chat.share_asset');
+  const canShare = Boolean(isApproved && (isPrivileged || isOwner) && !access.isReadOnly);
 
   const shareAssetType: 'finalCut' | 'designImages' | 'document' =
     viewerType === 'video' ? 'finalCut' :

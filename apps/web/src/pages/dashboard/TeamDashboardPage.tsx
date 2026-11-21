@@ -1,4 +1,4 @@
-import { getStepStatusLabel, isApprover, isWorker, ROLE_LABELS, type UserRole } from '@mmp/shared';
+import { getStepStatusLabel, ROLE_LABELS, type UserRole } from '@mmp/shared';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
@@ -23,6 +23,7 @@ import {
   AlertOctagon,
   ArrowUpRight,
 } from 'lucide-react';
+import { useAccess } from '../../lib/access';
 
 interface DashboardData {
   scope: {
@@ -155,6 +156,7 @@ interface DashboardData {
 
 export const TeamDashboardPage: React.FC = () => {
   const { user, hasPermission } = useAuth();
+  const access = useAccess();
   const navigate = useNavigate();
   const { queryParams } = useGlobalFilter();
 
@@ -163,7 +165,7 @@ export const TeamDashboardPage: React.FC = () => {
 
   // Requirement: executive (worker) is redirected to My Work
   useEffect(() => {
-    if (isWorker(user?.role)) {
+    if (access.isOwnScope) {
       navigate('/my-work', { replace: true });
     }
   }, [user, navigate]);
@@ -184,7 +186,7 @@ export const TeamDashboardPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (user && !isWorker(user.role)) {
+    if (user && !access.isOwnScope) {
       fetchDashboard();
     }
   }, [queryParams, user]);
@@ -387,7 +389,7 @@ export const TeamDashboardPage: React.FC = () => {
       {!isLoading && data && (
         <div className="space-y-8">
           {/* Waiting for approval (Creative Lead / Admin sign-off queue) */}
-          {(isApprover(user?.role) || user?.role === 'admin') && (
+          {access.can('review.decide') && (
             <section className="glass-panel rounded-ui-panel p-5 sm:p-8 space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">

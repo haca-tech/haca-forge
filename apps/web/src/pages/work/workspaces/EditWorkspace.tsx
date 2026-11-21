@@ -1,4 +1,3 @@
-import { APPROVER_ROLES, WORKER_ROLE, isApprover } from '@mmp/shared';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Film,
@@ -30,6 +29,7 @@ import { ShareToChatModal } from '../../chat/ShareToChatModal';
 import { DriveLinkInput, driveLinkError } from '../../../components/DriveLinkInput';
 import { safeUrl } from '../../../lib/safeUrl';
 import { toast } from '../../../lib/uiFeedback';
+import { makeAccess, accessFromUser, roleAccess } from '../../../lib/access';
 
 export interface FootageClip {
   id: string;
@@ -114,6 +114,8 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
   } catch {
     user = null;
   }
+  // Outside an AuthProvider (tests), access comes from the role.
+  const access = makeAccess(accessFromUser(user), user);
   const { on, isConnected } = useSocket();
 
   const scriptContent = propScriptContent || (workItem as any).scriptContent || '';
@@ -226,7 +228,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
   const ownerId = (workItem.ownerId?._id || workItem.ownerId)?.toString();
   const isOwner = ownerId && ownerId === currentUserId;
   const isApproved = workItem.status === 'Approved' || currentSubmission?.status === 'approved';
-  const canShare = isApproved && user && (['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role) || isOwner);
+  const canShare = isApproved && user && (access.can('chat.share_asset') || isOwner);
 
   // Sync prop comments if updated from parent
   useEffect(() => {
@@ -319,13 +321,13 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
       });
 
       const created = res?.data || res;
-      const isReviewerUser = isApprover(user?.role) || user?.role === 'admin';
+      const isReviewerUser = access.can('review.decide');
       const optimisticMsg: RevisionComment = {
         id: created._id || created.id || `local-${Date.now()}`,
         content: text,
         authorId: user?.id || user?._id,
         authorName: user?.name || (isReviewerUser ? 'Reviewer' : 'You (Editor)'),
-        authorRole: user?.role || (isReviewerUser ? APPROVER_ROLES[0] : WORKER_ROLE),
+        authorRole: user?.role || (isReviewerUser ? 'reviewer' : 'editor'),
         createdAt: new Date().toISOString(),
         timecode: taggedTimecode != null ? Math.round(taggedTimecode) : undefined,
         resolved: false,
@@ -762,7 +764,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                         );
 
                         const isReviewer =
-                          isApprover(roleLower) ||
+                          roleAccess(roleLower).can('review.decide') ||
                           roleLower === 'admin' ||
                           nameLower.includes('head') ||
                           nameLower.includes('creative') ||
@@ -880,7 +882,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         placeholder={
-                          isApprover(user?.role) || user?.role === 'admin'
+                          access.can('review.decide')
                             ? 'Type review feedback or a message for the editor...'
                             : 'Type a message or response to Creative Lead...'
                         }

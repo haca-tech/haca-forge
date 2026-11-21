@@ -1,8 +1,9 @@
-import { ROLE_KEYS, ROLE_LABELS, isWorker } from '@mmp/shared';
+import { ROLE_KEYS, ROLE_LABELS } from '@mmp/shared';
 import React, { useRef, useState } from 'react';
 import { Repeat, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useDialogFocus } from '../lib/useDialogFocus';
+import { homePathFor } from '../lib/access';
 
 /**
  * Quick sign in and Switch account: LOCAL DEVELOPMENT ONLY.
@@ -48,7 +49,7 @@ export const devQuickLogins = (): QuickLoginAccount[] =>
 export const quickLoginLabel = (a: QuickLoginAccount) => (a.jobRole?.trim() ? `${a.label} · ${a.jobRole.trim()}` : a.label);
 
 /** Where each role lands after signing in (the same rule as the login page). */
-export const homeForRole = (role: string | undefined) => (isWorker(role) ? '/my-work' : '/dashboard');
+export const homeForRole = (role: string | undefined) => homePathFor({ role, status: 'active' });
 
 /** The 7 role groups, in order; accounts without a known role go under "Other". */
 export const QUICK_LOGIN_GROUPS: { role: string; title: string }[] = ROLE_KEYS.map((role) => ({ role, title: ROLE_LABELS[role] }));

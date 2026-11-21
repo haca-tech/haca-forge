@@ -16,9 +16,10 @@ import {
 import { apiFetch } from '../../../lib/api';
 import { useAuth } from '../../../context/AuthContext';
 import { Avatar } from '../../../components/Avatar';
-import { MediaMessageType, APPROVER_ROLES, isApprover, isReadOnlyViewer } from '@mmp/shared';
+import { MediaMessageType } from '@mmp/shared';
 import { ShareToChatModal } from '../../chat/ShareToChatModal';
 import { toast } from '../../../lib/uiFeedback';
+import { useAccess } from '../../../lib/access';
 
 interface MediaThreadProps {
   clipId: string;
@@ -42,6 +43,7 @@ export const MediaThread: React.FC<MediaThreadProps> = ({
   contentPieceId = '',
 }) => {
   const { user } = useAuth();
+  const access = useAccess();
   const [showShareModal, setShowShareModal] = useState<boolean>(false);
   const [messages, setMessages] = useState<MediaMessageType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -55,8 +57,9 @@ export const MediaThread: React.FC<MediaThreadProps> = ({
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const currentUserId = user?._id || (user as any)?.id || (user as any)?.userId;
-  const isReviewer = isApprover(user?.role) || user?.role === 'admin';
-  const isReadOnlyRole = user?.role === 'sm_manager' || isReadOnlyViewer(user?.role) || readOnly;
+  const isReviewer = access.can('review.decide');
+  // Read only in the thread: read-only roles, and roles that see all work but do not review (SM Manager).
+  const isReadOnlyRole = access.isReadOnly || (access.seesAll && !access.can('review.decide')) || readOnly;
 
   // Sync external timestamp from player "Reference this moment"
   useEffect(() => {
@@ -224,7 +227,7 @@ export const MediaThread: React.FC<MediaThreadProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {isApproved && user && (['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role) || !isReadOnlyRole) && (
+          {isApproved && user && (access.can('chat.share_asset') || !isReadOnlyRole) && (
             <button
               type="button"
               onClick={() => setShowShareModal(true)}

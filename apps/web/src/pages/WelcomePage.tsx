@@ -1,4 +1,3 @@
-import { isWorker } from '@mmp/shared';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, AlertCircle, ArrowRight } from 'lucide-react';
@@ -6,9 +5,11 @@ import { useAuth } from '../context/AuthContext';
 import { Avatar } from '../components/Avatar';
 import { AvatarCropModal } from '../components/AvatarCropModal';
 import { apiFetch } from '../lib/api';
+import { useAccess } from '../lib/access';
 
 export const WelcomePage: React.FC = () => {
   const { user, refreshUser } = useAuth();
+  const access = useAccess();
   const navigate = useNavigate();
 
   const [name, setName] = useState(user?.name || '');
@@ -45,7 +46,7 @@ export const WelcomePage: React.FC = () => {
       await refreshUser();
 
       // Navigate to user's home or start page
-      if (isWorker(user?.role)) {
+      if (access.isOwnScope) {
         navigate('/my-work');
       } else {
         navigate('/dashboard');

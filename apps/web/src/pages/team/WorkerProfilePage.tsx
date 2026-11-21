@@ -1,4 +1,4 @@
-import { getStepStatusLabel, isApprover, isReadOnlyViewer, isWorker, INTERVAL_KIND_LABELS, PAUSE_REASON_LABELS } from '@mmp/shared';
+import { getStepStatusLabel, INTERVAL_KIND_LABELS, PAUSE_REASON_LABELS } from '@mmp/shared';
 import React, { useState, useEffect, useRef } from 'react';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
@@ -47,23 +47,25 @@ import {
   formatDuration,
 } from '@mmp/shared';
 import { confirmDialog, toast } from '../../lib/uiFeedback';
+import { roleAccess, useAccess } from '../../lib/access';
 
 export const WorkerProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const teamWorkload = useTeamWorkload(Boolean(user?.role) && !isWorker(user?.role));
+  const access = useAccess();
+  const teamWorkload = useTeamWorkload(Boolean(user?.role) && !access.isOwnScope);
 
   // If path is /profile, target person is current logged in user
   const isProfileRoute = location.pathname.startsWith('/profile');
   const targetId = isProfileRoute ? user?._id || user?.id : id;
 
   const isSelf = user?._id === targetId || user?.id === targetId;
-  const isExecutive = isReadOnlyViewer(user?.role);
-  const isAdmin = user?.role === 'admin';
-  const isCreativeHead = isApprover(user?.role);
-  const isSmManager = user?.role === 'sm_manager';
+  const isExecutive = access.isReadOnly;
+  const isAdmin = access.can('user.manage');
+  const isCreativeHead = access.can('people.manage_operational') && !access.isSuperuser;
+  const isSmManager = access.can('calendar.plan') && !access.isSuperuser;
 
   // Base Profile & KPIs
   const [profile, setProfile] = useState<any>(null);
@@ -275,8 +277,9 @@ export const WorkerProfilePage: React.FC = () => {
     ? `${profile.preferredName} (${profile.name})`
     : profile.name;
 
-  const isWorkerRole = isWorker(profile.role);
-  const isSmOrCreativeRole = profile.role === 'sm_manager' || isApprover(profile.role);
+  const profileAccess = roleAccess(profile.role);
+  const isWorkerRole = profileAccess.isOwnScope;
+  const isSmOrCreativeRole = !profileAccess.isSuperuser && (profileAccess.can('calendar.plan') || profileAccess.can('review.decide'));
 
   // Available tabs based on viewed role
   const availableTabs: Array<{ id: any; label: string }> = [
@@ -1008,7 +1011,7 @@ export const WorkerProfilePage: React.FC = () => {
               <h3 className="text-xs font-black text-ui-ink">
                 Leadership Operational Summary
               </h3>
-              {isApprover(overviewData.operationalSummary.role) && (
+              {roleAccess(overviewData.operationalSummary.role).can('review.decide') && (
                 <div className="grid grid-cols-2 gap-4 text-xs">
                   <div>
                     <span className="text-ui-ink font-semibold block">Pending Reviews Queue:</span>
@@ -1024,7 +1027,7 @@ export const WorkerProfilePage: React.FC = () => {
                   </div>
                 </div>
               )}
-              {overviewData.operationalSummary.role === 'sm_manager' && (
+              {roleAccess(overviewData.operationalSummary.role).can('calendar.plan') && (
                 <div className="grid grid-cols-2 gap-4 text-xs">
                   <div>
                     <span className="text-ui-ink font-semibold block">Active Calendar Plans:</span>

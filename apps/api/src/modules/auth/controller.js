@@ -3,6 +3,15 @@ import * as authService from "./service.js";
 import { User } from "../people/model.js";
 import { ROLE_PERMISSIONS, normalizeRole } from "@mmp/shared";
 import { disconnectUserSockets } from "../../lib/socketHub.js";
+import { buildAccessInfo } from "../../lib/accessInfo.js";
+import { Person } from "../people/model.js";
+
+/** The access block for a just-signed-in user (reads their calendar limit). */
+async function accessFor(publicUser) {
+  const id = publicUser?._id || publicUser?.id;
+  const person = id ? await Person.findById(id).select("role status calendarScope").lean() : null;
+  return buildAccessInfo(person || publicUser);
+}
 
 function getCookieOptions(maxAgeMs) {
   const isProd = env.NODE_ENV === "production";
@@ -39,6 +48,7 @@ export async function login(req, res, next) {
     return res.status(200).json({
       user: result.user,
       permissions: result.permissions,
+      access: await accessFor(result.user),
     });
   } catch (error) {
     next(error);
@@ -65,6 +75,7 @@ export async function refresh(req, res, next) {
     return res.status(200).json({
       user: result.user,
       permissions: result.permissions,
+      access: await accessFor(result.user),
     });
   } catch (error) {
     next(error);
@@ -143,6 +154,8 @@ export async function me(req, res, next) {
       },
       role: normalizeRole(req.user.role),
       permissions: ROLE_PERMISSIONS[normalizeRole(req.user.role)] || [],
+      // Catalog-v2 permissions, calendars per routed permission, role attributes, calendar limit.
+      access: await buildAccessInfo(req.user),
     });
   } catch (error) {
     next(error);

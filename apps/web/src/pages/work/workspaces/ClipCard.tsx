@@ -13,11 +13,12 @@ import {
   MessageSquare,
   Share2,
 } from 'lucide-react';
-import { MediaItemType, getMediaItemStatusLabel, APPROVER_ROLES } from '@mmp/shared';
+import { MediaItemType, getMediaItemStatusLabel } from '@mmp/shared';
 import { useAuth } from '../../../context/AuthContext';
 import { ShareToChatModal } from '../../chat/ShareToChatModal';
 import { isDriveLink } from '@mmp/shared';
 import { confirmDialog } from '../../../lib/uiFeedback';
+import { useAccess } from '../../../lib/access';
 
 interface ClipCardProps {
   clip: MediaItemType;
@@ -62,11 +63,12 @@ export const ClipCard: React.FC<ClipCardProps> = ({
   const isLocked = isApproved || !canEdit;
 
   const { user } = useAuth();
+  const access = useAccess();
   const [showShareModal, setShowShareModal] = useState(false);
   const currentUserId = (user?._id || user?.id || (user as any)?.userId)?.toString();
   const uploadedById = ((clip as any).uploadedBy?._id || (clip as any).uploadedBy)?.toString();
   const isOwner = uploadedById && uploadedById === currentUserId;
-  const canShare = isApproved && user && (['admin', ...APPROVER_ROLES, 'sm_manager'].includes(user.role) || isOwner);
+  const canShare = isApproved && user && (access.can('chat.share_asset') || isOwner);
 
   const replaceInputRef = React.useRef<HTMLInputElement>(null);
 

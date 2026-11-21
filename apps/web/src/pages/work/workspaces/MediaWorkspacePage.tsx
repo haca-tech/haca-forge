@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../../lib/api';
 import { useAuth } from '../../../context/AuthContext';
 import { ArrowLeft, AlertCircle, ShieldAlert, Lock } from 'lucide-react';
-import { getWorkspaceModeInfo, type WorkspaceMode, getStepStatusLabel, canSeeAllReviewText, isApprover } from '@mmp/shared';
+import { getWorkspaceModeInfo, type WorkspaceMode, getStepStatusLabel, canSeeAllReviewText } from '@mmp/shared';
 
 import { ShootWorkspace } from './ShootWorkspace';
 import { ShootReviewView } from './ShootReviewView';
@@ -14,6 +14,7 @@ import { EarlierOutputsViewer, StageOutput } from './EarlierOutputsViewer';
 import type { AssetItem } from '../../../components/AssetLinks';
 import { FromPlanCard } from '../FromPlanCard';
 import { toast } from '../../../lib/uiFeedback';
+import { roleAccess } from '../../../lib/access';
 
 export const MediaWorkspacePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -109,7 +110,7 @@ export const MediaWorkspacePage: React.FC = () => {
           id: c._id || c.id,
           content: c.content || c.text,
           authorId: c.authorId?._id || c.authorId?.id || (typeof c.authorId === 'string' ? c.authorId : undefined),
-          authorName: c.authorId?.name || (c.authorRole ? (isApprover(c.authorRole) ? 'Reviewer' : 'Editor') : 'Reviewer'),
+          authorName: c.authorId?.name || (c.authorRole ? (roleAccess(c.authorRole).can('review.decide') ? 'Reviewer' : 'Editor') : 'Reviewer'),
           authorRole: c.authorId?.role || c.authorRole,
           createdAt: c.createdAt,
           timecode: c.anchor?.timecode ?? c.anchor?.seconds,
