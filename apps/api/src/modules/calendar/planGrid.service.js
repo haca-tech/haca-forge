@@ -342,6 +342,8 @@ export async function loadGrid({ calendar = 'sm', month, planId } = {}, user) {
     rows: selected ? await loadGridRows(selected._id) : [],
     // Nobody reviews their own plan (fixed rule).
     permissions: { canEdit: perms.canEdit, canReview: perms.canReview && !(selected && selected.createdById === String(user._id || user.userId)), readOnly: perms.readOnly },
+    // Who approves this calendar's plans now (its configured plan approvers, or the fallback).
+    planApprovers: (await access.planApproversFor({ calendar })).people.map((p) => p.preferredName || p.name).filter(Boolean),
     people,
   };
 }

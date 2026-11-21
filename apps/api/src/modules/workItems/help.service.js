@@ -17,7 +17,7 @@ import { Person } from '../people/model.js';
 import { logActivity } from '../activity/service.js';
 import { createNotification } from '../notifications/service.js';
 import * as access from '../../lib/accessResolver.js';
-import { handlesDeliverables, isOwnScope, isReadOnly } from '../../lib/roleAccess.js';
+import { isOwnScope, isReadOnly, isSuperuser } from '../../lib/roleAccess.js';
 
 /**
  * Help requests on a step. The step owner asks one person (the deciding lead by default,
@@ -50,9 +50,6 @@ async function loadStep(id) {
   return step;
 }
 
-/** Leadership roles that can reply to and resolve any help request (read-only heads cannot write). */
-const isHelpManager = (role) => handlesDeliverables(role);
-
 /** The people the owner can ask, in order: the deciding lead(s), SM Managers, other step owners on the piece. */
 export async function helpOptionsFor(step) {
   const askerId = idOf(step.ownerId);
@@ -81,18 +78,30 @@ export async function helpOptionsFor(step) {
   return options;
 }
 
-/** The viewer's access to the help requests of a step: 'manage', 'view', or a worker's own share. */
-function accessOf(step, user) {
-  const role = normalizeRole(user?.role);
+/**
+ * The viewer's access to the help requests of a step:
+ * - 'manage': reply and resolve any request on it: admins, and people who decide (review) or
+ *   post on the step's calendar, so calendar limits and routing apply;
+ * - 'view': read every request: read-only heads, and leadership outside this calendar's routing
+ *   (who may still write on a request sent to them as the helper);
+ * - 'worker': the asker, or a worker asked for help, sees and writes only those requests.
+ */
+async function accessOf(step, user) {
   const me = userIdOf(user);
-  if (isOwnScope(role)) return { kind: 'worker', me, isAsker: idOf(step.ownerId) === me };
-  if (isReadOnly(role)) return { kind: 'view', me };
-  if (isHelpManager(role)) return { kind: 'manage', me };
-  return { kind: 'none', me };
+  if (isOwnScope(user)) return { kind: 'worker', me, isAsker: idOf(step.ownerId) === me };
+  if (isReadOnly(user)) return { kind: 'view', me, helperWrite: false };
+  if (isSuperuser(user)) return { kind: 'manage', me };
+  const calendar = step.calendar || 'sm';
+  if ((await access.can(user, 'review.decide', { calendar })) || (await access.can(user, 'publish.post', { calendar }))) {
+    return { kind: 'manage', me };
+  }
+  return { kind: 'view', me, helperWrite: true };
 }
 
-const canWrite = (r, access) =>
-  access.kind === 'manage' || (access.kind === 'worker' && (idOf(r.askerId) === access.me || idOf(r.helperId) === access.me));
+const canWrite = (r, acc) =>
+  acc.kind === 'manage' ||
+  (acc.kind === 'worker' && (idOf(r.askerId) === acc.me || idOf(r.helperId) === acc.me)) ||
+  (acc.kind === 'view' && acc.helperWrite && idOf(r.helperId) === acc.me);
 
 /** A worker sees a step's requests only as the asker, or the requests sent to them. */
 function visibleTo(r, access) {
@@ -130,8 +139,7 @@ const populated = (q) => q.populate('askerId', 'name').populate('helperId', 'nam
 /** Work Detail: the step's help requests this viewer may see, and whether (and whom) they can ask. */
 export async function listHelpRequests(id, user) {
   const step = await loadStep(id);
-  const access = accessOf(step, user);
-  if (access.kind === 'none') throw notFound();
+  const access = await accessOf(step, user);
   const all = await populated(HelpRequest.find({ workItemId: step._id }).sort({ createdAt: -1 })).lean();
   const mine = all.filter((r) => visibleTo(r, access));
   // A worker with no share in the step's help requests gets the same 404 as anyone else.
@@ -199,7 +207,7 @@ export async function createHelpRequest(id, body = {}, user) {
     link: `/work/${step._id}#help`,
     metadata: { workItemId: step._id, helpRequestId: request._id },
   });
-  return view(await populated(HelpRequest.findById(request._id)).lean(), accessOf(step, user));
+  return view(await populated(HelpRequest.findById(request._id)).lean(), await accessOf(step, user));
 }
 
 /** Loads a request on this step for a write, with the same 404 for workers who have no share in it. */
@@ -208,7 +216,7 @@ async function loadForWrite(id, helpId, user) {
   if (!mongoose.isValidObjectId(helpId)) throw notFound();
   const r = await HelpRequest.findOne({ _id: helpId, workItemId: step._id }).lean();
   if (!r) throw notFound();
-  const access = accessOf(step, user);
+  const access = await accessOf(step, user);
   if (!visibleTo(r, access)) throw notFound();
   if (!canWrite(r, access)) throw fail(403, 'FORBIDDEN_HELP', 'Only the person who asked, the person asked, a lead, an SM Manager or an Admin can do this.');
   if (r.status !== 'open') throw fail(409, 'HELP_RESOLVED', 'This help request is already resolved.');

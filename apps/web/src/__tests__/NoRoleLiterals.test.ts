@@ -18,7 +18,9 @@ const ALLOW = new Set(['components/DevQuickLogin.tsx']);
 const KEYS = 'admin|sm_manager|creative_lead|growth_lead|executive|creative_head|production_head';
 const RULES: Array<[string, RegExp]> = [
   ['old role helper', /\b(isApprover|isWorker|isReadOnlyViewer|canDecide|canDecideOn|decisionCalendarsFor|canReview|canSeeContactDetails|canManageOperationalFields|canViewProfileReport)\s*\(/],
-  ['role compared with a role key', new RegExp(`role\\)?\\s*[!=]==?\\s*['"\`](${KEYS})['"\`]|['"\`](${KEYS})['"\`]\\s*[!=]==?\\s*[\\w?.]*role\\b`)],
+  // Any value compared with a role key, whatever the variable is called (role, roleLower, userRole, r ...).
+  ['value compared with a role key', new RegExp(`[!=]==?\\s*['"\`](${KEYS})['"\`]|['"\`](${KEYS})['"\`]\\s*[!=]==?`)],
+  ['switch case on a role key', new RegExp(`\\bcase\\s+['"\`](${KEYS})['"\`]\\s*:`)],
   ['role compared with WORKER_ROLE', /role\s*[!=]==?\s*WORKER_ROLE|WORKER_ROLE\s*[!=]==?\s*[\w?.]*role\b/],
   ['role-group list', /\b(APPROVER_ROLES|READ_ONLY_VIEWER_ROLES|LEADERSHIP_ROLES)\b/],
   ['literal list of role keys', new RegExp(`\\[\\s*['"](${KEYS})['"]\\s*,`)],
@@ -69,6 +71,12 @@ describe('No role-name checks in the web app', () => {
       "const leads = ['creative_lead', 'growth_lead'];",
       "hasPermission('portal.view')",
       'if (user.role === WORKER_ROLE) {}',
+      "roleLower === 'admin' ||",
+      "const isLead = userRole !== 'creative_lead';",
+      "if (r == 'executive') {}",
+      "'growth_lead' === someone.kind",
+      "switch (role) { case 'sm_manager': break; }",
+      "case 'production_head':",
     ]) {
       expect(hitsIn(bad), bad).not.toEqual([]);
     }

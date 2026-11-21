@@ -92,6 +92,55 @@ describe('Access changes apply without signing out', () => {
     expect(screen.queryByText('Page')).toBeNull();
   });
 
+  const renderGuarded = () =>
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/my-work']}>
+          <AuthProvider>
+            <Routes>
+              <Route path="/my-work" element={<ProtectedRoute><div>Page</div></ProtectedRoute>} />
+              <Route path="/login" element={<div>Sign in page</div>} />
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+  it('a network error while reloading /auth/me keeps the user signed in, and the next refresh retries', async () => {
+    renderGuarded();
+    await screen.findByText('Page');
+    apiFetch.mockImplementation(async (url: string) => {
+      if (url === '/auth/me') throw new TypeError('Failed to fetch');
+      return { data: [] };
+    });
+    await act(async () => emitAccessChanged('access:changed'));
+    expect(screen.getByText('Page')).toBeInTheDocument();
+    expect(screen.queryByText('Sign in page')).toBeNull();
+    // A server error (500) does not sign out either.
+    apiFetch.mockImplementation(async (url: string) => {
+      if (url === '/auth/me') throw new apiModule.ApiError('Boom', 'INTERNAL_ERROR', 500);
+      return { data: [] };
+    });
+    await act(async () => emitAccessChanged('reconnect'));
+    expect(screen.getByText('Page')).toBeInTheDocument();
+    // Back online: the next refresh works and the user is still there.
+    apiFetch.mockImplementation(async (url: string) => (url === '/auth/me' ? me() : { data: [] }));
+    await act(async () => emitAccessChanged('reconnect'));
+    expect(screen.getByText('Page')).toBeInTheDocument();
+    expect(apiFetch.mock.calls.filter(([u]: any[]) => u === '/auth/me').length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('a 401 from /auth/me signs the tab out', async () => {
+    renderGuarded();
+    await screen.findByText('Page');
+    apiFetch.mockImplementation(async (url: string) => {
+      if (url === '/auth/me') throw new apiModule.ApiError('Session has expired.', 'TOKEN_EXPIRED', 401);
+      return { data: [] };
+    });
+    await act(async () => emitAccessChanged('access:changed'));
+    expect(await screen.findByText('Sign in page')).toBeInTheDocument();
+  });
+
   it('the socket wiring forwards access:changed and reconnects (not the first connect)', () => {
     const handlers: Record<string, (...a: any[]) => void> = {};
     const seen: string[] = [];

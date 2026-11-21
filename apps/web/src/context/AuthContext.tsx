@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { apiFetch, clearLegacyTokens } from '../lib/api';
+import { ApiError, apiFetch, clearLegacyTokens } from '../lib/api';
 import type { UserRole, PermissionKey, PermissionKeyV2 } from '@mmp/shared';
 import { accessFromUser, type AccessInfo } from '../lib/accessCore';
 import { onAccessChanged } from '../lib/accessEvents';
@@ -55,6 +55,11 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/** API answers that end the session in this tab. */
+const ACCOUNT_REFUSED = new Set(['ACCOUNT_SUSPENDED', 'ROLE_MIGRATION_PENDING']);
+const signsOut = (e: unknown) =>
+  e instanceof ApiError && (e.statusCode === 401 || (e.statusCode === 403 && ACCOUNT_REFUSED.has(e.code)));
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [permissions, setPermissions] = useState<PermissionKey[]>([]);
@@ -70,10 +75,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await apiFetch<{ user: User; role: UserRole; permissions: PermissionKey[]; access?: AccessInfo }>('/auth/me');
       setUser(data.user);
       applyAccess(data);
-    } catch {
-      setUser(null);
-      setPermissions([]);
-      setAccess(null);
+    } catch (e) {
+      // Signed out only when the API says the session is over: 401, or the account itself is
+      // refused (suspended: fixed rule 9, open tabs sign out). A network error or a server hiccup
+      // keeps the current user; the next focus, reconnect or access:changed tries again.
+      if (signsOut(e)) {
+        setUser(null);
+        setPermissions([]);
+        setAccess(null);
+      }
     } finally {
       setIsLoading(false);
     }

@@ -711,26 +711,23 @@ describe('Profile and Settings Comprehensive Suite', () => {
       expect(res.body.data.email).toBe(workerA.email);
     });
 
-    it('Worker viewing non-teammate outside shared content piece is rejected (HTTP 403)', async () => {
+    it('Worker viewing a non-teammate gets 404 (fixed rule 5)', async () => {
       // workerA and externalWorker share NO content piece
       const res = await request(app)
         .get(`/api/people/${externalWorker._id}/profile`)
         .set('Authorization', `Bearer ${workerAToken}`);
 
-      expect(res.status).toBe(403);
-      expect(res.body.code).toBe('FORBIDDEN_TEAMMATE_OUTSIDE_SHARED_PIECE');
+      expect(res.status).toBe(404);
     });
 
-    it('Worker viewing collaborator on shared content piece gets profile with masked contact details', async () => {
-      // workerA and workerB are collaborators on sharedPiece
+    it('Worker viewing a collaborator on a shared content piece gets 404 too (final fix L2)', async () => {
+      // workerA and workerB are collaborators on sharedPiece: another person's profile still does not exist for a worker
       const res = await request(app)
         .get(`/api/people/${workerB._id}/profile`)
         .set('Authorization', `Bearer ${workerAToken}`);
 
-      expect(res.status).toBe(200);
-      expect(res.body.data.name).toBe(workerB.name);
-      expect(res.body.data.email).toBeNull(); // Worker sees NO contact details of teammate
-      expect(res.body.data.phone).toBeNull();
+      expect(res.status).toBe(404);
+      expect(JSON.stringify(res.body)).not.toContain(workerB.email);
     });
   });
 

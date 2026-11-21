@@ -620,8 +620,9 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
         .get(`/api/submissions/ratings/summary/${shooterUser._id}`)
         .set('Authorization', `Bearer ${writerToken}`);
 
-      expect(res.status).toBe(403);
-      expect(res.body.error?.code).toBe('FORBIDDEN_RATINGS_ACCESS');
+      // Fixed rule 5: another worker's ratings do not exist for a worker (404, not 403).
+      expect(res.status).toBe(404);
+      expect(res.body.error?.code).toBe('NOT_FOUND');
     });
 
     it('Editor cannot view Designer ratings via /api/people/:id/ratings (HTTP 403)', async () => {
@@ -629,8 +630,9 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
         .get(`/api/people/${designerUser._id}/ratings`)
         .set('Authorization', `Bearer ${editorToken}`);
 
-      expect(res.status).toBe(403);
-      expect(res.body.error?.code).toBe('FORBIDDEN_RATINGS_ACCESS');
+      // Fixed rule 5: another worker's ratings do not exist for a worker (404, not 403).
+      expect(res.status).toBe(404);
+      expect(res.body.error?.code).toBe('NOT_FOUND');
     });
   });
 

@@ -88,6 +88,8 @@ export interface GridData {
   plan: GridPlanSummary | null;
   rows: GridRow[];
   permissions: { canEdit: boolean; canReview: boolean; readOnly: boolean };
+  /** Names of the people who approve this calendar's plans now (from its settings). */
+  planApprovers?: string[];
   people: GridPerson[];
 }
 

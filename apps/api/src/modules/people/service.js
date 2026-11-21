@@ -445,15 +445,13 @@ export async function getPersonProfile(targetId, actor) {
   const actorRole = normalizeRole(actor?.role);
   const isSelf = actor?._id?.toString() === person._id.toString();
 
-  // Worker sharing check
+  // Fixed rule 5: another person's profile does not exist for a worker, teammates on the same
+  // piece included (404, not 403, so the answer does not confirm the person exists).
   if (isOwnScope(actorRole) && !isSelf) {
-    const isTeammate = await sharesContentPiece(actor._id, person._id);
-    if (!isTeammate) {
-      const error = new Error('Forbidden: You can only view profiles of teammates on shared content pieces.');
-      error.statusCode = 403;
-      error.code = 'FORBIDDEN_TEAMMATE_OUTSIDE_SHARED_PIECE';
-      throw error;
-    }
+    const error = new Error('Person not found');
+    error.statusCode = 404;
+    error.code = 'PERSON_NOT_FOUND';
+    throw error;
   }
 
   const deptName = person.departmentId?.name || (typeof person.department === 'string' ? person.department : '');
@@ -575,10 +573,11 @@ export async function getPersonWorkHistory(targetPersonId, user) {
   const isSelf = actorId === targetPersonId?.toString();
   const isElevated = seesAll(actorRole);
 
+  // Fixed rule 5: another person's work history does not exist for a worker (404).
   if (!isSelf && !isElevated) {
-    const error = new Error('Forbidden: You can only view your own work history');
-    error.statusCode = 403;
-    error.code = 'FORBIDDEN';
+    const error = new Error('Person not found');
+    error.statusCode = 404;
+    error.code = 'PERSON_NOT_FOUND';
     throw error;
   }
 

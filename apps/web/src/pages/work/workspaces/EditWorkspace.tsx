@@ -757,20 +757,16 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                         const authorIdStr = String(
                           (comment.authorId as any)?._id || (comment.authorId as any)?.id || comment.authorId || ''
                         );
-                        const roleLower = String(comment.authorRole || '').toLowerCase();
-                        const nameLower = String(comment.authorName || '').toLowerCase();
                         const ownerIdStr = String(
                           (workItem.ownerId as any)?._id || (workItem.ownerId as any)?.id || workItem.ownerId || ''
                         );
 
+                        // Styled as review feedback: anyone but the step owner, or (author unknown) a
+                        // role that reviews. By permission, never by role or display name.
                         const isReviewer =
-                          roleAccess(roleLower).can('review.decide') ||
-                          roleLower === 'admin' ||
-                          nameLower.includes('head') ||
-                          nameLower.includes('creative') ||
-                          nameLower.includes('reviewer') ||
-                          nameLower.includes('manager') ||
-                          (Boolean(ownerIdStr) && Boolean(authorIdStr) && authorIdStr !== ownerIdStr);
+                          Boolean(ownerIdStr) && Boolean(authorIdStr)
+                            ? authorIdStr !== ownerIdStr
+                            : roleAccess(String(comment.authorRole || '')).can('review.decide');
                         const isResolved = !!checkedComments[comment.id];
 
                         return (

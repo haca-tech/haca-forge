@@ -361,12 +361,12 @@ describe('INDIVIDUAL TRACKING AND TIMING SUITE', () => {
       expect(aliceRes.body.data.done).toBeDefined();
       expect(aliceRes.body.data.summary).toBeDefined();
 
-      // Alice cannot view Bob's work history (HTTP 403)
+      // Alice cannot view Bob's work history: it does not exist for her (fixed rule 5: 404)
       const forbidRes = await request(app)
         .get(`/api/people/${workerB._id}/work-history`)
         .set('Authorization', `Bearer ${workerAToken}`);
 
-      expect(forbidRes.status).toBe(403);
+      expect(forbidRes.status).toBe(404);
     });
 
     it('elevated roles (admin, head, sm, exec) can view any person work history with zero ranking', async () => {

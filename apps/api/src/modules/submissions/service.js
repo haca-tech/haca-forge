@@ -1166,10 +1166,11 @@ export async function getRatingsSummary(personId, user) {
   // - A worker reads ONLY their own ratings
   // - creative_lead/growth_lead, sm_manager, admin, creative_head/production_head read anyone's
   // - NO comparative ranking or leaderboards
+  // Fixed rule 5: another person's ratings do not exist for a worker (404, not 403).
   if (isOwnScope(role) && userId !== targetIdStr) {
-    const err = new Error('Workers are permitted to inspect only their own quality ratings');
-    err.statusCode = 403;
-    err.code = 'FORBIDDEN_RATINGS_ACCESS';
+    const err = new Error('Not found');
+    err.statusCode = 404;
+    err.code = 'NOT_FOUND';
     throw err;
   }
 

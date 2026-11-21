@@ -369,8 +369,9 @@ describe('Workspaces WS4: Ratings in Profiles, Guardrails, and Reports', () => {
         .get(`/api/submissions/ratings/summary/${workerAUser._id}`)
         .set('Authorization', `Bearer ${workerBToken}`);
 
-      expect(res.status).toBe(403);
-      expect(res.body.error?.code).toBe('FORBIDDEN_RATINGS_ACCESS');
+      // Fixed rule 5: another worker's ratings do not exist for a worker (404, not 403).
+      expect(res.status).toBe(404);
+      expect(res.body.error?.code).toBe('NOT_FOUND');
     });
 
     it('enforces privacy guardrail on /api/people/:id/ratings route as well', async () => {
@@ -378,8 +379,9 @@ describe('Workspaces WS4: Ratings in Profiles, Guardrails, and Reports', () => {
         .get(`/api/people/${workerAUser._id}/ratings`)
         .set('Authorization', `Bearer ${workerBToken}`);
 
-      expect(res.status).toBe(403);
-      expect(res.body.error?.code).toBe('FORBIDDEN_RATINGS_ACCESS');
+      // Fixed rule 5: another worker's ratings do not exist for a worker (404, not 403).
+      expect(res.status).toBe(404);
+      expect(res.body.error?.code).toBe('NOT_FOUND');
     });
 
     it('allows leadership roles (creative_head, sm_manager, admin, executive) to inspect worker ratings', async () => {

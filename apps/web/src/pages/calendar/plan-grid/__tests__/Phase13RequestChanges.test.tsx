@@ -185,8 +185,9 @@ describe('The SM Manager sees the request and applies the suggestion', () => {
 describe('The other lead sees the grid read-only', () => {
   it('Growth Lead on an SM plan: no review controls, and the note says who reviews it', async () => {
     role = 'growth_lead';
-    await show({ permissions: { canEdit: false, canReview: false, readOnly: true } });
-    expect(screen.getByText("Read-only view: the Creative Lead reviews this calendar's plans.")).toBeInTheDocument();
+    // The note names the calendar's configured plan approvers (from the API), not a role.
+    await show({ permissions: { canEdit: false, canReview: false, readOnly: true }, planApprovers: ['Check Lead'] });
+    expect(screen.getByText("Read-only view: Check Lead approves this calendar's plans.")).toBeInTheDocument();
     for (const name of [/Request changes on plan/, /Approve whole plan/, /Approve selected/]) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
   });
 });

@@ -18,7 +18,6 @@ import {
   type PlanGridColumnKey,
   type StageKey,
   type PlanRowSuggestions,
-  deciderRoleFor,
 } from '@mmp/shared';
 import { apiFetch, ApiError } from '../../../lib/api';
 import { statusClass, statusTone } from '../../../lib/statusTone';
@@ -1050,7 +1049,9 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
 
         {readOnly && data && (
           <p className="text-sm text-ui-muted">
-            {`Read-only view: the ${deciderRoleFor(calendar) === 'growth_lead' ? 'Growth Lead' : 'Creative Lead'} reviews this calendar's plans.`}
+            {data.planApprovers?.length
+              ? `Read-only view: ${data.planApprovers.join(', ')} ${data.planApprovers.length === 1 ? 'approves' : 'approve'} this calendar's plans.`
+              : "Read-only view: this calendar's plan approvers review its plans."}
           </p>
         )}
         {isPhone && canEdit && <p className="text-sm text-ui-muted">Paste from Excel works on a tablet or computer. Here, add or edit one row at a time.</p>}
