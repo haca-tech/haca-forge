@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 import { refreshSession } from '../lib/api';
+import { wireAccessEvents } from '../lib/accessEvents';
 
 let socketInstance: Socket | null = null;
 
@@ -61,6 +62,8 @@ export function useSocket() {
         reconnectionDelay: 1000,
       });
       socketInstance = socket;
+      // access:changed and reconnects reload /auth/me (AuthContext listens).
+      wireAccessEvents(socket);
       let renewedSinceLastConnect = false;
 
       socket.on('connect', () => {

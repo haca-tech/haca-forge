@@ -50,5 +50,5 @@ export function withoutContact(payload) {
   return strip(JSON.parse(JSON.stringify(payload)));
 }
 
-/** Socket rooms for these roles: `role:<key>`. Every connection joins its role's room at the handshake. */
-export const roleRooms = (roles) => roles.map((role) => `role:${role}`);
+/** User rooms for these people (`user:<id>`): socket events go to the people the access resolver picks. */
+export const userRooms = (people) => [...new Set((people || []).map((p) => `user:${String(p?._id || p)}`))];

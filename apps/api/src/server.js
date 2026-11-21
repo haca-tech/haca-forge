@@ -165,11 +165,7 @@ io.on("connection", (socket) => {
   if (socket.user?.userId) {
     socket.join(`user:${socket.user.userId}`);
     logger.debug(`Socket joined personal room: user:${socket.user.userId}`);
-
-    if (socket.user.role) {
-      const normalizedRole = normalizeRole(socket.user.role);
-      socket.join(`role:${normalizedRole}`);
-    }
+    // No role rooms: events go to the user rooms the access resolver picks (recipientsFor).
 
     setupChatSocket(io, socket);
   }

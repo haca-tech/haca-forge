@@ -10,6 +10,7 @@ import { eventBus, EVENTS } from '../../lib/events.js';
 import { logActivity } from '../activity/service.js';
 import { syncUserTeamChatMembership } from '../chat/service.js';
 import { hasPermission, isProtectedAccount, rolesWith } from '../../lib/roleAccess.js';
+import { changePersonAccess } from '../accessConfig/personAccess.service.js';
 
 export async function resolveDepartmentObjectId(rawDept) {
   if (!rawDept) return null;
@@ -218,6 +219,7 @@ export async function approveAccessRequest(id, reviewData = {}, adminUser) {
 
   // Upsert or activate Person
   let user = await Person.findOne({ email: accessReq.email });
+  let reactivate = null;
   if (!user) {
     user = new Person({
       name: accessReq.name,
@@ -233,17 +235,18 @@ export async function approveAccessRequest(id, reviewData = {}, adminUser) {
       resetPasswordExpiresAt: expiresAt,
     });
   } else {
-    user.role = assignedRole;
+    // Role and status: changePersonAccess, after the other fields are saved.
+    reactivate = { role: assignedRole, status: 'active' };
     user.jobRole = assignedJobRole;
     user.departmentId = assignedDepartmentId;
     user.reportsToIds = assignedReportsToIds;
     user.weeklyCapacityHours = assignedCapacity;
-    user.status = 'active';
     user.mustSetPassword = true;
     user.resetPasswordTokenHash = tokenHash;
     user.resetPasswordExpiresAt = expiresAt;
   }
   await user.save();
+  if (reactivate) await changePersonAccess(user, reactivate, adminUser);
 
   // Sync team-chat membership (active user joins the team channel)
   await syncUserTeamChatMembership(user._id).catch(() => {});

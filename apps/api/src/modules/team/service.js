@@ -23,6 +23,7 @@ import { calculateIndividualWorkMeasures, formatDuration, normalizeRole, ROLE_LA
 } from '@mmp/shared';
 import * as access from '../../lib/accessResolver.js';
 import { canSeeContacts, hasPermission, isOperationalManager, isOwnScope, isProtectedAccount, isSuperuser } from '../../lib/roleAccess.js';
+import { changePersonAccess } from '../accessConfig/personAccess.service.js';
 
 /**
  * Worker isolation guard: A executive (worker) accessing someone else's profile gets HTTP 404 (strictly anti-harvesting).
@@ -843,6 +844,7 @@ export async function getPersonChanges(targetPersonId, actor) {
 export async function updatePersonDetails(targetPersonId, updates, actor) {
   const actorRole = normalizeRole(actor?.role);
   const target = await Person.findById(targetPersonId);
+  let accessChanges = null;
 
   if (!target) {
     const error = new Error('Person not found');
@@ -941,8 +943,8 @@ export async function updatePersonDetails(targetPersonId, updates, actor) {
     if (updates.name !== undefined) target.name = updates.name.trim();
     if (updates.preferredName !== undefined) target.preferredName = updates.preferredName.trim();
     if (updates.email !== undefined) target.email = updates.email.toLowerCase().trim();
-    if (updates.role !== undefined) target.role = updates.role;
-    if (updates.status !== undefined) target.status = updates.status;
+    // Role and status go through changePersonAccess after the other fields are saved.
+    if (updates.role !== undefined || updates.status !== undefined) accessChanges = { role: updates.role, status: updates.status };
     if (updates.skills !== undefined) target.skills = updates.skills;
     if (updates.languages !== undefined) target.languages = updates.languages;
     if (updates.about !== undefined) target.about = updates.about;
@@ -951,6 +953,7 @@ export async function updatePersonDetails(targetPersonId, updates, actor) {
   }
 
   await target.save();
+  if (accessChanges) await changePersonAccess(target, accessChanges, actor);
 
   if (auditEntries.length > 0) {
     await PersonChangeAudit.insertMany(auditEntries);
@@ -1045,8 +1048,7 @@ export async function toggleStatus(personId, actor) {
     throw error;
   }
 
-  person.status = person.status === 'active' ? 'suspended' : 'active';
-  await person.save();
+  await changePersonAccess(person, { status: person.status === 'active' ? 'suspended' : 'active' }, actor);
 
   if (person.status === 'suspended') {
     await Session.deleteMany({ userId: person._id });

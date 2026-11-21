@@ -346,26 +346,28 @@ describe('Phase 12b: the 7-role model', () => {
         socket.on('connect_error', () => resolve(null));
       });
 
-    it('disconnects the sockets; the reconnect joins the new role room; /auth/me returns the new role', async () => {
+    it('sends access:changed, disconnects the sockets; the reconnect carries the new role; /auth/me returns it', async () => {
       const socket = await connect(P.mover);
       expect(socket).toBeTruthy();
-      expect((await io.in('role:executive').fetchSockets()).some((s) => s.user?.userId === String(P.mover._id))).toBe(true);
+      const told = new Promise((resolve) => socket.once('access:changed', () => resolve(true)));
       const gone = new Promise((resolve) => socket.once('disconnect', resolve));
       expect((await as('admin').patch(`/api/team/${P.mover._id}`, { role: 'sm_manager', workPreferences: [] })).status).toBe(200);
+      expect(await told).toBe(true);
       expect(await gone).toBe('io server disconnect');
 
       const again = await connect(P.mover);
       expect(again).toBeTruthy();
-      const inRoom = async (room) => (await io.in(room).fetchSockets()).some((s) => s.user?.userId === String(P.mover._id));
-      expect(await inRoom('role:sm_manager')).toBe(true);
-      expect(await inRoom('role:executive')).toBe(false);
+      const mine = await io.in(`user:${P.mover._id}`).fetchSockets();
+      expect(mine.map((s) => s.user?.role)).toEqual(['sm_manager']);
       const me = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${tokenFor(P.mover)}`);
       expect(me.body.user?.role || me.body.data?.user?.role).toBe('sm_manager');
       expect(me.body.permissions || me.body.data?.permissions).toEqual(ROLE_PERMISSIONS.sm_manager);
     });
 
-    it('live review comments go to the two lead rooms and admin, not to the read-only heads', async () => {
-      const lead = await connect(P.growthLead);
+    it('live review comments go to the step calendar\'s reviewers and admin, not the other lead or the read-only heads', async () => {
+      // Phase C4: recipients chosen by the access resolver (an SM-calendar step: the Creative Lead).
+      const lead = await connect(P.creativeLead);
+      const otherLead = await connect(P.growthLead);
       const head = await connect(P.creativeHead);
       const w = await step('editor', { status: 'Pending' });
       const v = await version(w);
@@ -377,9 +379,11 @@ describe('Phase 12b: the 7-role model', () => {
         });
       });
       const leadGot = got(lead);
+      const otherGot = got(otherLead);
       const headGot = got(head);
       expect((await as('creativeLead').post(`/api/submissions/${v._id}/comments`, { text: 'Live note' })).status).toBe(201);
       expect(await leadGot).toBe(true);
+      expect(await otherGot).toBe(false);
       expect(await headGot).toBe(false);
     });
   });

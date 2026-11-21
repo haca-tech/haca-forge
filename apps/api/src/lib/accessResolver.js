@@ -8,6 +8,9 @@ import {
   withinCalendarScope,
 } from '@mmp/shared';
 import { Person } from '../modules/people/model.js';
+import { ROLE_KEYS, systemRoleOf } from '@mmp/shared';
+
+const lockedRoles = () => ROLE_KEYS.filter((role) => systemRoleOf({ role })?.locked);
 import { WorkflowConfig, onWorkflowConfigChange } from '../modules/accessConfig/workflowConfig.model.js';
 
 /**
@@ -170,6 +173,12 @@ export async function recipientsFor(event, item = {}) {
       if (inDept) return [inDept];
       const any = await Person.findOne(audienceQuery(config.posters)).sort({ createdAt: 1 }).lean();
       return any ? [any] : [];
+    }
+    case 'comment.posted': {
+      // Live review comments: the step calendar's reviewers (or the fallback) and every active admin.
+      const { people } = await reviewersFor(item);
+      const admins = await Person.find({ role: { $in: lockedRoles() }, status: 'active' }).select('_id').lean();
+      return [...new Map([...people, ...admins].map((p) => [String(p._id), p])).values()];
     }
     case 'access.requested':
       return Person.find({ role: 'admin', status: 'active' }).select('_id email name notificationPreferences');

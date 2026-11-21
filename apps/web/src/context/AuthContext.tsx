@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { apiFetch, clearLegacyTokens } from '../lib/api';
 import type { UserRole, PermissionKey } from '@mmp/shared';
 import { accessFromUser, type AccessInfo } from '../lib/accessCore';
+import { onAccessChanged } from '../lib/accessEvents';
 
 export interface User {
   id: string;
@@ -82,6 +83,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     clearLegacyTokens();
     refreshUser();
   }, [refreshUser]);
+
+  // Access can change while signed in (role, calendar limit, a calendar's reviewers): reload
+  // /auth/me on access:changed and reconnects (lib/accessEvents), and when the tab regains focus.
+  const signedIn = Boolean(user);
+  useEffect(() => {
+    if (!signedIn) return undefined;
+    let last = 0;
+    const refresh = (force = false) => {
+      const now = Date.now();
+      if (!force && now - last < 5000) return;
+      last = now;
+      void refreshUser();
+    };
+    const off = onAccessChanged(() => refresh(true));
+    const onFocus = () => refresh();
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      off();
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [signedIn, refreshUser]);
 
   const login = async (credentials: { email: string; password: string }) => {
     setIsLoading(true);

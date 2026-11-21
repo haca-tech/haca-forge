@@ -14,7 +14,8 @@ import { recordRoundSubmission } from '../workItems/rounds.js';
 import { assertCanHoldEditorLock, canSeePrivateReview, isTeamMember, requireParticipant } from '../workItems/access.js';
 import { visibleVersionsFilter } from '../workItems/viewerRules.js';
 import { createNotification, getSocketIO } from '../notifications/service.js';
-import { roleRooms, withoutContact } from '../../lib/socketHub.js';
+import { userRooms, withoutContact } from '../../lib/socketHub.js';
+import * as access from '../../lib/accessResolver.js';
 import { assertOutputUrl, assertOutputFiles } from '../uploads/outputUrls.js';
 import {
   assertDecisionAllowed,
@@ -673,9 +674,9 @@ export async function addComment(submissionId, commentData, user) {
 
   const io = getSocketIO();
   if (io) {
-    if (ownerId) io.to(`user:${ownerId}`).emit('comment:new', populated);
-    // The reviewers: both lead rooms and admin (Phase 12b).
-    io.to(roleRooms([...APPROVER_ROLES, 'admin'])).emit('comment:new', populated);
+    // The step owner, and the resolver's recipients: this calendar's reviewers and the admins.
+    const rooms = userRooms([...(ownerId ? [ownerId] : []), ...(await access.recipientsFor('comment.posted', workItem || {}))]);
+    if (rooms.length) io.to(rooms).emit('comment:new', populated);
   }
 
   return populated;
@@ -878,8 +879,8 @@ export async function requestRevision(submissionId, { comment, rootCause }, user
       );
       const io = getSocketIO();
       if (io) {
-        if (ownerId) io.to(`user:${ownerId}`).emit('comment:new', populatedComment);
-        io.to(roleRooms([...APPROVER_ROLES, 'admin'])).emit('comment:new', populatedComment);
+        const rooms = userRooms([...(ownerId ? [ownerId] : []), ...(await access.recipientsFor('comment.posted', workItem || {}))]);
+        if (rooms.length) io.to(rooms).emit('comment:new', populatedComment);
       }
     });
   }

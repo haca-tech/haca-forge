@@ -7,6 +7,7 @@ import { logActivity } from '../activity/service.js';
 import { syncUserTeamChatMembership } from '../chat/service.js';
 import { normalizeRole, APPROVER_ROLES, READ_ONLY_VIEWER_ROLES, WORKER_ROLE, isApprover, isReadOnlyViewer, isWorker, canSeeContactDetails } from '@mmp/shared';
 import { canSeeContacts, hasPermission, isOperationalManager, isOwnScope, isProtectedAccount, isSuperuser, rolesOutsidePools, seesAll } from '../../lib/roleAccess.js';
+import { changePersonAccess } from '../accessConfig/personAccess.service.js';
 
 /** Active-step limit (workload): a whole number from 1 to 20, else 400. */
 function validLimit(value) {
@@ -186,6 +187,7 @@ export async function createPerson(data, actor) {
 export async function updatePerson(id, updates, actor) {
   const actorRole = normalizeRole(actor?.role);
   const target = await Person.findById(id);
+  let accessChanges = null;
 
   if (!target) {
     const error = new Error('Person not found');
@@ -241,8 +243,8 @@ export async function updatePerson(id, updates, actor) {
     // Admin has full control
     if (updates.name !== undefined) target.name = updates.name;
     if (updates.email !== undefined) target.email = updates.email.toLowerCase().trim();
-    if (updates.role !== undefined) target.role = updates.role;
-    if (updates.status !== undefined) target.status = updates.status;
+    // Role and status go through changePersonAccess after the other fields are saved.
+    if (updates.role !== undefined || updates.status !== undefined) accessChanges = { role: updates.role, status: updates.status };
     if (updates.jobRole !== undefined) target.jobRole = updates.jobRole;
     if (updates.departmentId !== undefined) target.departmentId = updates.departmentId;
     if (updates.reportsToIds !== undefined) target.reportsToIds = updates.reportsToIds;
@@ -263,6 +265,7 @@ export async function updatePerson(id, updates, actor) {
   }
 
   await target.save();
+  if (accessChanges) await changePersonAccess(target, accessChanges, actor);
 
   await logActivity({
     entityType: 'person',
@@ -299,9 +302,9 @@ export async function suspendPerson(id, actor) {
     throw error;
   }
 
-  target.status = 'suspended';
   target.refreshTokenHash = undefined; // Force logout
   await target.save();
+  await changePersonAccess(target, { status: 'suspended' }, actor);
 
   await logActivity({
     entityType: 'person',
@@ -334,8 +337,7 @@ export async function reactivatePerson(id, actor) {
     throw error;
   }
 
-  target.status = 'active';
-  await target.save();
+  await changePersonAccess(target, { status: 'active' }, actor);
 
   await logActivity({
     entityType: 'person',

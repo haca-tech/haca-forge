@@ -117,13 +117,17 @@ describe('Phase 4d: sockets', () => {
       expect(r.error).toMatch(/suspended/i);
     });
 
-    it('takes the role from the database, not the token', async () => {
+    it('takes the role from the database, not the token (and joins only its user room)', async () => {
       const r = await connect(people.member2, { claims: { role: 'admin' } });
       expect(r.ok).toBe(true);
-      io.to('role:admin').emit('p4d:probe', 'admin-room');
-      io.to('role:executive').emit('p4d:probe', 'member-room');
+      const mine = await io.in(`user:${people.member2._id}`).fetchSockets();
+      expect(mine.map((s) => s.user?.role)).toEqual(['executive']);
+      // Phase C4: no role rooms; events go to the user rooms the access resolver picks.
+      expect(mine[0].rooms.has('role:admin')).toBe(false);
+      expect([...mine[0].rooms].some((room) => room.startsWith('role:'))).toBe(false);
+      io.to(`user:${people.member2._id}`).emit('p4d:probe', 'user-room');
       await wait(300);
-      expect(got(r.socket, 'p4d:probe').map((e) => e.payload)).toEqual(['member-room']);
+      expect(got(r.socket, 'p4d:probe').map((e) => e.payload)).toEqual(['user-room']);
     });
   });
 
@@ -161,18 +165,17 @@ describe('Phase 4d: sockets', () => {
       expect(await reason).toBe('io server disconnect');
     });
 
-    it('a role change disconnects, and the reconnect joins the new role room', async () => {
+    it('a role change sends access:changed, then disconnects; the reconnect carries the new role', async () => {
       const { socket } = await connect(people.promotee);
       const reason = disconnected(socket);
       const res = await request(app).patch(`/api/people/${people.promotee._id}`).set('Authorization', `Bearer ${tokenFor(people.admin)}`).send({ role: 'sm_manager' });
       expect(res.status).toBe(200);
       expect(await reason).toBe('io server disconnect');
+      expect(got(socket, 'access:changed')).toHaveLength(1); // delivered before the disconnect
       const again = await connect(people.promotee);
       expect(again.ok).toBe(true);
-      io.to('role:executive').emit('p4d:role', 'old');
-      io.to('role:sm_manager').emit('p4d:role', 'new');
-      await wait(300);
-      expect(got(again.socket, 'p4d:role').map((e) => e.payload)).toEqual(['new']);
+      const mine = await io.in(`user:${people.promotee._id}`).fetchSockets();
+      expect(mine.map((s) => s.user?.role)).toEqual(['sm_manager']);
     });
 
     it('an unrelated profile edit does not disconnect', async () => {

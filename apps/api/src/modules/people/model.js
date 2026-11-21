@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 import { ROLE_KEYS, JOB_ROLES, normalizeRole, WORK_PREFERENCES, WORKER_ROLE, CALENDAR_KEYS } from '@mmp/shared';
-import { disconnectUserSockets } from '../../lib/socketHub.js';
 
 const personSchema = new mongoose.Schema(
   {
@@ -257,17 +256,11 @@ personSchema.post('init', function () {
   this.$locals.accessKey = `${this.role}|${this.status}`;
 });
 
-// A changed role or status ends the user's live sockets. A reconnect goes through the
-// handshake again, which refuses a suspended user and joins the new role's room.
-personSchema.pre('save', function (next) {
-  this.$locals.resetSockets = !this.isNew && this.$locals.accessKey !== `${this.role}|${this.status}`;
-  next();
-});
-
+// Role, status and calendar limit change only through changePersonAccess
+// (accessConfig/personAccess.service.js), which sends `access:changed` and then closes the
+// person's sockets. Here we only remember what was loaded, for the last-admin guard.
 personSchema.post('save', function (doc) {
-  if (doc.$locals.resetSockets) disconnectUserSockets(doc._id);
   doc.$locals.accessKey = `${doc.role}|${doc.status}`;
-  doc.$locals.resetSockets = false;
 });
 
 // Fixed rule: there is always at least one active admin. A change that would turn the last
