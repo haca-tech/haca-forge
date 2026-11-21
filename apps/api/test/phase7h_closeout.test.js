@@ -76,11 +76,10 @@ describe('Phase 7 close-out', () => {
       expect(owner[0].metadata.dueDay).toBe(manager[0].metadata.dueDay);
     });
 
-    it('a department without an SM manager notifies an active SM manager', async () => {
+    it('a department without an SM manager notifies every active SM manager (Phase C5; was the first one only)', async () => {
       const manager = await notes(items.noSmDept, 'overdue_manager');
-      expect(manager).toHaveLength(1);
-      const recipient = await Person.findById(manager[0].recipient).lean();
-      expect(recipient.role).toBe('sm_manager');
+      const everySm = (await Person.find({ role: 'sm_manager', status: 'active' }).select('_id').lean()).map((p) => String(p._id)).sort();
+      expect(manager.map((n) => String(n.recipient)).sort()).toEqual(everySm);
     });
 
     it('is not sent for a locked step or a step due today (IST day)', async () => {

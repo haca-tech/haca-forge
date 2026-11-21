@@ -143,7 +143,7 @@ export async function postersFor(piece) {
  *  - revision.flagged: reviewers (active) and the step department's SM Managers (active).
  *  - revision.flag_escalated: reviewers and admins, every status but suspended.
  *  - step.needs_owner: every active poster (SM Manager).
- *  - step.overdue_manager: the first active poster of the step's department by creation, else the first overall.
+ *  - step.overdue_manager: every active poster of the step's department, else every active poster (Phase C5).
  *  - access.requested: every active admin.
  */
 export async function recipientsFor(event, item = {}) {
@@ -167,12 +167,13 @@ export async function recipientsFor(event, item = {}) {
     case 'step.needs_owner':
       return peopleFor(config.posters, calendar);
     case 'step.overdue_manager': {
+      // Phase C5: every SM Manager of the step's department, or every SM Manager when it has none
+      // (was: the first one only).
       const inDept = item.departmentId
-        ? await Person.findOne({ departmentId: item.departmentId, ...audienceQuery(config.posters) }).sort({ createdAt: 1 }).lean()
-        : null;
-      if (inDept) return [inDept];
-      const any = await Person.findOne(audienceQuery(config.posters)).sort({ createdAt: 1 }).lean();
-      return any ? [any] : [];
+        ? (await Person.find({ departmentId: item.departmentId, ...audienceQuery(config.posters) }).sort({ createdAt: 1 }).lean()).filter((p) => withinCalendarScope(p, calendar))
+        : [];
+      if (inDept.length) return inDept;
+      return (await Person.find(audienceQuery(config.posters)).sort({ createdAt: 1 }).lean()).filter((p) => withinCalendarScope(p, calendar));
     }
     case 'comment.posted': {
       // Live review comments: the step calendar's reviewers (or the fallback) and every active admin.

@@ -305,7 +305,7 @@ export async function stepTimeline(workItemId, user) {
   if (!readOnly) {
     if (state === 'awaiting_review' && latest?.status === 'submitted' && (await canDecideOn(user, cal, { ownerId: step.ownerId }))) {
       mainAction = { kind: 'open_review_studio', href: `/feedback/review-studio?submissionId=${latest._id}` };
-    } else if (flag && flag.isFlagged && !flag.rootCause && (await canDecideOn(user, cal, { permission: 'revision.classify' }))) {
+    } else if (flag && flag.isFlagged && !flag.rootCause && (await canDecideOn(user, cal, { permission: 'revision.classify', ownerId: step.ownerId }))) {
       mainAction = { kind: 'classify', flagId: String(flag._id) };
     } else if (isOwner && state === 'changes_requested') {
       mainAction = { kind: 'start_rework' };

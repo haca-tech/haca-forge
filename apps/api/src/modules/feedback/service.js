@@ -403,7 +403,7 @@ export async function classifyRevisionFlag(flagId, { rootCause, rootCauseNotes }
   }
 
   const flag = await RevisionFlag.findById(flagId)
-    .populate('workItemId', 'title departmentId calendar')
+    .populate('workItemId', 'title departmentId calendar ownerId')
     .populate('ownerId', 'name email role');
 
   if (!flag) {
@@ -412,7 +412,12 @@ export async function classifyRevisionFlag(flagId, { rootCause, rootCauseNotes }
     throw error;
   }
   // Phase 13: the lead of the step's calendar (or admin) classifies its root cause.
-  await assertDecidesOn(user, calendarOf(flag.workItemId), { roleCode: 'FORBIDDEN_ACTION', permission: 'revision.classify' });
+  // Phase C5: never on your own step (403 SELF_DECISION), like every other decision.
+  await assertDecidesOn(user, calendarOf(flag.workItemId), {
+    roleCode: 'FORBIDDEN_ACTION',
+    permission: 'revision.classify',
+    ownerId: flag.workItemId?.ownerId?._id || flag.workItemId?.ownerId || null,
+  });
 
   const userId = (user._id || user.id || user.userId)?.toString();
   const classifierPerson = await Person.findOne({

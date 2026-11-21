@@ -208,7 +208,6 @@ async function runOverdueEscalationRule(rule, user) {
 
   let ownerNotified = 0;
   let managerNotified = 0;
-  let anySmManager;
 
   for (const item of overdueItems) {
     const dueDay = istDateKey(item.dueDate || item.deadline);
@@ -240,9 +239,9 @@ Link: /work/${item._id}`,
       ownerNotified++;
     }
 
-    // One SM manager: the step's department's, else any active SM manager.
-    // The resolver picks the step department's poster, else the first poster overall.
-    const [manager] = await access.recipientsFor('step.overdue_manager', item);
+    // Phase C5: every SM Manager of the step's department, or every SM Manager when the department
+    // has none (the resolver's posters). Still once per person per due date.
+    for (const manager of await access.recipientsFor('step.overdue_manager', item)) {
     if (manager?._id && String(manager._id) !== String(owner?._id) && !(await once(manager._id, 'overdue_manager'))) {
       await Notification.create({
         recipient: manager._id,
@@ -264,6 +263,7 @@ Link: /work/${item._id}`,
         });
       }
       managerNotified++;
+    }
     }
   }
 

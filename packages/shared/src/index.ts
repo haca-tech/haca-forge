@@ -4667,10 +4667,10 @@ export const PORTAL_VIEW_SPLIT: Record<string, PermissionKeyV2> = {
 };
 
 /**
- * Permissions that can never be used on your own work (no self-approval). Classifying a flag on
- * your own step is allowed today (feedback/service.js:418 has no owner check); kept for parity.
+ * Permissions that can never be used on your own work (no self-approval). Phase C5: classifying a
+ * revision flag on your own step is blocked too, like every other decision.
  */
-export const SELF_FORBIDDEN_PERMISSIONS: readonly string[] = ["review.decide"];
+export const SELF_FORBIDDEN_PERMISSIONS: readonly string[] = ["review.decide", "revision.classify"];
 
 export type DataScope = "all" | "own";
 export interface SystemRoleDef {

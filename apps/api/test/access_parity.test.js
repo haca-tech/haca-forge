@@ -61,7 +61,8 @@ const ACTIONS = [
   ['review.decide (canDecide)', (r, c, o) => canDecide(userOf(r), c, { ownerId: o }), (u, c, o) => can(u, 'review.decide', { calendar: c, ownerId: o })],
   ['review buttons (canReview, not own)', (r, c, o) => canReview(r) && o !== ME, (u, c, o) => can(u, 'review.decide', { ownerId: o })],
   ['plan approve (plan.service 1160+1169)', (r, c) => (isApprover(r) || r === 'admin') && canDecide(r, c), (u, c) => can(u, 'calendar.approve', { calendar: c })],
-  ['classify flag (route + feedback 418)', (r, c) => has(r, 'revision.classify') && canDecide(r, c), (u, c, o) => can(u, 'revision.classify', { calendar: c, ownerId: o })],
+  // Phase C5 (documented change): classifying a flag on your own step is blocked, like every other decision.
+  ['classify flag (route + feedback 418; C5: not own)', (r, c, o) => has(r, 'revision.classify') && canDecide(r, c) && o !== ME, (u, c, o) => can(u, 'revision.classify', { calendar: c, ownerId: o })],
   ['mark Post posted, not owner (transition 204)', (r) => r === 'sm_manager' || r === 'admin', (u, c) => can(u, 'publish.post', { calendar: c })],
   ['edit live link (published 185)', (r) => r === 'sm_manager' || r === 'admin', (u) => can(u, 'publish.edit_live_link')],
   ['resolve any blocker (transition 256)', (r) => r === 'sm_manager' || r === 'admin', (u) => can(u, 'blocker.resolve.any')],
@@ -209,11 +210,11 @@ describe('Routing parity: reviewers, plan approvers, posters, recipients', () =>
       ...(await Person.find({ role: deciderRoleFor(item.calendar || 'sm'), status: { $ne: 'suspended' } }).lean()),
       ...(await Person.find({ role: 'admin', status: { $ne: 'suspended' } }).lean()),
     ], // automation/runner 431-439
+    // Phase C5 (documented change): every SM Manager of the department, else every SM Manager (was: the first one).
     overdueManager: async (item) => {
-      let m = item.departmentId ? await Person.findOne({ departmentId: item.departmentId, role: 'sm_manager', status: 'active' }).sort({ createdAt: 1 }).lean() : null;
-      if (!m) m = await Person.findOne({ role: 'sm_manager', status: 'active' }).sort({ createdAt: 1 }).lean();
-      return m ? [m] : [];
-    }, // automation/runner 243-248
+      const inDept = item.departmentId ? await Person.find({ departmentId: item.departmentId, role: 'sm_manager', status: 'active' }).lean() : [];
+      return inDept.length ? inDept : Person.find({ role: 'sm_manager', status: 'active' }).lean();
+    },
     admins: () => Person.find({ role: 'admin', status: 'active' }), // notifications/service 184
   };
 
