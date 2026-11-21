@@ -68,7 +68,8 @@ describe.each(['/api/work', '/api/work-items'])('PATCH %s/:id access', (base) =>
     await connectDB();
     await removeLeftovers();
     for (const [key, role] of Object.entries(ROLES)) {
-      people[key] = await Person.create({ name: `Patch ${key}`, email: EMAIL(key), role, status: 'active' });
+      // Workers can own the Edit / Script steps here (the one owner rule checks the job role).
+      people[key] = await Person.create({ name: `Patch ${key}`, email: EMAIL(key), role, status: 'active', ...(role === 'executive' ? { jobRole: 'All Rounder' } : {}) });
     }
   });
 

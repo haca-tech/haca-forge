@@ -34,10 +34,19 @@ const PIECES = [
 vi.mock('../../../../lib/api', () => ({
   apiFetch: vi.fn(async (url: string) => {
     calls.push(url);
+    if (url === '/api/content-pieces/recommend-owners') return { data: RECS };
     if (url.startsWith('/api/content-pieces')) return { data: PIECES };
     return { data: [] };
   }),
 }));
+
+// Issue 2: the API sends each step's eligible owners (the one owner rule).
+const RECS = [
+  { workItemId: 'w-edit', stageKey: 'Edit', stageOrder: 1, currentOwner: { _id: 'u2', name: 'Ravi Editor', email: '' }, recommendedPerson: null, rationale: 'Needs owner', candidatePool: [],
+    eligibleOwners: [{ _id: 'u5', name: 'Esha Editor' }] },
+  { workItemId: 'w-post', stageKey: 'Post', stageOrder: 2, recommendedPerson: null, rationale: 'Needs owner', candidatePool: [],
+    eligibleOwners: [{ _id: 'u9', name: 'Sam Poster' }] },
+];
 
 const Loc: React.FC = () => <div data-testid="loc">{useLocation().search}</div>;
 const show = (path: string, role = 'sm_manager') => {
@@ -56,6 +65,17 @@ beforeEach(() => {
 });
 
 describe('Content Flow Tracker', () => {
+  it('assign dialog: each step offers only its eligible owners; an ineligible current owner is shown but cannot be picked', async () => {
+    show('/calendar?tab=tracker');
+    await waitFor(() => expect(titles()).toHaveLength(2));
+    fireEvent.click(screen.getByRole('button', { name: /^Assign owners: Campus walk cutdown/ }));
+    await waitFor(() => expect(screen.getAllByRole('combobox', { name: 'Assign owner' })).toHaveLength(2));
+    const [editSel, postSel] = screen.getAllByRole('combobox', { name: 'Assign owner' }) as HTMLSelectElement[];
+    const opts = (sel: HTMLSelectElement) => [...sel.options].map((o) => [o.value, o.textContent?.split(' ·')[0].trim(), o.disabled]);
+    expect(opts(postSel)).toEqual([['', '— Needs Owner (Unassigned) —', false], ['u9', 'Sam Poster', false]]);
+    expect(opts(editSel)).toEqual([['', '— Needs Owner (Unassigned) —', false], ['u2', 'Ravi Editor (cannot own this step)', true], ['u5', 'Esha Editor', false]]);
+  });
+
   it('shows approved rows with a count; filters write to the URL and survive a refresh', async () => {
     const first = show('/calendar?tab=tracker');
     await waitFor(() => expect(titles()).toEqual(['Founder story', 'Campus walk cutdown']));

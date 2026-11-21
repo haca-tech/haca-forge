@@ -163,7 +163,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
     posterUser = await Person.create({
       name: 'WV2 Poster Publisher',
       email: 'poster@wv2-journey.com',
-      role: 'executive',
+      role: 'sm_manager', // the one owner rule: Post steps belong to posters (SM Managers)
       passwordHash: 'dummy',
       departmentId: deptSocial._id,
       workPreferences: ['Post'],

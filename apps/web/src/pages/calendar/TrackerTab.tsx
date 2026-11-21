@@ -38,6 +38,8 @@ interface AssignRecommendation {
     person: { _id: string; name: string; email: string; jobRole?: string };
     workload?: WorkloadFigures;
   }>;
+  /** The people who can own this step (the API's owner rule). */
+  eligibleOwners?: Array<{ _id: string; name: string }>;
 }
 
 /**
@@ -404,23 +406,25 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
                         rec.recommendedPerson &&
                         selectedPersonId !== rec.recommendedPerson._id;
 
+                      // Only people who can own this step (the API's one owner rule: active, eligible
+                      // for the step, a poster on the calendar for Post). Older responses: everyone.
                       const optionsMap = new Map<string, any>();
-                      for (const u of allUsers) {
-                        optionsMap.set(u._id, u);
-                      }
-                      if (rec.recommendedPerson?._id) {
-                        optionsMap.set(rec.recommendedPerson._id, rec.recommendedPerson);
-                      }
-                      if (rec.currentOwner?._id) {
-                        optionsMap.set(rec.currentOwner._id, rec.currentOwner);
-                      }
-                      if (Array.isArray(rec.candidatePool)) {
-                        for (const c of rec.candidatePool) {
-                          const m = (c as any)?.member || c;
-                          if (m?._id) optionsMap.set(m._id, m);
+                      if (Array.isArray(rec.eligibleOwners)) {
+                        for (const u of rec.eligibleOwners) optionsMap.set(u._id, u);
+                      } else {
+                        for (const u of allUsers) optionsMap.set(u._id, u);
+                        if (rec.recommendedPerson?._id) optionsMap.set(rec.recommendedPerson._id, rec.recommendedPerson);
+                        if (Array.isArray(rec.candidatePool)) {
+                          for (const c of rec.candidatePool) {
+                            const m = (c as any)?.member || c;
+                            if (m?._id) optionsMap.set(m._id, m);
+                          }
                         }
                       }
                       const availableUsers = Array.from(optionsMap.values());
+                      // A current owner who can no longer own the step is shown, but cannot be picked again.
+                      const currentIneligible =
+                        rec.currentOwner?._id && !optionsMap.has(rec.currentOwner._id) ? rec.currentOwner : null;
 
                       return (
                         <div
@@ -470,6 +474,11 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
                                 className="ui-select w-full"
                               >
                                 <option value="">— Needs Owner (Unassigned) —</option>
+                                {currentIneligible && (
+                                  <option value={currentIneligible._id} disabled>
+                                    {`${currentIneligible.name} (cannot own this step)`}
+                                  </option>
+                                )}
                                 {availableUsers.map((u: any) => (
                                   <option key={u._id} value={u._id}>
                                     {ownerOptionLabel(u.name, teamWorkload.get(String(u._id)))}

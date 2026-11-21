@@ -93,7 +93,8 @@ describe('Pause work with lead approval', () => {
       ['worker', 'executive'],
       ['other', 'executive'],
     ]) {
-      P[key] = await Person.create({ name: `${TAG} ${key}`, email: `${key}@pause-req-test.com`, role, status: 'active' });
+      // Workers can own the Edit steps reassigned here (the one owner rule checks the job role).
+      P[key] = await Person.create({ name: `${TAG} ${key}`, email: `${key}@pause-req-test.com`, role, status: 'active', ...(role === 'executive' ? { jobRole: 'Video Editor' } : {}) });
       tokens[key] = make(P[key]);
     }
   }, 60000);

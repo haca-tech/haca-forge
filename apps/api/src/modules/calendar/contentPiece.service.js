@@ -13,7 +13,8 @@ import { createNotification } from '../notifications/service.js';
 import { resolveScope } from '../../lib/scope.js';
 import { recommendAssignee } from '../assignment/service.js';
 import { normalizeRole, calculateIndividualWorkMeasures, formatDuration } from '@mmp/shared';
-import { hasPermission, isOwnScope } from '../../lib/roleAccess.js';
+import { hasPermission, isOwnScope, stepTakingRoles } from '../../lib/roleAccess.js';
+import { assertCanOwnStep, eligibleOwners } from '../workItems/ownerRule.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -305,6 +306,8 @@ export async function recommendOwnersForPiece(pieceId, user) {
     .sort({ stageOrder: 1 });
 
   const recommendations = [];
+  // Owner dropdowns offer only people who pass the one owner rule for each step.
+  const stepTakers = await Person.find({ status: 'active', role: { $in: stepTakingRoles() } }).select('name role status jobRole calendarScope').sort({ name: 1, _id: 1 }).lean();
 
   for (const st of stages) {
     const rec = await recommendAssignee(
@@ -331,6 +334,7 @@ export async function recommendOwnersForPiece(pieceId, user) {
       overLimitWarning: rec?.overLimitWarning || null,
       recommendedWorkload: recommendedPerson ? rec.recommendedMetrics : null,
       candidatePool: rec?.candidatePool || [],
+      eligibleOwners: (await eligibleOwners(stepTakers, st)).map((p) => ({ _id: String(p._id), name: p.name })),
     });
   }
 
@@ -353,16 +357,19 @@ export async function assignStages(assignmentList, user) {
 
   const results = [];
 
-  for (const assign of assignmentList) {
-    const workItemId = assign.workItemId;
-    const assigneeId = assign.assigneeId || assign.personId;
-    const overrideReason = assign.overrideReason;
-    const workItem = await WorkItem.findById(workItemId);
+  // The one owner rule, checked for every assignment before any is saved (all or nothing, 400).
+  const planned = [];
+  for (const assign of assignmentList || []) {
+    const workItem = await WorkItem.findById(assign.workItemId);
     if (!workItem) continue;
+    const assignee = await Person.findById(assign.assigneeId || assign.personId);
+    await assertCanOwnStep(assignee, workItem);
+    planned.push({ assign, workItem, assignee });
+  }
 
+  for (const { assign, workItem, assignee } of planned) {
+    const overrideReason = assign.overrideReason;
     const previousOwnerId = workItem.ownerId;
-    const assignee = await Person.findById(assigneeId);
-    if (!assignee) continue;
 
     workItem.ownerId = assignee._id;
     await workItem.save();
@@ -547,6 +554,7 @@ export async function reassignStage(pieceId, { stageKey, newOwnerId, overrideRea
     error.statusCode = 404;
     throw error;
   }
+  await assertCanOwnStep(newOwner, stage);
   stage.ownerId = newOwner._id;
   stage.ownerSource = 'manual';
   stage.assignedAt = new Date();

@@ -34,6 +34,7 @@ import {
 } from '@mmp/shared';
 import { recommendAssignee } from '../assignment/service.js';
 import { validatePlanAndRows } from './validation.js';
+import { ownerProblem } from '../workItems/ownerRule.js';
 import * as access from '../../lib/accessResolver.js';
 import { hasPermission, isSuperuser, plannerRoles } from '../../lib/roleAccess.js';
 
@@ -1100,7 +1101,13 @@ export async function generateStagesForApprovedRow(piece, user) {
       dueDate = new Date(plannedStage.dueDate);
     }
 
-    const assignedOwnerId = plannedStage?.ownerId || null;
+    // The one owner rule: a planned owner who can no longer own this step (suspended, or no longer
+    // a poster on this calendar) is dropped; the step waits unowned and "needs an owner" is sent.
+    let assignedOwnerId = plannedStage?.ownerId || null;
+    if (assignedOwnerId) {
+      const planned = await Person.findById(assignedOwnerId).select('name role status jobRole calendarScope').lean();
+      if (await ownerProblem(planned, { stageKey, calendar: piece.calendar || 'sm' })) assignedOwnerId = null;
+    }
     const stageDeptId = await getDepartmentForStage(stageKey, piece.contentType);
 
     const workItem = await WorkItem.create({

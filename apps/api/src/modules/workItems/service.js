@@ -7,6 +7,7 @@ import { logActivity, listRecentActivities } from '../activity/service.js';
 import { ActivityEvent } from '../activity/model.js';
 import { Submission } from '../submissions/model.js';
 import { normalizeWorkType, normalizeRole, WORK_TYPE_DEPARTMENT_MAP, getAvailableActions, APPROVER_ROLES, isWorker } from '@mmp/shared';
+import { assertCanOwnStep } from './ownerRule.js';
 
 export async function createWorkItem(data, user) {
   // 1. Resolve Department ID (auto-infer from workType if omitted)
@@ -472,6 +473,12 @@ export async function updateWorkItem(id, data, user) {
   let ownerChanged = false;
   if (data.ownerId !== undefined) {
     if (data.ownerId?.toString() !== workItem.ownerId?.toString()) {
+      // The one owner rule (clearing the owner is always allowed).
+      if (data.ownerId) {
+        const { Person } = await import('../people/model.js');
+        const candidate = mongoose.isValidObjectId(String(data.ownerId)) ? await Person.findById(data.ownerId) : null;
+        await assertCanOwnStep(candidate, workItem);
+      }
       workItem.ownerId = data.ownerId;
       workItem.assignedAt = data.ownerId ? new Date() : null;
       ownerChanged = true;

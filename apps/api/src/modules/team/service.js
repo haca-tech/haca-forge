@@ -22,6 +22,7 @@ import { calculateIndividualWorkMeasures, formatDuration, normalizeRole, ROLE_LA
   istDateKey,
 } from '@mmp/shared';
 import * as access from '../../lib/accessResolver.js';
+import { ownerProblem } from '../workItems/ownerRule.js';
 import { canSeeContacts, hasPermission, isOperationalManager, isOwnScope, isProtectedAccount, isSuperuser } from '../../lib/roleAccess.js';
 import { savePersonChange } from '../accessConfig/accessAdmin.service.js';
 
@@ -1013,7 +1014,7 @@ export async function reassignSteps(sourcePersonId, { targetPersonId, workItemId
   const refused = [];
   for (const step of moving) {
     if (!step.stageKey) continue; // standalone work items have no step eligibility
-    if (!(await access.stepEligibility(targetPerson, step))) refused.push(step);
+    if (await ownerProblem(targetPerson, step)) refused.push(step); // the one owner rule
   }
   if (refused.length) {
     const error = new Error(

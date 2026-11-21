@@ -9,6 +9,7 @@ import { WORK_TYPE_DEPARTMENT_MAP, READ_ONLY_VIEWER_ROLES, isWorker, effectiveSt
 import { resolveProfileObjectId } from '../referenceData/service.js';
 import { ownerCandidates, pickOwner } from '../workload/service.js';
 import { isOwnScope, stepTakingRoles } from '../../lib/roleAccess.js';
+import { assertCanOwnStep, ownerProblem } from '../workItems/ownerRule.js';
 
 /**
  * Auto-Assignment Recommendation Engine
@@ -48,6 +49,14 @@ export async function recommendAssignee(criteria = {}, user) {
     candidates = (
       await Person.find({ status: 'active', role: { $in: stepTakingRoles() } })
     ).filter((person) => effectiveStepsFor(person).includes(effectiveStageKey));
+    // The one owner rule: a Post step only for a poster on the step's calendar.
+    if (effectiveStageKey === 'Post') {
+      const item = workItemId && mongoose.Types.ObjectId.isValid(workItemId) ? await WorkItem.findById(workItemId).select('calendar').lean() : null;
+      const step = { stageKey: 'Post', calendar: item?.calendar || criteria.calendar || 'sm' };
+      const kept = [];
+      for (const person of candidates) if (!(await ownerProblem(person, step))) kept.push(person);
+      candidates = kept;
+    }
   } else {
     // Standalone Work Items: Candidates come from target department responsible for workType
     if (departmentId && mongoose.Types.ObjectId.isValid(departmentId)) {
@@ -156,6 +165,8 @@ export async function recordAssignmentOverride(data, user) {
     error.statusCode = 400;
     throw error;
   }
+  // The one owner rule: active, eligible for the step, a poster on the calendar for Post (400).
+  await assertCanOwnStep(chosenPerson, workItem);
 
   const override = await AssignmentOverride.create({
     workItemId,

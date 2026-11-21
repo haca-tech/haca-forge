@@ -221,7 +221,7 @@ describe('SCOPE RESET R4: Dashboard, Reports, Automation, Journey & Route-Table 
               pipeline: 'reel_a',
               brief: 'Detailed brief for R4 Product Feature Reel',
               forTeam: 'Marketing',
-              postingOwnerId: memberUser._id,
+              postingOwnerId: smUser._id, // the one owner rule: Post only for posters (SM Manager)
               postingDate: new Date(Date.now() + 7 * 86400000),
               needsScript: true,
               needsShoot: true,

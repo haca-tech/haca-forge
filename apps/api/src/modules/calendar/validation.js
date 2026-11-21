@@ -16,6 +16,7 @@ import { Person } from '../people/model.js';
 import { ownerCandidates } from '../workload/service.js';
 import { ownerCandidateRoles } from '../../lib/roleAccess.js';
 import { postersFor } from '../../lib/accessResolver.js';
+import { ownerProblem } from '../workItems/ownerRule.js';
 
 /**
  * Standard start-of-day for comparison
@@ -236,6 +237,14 @@ export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting =
           message: `Posting owner is required for postable type "${deliverableType}".`,
         });
       }
+      if (postingOwnerId) {
+        // The one owner rule: the posting owner must be a poster on this row's calendar.
+        const poster = membersById.get(postingOwnerId) || (await Person.findById(postingOwnerId).lean());
+        const issue = await ownerProblem(poster, { stageKey: 'Post', calendar: rowCalendar });
+        if (issue) {
+          errors.push({ rowNumber: rowNum, topic, field: 'postingOwnerId', code: VALIDATION_ERROR_CODES.INVALID_STAGE_OWNER, message: issue });
+        }
+      }
     }
 
     // Validate Stages in stagePlan
@@ -305,7 +314,17 @@ export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting =
           // Eligibility (Phase 12b): job role sets it, preferences narrow it; Post is SM Managers only.
           {
             const prefs = effectiveStepsFor(member);
-            if (!prefs.includes(st.stageKey)) {
+            // The one owner rule: a Post step only for a poster on this row's calendar.
+            const ownerIssue = st.stageKey === 'Post' ? await ownerProblem(member, { stageKey: 'Post', calendar: row.calendar || plan.calendar || 'sm' }) : null;
+            if (ownerIssue) {
+              errors.push({
+                rowNumber: rowNum,
+                topic,
+                field: `stages.${st.stageKey}.ownerId`,
+                code: VALIDATION_ERROR_CODES.INVALID_STAGE_OWNER,
+                message: ownerIssue,
+              });
+            } else if (!prefs.includes(st.stageKey)) {
               errors.push({
                 rowNumber: rowNum,
                 topic,

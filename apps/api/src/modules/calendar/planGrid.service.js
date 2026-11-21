@@ -325,8 +325,15 @@ export async function loadGrid({ calendar = 'sm', month, planId } = {}, user) {
   }
 
   const { periodStart, periodEnd } = monthPeriod(monthKey);
+  // Owner dropdowns offer only eligible people: Post only for this calendar's posters.
+  const posterIds = perms.canEdit ? new Set((await access.postersFor({ calendar })).people.map((p) => String(p._id))) : new Set();
   const people = perms.canEdit
-    ? (await activeOwnerCandidates()).map((p) => ({ _id: String(p._id), name: p.name, role: p.role, workPreferences: p.workPreferences || [] }))
+    ? (await activeOwnerCandidates()).map((p) => ({
+        _id: String(p._id),
+        name: p.name,
+        role: p.role,
+        workPreferences: (p.workPreferences || []).filter((st) => st !== 'Post' || posterIds.has(String(p._id))),
+      }))
     : [];
 
   return {

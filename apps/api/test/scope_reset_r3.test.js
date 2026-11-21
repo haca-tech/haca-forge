@@ -386,7 +386,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
         contentType: 'Reel',
         brief: 'Reel A brief workshop',
         forTeam: 'Marketing',
-        postingOwnerId: editorUser._id,
+        postingOwnerId: smUser._id, // the one owner rule: Post only for posters (SM Manager)
         needsScript: true,
         needsShoot: true,
         rowStatus: 'draft',
@@ -403,7 +403,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
         contentType: 'Reel',
         brief: 'Reel B brief campus tour',
         forTeam: 'Marketing',
-        postingOwnerId: editorUser._id,
+        postingOwnerId: smUser._id, // the one owner rule: Post only for posters (SM Manager)
         needsScript: false,
         needsShoot: true,
         rowStatus: 'draft',
@@ -420,7 +420,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
         contentType: 'Carousel Post',
         brief: 'Carousel tips brief',
         forTeam: 'Marketing',
-        postingOwnerId: editorUser._id,
+        postingOwnerId: smUser._id, // the one owner rule: Post only for posters (SM Manager)
         rowStatus: 'draft',
         pipeline: 'design',
         hasPostStage: true,
@@ -1071,7 +1071,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
         contentType: 'Static Post',
         brief: 'Notif Topic Brief',
         forTeam: 'Marketing',
-        postingOwnerId: editorUser._id,
+        postingOwnerId: smUser._id, // the one owner rule: Post only for posters (SM Manager)
         pipeline: 'design',
         rowStatus: 'draft',
       });
