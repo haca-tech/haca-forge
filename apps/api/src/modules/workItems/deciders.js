@@ -55,9 +55,12 @@ export async function canDecideOn(user, calendar, { ownerId, permission = 'revie
   return access.can(user, permission, { calendar, ownerId });
 }
 
-/** The active people who decide on this calendar (its reviewers), plus admin when asked. */
+/**
+ * The active people who decide on this calendar: its reviewers (or plan approvers), or the
+ * fallback when none of them is active (Phase E fix: was nobody). Plus admin when asked.
+ */
 export async function decidersFor(calendar, { includeAdmin = false, plans = false } = {}) {
-  const { primary } = plans ? await access.planApproversFor({ calendar }) : await access.reviewersFor({ calendar });
+  const { people: primary } = plans ? await access.planApproversFor({ calendar }) : await access.reviewersFor({ calendar });
   if (!includeAdmin) return primary;
   const admins = await Person.find({ role: 'admin', status: 'active' });
   const seen = new Set(primary.map((p) => String(p._id)));

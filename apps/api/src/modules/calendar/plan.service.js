@@ -1550,8 +1550,8 @@ export async function movePlanCalendar(id, newCalendar, user) {
   // Phase 13: pending decisions follow the plan to its new calendar's lead. Tell both leads
   // (old and new; the same person when both calendars have the same lead) and the SM manager.
   const approvers = [
-    ...(await access.planApproversFor({ calendar: oldCalendar })).primary,
-    ...(await access.planApproversFor({ calendar: newCalendar })).primary,
+    ...(await access.planApproversFor({ calendar: oldCalendar })).people,
+    ...(await access.planApproversFor({ calendar: newCalendar })).people,
   ];
   const actorPlans = hasPermission(user, 'calendar.plan') && !isSuperuser(user);
   const planners = actorPlans ? [] : await Person.find({ role: { $in: plannerRoles() }, status: 'active' }).lean();
