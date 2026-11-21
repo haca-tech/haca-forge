@@ -163,6 +163,8 @@ describe('Team Chat Comprehensive API Suite (Phase CH1)', () => {
     await ChannelMember.deleteMany({});
     await ChatMessage.deleteMany({});
     await ShareGrant.deleteMany({});
+    // The users this file created (each run uses a new salt, so they piled up before).
+    await Person.deleteMany({ email: /@chat\.com$/ });
   });
 
   // ==========================================

@@ -22,7 +22,7 @@ describe('Work detail: step times on the workflow', () => {
     await ActivityEvent.deleteMany({ entityId: { $in: ids } });
     await Submission.deleteMany({ workItemId: { $in: ids } });
     await WorkItem.deleteMany({ _id: { $in: ids } });
-    await Person.deleteOne({ email: 'step.times.admin@example.com' });
+    await Person.deleteMany({ email: 'step.times.admin@example.com' }); // clean-up: not last-admin guarded
   };
 
   const stage = (stageKey, stageOrder, status, extra = {}) =>

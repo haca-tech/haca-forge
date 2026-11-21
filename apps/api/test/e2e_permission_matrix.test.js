@@ -26,6 +26,8 @@ const { RevisionFlag } = await import('../src/modules/feedback/model.js');
 const { WorkflowConfig } = await import('../src/modules/accessConfig/workflowConfig.model.js');
 const { seedReferenceData } = await import('../src/modules/referenceData/service.js');
 const resolver = await import('../src/lib/accessResolver.js');
+const { routeTable, routeKey } = await import('./helpers/routeTable.js');
+const { ALLOW_UNGUARDED } = await import('./fixtures/unguarded_routes.js');
 
 const SRC = path.resolve(__dirname, '../src');
 const DENY_CODES = ['FORBIDDEN', 'ACCOUNT_SUSPENDED', 'READ_ONLY_ROLE'];
@@ -47,47 +49,12 @@ const USERS = [
 ];
 const label = (key) => ({ limited_lead: 'Creative Lead limited to SM', named_growth: 'Growth Lead named on SM reviewers', suspended: 'Suspended Creative Lead' })[key] || ROLE_LABELS[key];
 
-/** Every guarded API route from the real routers: method, path, the guards (each any-of keys). */
-function guardedRoutes() {
-  const server = fs.readFileSync(path.join(SRC, 'server.js'), 'utf8');
-  const imports = {};
-  for (const m of server.matchAll(/import\s+(\w+)\s+from\s+"\.\/(modules\/[^"]+)"/g)) imports[m[1]] = { file: m[2], name: 'default' };
-  for (const m of server.matchAll(/import\s+\{([^}]+)\}\s+from\s+"\.\/(modules\/[^"]+routes\.js)"/g)) for (const n of m[1].split(',').map((x) => x.trim())) imports[n] = { file: m[2], name: n };
-  const mounts = [];
-  const seen = new Set();
-  for (const m of server.matchAll(/app\.use\("(\/api\/[^"]+)",\s*(\w+)\)/g)) {
-    const imp = imports[m[2]];
-    if (!imp || seen.has(`${imp.file}#${imp.name}`)) continue;
-    seen.add(`${imp.file}#${imp.name}`);
-    mounts.push({ prefix: m[1], ...imp });
-  }
-  return mounts;
-}
-
+/** Every guarded API route from the real routers (any quote style, nested routers included). */
 async function routeList() {
-  const out = [];
-  for (const { prefix, file, name } of guardedRoutes()) {
-    const mod = await import(path.join(SRC, file));
-    const router = mod[name];
-    if (!router?.stack) continue;
-    const routerGuards = [];
-    for (const layer of router.stack) {
-      if (!layer.route) {
-        if (layer.handle?.permissionKeys && layer.slash !== false) routerGuards.push(layer.handle.permissionKeys);
-        continue;
-      }
-      const routeGuards = layer.route.stack.map((l) => l.handle?.permissionKeys).filter(Boolean);
-      const guards = [...routerGuards, ...routeGuards];
-      if (!guards.length) continue;
-      const hidesFromWorkers = layer.route.stack.some((l) => l.name === 'notFoundForWorkers');
-      for (const method of Object.keys(layer.route.methods).filter((x) => x !== '_all')) {
-        for (const p of [].concat(layer.route.path)) out.push({ method, path: `${prefix}${p === '/' ? '' : p}`, guards, hidesFromWorkers });
-      }
-    }
-  }
-  // Swagger docs: guarded inside a wrapper outside development.
-  out.push({ method: 'get', path: '/api/docs/openapi.json', guards: [['settings.manage']], hidesFromWorkers: false });
-  return out;
+  const all = await routeTable(SRC);
+  return all
+    .filter((r) => r.guards.length)
+    .map((r) => ({ method: r.method, path: r.path, guards: r.guards, hidesFromWorkers: r.handlers.includes('notFoundForWorkers') }));
 }
 
 describe('Phase E1: end-to-end permission matrix', () => {
@@ -122,6 +89,41 @@ describe('Phase E1: end-to-end permission matrix', () => {
     await mongoose.connection.db.dropDatabase();
     await mongoose.disconnect();
   }, 120000);
+
+  it('T1. no route is unguarded unless it is on the named allow-list, with a reason', async () => {
+    const all = await routeTable(SRC);
+    const unguarded = all.filter((r) => !r.guards.length).map(routeKey);
+    const missing = unguarded.filter((k) => !ALLOW_UNGUARDED[k]);
+    expect(missing, 'unguarded routes: add a permission guard, or list them in test/fixtures/unguarded_routes.js with a reason').toEqual([]);
+    // Every entry still names a real unguarded route, and has a real reason.
+    const stale = Object.keys(ALLOW_UNGUARDED).filter((k) => !unguarded.includes(k));
+    expect(stale, 'allow-list entries that are no longer unguarded routes').toEqual([]);
+    for (const [k, reason] of Object.entries(ALLOW_UNGUARDED)) expect(String(reason).length, k).toBeGreaterThan(20);
+    expect(all.length).toBeGreaterThan(200);
+  });
+
+  it('T1. mounts are found whatever the quote style (double, single, backtick; aliased imports)', async () => {
+    const os = await import('os');
+    const { mountsOf } = await import('./helpers/routeTable.js');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mounts-'));
+    try {
+      fs.writeFileSync(path.join(dir, 'server.js'), [
+        'import a from "./modules/a/routes.js";',
+        "import b from './modules/b/routes.js';",
+        'import { c as cee } from `./modules/c/routes.js`;',
+        'app.use("/api/a", a);',
+        "app.use('/api/b', limiter, b);",
+        'app.use(`/api/c`, cee);',
+      ].join('\n'));
+      expect(mountsOf(dir).map((m) => [m.prefix, m.file, m.name])).toEqual([
+        ['/api/a', 'modules/a/routes.js', 'default'],
+        ['/api/b', 'modules/b/routes.js', 'default'],
+        ['/api/c', 'modules/c/routes.js', 'c'],
+      ]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 
   it('A. every guarded route admits exactly the roles the catalog gives (and nobody suspended)', async () => {
     const routes = await routeList();

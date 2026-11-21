@@ -742,7 +742,8 @@ export const WorkerProfilePage: React.FC = () => {
                   onClick={handleToggleStatus}
                   className="ui-btn ui-btn-secondary h-11"
                 >
-                  {profile.status === 'active' ? 'Suspend' : 'Reactivate'}
+                  {/* Invited people are suspended (invitation withdrawn), never made active here. */}
+                  {profile.status === 'suspended' ? 'Reactivate' : 'Suspend'}
                 </button>
               )}
 

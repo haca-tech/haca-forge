@@ -21,7 +21,7 @@ describe('Calendar entries: individual work and status', () => {
     await WorkItem.deleteMany({ $or: [{ contentPieceId: { $in: pieces.map((p) => p._id) } }, { title: new RegExp(`^${TOPIC}`) }] });
     await ContentPiece.deleteMany({ _id: { $in: pieces.map((p) => p._id) } });
     await CalendarPlan.deleteMany({ _id: { $in: plans.map((p) => p._id) } });
-    await Person.deleteOne({ email: 'cal.badge.admin@example.com' });
+    await Person.deleteMany({ email: 'cal.badge.admin@example.com' }); // clean-up: not last-admin guarded
   };
 
   const plan = (code, kind) =>

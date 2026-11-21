@@ -55,6 +55,16 @@ const openAs = (path: string) =>
     </MemoryRouter>,
   );
 const threads = () => screen.getAllByTestId('review-thread');
+/**
+ * The owner view is ready when both requests have answered: the status (from the step timeline)
+ * and the comment threads (from the submission). They load separately, so waiting for one only
+ * made the checks on the other flaky.
+ */
+const ownerViewLoaded = async (threadCount = 2) => {
+  await screen.findByTestId('owner-review-status', {}, { timeout: 5000 });
+  await waitFor(() => expect(screen.queryAllByTestId('review-thread')).toHaveLength(threadCount), { timeout: 5000 });
+};
+const threadsLoaded = (count: number) => waitFor(() => expect(screen.queryAllByTestId('review-thread')).toHaveLength(count), { timeout: 5000 });
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -63,7 +73,8 @@ describe('Review Studio: "my review" for the step owner', () => {
     signIn('executive', 'owner-1', 'Esha Editor');
     mock(version(), timeline('changes_requested', 'Feedback', 'start_rework'));
     openAs('/work/w1/review');
-    expect(await screen.findByTestId('owner-review-status')).toHaveTextContent('Changes requested');
+    await ownerViewLoaded();
+    expect(screen.getByTestId('owner-review-status')).toHaveTextContent('Changes requested');
     expect(screen.getByTestId('owner-review-header')).toHaveTextContent(/sent back 20h ago/);
     expect(threads()).toHaveLength(2);
     expect(within(threads()[0]).getByText('Trim the intro here')).toBeInTheDocument();
@@ -86,7 +97,7 @@ describe('Review Studio: "my review" for the step owner', () => {
     signIn('executive', 'owner-1');
     mock(version(), timeline('changes_requested', 'Feedback', 'start_rework'));
     openAs('/work/w1/review');
-    await screen.findByTestId('owner-review-status');
+    await ownerViewLoaded();
     fireEvent.click(screen.getByRole('button', { name: 'Resolved (1)' }));
     expect(threads()).toHaveLength(1);
     expect(within(threads()[0]).getByText('Colour looks great')).toBeInTheDocument();
@@ -98,7 +109,7 @@ describe('Review Studio: "my review" for the step owner', () => {
     signIn('executive', 'owner-1');
     mock(version(), timeline('changes_requested', 'Feedback', 'start_rework'));
     openAs('/work/w1/review');
-    await screen.findByTestId('owner-review-status');
+    await ownerViewLoaded();
     fireEvent.change(screen.getByLabelText('Reply to comment 1'), { target: { value: 'Will do' } });
     fireEvent.click(within(threads()[0]).getByRole('button', { name: 'Reply' }));
     await waitFor(() => expect(apiFetch).toHaveBeenCalledWith('/api/submissions/s1/comments', expect.objectContaining({ method: 'POST' })));
@@ -228,7 +239,7 @@ describe('Review Studio: the revision request in "my review"', () => {
     signIn('creative_lead', 'lead-1', 'Check Lead');
     mock({ ...withRequest(), status: 'submitted' }, tl());
     openAs('/feedback/review-studio');
-    await waitFor(() => expect(threads()).toHaveLength(3));
+    await threadsLoaded(3);
     expect(screen.queryByTestId('revision-request-label')).not.toBeInTheDocument();
   });
 });
@@ -238,7 +249,7 @@ describe('Review Studio: the lead sees owner replies', () => {
     signIn('creative_lead', 'lead-1', 'Check Lead');
     mock({ ...version('submitted') }, null);
     openAs('/feedback/review-studio');
-    await waitFor(() => expect(threads()).toHaveLength(2));
+    await threadsLoaded(2);
     expect(within(threads()[0]).getByTestId('review-reply')).toHaveTextContent('Esha Editor');
     expect(within(threads()[0]).getByTestId('review-reply')).toHaveTextContent('Owner');
     expect(within(threads()[0]).getByTestId('new-reply-badge')).toBeInTheDocument();
@@ -256,7 +267,7 @@ describe('Review Studio: the lead sees owner replies', () => {
     signIn('creative_head', 'head-1');
     mock({ ...version('submitted') }, null);
     openAs('/feedback/review-studio');
-    await waitFor(() => expect(threads()).toHaveLength(2));
+    await threadsLoaded(2);
     expect(within(threads()[0]).getByTestId('review-reply')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reply' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /mark as resolved/i })).not.toBeInTheDocument();

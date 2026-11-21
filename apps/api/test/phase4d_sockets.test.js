@@ -102,6 +102,7 @@ describe('Phase 4d: sockets', () => {
     await Session.deleteMany({ userId: { $in: ids } });
     await ChannelMember.deleteMany({ userId: { $in: ids } });
     await Person.deleteMany({ _id: { $in: ids } });
+    await Person.deleteMany({ email: /@p4d\.test$/ }); // anyone a failed earlier run left behind
   });
 
   describe('handshake', () => {

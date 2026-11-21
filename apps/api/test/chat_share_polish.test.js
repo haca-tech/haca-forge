@@ -214,8 +214,11 @@ describe('Share to Chat & Chat Polish Backend Specification Suite', () => {
   });
 
   afterAll(async () => {
-    // Clean up created resources
+    // Clean up created resources, including the users this file created (a new salt every run).
     await Channel.deleteMany({ name: /Private Group share-/ });
+    const ids = (await Person.find({ email: /@chatshare\.com$/ }).select('_id').lean()).map((p) => p._id);
+    await ChannelMember.deleteMany({ userId: { $in: ids } });
+    await Person.deleteMany({ _id: { $in: ids } });
   });
 
   // ==========================================

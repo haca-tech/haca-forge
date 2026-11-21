@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, afterAll, beforeAll } from "vitest";
 import mongoose from "mongoose";
 import request from "supertest";
 import jwt from "jsonwebtoken";
@@ -25,6 +25,12 @@ describe("Pass 1: Session and Security Test Suite", () => {
   // 5 Canonical Roles
   let adminUser, headUser, execUser, leadUser, memberUser;
   let adminToken, headToken, execToken, leadToken, memberToken;
+
+  afterAll(async () => {
+    // Remove what this file created (it only cleaned up before running).
+    await Person.deleteMany({ email: /@pass1-test\.com$/ });
+    await WorkItem.deleteMany({ title: /Pass 1/i });
+  });
 
   beforeAll(async () => {
     const mongoUri =

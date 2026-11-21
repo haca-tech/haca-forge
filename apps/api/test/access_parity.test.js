@@ -94,59 +94,25 @@ describe('Access parity: old rules vs the resolver', () => {
     expect(checks).toBe(ROLE_KEYS.length * v1.length);
   });
 
-  it('every API route guard admits exactly the roles it admitted before Phase C2 (frozen snapshot)', () => {
-    // test/fixtures/route_guard_snapshot.json: each guard's admitted roles, generated from the
-    // pre-C2 routes (v1 keys, admin bypass) by scripts/snapshot-route-guards.js.
+  it('T2: every API route keeps exactly its snapshotted guard and admitted roles (method + path + guard)', async () => {
+    // test/fixtures/route_guard_snapshot.json, written by scripts/snapshot-route-guards.js: one entry
+    // per guarded route. A guard added, removed, moved to another route, or admitting other roles
+    // fails here until the snapshot is regenerated on purpose and the diff reviewed.
+    const { routeTable, guardSnapshotOf } = await import('./helpers/routeTable.js');
     const snapshot = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'fixtures/route_guard_snapshot.json'), 'utf8'));
-    const files = [];
-    const walk = (dir) => {
-      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-        const p = path.join(dir, e.name);
-        if (e.isDirectory()) walk(p);
-        else if (/routes\.js$/.test(e.name)) files.push(p);
-      }
-    };
-    walk(path.join(SRC, 'modules'));
-    const current = {};
-    for (const f of files) {
-      const rel = path.relative(path.join(SRC, 'modules'), f).replace(/\\/g, '/');
-      const guards = [];
-      for (const m of fs.readFileSync(f, 'utf8').matchAll(/require(?:Any)?Permission\(([^)]*)\)/g)) {
-        const keys = [...m[1].matchAll(/['"]([a-z_.]+)['"]/g)].map((x) => x[1]);
-        if (keys.length) guards.push(keys);
-      }
-      if (guards.length) current[rel] = guards;
+    const current = await guardSnapshotOf(await routeTable(SRC));
+    const keys = (o) => Object.keys(o).sort();
+    expect(keys(current).filter((k) => !snapshot[k]), 'guarded routes missing from the snapshot').toEqual([]);
+    expect(keys(snapshot).filter((k) => !current[k]), 'snapshot routes that are gone or lost their guard').toEqual([]);
+    for (const [route, { guards, roles }] of Object.entries(snapshot)) {
+      expect(current[route].guards, `${route}: guards`).toEqual(guards);
+      expect(current[route].roles, `${route}: admitted roles`).toEqual(roles);
+      for (const g of guards) for (const k of g) expect(PERMISSION_KEYS_V2, `${route} uses catalog v2 keys`).toContain(k);
     }
-    // Route files added after the snapshot: each guard admits only the locked admin role.
-    const ADDED_LATER = ['accessConfig/accessAdmin.routes.js']; // Phase D: Access & Approvals
-    for (const file of ADDED_LATER) {
-      expect(current[file], `${file} is guarded`).toBeTruthy();
-      for (const keys of current[file]) expect(ROLE_KEYS.filter((role) => keys.some((k) => can(userOf(role), k)))).toEqual(['admin']);
-      delete current[file];
-    }
-    // Guards added by the final access fix (M9: the team mutations were guarded only inside the
-    // service). They come after the file's older guards; each admits exactly these roles.
-    const LEADS = ['admin', 'creative_lead', 'growth_lead'];
-    const FINAL_FIX_ADDED = {
-      'team/routes.js': [LEADS, [...LEADS, 'sm_manager'], ['admin'], ['admin'], ['admin']],
-    };
-    for (const [file, added] of Object.entries(FINAL_FIX_ADDED)) {
-      const extra = current[file].splice(current[file].length - added.length, added.length);
-      extra.forEach((keys, i) => expect(ROLE_KEYS.filter((role) => keys.some((k) => can(userOf(role), k))), `${file} added guard #${i}`).toEqual(added[i]));
-    }
-    expect(Object.keys(current).sort()).toEqual(Object.keys(snapshot).sort());
-    let checked = 0;
-    for (const [file, guards] of Object.entries(snapshot)) {
-      expect(current[file].length, `${file}: number of guards`).toBe(guards.length);
-      guards.forEach((g, i) => {
-        const keys = current[file][i];
-        for (const k of keys) expect(PERMISSION_KEYS_V2, `${file} #${i} uses catalog v2 keys`).toContain(k);
-        const admitted = ROLE_KEYS.filter((role) => keys.some((k) => can(userOf(role), k)));
-        expect(admitted, `${file} #${i} [${keys.join(', ')}] was [${g.keys.join(', ')}]`).toEqual(g.roles);
-        checked++;
-      });
-    }
-    expect(checked).toBe(101);
+    // Spot checks of what the snapshot must hold (final fix M9: team mutations are guarded).
+    expect(snapshot['POST /api/team/:id/status'].roles).toEqual(['admin']);
+    expect(snapshot['PATCH /api/team/:id'].roles).toEqual(['admin', 'creative_lead', 'growth_lead']);
+    expect(Object.keys(snapshot).length).toBeGreaterThan(120);
   });
 
   it(`decision actions: 7 roles × ${ACTIONS.length} actions × 5 calendars × owner/non-owner are 100% equal`, () => {

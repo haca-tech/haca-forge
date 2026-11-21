@@ -156,7 +156,7 @@ describe('Phase E2: routing scenarios', () => {
     expect((await request(app).post(`/api/calendar-plans/${adsPlan}/review`).set(as('cl2')).send({ action: 'approve_selected', approvedRowIds: [again.body.data.results[0].rowId] })).status).toBe(200);
   });
 
-  it('two reviewers on one calendar: both told once; the first decides, the second gets 409', async () => {
+  it('two reviewers on one calendar: both told once; deciding at the same time, one wins and the other gets 409', async () => {
     await resetConfigs();
     const s = await step('sales');
     expect((await submit(s)).status).toBeLessThan(300);
@@ -165,8 +165,17 @@ describe('Phase E2: routing scenarios', () => {
     expect(sent[String(P.cl._id)]).toBe(1);
     expect(sent[String(P.cl2._id)]).toBe(1);
     const sub = await Submission.findOne({ workItemId: s._id }).sort({ version: -1 }).lean();
-    expect((await approve('cl', sub._id)).status).toBe(200);
-    expect((await approve('cl2', sub._id)).status).toBe(409);
+    // Both decisions are sent at the same time (final fix T6): an approval and a revision request.
+    const [a, b] = await Promise.all([
+      approve('cl', sub._id),
+      request(app).post(`/api/submissions/${sub._id}/request-revision`).set(as('cl2')).send({ comment: 'Tighten the cut.' }),
+    ]);
+    expect([a.status, b.status].sort()).toEqual([200, 409]);
+    const decided = await Submission.findById(sub._id).lean();
+    expect(decided.status).toBe(a.status === 200 ? 'approved' : 'changes_requested');
+    // Exactly one decision is recorded: one rating if the approval won, none otherwise.
+    const { Rating } = await import('../src/modules/submissions/model.js');
+    expect(await Rating.countDocuments({ submissionId: sub._id })).toBe(a.status === 200 ? 1 : 0);
   });
 
   it('a lead limited to SM but named on Ads: the limit wins', async () => {

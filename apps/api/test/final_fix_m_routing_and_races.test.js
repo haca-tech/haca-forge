@@ -180,7 +180,7 @@ describe('Final fix M1–M10: routing and races', () => {
   it('M5: clip review and reopening clip feedback are never on your own step', async () => {
     const own = await step('sm', 'admin', { stageKey: 'Shoot' });
     const clip = await MediaItem.create({ stageItemId: own._id, url: 'https://drive.google.com/file/d/clip', title: `${TAG} clip`, type: 'video', uploadedById: P.admin._id });
-    await expect(reviewClip(clip._id, { action: 'approved' }, await fresh('admin'))).rejects.toMatchObject({ statusCode: 403, code: 'SELF_DECISION' });
+    await expect(reviewClip(clip._id, { action: 'approve' }, await fresh('admin'))).rejects.toMatchObject({ statusCode: 403, code: 'SELF_DECISION' });
     const msg = await MediaMessage.create({ mediaItemId: clip._id, authorId: P.cl._id, type: 'text', text: 'Fix the light', doneAt: new Date() });
     await expect(toggleMessageDone(clip._id, msg._id, false, await fresh('admin'))).rejects.toMatchObject({ statusCode: 403 });
     // Another reviewer of the calendar can.

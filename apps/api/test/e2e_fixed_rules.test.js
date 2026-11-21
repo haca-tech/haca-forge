@@ -142,6 +142,50 @@ describe('Phase E3: fixed rules', () => {
     });
   });
 
+  describe('3b. No self-approval: clips, rating edits, reopen, rows you added (final fix T4)', () => {
+    it('clip review, rating edits and reopen are refused on your own step, the admin included', async () => {
+      const { MediaItem } = await import('../src/modules/media/model.js');
+      const { Rating } = await import('../src/modules/submissions/model.js');
+      // Clip review on the admin's own Shoot step.
+      const shoot = await step('admin', { stageKey: 'Shoot' });
+      const clip = await MediaItem.create({ stageItemId: shoot._id, url: 'https://drive.google.com/file/d/rule-clip', title: 'Rule clip', type: 'video', uploadedById: P.admin._id });
+      const own = await request(app).post(`/api/clips/${clip._id}/review`).set(as('admin')).send({ action: 'approve' });
+      expect([own.status, own.body.error?.code]).toEqual([403, 'SELF_DECISION']);
+      const lead = await request(app).post(`/api/clips/${clip._id}/review`).set(as('lead')).send({ action: 'approve' });
+      expect(lead.body.error?.code).not.toBe('SELF_DECISION');
+
+      // Rating edit on the admin's own work (rated by the lead).
+      const rated = await step('admin', { status: 'Approved' });
+      const rating = await Rating.create({ workItemId: rated._id, workerId: P.admin._id, raterId: P.lead._id, score: 3, feedback: 'ok', stageKey: 'Edit', submissionId: oid() });
+      const edit = await request(app).patch(`/api/submissions/ratings/${rating._id}`).set(as('admin')).send({ score: 5, reason: 'Mine, really' });
+      expect([edit.status, edit.body.error?.code]).toEqual([403, 'SELF_DECISION']);
+      expect((await Rating.findById(rating._id).lean()).score).toBe(3);
+
+      // Reopening your own finished step.
+      const done = await step('admin', { status: 'Approved', approvedAt: new Date() });
+      const reopen = await request(app).post(`/api/work/${done._id}/transition`).set(as('admin')).send({ toStatus: 'Feedback', comment: 'Reopen my own' });
+      expect([reopen.status, reopen.body.error?.code]).toEqual([403, 'FORBIDDEN_REOPEN']);
+      expect((await WorkItem.findById(done._id).lean()).status).toBe('Approved');
+    });
+
+    it('an approver who adds a row to someone else\'s plan cannot approve that row; another approver can', async () => {
+      const month = '2038-04';
+      const smPlan = await request(app).post('/api/calendar-plans/grid/rows').set(as('sm')).send({ calendar: 'sm', month, rows: [{ clientKey: 'a', cells: { postingDate: `${month}-10`, topic: 'SM row', type: 'Static Post', brief: 'Planned by the SM Manager.' } }] });
+      expect(smPlan.status).toBe(201);
+      const planId = smPlan.body.data.plan._id;
+      // The admin (who can also plan) adds a row to the SM Manager's plan.
+      const added = await request(app).post('/api/calendar-plans/grid/rows').set(as('admin')).send({ calendar: 'sm', month, planId, rows: [{ clientKey: 'b', cells: { postingDate: `${month}-12`, topic: 'Admin row', type: 'Static Post', brief: 'Added by the admin.' } }] });
+      expect(added.status).toBe(201);
+      const adminRow = added.body.data.results[0].rowId;
+      expect((await request(app).post(`/api/calendar-plans/${planId}/submit`).set(as('sm'))).status).toBe(200);
+      const mine = await request(app).post(`/api/calendar-plans/${planId}/review`).set(as('admin')).send({ action: 'approve_selected', approvedRowIds: [adminRow] });
+      expect([mine.status, mine.body.error?.code]).toEqual([403, 'SELF_DECISION']);
+      const all = await request(app).post(`/api/calendar-plans/${planId}/review`).set(as('admin')).send({ action: 'approve_all' });
+      expect([all.status, all.body.error?.code]).toEqual([403, 'SELF_DECISION']);
+      expect((await request(app).post(`/api/calendar-plans/${planId}/review`).set(as('lead')).send({ action: 'approve_selected', approvedRowIds: [adminRow] })).status).toBe(200);
+    });
+  });
+
   describe('4. A rating average needs at least 3 ratings', () => {
     it('two ratings show "Collecting baseline"; the third shows the average', async () => {
       const profile = async () => (await request(app).get(`/api/team/${P.worker2._id}`).set(as('admin'))).body.data.kpis;
@@ -187,13 +231,28 @@ describe('Phase E3: fixed rules', () => {
 
   describe('7. There is always an active admin', () => {
     it('the only admin cannot be demoted or suspended by any route or model path', async () => {
+      // Every route that changes a role or status, each with the exact refusal (a reason is sent, so
+      // a missing reason can never be what refuses it). The only admin is the only one who could
+      // act, so on the routes the self guard answers first; the last-admin guard itself is proven
+      // below with another acting admin.
       const attempts = [
-        request(app).patch(`/api/access-admin/people/${P.admin._id}`).set(as('admin')).send({ role: 'creative_lead', reason: 'try' }),
-        request(app).patch(`/api/access-admin/people/${P.admin._id}`).set(as('admin')).send({ status: 'suspended', reason: 'try' }),
-        request(app).post(`/api/people/${P.admin._id}/suspend`).set(as('admin')).send({}),
-        request(app).patch(`/api/people/${P.admin._id}`).set(as('admin')).send({ role: 'creative_lead' }),
+        ['PATCH access-admin role', request(app).patch(`/api/access-admin/people/${P.admin._id}`).set(as('admin')).send({ role: 'creative_lead', reason: 'try it' }), 403, 'SELF_DEMOTE'],
+        ['PATCH access-admin status', request(app).patch(`/api/access-admin/people/${P.admin._id}`).set(as('admin')).send({ status: 'suspended', reason: 'try it' }), 403, 'SELF_SUSPEND'],
+        ['POST people suspend', request(app).post(`/api/people/${P.admin._id}/suspend`).set(as('admin')).send({ reason: 'try it' }), 400, 'CANNOT_SUSPEND_SELF'],
+        ['PATCH people role', request(app).patch(`/api/people/${P.admin._id}`).set(as('admin')).send({ role: 'creative_lead', reason: 'try it' }), 403, 'SELF_DEMOTE'],
+        ['PATCH team role', request(app).patch(`/api/team/${P.admin._id}`).set(as('admin')).send({ role: 'creative_lead', reason: 'try it' }), 403, 'SELF_DEMOTE'],
+        ['POST team status', request(app).post(`/api/team/${P.admin._id}/status`).set(as('admin')).send({ reason: 'try it' }), 403, 'SELF_SUSPEND'],
       ];
-      for (const res of await Promise.all(attempts)) expect([403, 409, 400]).toContain(res.status);
+      for (const [name, pending, status, code] of attempts) {
+        const res = await pending;
+        expect([name, res.status, res.body.error?.code || res.body.code]).toEqual([name, status, code]);
+      }
+      // The last-admin guard: another admin acting (not the person themselves) still cannot demote or
+      // suspend the last active admin, through the one path every route above uses.
+      const { savePersonChange } = await import('../src/modules/accessConfig/accessAdmin.service.js');
+      const otherAdmin = { _id: oid(), role: 'admin', status: 'active' };
+      await expect(savePersonChange(String(P.admin._id), { role: 'creative_lead', reason: 'try it' }, otherAdmin)).rejects.toMatchObject({ statusCode: 409, code: 'LAST_ADMIN' });
+      await expect(savePersonChange(String(P.admin._id), { status: 'suspended', reason: 'try it' }, otherAdmin)).rejects.toMatchObject({ statusCode: 409, code: 'LAST_ADMIN' });
       await expect(Person.updateOne({ _id: P.admin._id }, { $set: { status: 'suspended' } })).rejects.toMatchObject({ code: 'LAST_ADMIN' });
       expect(await Person.findById(P.admin._id).lean()).toMatchObject({ role: 'admin', status: 'active' });
     });

@@ -273,11 +273,11 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
         await WorkItem.findByIdAndDelete(id);
       }
       // Clean up test people
-      await Person.findByIdAndDelete(headUser._id);
-      await Person.findByIdAndDelete(writerUser._id);
-      await Person.findByIdAndDelete(smManagerUser._id);
-      await Person.findByIdAndDelete(adminUser._id);
-      await Person.findByIdAndDelete(execUser._id);
+      await Person.deleteMany({ _id: headUser._id }); // clean-up: deleteMany is not last-admin guarded
+      await Person.deleteMany({ _id: writerUser._id }); // clean-up: deleteMany is not last-admin guarded
+      await Person.deleteMany({ _id: smManagerUser._id }); // clean-up: deleteMany is not last-admin guarded
+      await Person.deleteMany({ _id: adminUser._id }); // clean-up: deleteMany is not last-admin guarded
+      await Person.deleteMany({ _id: execUser._id }); // clean-up: deleteMany is not last-admin guarded
     });
 
     it('Creative Head CANNOT submit a task owned by Writer -> 403 FORBIDDEN_ACTION', async () => {
@@ -482,10 +482,10 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
       for (const id of createdItems) {
         await WorkItem.findByIdAndDelete(id);
       }
-      await Person.findByIdAndDelete(adminUser._id);
-      await Person.findByIdAndDelete(smManagerUser._id);
-      await Person.findByIdAndDelete(headUser._id);
-      await Person.findByIdAndDelete(writerUser._id);
+      await Person.deleteMany({ _id: adminUser._id }); // clean-up: deleteMany is not last-admin guarded
+      await Person.deleteMany({ _id: smManagerUser._id }); // clean-up: deleteMany is not last-admin guarded
+      await Person.deleteMany({ _id: headUser._id }); // clean-up: deleteMany is not last-admin guarded
+      await Person.deleteMany({ _id: writerUser._id }); // clean-up: deleteMany is not last-admin guarded
     });
 
     it('allows Admin to delete a work item in Not Started status -> 200 OK', async () => {
