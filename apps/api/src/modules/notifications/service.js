@@ -4,7 +4,7 @@ import { logger } from '../../lib/logger.js';
 import { withoutContact } from '../../lib/socketHub.js';
 import { enqueueEmail } from '../../lib/queue.js';
 import { eventBus, EVENTS } from '../../lib/events.js';
-import { rolesWith } from '../../lib/roleAccess.js';
+import { recipientsFor } from '../../lib/accessResolver.js';
 
 let ioInstance = null;
 
@@ -182,10 +182,8 @@ export async function handleDomainEvent(eventName, payload, io = ioInstance) {
     switch (eventName) {
       case EVENTS.ACCESS_REQUESTED: {
         preferenceKey = 'accessRequests';
-        const admins = await User.find({
-          role: { $in: rolesWith('user.approve') },
-          status: 'active',
-        }).select('_id email name notificationPreferences');
+        // The resolver's recipients for this event (every active admin).
+        const admins = await recipientsFor('access.requested');
 
         for (const a of admins) recipients.add(a);
         notificationTitle = `New Access Request: ${payload.name || payload.email}`;

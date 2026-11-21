@@ -155,9 +155,13 @@ export async function recipientsFor(event, item = {}) {
     case 'plan.submitted':
       return peopleFor(config.planApprovers, calendar);
     case 'revision.flagged': {
-      const or = [audienceQuery(config.reviewers)];
-      if (item.departmentId) or.push({ ...audienceQuery(config.posters), departmentId: item.departmentId });
-      return Person.find({ $or: or });
+      // The step's reviewers (or the fallback) and its department's posters; active, within their
+      // calendar limit (Phase E fix: the limit was ignored here).
+      const { people: reviewers } = await reviewersFor(item);
+      const posters = item.departmentId
+        ? (await Person.find({ ...audienceQuery(config.posters), departmentId: item.departmentId })).filter((p) => withinCalendarScope(p, calendar))
+        : [];
+      return [...new Map([...reviewers, ...posters].map((p) => [String(p._id), p])).values()];
     }
     case 'revision.flag_escalated': {
       const reviewers = await peopleFor(config.reviewers, calendar, { statusFilter: 'not_suspended' });
