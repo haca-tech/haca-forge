@@ -98,7 +98,16 @@ describe('Phase E1: end-to-end permission matrix', () => {
     // Every entry still names a real unguarded route, and has a real reason.
     const stale = Object.keys(ALLOW_UNGUARDED).filter((k) => !unguarded.includes(k));
     expect(stale, 'allow-list entries that are no longer unguarded routes').toEqual([]);
-    for (const [k, reason] of Object.entries(ALLOW_UNGUARDED)) expect(String(reason).length, k).toBeGreaterThan(20);
+    // Every entry names its check (module#export under src/, or public) and a real reason; the named
+    // function exists. unguarded_route_checks.test.js asserts each one is actually called.
+    for (const [k, entry] of Object.entries(ALLOW_UNGUARDED)) {
+      expect(String(entry.reason).length, k).toBeGreaterThan(20);
+      expect(entry.check, k).toMatch(/^public$|^(middleware|modules)\/[\w./-]+\.js#\w+$/);
+      if (entry.check !== 'public') {
+        const [file, fn] = entry.check.split('#');
+        expect(typeof (await import(path.join(SRC, file)))[fn], `${k}: ${entry.check} is an exported function`).toBe('function');
+      }
+    }
     expect(all.length).toBeGreaterThan(200);
   });
 
@@ -114,11 +123,21 @@ describe('Phase E1: end-to-end permission matrix', () => {
         'app.use("/api/a", a);',
         "app.use('/api/b', limiter, b);",
         'app.use(`/api/c`, cee);',
+        // Middleware with its own parentheses, braces and commas stays one argument; comments with
+        // apostrophes inside inline handlers don't break the scan.
+        "import dee from './modules/d/routes.js';",
+        'app.use("/api/d", rateLimit({ windowMs: 60_000, max: (5) }), wrap(auth, ["x", "y"]), dee);',
+        "app.use('/api/my-work', (req, res, next) => {\n  // don't break: it's a comment\n  next();\n});",
+        "import eee from './modules/e/routes.js';",
+        "app.use('/api/e', (req, res, next) => next(), eee);",
+        'app.use(express.json({ limit: "10mb" }));',
       ].join('\n'));
       expect(mountsOf(dir).map((m) => [m.prefix, m.file, m.name])).toEqual([
         ['/api/a', 'modules/a/routes.js', 'default'],
         ['/api/b', 'modules/b/routes.js', 'default'],
         ['/api/c', 'modules/c/routes.js', 'c'],
+        ['/api/d', 'modules/d/routes.js', 'default'],
+        ['/api/e', 'modules/e/routes.js', 'default'],
       ]);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

@@ -177,7 +177,11 @@ export async function assertDecisionAllowed({ user, workItem, submissionId = nul
 }
 
 /** Atomic: only one request can move a version out of `submitted`. */
+/** Test hooks (no-op in the app): `beforeClaim` runs after a decision's checks, before its claim. */
+export const reviewDecisionHooks = { beforeClaim: null };
+
 export async function claimSubmission(submission, toStatus, user) {
+  if (reviewDecisionHooks.beforeClaim) await reviewDecisionHooks.beforeClaim({ submissionId: String(submission._id), toStatus, user });
   const userId = (user._id || user.id || user.userId)?.toString();
   const claimed = await Submission.findOneAndUpdate(
     { _id: submission._id, status: 'submitted' },

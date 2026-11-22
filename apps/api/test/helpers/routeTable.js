@@ -19,13 +19,53 @@ export function mountsOf(srcDir) {
     }
   }
   const mounts = [];
-  for (const m of server.matchAll(/app\.use\(\s*["'`]([^"'`]+)["'`]\s*,\s*([^)]*)\)/g)) {
-    const args = m[2].split(',').map((x) => x.trim()).filter(Boolean);
-    const routerName = args[args.length - 1];
-    const imp = imports[routerName];
-    if (imp) mounts.push({ prefix: m[1], ...imp });
+  for (const args of useCalls(server)) {
+    const prefix = /^["'`]([^"'`]+)["'`]$/.exec(args[0] || '')?.[1];
+    if (!prefix || args.length < 2) continue;
+    const imp = imports[args[args.length - 1]];
+    if (imp) mounts.push({ prefix, ...imp });
   }
   return mounts;
+}
+
+/**
+ * The argument lists of every `app.use(...)` call, split at top-level commas only, so a
+ * middleware with its own parentheses or braces, e.g. `limiter({ max: 5 })`, stays one argument.
+ */
+export function useCalls(source) {
+  const calls = [];
+  const re = /app\.use\(/g;
+  let m;
+  while ((m = re.exec(source))) {
+    const args = [];
+    let depth = 0;
+    let quote = null;
+    let current = '';
+    let i = m.index + m[0].length;
+    for (; i < source.length; i += 1) {
+      const ch = source[i];
+      if (quote) {
+        current += ch;
+        if (ch === '\\') { current += source[i + 1] || ''; i += 1; } else if (ch === quote) quote = null;
+        continue;
+      }
+      // Comments inside inline handlers (an apostrophe in "don't" is not a string).
+      if (ch === '/' && source[i + 1] === '/') { const end = source.indexOf('\n', i); i = end === -1 ? source.length : end; continue; }
+      if (ch === '/' && source[i + 1] === '*') { const end = source.indexOf('*/', i + 2); i = end === -1 ? source.length : end + 1; continue; }
+      if (ch === '"' || ch === "'" || ch === '`') { quote = ch; current += ch; continue; }
+      if (ch === '(' || ch === '{' || ch === '[') depth += 1;
+      if (ch === ')' || ch === '}' || ch === ']') {
+        if (depth === 0 && ch === ')') break;
+        depth -= 1;
+      }
+      if (ch === ',' && depth === 0) { args.push(current.trim()); current = ''; continue; }
+      current += ch;
+    }
+    if (current.trim()) args.push(current.trim());
+    calls.push(args);
+    re.lastIndex = i;
+  }
+  return calls;
 }
 
 /** A sub-router's mount path from its Express layer (Express 5 keeps it in layer.matchers / regexp). */

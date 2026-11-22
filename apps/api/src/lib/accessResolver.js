@@ -40,6 +40,9 @@ onWorkflowConfigChange((calendar) => {
   if (calendar) cache.delete(calendar);
   else cache.clear();
 });
+/** Test hooks (no-op in the app). */
+export const accessResolverHooks = { afterRead: null };
+
 export const clearAccessCache = () => {
   generation += 1;
   cache.clear();
@@ -70,6 +73,8 @@ export async function getWorkflowConfig(calendar) {
   if (hit && Date.now() - hit.loadedAt < CACHE_TTL_MS) return hit.config;
   const startedAt = generation;
   const config = await readWorkflowConfigFresh(cal);
+  // Test hook (no-op in the app): lets a test hold a read between the database and the cache.
+  if (accessResolverHooks.afterRead) await accessResolverHooks.afterRead({ calendar: cal, config });
   if (startedAt === generation) cache.set(cal, { config, version: config.version, loadedAt: Date.now() });
   return config;
 }
