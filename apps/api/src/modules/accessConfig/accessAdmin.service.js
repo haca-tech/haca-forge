@@ -21,6 +21,7 @@ import { AccessChange } from './accessChange.model.js';
 import { WorkflowConfig } from './workflowConfig.model.js';
 import { changePersonAccess } from './personAccess.service.js';
 import { updateWorkflowConfig } from './workflowConfig.service.js';
+import { applyAccessDiff, snapshotAccess } from './responsibility.js';
 import { getAllWorkflowConfigs, readWorkflowConfigFresh } from '../../lib/accessResolver.js';
 import { countAwaitingReview } from '../workItems/reviewState.js';
 import { calendarQueryFor } from '../workItems/deciders.js';
@@ -152,10 +153,17 @@ async function calendarGuard(target, next) {
   };
 }
 
-export async function savePersonChange(id, body = {}, actor) {
+/**
+ * The one path for a person's role, status and calendar limit. `person`: the caller's loaded
+ * document with its other field changes already applied (profile, team and people edits), so the
+ * access change and those fields are saved in one write; nothing is saved when a guard refuses.
+ * Afterwards everyone whose decide / approve / post calendars or responsibility changed is told
+ * (access:changed), and people newly responsible for waiting work are notified once.
+ */
+export async function savePersonChange(id, body = {}, actor, { person } = {}) {
   const reason = requireReason(body.reason);
   if (!mongoose.isValidObjectId(id)) throw fail(404, 'NOT_FOUND', 'Person not found');
-  const target = await Person.findById(id);
+  const target = person || (await Person.findById(id));
   if (!target) throw fail(404, 'NOT_FOUND', 'Person not found');
   const next = cleanPersonChange(target, body);
   const blocked = selfGuard(target, next, actor);
@@ -164,7 +172,11 @@ export async function savePersonChange(id, body = {}, actor) {
   if (lastAdmin) throw fail(409, lastAdmin.code, lastAdmin.message);
   const breaks = await calendarGuard(target, next);
   if (breaks) throw fail(409, breaks.code, breaks.message, { calendars: breaks.calendars });
+  const before = await snapshotAccess([idOf(target)]);
   const saved = await changePersonAccess(target, { role: next.role, status: next.status, calendarScope: next.calendarScope }, actor, { note: reason });
+  // No access field changed: the caller's other fields still need their (single) write.
+  if (saved.isModified?.()) await saved.save();
+  await applyAccessDiff(before, await snapshotAccess([idOf(target)]), { alreadyTold: [idOf(target)] });
   return (await listPeople({ search: saved.email || saved.name })).find((p) => p._id === idOf(saved)) || { _id: idOf(saved) };
 }
 
@@ -214,6 +226,16 @@ async function resolveAudience(audience, calendar, { override } = {}) {
   return { active, named };
 }
 
+/** Active admins, counting a pending person change (`override`). */
+async function activeAdminCount(override) {
+  const lockedRoles = ROLE_KEYS.filter((r) => systemRoleOf({ role: r })?.locked);
+  const filter = { role: { $in: lockedRoles }, status: 'active' };
+  if (!override) return Person.countDocuments(filter);
+  const others = await Person.countDocuments({ ...filter, _id: { $ne: override._id } });
+  const overrideIsAdmin = lockedRoles.includes(override.role) && override.status === 'active';
+  return others + (overrideIsAdmin ? 1 : 0);
+}
+
 const SLOT_NOUN = { posters: 'poster who can own Post steps', reviewers: 'reviewer', planApprovers: 'plan approver' };
 
 /**
@@ -239,8 +261,14 @@ export async function healthCheck(calendar, config, { override } = {}) {
     }
     resolved[slot] = active.filter((p) => slotEligibleRole(p.role, slot)).map((p) => ({ _id: idOf(p), name: p.name, role: p.role }));
   }
+  // Active admins are always the final fallback (fixed rule 7 keeps at least one): a slot they
+  // would cover is a warning, not an error. Posters have no fallback (admins never own Post steps).
+  const admins = await activeAdminCount(override);
   const fallback = resolved.fallbackApprovers;
-  if (!fallback.length) errors.push({ slot: 'fallbackApprovers', message: 'The fallback resolves to nobody active.' });
+  if (!fallback.length) {
+    if (admins) warnings.push({ slot: 'fallbackApprovers', message: 'Nobody active in the fallback: every active admin covers it.' });
+    else errors.push({ slot: 'fallbackApprovers', message: 'The fallback resolves to nobody active.' });
+  }
   if (!resolved.posters.length) {
     errors.push({ slot: 'posters', message: `${calName(calendar)} has no active ${SLOT_NOUN.posters}.` });
   }
@@ -249,6 +277,7 @@ export async function healthCheck(calendar, config, { override } = {}) {
     const perm = WORKFLOW_SLOT_PERMISSION[slot];
     const fb = (await resolveAudience(config.fallbackApprovers, calendar, { override })).active.filter((p) => can({ role: p.role, status: 'active' }, perm));
     if (fb.length) warnings.push({ slot, message: `Nobody active here: the fallback (${fb.map((p) => p.name).join(', ')}) takes it.` });
+    else if (admins) warnings.push({ slot, message: `Nobody active here or in the fallback: every active admin takes it.` });
     else errors.push({ slot, message: `${calName(calendar)} has no active ${SLOT_NOUN[slot]}, even with the fallback.` });
   }
   return { ok: errors.length === 0, errors, warnings, resolved };
@@ -281,7 +310,10 @@ async function reroutePlan(calendar, current, next) {
 
   const healthNext = await healthCheck(calendar, next);
   const healthNow = await healthCheck(calendar, current);
-  const effective = (h, slot) => (h.resolved[slot].length ? h.resolved[slot] : h.resolved.fallbackApprovers);
+  // Who actually gets the work: the slot, else the fallback, else every active admin.
+  const lockedRoles = ROLE_KEYS.filter((r) => systemRoleOf({ role: r })?.locked);
+  const admins = (await Person.find({ role: { $in: lockedRoles }, status: 'active' }).select('name role').sort({ name: 1, _id: 1 }).lean()).map((p) => ({ _id: idOf(p), name: p.name, role: p.role }));
+  const effective = (h, slot) => (h.resolved[slot].length ? h.resolved[slot] : h.resolved.fallbackApprovers.length ? h.resolved.fallbackApprovers : admins);
   const newcomers = (slot) => {
     const was = new Set(effective(healthNow, slot).map((p) => p._id));
     return effective(healthNext, slot).filter((p) => !was.has(p._id));
@@ -359,6 +391,7 @@ export async function previewCalendarChange(calendar, changes = {}) {
   const next = mergeChanges(current, changes);
   const plan = await reroutePlan(calendar, current, next);
   return {
+    version: current.version || 0,
     health: plan.health,
     sentences: previewSentences(calendar, plan),
     counts: { waitingReviews: plan.waitingReviews, pauseRequests: plan.pauseRequests, planRows: plan.planRows, postSteps: plan.postSteps.length },
@@ -379,36 +412,11 @@ export async function saveCalendarChange(calendar, body = {}, actor) {
   if (!plan.health.ok) throw fail(409, 'HEALTH_CHECK_FAILED', 'Fix the health check before saving.', { errors: plan.health.errors });
 
   // The write itself checks the version again (atomic), so a save in between still gets 409.
+  const before = await snapshotAccess();
   await updateWorkflowConfig(calendar, changes, actor, { note: reason, expectedVersion });
-
-  // Tell each new person once what now comes to them.
-  const counts = new Map();
-  const add = (p, key, n) => {
-    if (!n) return;
-    const c = counts.get(p._id) || { person: p, reviews: 0, pauses: 0, rows: 0 };
-    c[key] += n;
-    counts.set(p._id, c);
-  };
-  for (const p of plan.newReviewers) {
-    add(p, 'reviews', plan.waitingReviews);
-    add(p, 'pauses', plan.pauseRequests);
-  }
-  for (const p of plan.newApprovers) add(p, 'rows', plan.planRows);
-  for (const { person, reviews, pauses, rows } of counts.values()) {
-    const parts = [
-      reviews && `${reviews} waiting review${reviews === 1 ? '' : 's'}`,
-      pauses && `${pauses} pause request${pauses === 1 ? '' : 's'}`,
-      rows && `${rows} plan row${rows === 1 ? '' : 's'}`,
-    ].filter(Boolean);
-    await createNotification({
-      recipient: person._id,
-      type: 'access_rerouted',
-      title: `${calName(calendar)}: decisions now come to you`,
-      message: `You now decide on ${calName(calendar)}: ${parts.join(', ')} moved to you.`,
-      link: '/feedback',
-      metadata: { calendar, reviews, pauses, rows },
-    });
-  }
+  // Everyone whose calendars or responsibility changed is told; newly responsible people are
+  // notified once about what is already waiting.
+  const diff = await applyAccessDiff(before, await snapshotAccess());
 
   // Open Post steps whose owner is no longer a poster: to the calendar's first poster.
   let movedPosts = 0;
@@ -430,7 +438,7 @@ export async function saveCalendarChange(calendar, body = {}, actor) {
       });
     }
   }
-  return { calendar: await calendarView(calendar), sentences: previewSentences(calendar, plan), notified: counts.size, movedPosts };
+  return { calendar: await calendarView(calendar), sentences: previewSentences(calendar, plan), notified: diff.notified.length, movedPosts };
 }
 
 // ---------------------------------------------------------------- history and restore

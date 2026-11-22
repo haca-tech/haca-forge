@@ -50,7 +50,7 @@ interface CalendarView {
   health: Health;
 }
 interface SlotOption { permission: string; roles: string[]; people: Array<{ _id: string; name: string; role: string; calendarScope: string[] | null }> }
-interface CalendarPreview { health: Health; sentences: string[]; counts: Record<string, number> }
+interface CalendarPreview { health: Health; sentences: string[]; counts: Record<string, number>; /** The calendar's version the preview was made from. */ version?: number }
 interface HistoryRow {
   _id: string;
   at: string;
@@ -691,11 +691,17 @@ const HistoryTab: React.FC = () => {
         confirmLabel: 'Restore this version',
       });
       if (!ok) return;
-      await apiFetch(`/access-admin/history/${row._id}/restore`, { method: 'POST', body: JSON.stringify({ reason: `Restored the settings from before version ${row.version ?? ''}` }) });
+      // The version the preview was made from: if someone saved this calendar since, the API answers 409.
+      await apiFetch(`/access-admin/history/${row._id}/restore`, { method: 'POST', body: JSON.stringify({ reason: `Restored the settings from before version ${row.version ?? ''}`, version: pre.data.version }) });
       toast.success(`${row.subject} settings restored.`);
       load();
     } catch (e) {
-      toast.error(errorMessage(e));
+      if (e instanceof ApiError && e.code === 'SETTINGS_CHANGED') {
+        toast.error(`${row.subject}: settings changed — reload. Someone saved them after the preview; nothing was restored.`);
+        load();
+      } else {
+        toast.error(errorMessage(e));
+      }
     }
   };
 

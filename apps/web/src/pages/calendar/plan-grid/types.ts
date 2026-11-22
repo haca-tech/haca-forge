@@ -12,6 +12,10 @@ export interface GridRow {
   rowId: string;
   rowStatus: 'draft' | 'submitted' | 'changes_requested' | 'approved';
   editable: boolean;
+  /** The viewer added or submitted this row: another approver decides it (the API refuses). */
+  ownRow?: boolean;
+  createdById?: string | null;
+  submittedById?: string | null;
   /** Static Post / Carousel Post: false = Design only. */
   needsContent?: boolean;
   /** Row workflow read from the stored flags; null for types with a fixed step list. */

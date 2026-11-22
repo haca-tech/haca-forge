@@ -93,6 +93,14 @@ afterEach(() => {
 });
 
 describe('The lead sends a row back with suggested values', () => {
+  it('a row the lead added or submitted: the panel offers no send-back (another approver decides it)', async () => {
+    await show({ rows: [{ ...base, ownRow: true }, approved] });
+    expect(screen.queryByRole('button', { name: 'Review row: Founder reel' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Row details: Founder reel|Edit row: Founder reel|View row: Founder reel/ }));
+    const panel = await screen.findByRole('dialog', { name: 'Founder reel' });
+    expect(within(panel).queryByRole('button', { name: 'Request changes' })).not.toBeInTheDocument();
+  });
+
   it('sends the message and only the values that change', async () => {
     await show();
     fireEvent.click(screen.getByRole('button', { name: 'Review row: Founder reel' }));

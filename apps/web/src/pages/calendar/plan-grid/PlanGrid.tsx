@@ -534,8 +534,14 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
   const submittedLines = lines.filter((l) => l.saved?.rowStatus === 'submitted');
   // Whole-plan approval uses the existing approve_all rule (approves every row); offered only when
   // every row not yet approved has been submitted, so no draft is approved by accident.
+  // Rows the viewer added or submitted are decided by another approver (the API refuses them),
+  // so whole-plan decisions are off while any of them is waiting.
+  const ownWaiting = submittedLines.filter((l) => l.saved?.ownRow).length;
+  const ownWaitingNote = ownWaiting
+    ? `You added or submitted ${ownWaiting === 1 ? 'a waiting row' : `${ownWaiting} waiting rows`}: another approver decides ${ownWaiting === 1 ? 'it' : 'them'}. Approve the other rows one by one.`
+    : undefined;
   const canApproveWhole =
-    canReview && submittedLines.length > 0 && lines.every((l) => !l.saved || l.saved.rowStatus === 'submitted' || l.saved.rowStatus === 'approved');
+    canReview && !ownWaiting && submittedLines.length > 0 && lines.every((l) => !l.saved || l.saved.rowStatus === 'submitted' || l.saved.rowStatus === 'approved');
 
   const panelLine = lines.find((l) => l.key === panelKey) || null;
   const savePanel = async (cells: GridCellInput) => {
@@ -971,7 +977,7 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
                 type="button"
                 className="ui-btn ui-btn-primary h-11"
                 disabled={!canApproveWhole || reviewBusy}
-                title={!canApproveWhole && submittedLines.length > 0 ? 'Some rows are still drafts or sent back, so approve rows one by one.' : undefined}
+                title={ownWaitingNote || (!canApproveWhole && submittedLines.length > 0 ? 'Some rows are still drafts or sent back, so approve rows one by one.' : undefined)}
                 onClick={() => setConfirm({ kind: 'approveAll' })}
               >
                 <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
@@ -980,12 +986,14 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
               <button
                 type="button"
                 className="ui-btn ui-btn-secondary h-11"
-                disabled={submittedLines.length === 0 || reviewBusy}
+                disabled={submittedLines.length === 0 || ownWaiting > 0 || reviewBusy}
+                title={ownWaitingNote}
                 onClick={() => setConfirm({ kind: 'planChanges' })}
               >
                 <MessageSquare className="w-4 h-4" aria-hidden="true" />
                 Request changes on plan
               </button>
+              {ownWaitingNote && <p className="w-full text-xs text-ui-muted" data-testid="own-rows-note">{ownWaitingNote}</p>}
             </>
           )}
           {hasProgress && !isPhone && (
@@ -1117,7 +1125,7 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
               : [];
             const errs = Object.entries(line.errors);
             const attention = attentionOf(row);
-            const verb = canReview && row?.rowStatus === 'submitted' ? 'Review row' : canEdit && (!row || row.editable) ? 'Edit row' : 'View row';
+            const verb = canReview && row?.rowStatus === 'submitted' && !row?.ownRow ? 'Review row' : canEdit && (!row || row.editable) ? 'Edit row' : 'View row';
             return (
               <li key={line.key} className="glass-card rounded-ui-card p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
@@ -1257,7 +1265,12 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
                               <span className="sr-only">{`Needs attention: ${attention.join(', ')}`}</span>
                             </span>
                           )}
-                          {canReview && line.saved?.rowStatus === 'submitted' && (
+                          {canReview && line.saved?.rowStatus === 'submitted' && line.saved.ownRow && (
+                            <span className="status-chip status-not-started text-[11px]" title="You added or submitted this row: another approver decides it.">
+                              Yours
+                            </span>
+                          )}
+                          {canReview && line.saved?.rowStatus === 'submitted' && !line.saved.ownRow && (
                             <label className="inline-flex items-center justify-center w-11 h-11 cursor-pointer">
                               <input
                                 type="checkbox"
@@ -1279,7 +1292,7 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
                             <button
                               type="button"
                               className="ui-icon-btn h-11 w-11 ml-auto shrink-0"
-                              aria-label={`${canReview && line.saved?.rowStatus === 'submitted' ? 'Review row' : 'Row details'}: ${line.saved?.topic || String(line.draft.topic || `row ${idx + 1}`)}`}
+                              aria-label={`${canReview && line.saved?.rowStatus === 'submitted' && !line.saved?.ownRow ? 'Review row' : 'Row details'}: ${line.saved?.topic || String(line.draft.topic || `row ${idx + 1}`)}`}
                               onClick={() => setPanelKey(line.key)}
                             >
                               <PanelRightOpen className="w-4 h-4" aria-hidden="true" />

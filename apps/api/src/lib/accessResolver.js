@@ -137,7 +137,8 @@ function audienceQuery(audience, statusFilter = 'active') {
  */
 async function peopleFor(audience, calendar, { slot, statusFilter = 'active' } = {}) {
   if (!audience || (!(audience.roles || []).length && !(audience.userIds || []).length)) return [];
-  const people = await Person.find(audienceQuery(audience, statusFilter));
+  // A stable order (name, then id): the default poster is never "whoever was inserted first".
+  const people = await Person.find(audienceQuery(audience, statusFilter)).sort({ name: 1, _id: 1 });
   return people.filter((p) => withinCalendarScope(p, calendar) && (!slot || slotEligibleRole(p.role, slot)));
 }
 

@@ -268,7 +268,8 @@ export const PlanGridRowPanel: React.FC<Props> = ({
   );
   const described = (id: string, error?: string) => ({ 'aria-invalid': error ? true : undefined, 'aria-describedby': error ? `${id}-error` : undefined });
   const status = row ? ROW_STATUS[row.rowStatus] : null;
-  const reviewable = canReview && row?.rowStatus === 'submitted';
+  // Never on a row the viewer added or submitted (another approver decides it).
+  const reviewable = canReview && row?.rowStatus === 'submitted' && !row?.ownRow;
   const title = row?.topic || form.topic || 'New row';
   const stagesNow: StageKey[] = form.type ? (getPipelineForContent({ contentType: form.type, ...flags }).stages as StageKey[]) : [];
   const notNeeded = allStepsOf(form.type).filter((st) => !stagesNow.includes(st));

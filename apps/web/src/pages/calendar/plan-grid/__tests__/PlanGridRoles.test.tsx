@@ -163,6 +163,16 @@ describe('Creative Head review in the grid', () => {
     expect(reviewCalls()[0].body).toEqual({ action: 'approve_all' });
   });
 
+  it('rows the viewer added or submitted: no approve or send-back controls, whole-plan decisions off with a note (M4)', async () => {
+    await show({ rows: [{ ...base, ownRow: true }, { ...base, rowId: 'r2', topic: 'Campus walk', ownRow: false }] });
+    expect(screen.queryByLabelText('Select Founder reel for approval')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Select Campus walk for approval')).toBeInTheDocument();
+    expect(screen.getByText('Yours')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Approve whole plan' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Request changes on plan/ })).toBeDisabled();
+    expect(screen.getByTestId('own-rows-note')).toHaveTextContent('You added or submitted a waiting row: another approver decides it.');
+  });
+
   it('rows another lead decided first are reported, not shown as a plain success (issue 1)', async () => {
     reviewResponse = { data: { decision: { summary: '1 approved, 1 already decided', alreadyDecided: [{ rowId: 'r3', topic: 'Old approved' }] } } };
     try {

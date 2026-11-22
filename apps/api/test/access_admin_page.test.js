@@ -263,8 +263,8 @@ describe('Access & Approvals admin API (Phase D)', () => {
       expect(JSON.stringify(await listFeedbackThreads({}, await fresh('growth')))).not.toContain(String(step._id));
       // The in-progress step keeps its owner.
       expect(String((await WorkItem.findById(busy._id).lean()).ownerId)).toBe(String(P.worker._id));
-      // One notification for the new reviewer.
-      const notes = await Notification.find({ recipient: P.lead._id, type: 'access_rerouted' }).lean();
+      // One notification for the new reviewer about Ads (other notices may come from earlier limit changes).
+      const notes = await Notification.find({ recipient: P.lead._id, type: 'access_rerouted', 'metadata.calendar': 'ads' }).lean();
       expect(notes).toHaveLength(1);
       expect(notes[0].message).toMatch(/1 waiting review, 1 pause request/);
       expect(await Notification.countDocuments({ recipient: P.growth._id, type: 'access_rerouted' })).toBe(0);

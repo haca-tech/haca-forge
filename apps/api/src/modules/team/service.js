@@ -953,10 +953,10 @@ export async function updatePersonDetails(targetPersonId, updates, actor) {
     if (updates.whatsappNumber !== undefined) target.whatsappNumber = updates.whatsappNumber;
   }
 
-  // The access change first: when it is refused (no reason, self, last admin, a calendar left
-  // without cover), nothing else is saved either.
-  if (accessChanges) await savePersonChange(String(target._id), accessChanges, actor);
-  await target.save();
+  // One write per person: the other fields ride on the access change's save. When the access
+  // change is refused (no reason, self, last admin, a calendar left without cover), nothing is saved.
+  if (accessChanges) await savePersonChange(String(target._id), accessChanges, actor, { person: target });
+  else await target.save();
 
   if (auditEntries.length > 0) {
     await PersonChangeAudit.insertMany(auditEntries);

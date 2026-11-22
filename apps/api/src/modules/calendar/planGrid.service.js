@@ -242,6 +242,9 @@ export function toGridRow(piece, workItems = []) {
       : null,
     stepDeadlines,
     ownerSources,
+    // Who added and who submitted the row (nobody decides rows they added or submitted).
+    createdById: piece.createdById ? String(piece.createdById) : null,
+    submittedById: piece.submittedById ? String(piece.submittedById) : null,
     ownerIds: Object.fromEntries(stages.map((s) => [s, ownerId(s)])),
     contentOwner: stages.includes('Content') ? ownerName('Content') : '',
     designOwner: stages.includes('Design') ? ownerName('Design') : '',
@@ -346,7 +349,10 @@ export async function loadGrid({ calendar = 'sm', month, planId } = {}, user) {
     plans,
     selectionRequired: !selected && plans.length > 1,
     plan: selected,
-    rows: selected ? await loadGridRows(selected._id) : [],
+    // ownRow: the viewer added or submitted it, so the viewer may not approve or send it back (M4).
+    rows: selected
+      ? (await loadGridRows(selected._id)).map((r) => ({ ...r, ownRow: [r.createdById, r.submittedById].includes(String(user._id || user.userId)) }))
+      : [],
     // Nobody reviews their own plan (fixed rule).
     permissions: { canEdit: perms.canEdit, canReview: perms.canReview && !(selected && selected.createdById === String(user._id || user.userId)), readOnly: perms.readOnly },
     // Who approves this calendar's plans now (its configured plan approvers, or the fallback).

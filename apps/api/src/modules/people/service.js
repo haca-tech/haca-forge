@@ -264,9 +264,9 @@ export async function updatePerson(id, updates, actor) {
     throw error;
   }
 
-  // The access change first: when it is refused, nothing else is saved either.
-  if (accessChanges) await savePersonChange(String(target._id), accessChanges, actor);
-  await target.save();
+  // One write per person: the other fields ride on the access change's save; refused = nothing saved.
+  if (accessChanges) await savePersonChange(String(target._id), accessChanges, actor, { person: target });
+  else await target.save();
 
   await logActivity({
     entityType: 'person',
@@ -303,9 +303,8 @@ export async function suspendPerson(id, actor, { reason } = {}) {
     throw error;
   }
 
-  await savePersonChange(String(target._id), { status: 'suspended', reason }, actor);
-  target.refreshTokenHash = undefined; // Force logout
-  await Person.updateOne({ _id: target._id }, { $unset: { refreshTokenHash: 1 } });
+  target.refreshTokenHash = undefined; // Force logout, in the same write as the suspension
+  await savePersonChange(String(target._id), { status: 'suspended', reason }, actor, { person: target });
 
   await logActivity({
     entityType: 'person',
