@@ -1,6 +1,20 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after the final access fix):** 2269 passing, 0 failing, 0 skipped: API 1752 (98 files), web 517 (65 files). Typecheck 0 errors; web build clean.
+**Current test count (after the review follow-ups):** 2308 passing, 0 failing, 0 skipped: API 1784 (103 files), web 524 (66 files). Typecheck 0 errors; web build clean.
+
+## Review follow-ups (Status: COMPLETE; committed locally, not pushed)
+
+From the independent review of the final access fix. Gate (shared build, typecheck, web build, all API and web tests) after each commit.
+
+- **`84a0f1e` Issue 1, plan row batches.** Decisions on several rows read and check every row first, then claim each with `updateOne({_id, rowStatus:'submitted'})`; steps, history, the planner's notice and the approval timestamp follow only the rows won. Rows another approver decided first are reported ("2 approved, 1 already decided"), never half-processed; winning nothing is 409. The plan's approval timestamp is set when its last submitted row is decided. Approved rows without steps are repaired when their plan is opened, or by `scripts/repair-missing-stages.js` (dry run by default; each repair claims the row so two never both generate). **Dry run on the app database (`marketing_portal`): 0 approved rows without steps.**
+- **`1096b63` Issue 2, one owner rule** (`workItems/ownerRule.js`): active, eligible for the step, and for Post a poster on the step's calendar; 400 `OWNER_NOT_ELIGIBLE` with the reason. Applied to the assignment override, Tracker assign (all or nothing), reassign one stage, Work Detail owner change, plan validation (hand-picked grid owners and the posting owner), step generation (an owner who can no longer own the step is dropped) and team reassignment. The grid, the Tracker dialog and the recommendations offer only eligible people.
+- **`a616c59` Low items.** Who is told (`accessConfig/responsibility.js`: everyone whose decide / approve / post calendars or responsibility changed gets `access:changed`, fallback people and admins included; newly responsible people get one notice about waiting work); the health check counts active admins as the final fallback; restore carries the preview's version (409 if the calendar changed); one write per person change; the plan grid hides decisions on rows you added or submitted; slot people sorted by name, then id.
+- **`4052b02` Tests.** `review.read_all` proven by a teammate who passes the route check but lacks it; forced interleaving with test hooks for T6, M3 / issue 1 and M8 (two real overlapping requests); each run with its fix removed and failed. The T1 mount parser handles parenthesised middleware and comments; every allow-list entry names its check and `unguarded_route_checks.test.js` asserts each one runs. L4 with the real `apiFetch` and fetch failing offline.
+- **Browser-check fixes (this commit).** Whole-plan decisions now also report rows another lead decided after the page loaded ("2 approved, 1 already decided by someone else since this page loaded"; the phone layout has only whole-plan decisions). A refused grid owner shows its reason once (the posting owner and the Post step owner share one cell).
+
+**Browser check** (disposable `marketing_portal_uicheck`, API :8095, web :5199 with the project's Vite config, :8080 blocked; dropped after): issues 1 and 2, 19/19 at 1440 px and 20/20 at 390 px. Issue 1: three rows submitted; another lead approves row 2; the lead approves the selected three (desktop) or the whole plan (phone): the grid says 2 approved and 1 already decided, every row has its steps once, the planner gets two notices. Issue 2: the grid and the Tracker dialog offer only eligible owners; a non-poster is refused with the reason in the grid, Tracker assign and Work Detail; an eligible owner is accepted.
+
+**Found, not fixed (outside this list):** `GET /api/notifications/preferences` and `DELETE /api/notifications/:id` call notification service functions that do not exist, so they answer 500. Recommendations for Content / Design use work preferences (empty preferences = nobody recommended) while the owner rule uses the job role, so the Tracker can say "nobody eligible" yet offer the designer.
 
 ## Final access fix (from Phase E and the independent review) (Status: COMPLETE; committed locally, not pushed)
 

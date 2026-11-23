@@ -743,7 +743,11 @@ export async function saveGridRows(body = {}, user) {
     const m = /^in-(\d+)$/.exec(String(e.rowNumber));
     if (!m) continue;
     const r = built[Number(m[1])].result;
-    (r.cellErrors[mapValidationField(e.field)] ||= []).push(e.message);
+    {
+      // The posting owner and the Post step owner share one cell: one message, not two.
+      const list = (r.cellErrors[mapValidationField(e.field)] ||= []);
+      if (!list.includes(e.message)) list.push(e.message);
+    }
   }
   for (const w of validation.warnings) {
     const m = /^in-(\d+)$/.exec(String(w.rowNumber));

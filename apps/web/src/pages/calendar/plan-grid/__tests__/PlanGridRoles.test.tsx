@@ -173,6 +173,19 @@ describe('Creative Head review in the grid', () => {
     expect(screen.getByTestId('own-rows-note')).toHaveTextContent('You added or submitted a waiting row: another approver decides it.');
   });
 
+  it('whole-plan approval: rows another lead decided after the page loaded are reported (issue 1, phone path)', async () => {
+    reviewResponse = { data: { decision: { summary: '1 approved', approved: ['r1'], changesRequested: [], alreadyDecided: [] } } };
+    try {
+      await show({ rows: [base, { ...base, rowId: 'r2', topic: 'Campus walk' }] });
+      fireEvent.click(screen.getByRole('button', { name: 'Approve whole plan' }));
+      const dlg = await screen.findByRole('alertdialog', { name: 'Approve the whole plan?' });
+      fireEvent.click(within(dlg).getByRole('button', { name: 'Approve whole plan' }));
+      expect(await screen.findByText('1 approved, 1 already decided by someone else since this page loaded.')).toBeInTheDocument();
+    } finally {
+      reviewResponse = { data: {} };
+    }
+  });
+
   it('rows another lead decided first are reported, not shown as a plain success (issue 1)', async () => {
     reviewResponse = { data: { decision: { summary: '1 approved, 1 already decided', alreadyDecided: [{ rowId: 'r3', topic: 'Old approved' }] } } };
     try {

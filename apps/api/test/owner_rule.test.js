@@ -140,6 +140,7 @@ describe('Issue 2: one owner rule on every owner-change path', () => {
     const bad = await save('smSales');
     const result = bad.body.data?.results?.[0] || {};
     expect(JSON.stringify(result.cellErrors || bad.body.error || {})).toMatch(/not a poster on SM Calendar/);
+    expect(result.cellErrors?.postingOwner).toHaveLength(1); // one message, not one per check
     expect(result.status).not.toBe('saved');
     const ok = await save('sm');
     expect(ok.status).toBe(201);

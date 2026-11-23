@@ -508,17 +508,23 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
     if (!plan) return false;
     setReviewBusy(true);
     try {
-      const res = await apiFetch<{ data?: { decision?: { summary?: string; alreadyDecided?: Array<{ topic: string }> } } }>(
+      // What this screen showed as waiting, for whole-plan decisions (they act on what is waiting now).
+      const shownWaiting = body.action === 'approve_all' || body.action === 'request_changes_all' ? submittedLines.length : 0;
+      const res = await apiFetch<{ data?: { decision?: { summary?: string; approved?: string[]; changesRequested?: string[]; alreadyDecided?: Array<{ topic: string }> } } }>(
         `/api/calendar-plans/${plan._id}/review`,
         { method: 'POST', body: JSON.stringify(body) }
       );
       // Rows another lead decided first are reported, not lost: "2 approved, 1 already decided".
       const decision = res?.data?.decision;
       const lostRows = decision?.alreadyDecided || [];
+      const decided = (decision?.approved?.length || 0) + (decision?.changesRequested?.length || 0);
+      const decidedElsewhere = decision && shownWaiting > decided + lostRows.length ? shownWaiting - decided : 0;
       setNotice(
         lostRows.length
           ? { tone: 'warn', text: `${decision?.summary || ''}. ${lostRows.map((r) => `"${r.topic}"`).join(', ')} ${lostRows.length === 1 ? 'was' : 'were'} already decided by someone else.` }
-          : { tone: 'ok', text: okText }
+          : decidedElsewhere
+            ? { tone: 'warn', text: `${decision?.summary || ''}, ${decidedElsewhere} already decided by someone else since this page loaded.` }
+            : { tone: 'ok', text: okText }
       );
       setSelectedIds(new Set());
       await load();
