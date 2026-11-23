@@ -1746,22 +1746,6 @@
    "executive"
   ]
  },
- "POST /api/uploads/sign": {
-  "guards": [
-   [
-    "work.create",
-    "work.request",
-    "work.update.own"
-   ]
-  ],
-  "roles": [
-   "admin",
-   "creative_lead",
-   "growth_lead",
-   "sm_manager",
-   "executive"
-  ]
- },
  "POST /api/work": {
   "guards": [
    [

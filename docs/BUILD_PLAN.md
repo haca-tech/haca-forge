@@ -324,4 +324,4 @@ graph TD
 
 ## 3. Retained Historical Artifacts
 
-All historical work items, deliverables, and activity events remain completely intact in MongoDB. Cloudinary assets stay fully accessible. The pre-workflow-v2 codebase and database state are preserved under git tag `pre-workflow-v2` and backup directory `../haca-backups/before-workflow-v2/`.
+All historical work items, deliverables, and activity events remain completely intact in MongoDB. Uploaded files stay fully accessible. The pre-workflow-v2 codebase and database state are preserved under git tag `pre-workflow-v2` and backup directory `../haca-backups/before-workflow-v2/`.

@@ -214,12 +214,12 @@ Collections from retired FORGE features that have no active Mongoose model in `a
 
 ---
 
-### 3.5 Cloudinary Files & URLs Audit
+### 3.5 Stored Files Audit
 
 * **Collections Scanned:** All 1,773 documents across transactional collections (`workitems`, `contentpieces`, `calendarplans`, `accessrequests`, `activityevents`, `notifications`).
-* **Cloudinary URLs Found:** **0 URLs** (No files currently hosted in Cloudinary).
+* **Externally hosted files found:** **0** (no files were hosted outside the app).
 * **Other URLs Found:** 4 test mock URLs (`https://figma.com/file/guards-test`, `https://docs.google.com/script`, `https://docs.google.com/script-done`, `http://localhost:5173/set-password?...`).
-* **Export Action:** The script will scan all deleted documents, extract any URL containing `cloudinary.com` or `res.cloudinary.com`, and output them to `../haca-backups/<timestamp>/cloudinary-urls.txt`.
+* **Export Action:** The script will scan all deleted documents, list every stored app file it references (storage keys), and write them to `../haca-backups/<timestamp>/stored-files.txt`.
 
 ---
 
@@ -249,7 +249,7 @@ Collections from retired FORGE features that have no active Mongoose model in `a
 
 > [!IMPORTANT]
 > Execution is stopped per instructions. Please review this plan. Upon your approval, we will proceed to **Step 2**:
-> 1. Create `scripts/wipe-keep-users.js` with all guards, JSON backup, Cloudinary scanner, and idempotent execution.
+> 1. Create `scripts/wipe-keep-users.js` with all guards, JSON backup, stored-file scanner, and idempotent execution.
 > 2. Remove legacy wipe scripts (`scripts/wipe-keep-admin.js`).
 > 3. Create test suite in `apps/api/test/wipe_keep_users.test.js` verifying guards, user preservation, and idempotency against an isolated test database.
 > 4. Execute the dry run and present output.

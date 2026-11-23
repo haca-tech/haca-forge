@@ -784,12 +784,53 @@ export function isDriveLink(url: unknown): boolean {
   }
 }
 
-const APP_UPLOAD_PATH =
-  /^\/uploads\/(?:[A-Za-z0-9_-][A-Za-z0-9._-]{0,200}|chat\/[0-9a-f]{24}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[A-Za-z0-9_-]{1,60}\.[a-z0-9]{2,5})$/;
+/**
+ * A storage key: where an uploaded file lives, the same on every storage driver.
+ *   uploads/<name>                                  older uploads (stored as "/uploads/<name>")
+ *   uploads/<yyyy>/<mm>/<name>                      work files
+ *   uploads/avatars/<name>                          profile photos
+ *   uploads/chat/<channelId>/<uuid>/<name>          chat attachments
+ */
+const STORAGE_KEY =
+  /^uploads\/(?:[A-Za-z0-9_-][A-Za-z0-9._-]{0,200}|\d{4}\/\d{2}\/[A-Za-z0-9_-][A-Za-z0-9._-]{0,200}|avatars\/[A-Za-z0-9_-][A-Za-z0-9._-]{0,200}|chat\/[0-9a-f]{24}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[A-Za-z0-9_-]{1,60}\.[a-z0-9]{2,5})$/;
 
-/** The shape of a file uploaded through the app (/uploads/...). The API also checks it exists. */
+/**
+ * The storage key a stored or served file value points at, or null: a key ("uploads/..."), a
+ * local path ("/uploads/..."), or a signed file URL the API gave out (https://<cdn>/uploads/...
+ * ?token=...&expires=...). Anything else (Drive links, other sites) is not an app file.
+ */
+export function storageKeyOf(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  let text = value.trim();
+  if (!text || text.includes("..") || text.includes("\\")) return null;
+  // https in production; http only for a local mock CDN in development and tests.
+  if (/^https?:\/\//i.test(text)) {
+    try {
+      const u = new URL(text);
+      if (!u.searchParams.get("token") || !u.searchParams.get("expires")) return null;
+      text = decodeURIComponent(u.pathname);
+    } catch {
+      return null;
+    }
+  }
+  if (text.startsWith("/")) text = text.slice(1);
+  return STORAGE_KEY.test(text) ? text : null;
+}
+
+/** The shape of a file uploaded through the app (a key, /uploads/..., or a signed file URL). The API also checks it exists. */
 export function isAppUploadPath(url: unknown): boolean {
-  return typeof url === "string" && APP_UPLOAD_PATH.test(url) && !url.includes("..");
+  return storageKeyOf(url) !== null;
+}
+
+/** When a signed file URL stops working (ms since epoch), or null for a URL that never expires. */
+export function fileUrlExpiresAt(url: unknown): number | null {
+  if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return null;
+  try {
+    const expires = Number(new URL(url).searchParams.get("expires"));
+    return Number.isFinite(expires) && expires > 0 ? expires * 1000 : null;
+  } catch {
+    return null;
+  }
 }
 
 /** A URL a clip or submission may be saved with: an app upload or a Drive link. */
@@ -893,6 +934,29 @@ export const FRAME_SRC_HOSTS = [
   "https://drive.google.com",
 ] as const;
 export const FRAME_SRC_POLICY = `frame-src 'self' ${FRAME_SRC_HOSTS.join(" ")}`;
+
+/**
+ * Where uploaded files are served from in production: the Bunny Pull Zone (docs/STORAGE.md).
+ * A Pull Zone's own hostname is <name>.b-cdn.net; add a custom hostname here if one is set up.
+ */
+export const FILE_CDN_HOSTS = ["https://*.b-cdn.net"] as const;
+
+/**
+ * The web app's Content-Security-Policy: the frames above, plus where images, videos and file
+ * requests may come from (the file CDN named explicitly). Images and API calls also keep `https:`
+ * (external thumbnails and the API on its own host); videos come only from this site or the CDN.
+ * `extraFileHosts` adds development hosts (the local mock Bunny server).
+ */
+export function webContentSecurityPolicy(extraFileHosts: readonly string[] = []): string {
+  const files = [...FILE_CDN_HOSTS, ...extraFileHosts].join(" ");
+  return [
+    FRAME_SRC_POLICY,
+    `img-src 'self' data: blob: ${files} https:`,
+    `media-src 'self' blob: ${files}`,
+    `connect-src 'self' ${files} https: wss:`,
+  ].join("; ");
+}
+export const WEB_CSP_POLICY = webContentSecurityPolicy();
 
 function parseHttps(raw: unknown): URL | null {
   if (typeof raw !== "string") return null;
@@ -1379,17 +1443,6 @@ export const personAdminUpdateSchema = personOperationalUpdateSchema.extend({
 });
 export type PersonAdminUpdateInput = z.infer<typeof personAdminUpdateSchema>;
 
-export const signUploadSchema = z.object({
-  fileName: z.string().min(1, "File name is required"),
-  fileSize: z.number().positive("File size must be positive"),
-  fileType: z.string().min(1, "File type is required"),
-  kind: z.enum(UPLOAD_KINDS).optional(),
-  pieceId: z.string().optional(),
-  contentPieceId: z.string().optional(),
-  deliverableType: z.enum(DELIVERABLE_TYPES).optional(),
-  folder: z.string().optional(),
-});
-export type SignUploadInput = z.infer<typeof signUploadSchema>;
 
 // Work Items Schemas
 export const briefSchema = z.object({

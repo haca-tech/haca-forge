@@ -1,5 +1,4 @@
 import * as profileService from './service.js';
-import { generateUploadSignature } from '../uploads/service.js';
 
 export async function getProfileHandler(req, res, next) {
   try {
@@ -36,22 +35,6 @@ export async function verifyPhoneOtpHandler(req, res, next) {
   try {
     const result = await profileService.verifyPhoneOtp(req.user._id, req.body);
     return res.status(200).json(result);
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function signAvatarHandler(req, res, next) {
-  try {
-    const { fileName, fileSize, fileType } = req.body;
-    const signature = await generateUploadSignature({
-      fileName,
-      fileSize,
-      fileType,
-      kind: 'image',
-      folder: `marketing_portal/avatars/user_${req.user._id}`,
-    });
-    return res.status(200).json(signature);
   } catch (err) {
     next(err);
   }

@@ -38,11 +38,18 @@ services:
         sync: false
       - key: MAIL_FROM
         value: Marketing Portal <no-reply@yourdomain.com>
-      - key: CLOUDINARY_CLOUD_NAME
+      # File storage on Bunny (docs/STORAGE.md). Values are set in the Render dashboard.
+      - key: STORAGE_DRIVER
+        value: bunny
+      - key: BUNNY_STORAGE_ZONE
         sync: false
-      - key: CLOUDINARY_API_KEY
+      - key: BUNNY_STORAGE_HOST
         sync: false
-      - key: CLOUDINARY_API_SECRET
+      - key: BUNNY_STORAGE_KEY
+        sync: false
+      - key: BUNNY_CDN_URL
+        sync: false
+      - key: BUNNY_TOKEN_KEY
         sync: false
       - key: ADMIN_SEED_EMAIL
         sync: false

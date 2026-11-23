@@ -1,10 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { FRAME_SRC_POLICY } from '@mmp/shared';
+import { webContentSecurityPolicy } from '@mmp/shared';
 
-// Frames the app may load (Published page embeds, Review Studio link viewer). Same policy as
-// vercel.json (production) and helmet.
-const securityHeaders = { 'Content-Security-Policy': FRAME_SRC_POLICY };
+// Frames the app may load (Published page embeds, Review Studio link viewer; FRAME_SRC_POLICY) and
+// where files come from (the file CDN). Same policy as vercel.json (production) and helmet, plus
+// this machine's hosts for development (a local mock Bunny server, the dev server's socket).
+const securityHeaders = {
+  'Content-Security-Policy': webContentSecurityPolicy(['http://127.0.0.1:*', 'http://localhost:*', 'ws://127.0.0.1:*', 'ws://localhost:*']),
+};
 
 export default defineConfig({
   plugins: [react()],

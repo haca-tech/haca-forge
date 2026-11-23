@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import path from 'path';
+import { storageKeyOf } from '@mmp/shared';
 
 /**
  * The file types the general upload route and avatars accept: video, image and PDF.
@@ -74,6 +75,9 @@ export function safeLink(url) {
   if (typeof url !== 'string') return '';
   const value = url.trim();
   if (!value) return '';
+  // An app file is kept as its storage key (responses turn it into a URL).
+  const key = storageKeyOf(value);
+  if (key) return key;
   if (value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\')) return value;
   try {
     const parsed = new URL(value);

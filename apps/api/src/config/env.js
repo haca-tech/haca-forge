@@ -30,10 +30,22 @@ const envSchema = z.object({
   ADMIN_SEED_EMAIL: z.string().email().optional(),
   ADMIN_SEED_PASSWORD: z.string().min(8).optional(),
 
-  CLOUDINARY_CLOUD_NAME: z.string().optional(),
-  CLOUDINARY_API_KEY: z.string().optional(),
-  CLOUDINARY_API_SECRET: z.string().optional(),
+  // File storage (docs/STORAGE.md): "local" keeps files in apps/api/uploads; "bunny" stores them on
+  // Bunny Storage and serves them through a Bunny Pull Zone with token authentication.
+  STORAGE_DRIVER: z.enum(['local', 'bunny']).default('local'),
+  BUNNY_STORAGE_ZONE: z.string().optional(),
+  BUNNY_STORAGE_HOST: z.string().optional(),
+  BUNNY_STORAGE_KEY: z.string().optional(),
+  BUNNY_CDN_URL: z.string().optional(),
+  BUNNY_TOKEN_KEY: z.string().optional(),
 });
+
+/** With STORAGE_DRIVER=bunny every Bunny setting is required. Names only; values are never printed. */
+export const BUNNY_SETTINGS = ['BUNNY_STORAGE_ZONE', 'BUNNY_STORAGE_HOST', 'BUNNY_STORAGE_KEY', 'BUNNY_CDN_URL', 'BUNNY_TOKEN_KEY'];
+export function missingStorageSettings(values) {
+  if (values.STORAGE_DRIVER !== 'bunny') return [];
+  return BUNNY_SETTINGS.filter((name) => !String(values[name] || '').trim());
+}
 
 const parsed = envSchema.safeParse(process.env);
 
@@ -44,6 +56,14 @@ if (!parsed.success) {
   console.error('\n❌ CRITICAL: Environment configuration validation failed:');
   console.error(issues);
   console.error('\nPlease check your .env file against .env.example\n');
+  process.exit(1);
+}
+
+const missingStorage = missingStorageSettings(parsed.data);
+if (missingStorage.length) {
+  console.error('\n❌ CRITICAL: STORAGE_DRIVER=bunny needs these settings, which are missing or empty:');
+  console.error(missingStorage.map((name) => ` - ${name}`).join('\n'));
+  console.error('\nSee docs/STORAGE.md. Use STORAGE_DRIVER=local to keep files on this machine.\n');
   process.exit(1);
 }
 

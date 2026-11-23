@@ -191,8 +191,8 @@ export async function saveDraft(workItemId, draftData, user) {
   // Sanitize document and enforce 1 MB size limit
   const sanitizedDoc = sanitizeDocumentPayload(draftData.document);
   // Saved output links: files uploaded here or Google Drive / Docs links only.
-  if (draftData.files !== undefined) assertOutputFiles(draftData.files);
-  if (draftData.linkUrl !== undefined) assertOutputUrl(draftData.linkUrl, 'linkUrl');
+  if (draftData.files !== undefined) await assertOutputFiles(draftData.files);
+  if (draftData.linkUrl !== undefined) await assertOutputUrl(draftData.linkUrl, 'linkUrl');
 
   let draft = await Submission.findOne({ workItemId, version: 0 });
 
@@ -290,9 +290,9 @@ export async function submitForApproval(workItemId, submitData = {}, user) {
   const notes = submitData.notes !== undefined ? submitData.notes : draft?.notes || '';
 
   // Saved output links: files uploaded here or Google Drive / Docs links only.
-  assertOutputFiles(files);
-  assertOutputUrl(linkUrl, 'linkUrl');
-  assertOutputUrl(submitData.fileUrl, 'fileUrl');
+  await assertOutputFiles(files);
+  await assertOutputUrl(linkUrl, 'linkUrl');
+  await assertOutputUrl(submitData.fileUrl, 'fileUrl');
 
   // Non-empty output check
   validateNonEmptySubmission(kind, workItem.stageKey, sanitizedDoc, files, linkUrl);

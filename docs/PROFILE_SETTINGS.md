@@ -295,16 +295,16 @@ All endpoints are strictly authenticated and live under the signed-in user's sco
 #### `POST /api/me/avatar/sign`
 * **Access:** Authenticated (any role).
 * **Request Schema:** `{ fileName: z.string(), fileSize: z.number().max(5 * 1024 * 1024), fileType: z.enum(['image/png', 'image/jpeg', 'image/webp']) }`
-* **Behavior:** Generates signed Cloudinary upload params targeting `marketing_portal/avatars/user_{userId}_{uuid}` with public listing blocked.
+* **Behavior:** Removed. Photos are uploaded to the API (below) and stored through lib/storage (docs/STORAGE.md).
 
 #### `POST /api/me/avatar`
 * **Access:** Authenticated (any role).
-* **Behavior:** Handles local direct multipart upload (Multer) for environments without Cloudinary. Enforces `png`, `jpg`, `jpeg`, `webp` up to 5 MB. Deletes old avatar file if present. Updates `user.avatarUrl` and `user.avatarStorageId`.
+* **Behavior:** Handles local direct multipart upload (Multer) into storage (local folder or Bunny; docs/STORAGE.md). Enforces `png`, `jpg`, `jpeg`, `webp` up to 5 MB. Deletes old avatar file if present. Updates `user.avatarUrl` and `user.avatarStorageId`.
 * **ActivityEvent:** Writes `action: 'avatar.updated'`.
 
 #### `DELETE /api/me/avatar`
 * **Access:** Authenticated (any role).
-* **Behavior:** Deletes avatar asset from Cloudinary or local `/uploads` directory using `avatarStorageId`. Sets `user.avatarUrl = null` and `user.avatarStorageId = null`.
+* **Behavior:** Deletes the photo from storage (local folder or Bunny) using `avatarStorageId`. Sets `user.avatarUrl = null` and `user.avatarStorageId = null`.
 * **ActivityEvent:** Writes `action: 'avatar.removed'`.
 
 ---

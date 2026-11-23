@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { toStoredFile } from '../../lib/storage/keys.js';
 import crypto from 'crypto';
 import {
   STEP_OUTPUT_KINDS,
@@ -13,7 +14,7 @@ import {
 
 const submissionFileSchema = new mongoose.Schema(
   {
-    url: { type: String, required: true, trim: true },
+    url: { type: String, required: true, trim: true, set: toStoredFile },
     size: { type: Number, default: 0 },
     duration: { type: Number, default: 0 },
     width: { type: Number, default: 0 },
@@ -65,11 +66,13 @@ const submissionSchema = new mongoose.Schema(
       type: String,
       default: '',
       trim: true,
+      set: toStoredFile,
     },
     linkUrl: {
       type: String,
       default: '',
       trim: true,
+      set: toStoredFile,
     },
     notes: {
       type: String,

@@ -19,6 +19,8 @@ import { PhoneVerification } from './phoneVerification.model.js';
 import { disconnectUserSockets } from '../../lib/socketHub.js';
 import { isSuperuser, rolesWith } from '../../lib/roleAccess.js';
 import { hasPermission, isOwnScope, isReadOnly } from '../../lib/roleAccess.js';
+import { storageKeyOf } from '@mmp/shared';
+import { newAvatarKey, putFile, removeFile } from '../../lib/storage/index.js';
 
 export function stripHtml(str) {
   if (typeof str !== 'string') return str;
@@ -406,15 +408,21 @@ export async function processAvatarUpload(userId, file) {
     throw error;
   }
 
-  // Delete previous local file if it exists
-  if (user.avatarStorageId) {
-    deleteLocalAvatarFile(user.avatarStorageId);
+  // Into storage (local folder or Bunny) under a new key; the temp file is then removed.
+  const key = newAvatarKey(file.allowedType?.ext || path.extname(file.filename).toLowerCase());
+  try {
+    await putFile(key, file.path, { contentType: file.mimetype });
+  } finally {
+    if (file.path && fs.existsSync(file.path)) {
+      try { fs.unlinkSync(file.path); } catch {}
+    }
   }
-
-  const newUrl = `/uploads/${file.filename}`;
-  user.avatarUrl = newUrl;
-  user.avatarStorageId = file.filename;
+  const previous = user.avatarStorageId || user.avatarUrl;
+  user.avatarUrl = key;
+  user.avatarStorageId = key;
   await user.save();
+  // The replaced photo is deleted once the new one is saved.
+  if (previous && storageKeyOf(previous) !== key) await deleteAvatarFile(previous);
 
   try {
     await ActivityEvent.create({
@@ -436,18 +444,17 @@ export async function processAvatarUpload(userId, file) {
 }
 
 /**
- * Delete avatar helper
+ * Deletes a profile photo from storage. Accepts the stored key, an older "/uploads/..." value, or
+ * an older bare file name (avatarStorageId before storage keys). Never throws.
  */
-export function deleteLocalAvatarFile(filename) {
-  if (!filename) return;
+export async function deleteAvatarFile(value) {
+  if (!value) return;
+  const key = storageKeyOf(value) || storageKeyOf(`uploads/${path.basename(String(value))}`);
+  if (!key) return;
   try {
-    const uploadDir = path.resolve(process.cwd(), 'uploads');
-    const filePath = path.join(uploadDir, path.basename(filename));
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    await removeFile(key);
   } catch (err) {
-    logger.warn({ err: err.message, filename }, 'Could not delete old avatar file');
+    logger.warn({ code: err.code }, 'Could not delete the old profile photo from storage');
   }
 }
 
@@ -462,13 +469,11 @@ export async function removeAvatar(userId, actor = null) {
     throw error;
   }
 
-  if (user.avatarStorageId) {
-    deleteLocalAvatarFile(user.avatarStorageId);
-  }
-
+  const previous = user.avatarStorageId || user.avatarUrl;
   user.avatarUrl = null;
   user.avatarStorageId = null;
   await user.save();
+  await deleteAvatarFile(previous);
 
   try {
     const actorId = actor ? actor._id : user._id;

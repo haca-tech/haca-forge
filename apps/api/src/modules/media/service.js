@@ -1,17 +1,17 @@
-import fs from 'fs';
 import { flagAfterChangesRequested } from '../feedback/service.js';
 import { assertDecidesOn, calendarOf, canDecideOn, decidersFor } from '../workItems/deciders.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { MediaItem, MediaMessage } from './model.js';
 import { WorkItem } from '../workItems/model.js';
 import { User } from '../people/model.js';
 import { resolveScope } from '../../lib/scope.js';
-import { getWorkspaceMode, APPROVER_ROLES, isApprover, canDecide } from '@mmp/shared';
+import { getWorkspaceMode, APPROVER_ROLES, isApprover, canDecide, storageKeyOf } from '@mmp/shared';
 import { createNotification } from '../notifications/service.js';
 import { logActivity } from '../activity/service.js';
 import { canSeePrivateReview, canSeeStepOutput, getParticipation, isTeamMember } from '../workItems/access.js';
 import { assertOutputUrl } from '../uploads/outputUrls.js';
+import { removeFile } from '../../lib/storage/index.js';
+import { fileRefFilter } from '../../lib/storage/keys.js';
+import { logger } from '../../lib/logger.js';
 import { hasPermission, isSuperuser } from '../../lib/roleAccess.js';
 
 /**
@@ -109,9 +109,9 @@ export async function createClip(stageItemId, clipData, user) {
   }
 
   // A clip is a file uploaded here or a Google Drive link; a thumbnail must be an upload.
-  assertOutputUrl(clipData.url, 'url');
+  await assertOutputUrl(clipData.url, 'url');
   if (!clipData.url) throw Object.assign(new Error('A clip URL is required'), { statusCode: 400, code: 'INVALID_OUTPUT_URL' });
-  assertOutputUrl(clipData.thumbnailUrl, 'thumbnailUrl', { uploadsOnly: true });
+  await assertOutputUrl(clipData.thumbnailUrl, 'thumbnailUrl', { uploadsOnly: true });
 
   const clip = await MediaItem.create({
     stageItemId,
@@ -331,8 +331,8 @@ export async function replaceClip(clipId, newClipData, user) {
 
   // Only the values sent now are checked; a reused old thumbnail stays as it was.
   if (!newClipData.url) throw Object.assign(new Error('A clip URL is required'), { statusCode: 400, code: 'INVALID_OUTPUT_URL' });
-  assertOutputUrl(newClipData.url, 'url');
-  assertOutputUrl(newClipData.thumbnailUrl, 'thumbnailUrl', { uploadsOnly: true });
+  await assertOutputUrl(newClipData.url, 'url');
+  await assertOutputUrl(newClipData.thumbnailUrl, 'thumbnailUrl', { uploadsOnly: true });
 
   const newClip = await MediaItem.create({
     stageItemId: oldClip.stageItemId,
@@ -361,22 +361,21 @@ export async function replaceClip(clipId, newClipData, user) {
   return newClip;
 }
 
-const UPLOADS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../uploads');
-
 /**
- * Delete a deleted clip's local files (video and thumbnail). Only a plain file directly in
- * /uploads is touched, and only when no other clip still points at it.
+ * Delete a deleted clip's files (video and thumbnail) from storage (local folder or Bunny). Only
+ * app files are touched, and only when no other clip still points at them.
  */
 async function removeClipFiles(clip) {
-  for (const url of new Set([clip.url, clip.thumbnailUrl])) {
-    const match = /^\/uploads\/([A-Za-z0-9._-]+)$/.exec(String(url || ''));
-    if (!match || match[1].startsWith('.')) continue;
-    const stillUsed = await MediaItem.exists({ $or: [{ url }, { thumbnailUrl: url }] });
+  for (const value of new Set([clip.url, clip.thumbnailUrl])) {
+    const key = storageKeyOf(value);
+    if (!key) continue;
+    const ref = fileRefFilter(key);
+    const stillUsed = await MediaItem.exists({ $or: [{ url: ref }, { thumbnailUrl: ref }] });
     if (stillUsed) continue;
     try {
-      fs.unlinkSync(path.join(UPLOADS_DIR, match[1]));
-    } catch {
-      // Already gone, or never stored locally.
+      await removeFile(key);
+    } catch (err) {
+      logger.warn({ code: err.code }, 'Could not delete a clip file from storage');
     }
   }
 }

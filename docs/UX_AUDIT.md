@@ -187,7 +187,7 @@ The Creative Manager is the primary quality and creative authority. They review 
 * **What is confusing & friction points:**
   * **1366px (Desktop):**
     * The screen is titled "Feedback and Revisions", which sounds like a reporting archive rather than an urgent "Waiting for Approval" queue.
-    * The deliverable URL is often an external Google Drive or Cloudinary link formatted as plain blue text without preview or thumbnail embedding.
+    * The deliverable URL is often an external Google Drive or file-host link formatted as plain blue text without preview or thumbnail embedding.
     * Previous stage context (e.g. what the approved script was when reviewing an edit) is not displayed on the review card; the Creative Manager must navigate away to find it.
   * **360px (Mobile):**
     * Feedback thread items take up the entire viewport. Comment text area is cramped, and clicking the text area triggers virtual keyboard popups that hide the "Approve" button completely.

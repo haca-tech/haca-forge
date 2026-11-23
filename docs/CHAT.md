@@ -60,9 +60,9 @@
   * Action: **Extend**. Add `chat` category to `NOTIFICATION_CATEGORIES`. Extend schema to support `chat: { inApp: boolean, email: boolean, mentionsOnly: boolean }` with defaults: `inApp: true`, `email: false`, `mentionsOnly: false`.
 
 ### 1.4 Upload Signing & Storage
-* **Local Disk Engine & Cloudinary Signing:**
+* **Local Disk Engine:**
   * Files: [`apps/api/src/modules/uploads/routes.js`](file:///c:/Users/ADMIN/OneDrive/Desktop/HACA/TECH/haca-forge/apps/api/src/modules/uploads/routes.js), `apps/api/src/modules/uploads/service.js`.
-  * Findings: Multer stores files directly on local disk under `apps/api/uploads/` using sanitised filenames (`${uniqueSuffix}-${safeBase}${ext}`), with Cloudinary as optional external store.
+  * Findings: Multer stores files directly on local disk under `apps/api/uploads/` using sanitised filenames (`${uniqueSuffix}-${safeBase}${ext}`), (production storage: docs/STORAGE.md).
   * Action: **Reuse Multer Engine with Unguessable Channel Subdirectories**. Store chat attachments on local disk under `apps/api/uploads/chat/:channelId/:uuid/:sanitizedFilename` (or signed storage) enforcing chat-specific attachment rules (image $\le 20$ MB, docs $\le 25$ MB, video $\le 100$ MB).
 
 ### 1.5 Avatar Component

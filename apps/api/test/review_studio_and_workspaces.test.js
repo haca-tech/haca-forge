@@ -290,32 +290,8 @@ describe('Review Studio & Workspaces API Tests (WS3)', () => {
     expect(revisionRes.body.data.submission.status).toBe('changes_requested');
   });
 
-  it('5. Upload Signing: validates MIME types and limits', async () => {
-    // Valid video upload sign
-    const signRes = await request(app)
-      .post('/api/uploads/sign')
-      .set('Authorization', `Bearer ${shooterToken}`)
-      .send({
-        fileName: 'campus_b_roll.mp4',
-        fileSize: 150 * 1024 * 1024, // 150 MB (< 500 MB limit)
-        fileType: 'video/mp4',
-        kind: 'video',
-      })
-      .expect(200);
-
-    expect(signRes.body.data).toBeDefined();
-
-    // Rejection of oversized file (> 500 MB for video)
-    await request(app)
-      .post('/api/uploads/sign')
-      .set('Authorization', `Bearer ${shooterToken}`)
-      .send({
-        fileName: 'huge_raw.mov',
-        fileSize: 550 * 1024 * 1024, // 550 MB
-        fileType: 'video/quicktime',
-        kind: 'video',
-      })
-      .expect(400);
+  it('5. The old upload signing route is gone: files go through POST /api/uploads/file', async () => {
+    await request(app).post('/api/uploads/sign').set('Authorization', `Bearer ${shooterToken}`).send({ fileName: 'a.mp4', fileSize: 1, fileType: 'video/mp4' }).expect(404);
   });
 
   it('6. Mark as Posted: validates live URL and updates status to Published', async () => {

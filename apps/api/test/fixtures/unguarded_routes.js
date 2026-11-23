@@ -24,6 +24,7 @@ const PUBLISHED = 'Service checks: workers see only pieces they worked on; editi
 const WORK_STEP = 'Work item router: router.param(id/stageItemId) runs workItemParam (owner, or a role that sees all; workers 404 elsewhere), then the service checks the step owner.';
 
 export const ALLOW_UNGUARDED = {
+  'POST /api/files/refresh': { check: 'middleware/auth.js#authenticate', reason: 'Signed-in users only; then fileAccess.js#assertCanReadFile re-checks the record that holds the file (participants, chat membership, share not revoked), else the same 404.' },
   'GET /api/status': { check: 'public', reason: PUBLIC },
   'GET /api/health': { check: 'public', reason: PUBLIC },
   'GET /api/ready': { check: 'public', reason: PUBLIC },
@@ -40,7 +41,6 @@ export const ALLOW_UNGUARDED = {
   'PATCH /api/me/profile': { check: 'middleware/auth.js#authenticate', reason: OWN_ACCOUNT },
   'POST /api/me/phone-otp/send': { check: 'middleware/auth.js#authenticate', reason: OWN_ACCOUNT },
   'POST /api/me/phone-otp/verify': { check: 'middleware/auth.js#authenticate', reason: OWN_ACCOUNT },
-  'POST /api/me/avatar/sign': { check: 'middleware/auth.js#authenticate', reason: OWN_ACCOUNT },
   'POST /api/me/avatar': { check: 'middleware/auth.js#authenticate', reason: OWN_ACCOUNT },
   'DELETE /api/me/avatar': { check: 'middleware/auth.js#authenticate', reason: OWN_ACCOUNT },
   'GET /api/me/settings': { check: 'middleware/auth.js#authenticate', reason: OWN_ACCOUNT },

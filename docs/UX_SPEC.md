@@ -296,7 +296,7 @@ Every status indicator throughout the application uses a single, immutable color
 | | Task: Edit Video Cut (Reel) &bull; Robotics Lab Teaser                        Step 3 of 4 &bull; Due Today| |
 | | Creator: John Editor (Video Production)                       Submitted: Today at 11:20 AM          | |
 | +-----------------------------------------------------------------------------------------------------+ |
-| | Asset Link: [ 🎥 Watch Video Cut (Cloudinary Preview) ↗ ]                                           | |
+| | Asset Link: [ 🎥 Watch Video Cut (Preview) ↗ ]                                                      | |
 | | Context / Previous Steps:                                                                           | |
 | |   &bull; Step 1 Script: [ 📄 Approved Script Doc ↗ ] by Alex Writer                                 | |
 | |   &bull; Step 2 Shoot:  [ 📁 Raw B-Roll Drive ↗ ] by Bob Shooter                                    | |

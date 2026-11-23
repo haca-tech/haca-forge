@@ -1,3 +1,4 @@
+import { signFileRefs } from './storage/signFileRefs.js';
 /**
  * The Socket.IO server, reachable from anywhere that ends a session or changes access.
  * Kept free of model imports so models can use it without a cycle.
@@ -44,10 +45,11 @@ function strip(value) {
 /**
  * A socket payload without anyone's email, phone or WhatsApp. Socket events go to rooms
  * of mixed roles and skip the REST contact filter, so contact details are never sent.
+ * Stored file keys become URLs, as in REST responses (signFileRefs).
  */
 export function withoutContact(payload) {
   if (payload == null) return payload;
-  return strip(JSON.parse(JSON.stringify(payload)));
+  return signFileRefs(strip(JSON.parse(JSON.stringify(payload))));
 }
 
 /** User rooms for these people (`user:<id>`): socket events go to the people the access resolver picks. */

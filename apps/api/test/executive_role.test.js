@@ -457,18 +457,6 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
 
 
 
-    it('POST /api/uploads/sign -> 403', async () => {
-      const res = await request(app)
-        .post('/api/uploads/sign')
-        .set('Authorization', `Bearer ${execToken}`)
-        .send({
-          filename: 'test.png',
-          contentType: 'image/png',
-          fileSize: 1024,
-        });
-      expect(res.status).toBe(403);
-    });
-
     it('POST /api/departments -> 403', async () => {
       const res = await request(app)
         .post('/api/departments')

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import rateLimit from 'express-rate-limit';
 import { authenticate } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validate.js';
@@ -13,16 +14,14 @@ import {
   changePasswordStrictSchema,
   changeRequestSchema,
   welcomeCompleteSchema,
-  signUploadSchema,
 } from '@mmp/shared';
 import * as profileController from './controller.js';
 import { allowedFileFilter, storedFileName } from '../uploads/fileTypes.js';
 import { env } from '../../config/env.js';
 
-const uploadDir = path.resolve(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// Streamed to a temp file; processAvatarUpload checks it and moves it into storage.
+const uploadDir = path.join(os.tmpdir(), 'haca-uploads');
+fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -74,7 +73,6 @@ router.post('/phone-otp/send', validate(sendPhoneOtpSchema), profileController.s
 router.post('/phone-otp/verify', validate(verifyPhoneOtpSchema), profileController.verifyPhoneOtpHandler);
 
 // Avatar
-router.post('/avatar/sign', validate(signUploadSchema), profileController.signAvatarHandler);
 router.post(
   '/avatar',
   upload.fields([{ name: 'file', maxCount: 1 }, { name: 'avatar', maxCount: 1 }]),

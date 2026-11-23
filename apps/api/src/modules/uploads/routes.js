@@ -2,25 +2,20 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
+import os from 'os';
 import { authenticate } from '../../middleware/auth.js';
 import { requireAnyPermission } from '../../middleware/requirePermission.js';
-import { validate } from '../../middleware/validate.js';
-import { signUploadSchema } from '@mmp/shared';
 import * as uploadController from './controller.js';
 import { allowedFileFilter, storedFileName } from './fileTypes.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const uploadDir = path.resolve(__dirname, '../../../uploads');
-
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// Multer streams the upload to a temp file (never into memory); the service checks it and
+// moves it into storage (lib/storage), then the temp file is removed.
+const tmpDir = path.join(os.tmpdir(), 'haca-uploads');
+fs.mkdirSync(tmpDir, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, uploadDir);
+    cb(null, tmpDir);
   },
   // Random name with the server's extension for the matched type, never the uploader's name.
   filename: (_req, file, cb) => {
@@ -55,13 +50,6 @@ router.post(
   requireAnyPermission('work.create', 'work.request', 'work.update.own'),
   upload.single('file'),
   uploadController.localUploadHandler
-);
-
-router.post(
-  '/sign',
-  requireAnyPermission('work.create', 'work.request', 'work.update.own'),
-  validate(signUploadSchema),
-  uploadController.signUploadHandler
 );
 
 router.post(

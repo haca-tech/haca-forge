@@ -38,6 +38,8 @@ import notificationRoutes from "./modules/notifications/routes.js";
 import planRoutes from "./modules/calendar/plan.routes.js";
 import contentPieceRoutes from "./modules/calendar/contentPiece.routes.js";
 import uploadRoutes from "./modules/uploads/routes.js";
+import fileRoutes from "./modules/uploads/files.routes.js";
+import { signFileUrls } from "./lib/storage/signFileRefs.js";
 import { setUploadHeaders } from "./modules/uploads/fileTypes.js";
 import reportRoutes from "./modules/reports/routes.js";
 import dashboardRoutes from "./modules/reports/dashboard.routes.js";
@@ -175,6 +177,8 @@ registerChatSocketIO(io);
 
 // 6. API Routes
 app.use(redactContact);
+// Stored file keys become URLs on the way out (local /uploads paths, or signed Bunny URLs).
+app.use(signFileUrls);
 app.use("/api", statusRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/me", profileRoutes);
@@ -193,15 +197,18 @@ app.use("/api/calendar-plans", planRoutes);
 app.use("/calendar-plans", planRoutes);
 app.use("/api/content-pieces", contentPieceRoutes);
 app.use("/content-pieces", contentPieceRoutes);
-// Local development and testing only; production files will come from Cloudinary.
-// Uploaded files are served so they can never run as a page: see setUploadHeaders.
-const serveUploads = express.static(localUploadsDir, {
-  index: false,
-  dotfiles: "deny",
-  setHeaders: setUploadHeaders,
-});
-app.use("/uploads", serveUploads);
-app.use("/api/uploads/files", serveUploads);
+// STORAGE_DRIVER=local only (docs/STORAGE.md): files on this machine, served so they can never run
+// as a page (see setUploadHeaders). With Bunny, files come from the Pull Zone through signed URLs.
+if (env.STORAGE_DRIVER === "local") {
+  const serveUploads = express.static(localUploadsDir, {
+    index: false,
+    dotfiles: "deny",
+    setHeaders: setUploadHeaders,
+  });
+  app.use("/uploads", serveUploads);
+  app.use("/api/uploads/files", serveUploads);
+}
+app.use("/api/files", fileRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/dashboard", dashboardRoutes);

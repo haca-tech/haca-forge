@@ -10,7 +10,7 @@
   portal.view, people.view, calendar.view, work.view, feedback.view, analytics.team, report.view), enums, Zod schemas,
   shared metric formulas. Built with tsup.
 - Validation: Zod on every body, query and params. Permissions: CASL. Jobs: BullMQ + Redis. Realtime: Socket.io.
-- Email only through lib/mailer.js (smtp, resend, console). Files: Cloudinary signed direct upload.
+- Email only through lib/mailer.js (smtp, resend, console). Files: lib/storage (local disk in development, Bunny Storage with signed Pull Zone URLs in production; docs/STORAGE.md).
 - Allowed dependencies rule (STRICT): For Role Workspaces and documents, only these dependencies are allowed: Tiptap packages and extensions (`@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, official extensions), exactly ONE DOCX export library, exactly ONE DOCX import library; PDF strictly through browser print (`window.print()` with `@media print` CSS); nothing else! No external binary PDF generators (e.g. Puppeteer, jsPDF, pdfmake). Zero other new dependencies.
 
 ## Architecture

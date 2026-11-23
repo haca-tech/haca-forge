@@ -8,7 +8,7 @@
 - packages/shared (@mmp/shared): role keys (admin, marketing_head, team_lead, team_member), permission keys and the role-to-permission map (admin has all permission keys derived from PERMISSION_KEYS), enums, Zod schemas, shared
   metric formulas. Built with tsup.
 - Validation: Zod on every body, query and params. Permissions: CASL. Jobs: BullMQ + Redis. Realtime: Socket.io.
-- Email only through lib/mailer.js (smtp, resend, console). Files: Cloudinary signed direct upload.
+- Email only through lib/mailer.js (smtp, resend, console). Files: lib/storage (local disk in development, Bunny Storage with signed Pull Zone URLs in production; docs/STORAGE.md).
 - No new dependencies unless a phase requires it. Say why when adding one.
 
 ## Architecture

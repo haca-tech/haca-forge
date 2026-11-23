@@ -1,16 +1,13 @@
-import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
-import { fileURLToPath } from 'url';
-import { CHAT_ATTACHMENT_CONFIG } from '@mmp/shared';
+import { CHAT_ATTACHMENT_CONFIG, storageKeyOf } from '@mmp/shared';
+import { statFile } from '../../lib/storage/index.js';
 import { Channel } from './channel.model.js';
 import { ChannelMember } from './channelMember.model.js';
 import { Person } from '../people/model.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-/** Chat files live at uploads/chat/<channelId>/<random id>/<file name>. */
-export const CHAT_UPLOAD_ROOT = path.resolve(__dirname, '../../../uploads/chat');
+/** Chat files are stored under the key uploads/chat/<channelId>/<random id>/<file name>. */
+export const chatFileKey = (channelId, uuid, name) => `uploads/chat/${channelId}/${uuid}/${name}`;
 
 const MIME_BY_EXT = {
   '.png': 'image/png',
@@ -69,30 +66,27 @@ export async function requireChatUploadChannel(req, _res, next) {
 }
 
 /**
- * A message's attachments, built from the files on disk. The client only says which
- * uploaded file it means; name, size and type come from the server, and the file must
- * be one uploaded to this channel.
+ * A message's attachments, built from the stored files. The client only says which uploaded
+ * file it means (its key, /uploads/... path or signed URL); name, size and type come from the
+ * server, and the file must be one uploaded to this channel.
  */
-export function buildChatAttachments(channelId, attachments = []) {
-  const pattern = new RegExp(`^/uploads/chat/${String(channelId)}/(${UUID})/(${NAME})$`);
-  return (attachments || []).map((att) => {
-    const match = pattern.exec(String(att?.storageUrl || ''));
+export async function buildChatAttachments(channelId, attachments = []) {
+  const pattern = new RegExp(`^uploads/chat/${String(channelId)}/(${UUID})/(${NAME})$`);
+  const built = [];
+  for (const att of attachments || []) {
+    const key = storageKeyOf(att?.storageUrl);
+    const match = key ? pattern.exec(key) : null;
     if (!match) throw fail('Attachments must be files uploaded to this channel.');
     const ext = path.extname(match[2]).toLowerCase();
     if (!ALLOWED_EXTS.has(ext)) throw fail('This attachment type is not allowed.');
-    const filePath = path.join(CHAT_UPLOAD_ROOT, String(channelId), match[1], match[2]);
-    let stat;
-    try {
-      stat = fs.statSync(filePath);
-    } catch {
-      throw fail('Attachment file not found. Upload it again.');
-    }
-    if (!stat.isFile()) throw fail('Attachment file not found. Upload it again.');
-    return {
+    const stat = await statFile(key);
+    if (!stat) throw fail('Attachment file not found. Upload it again.');
+    built.push({
       fileName: match[2],
       fileSize: stat.size,
       mimeType: MIME_BY_EXT[ext],
-      storageUrl: att.storageUrl,
-    };
-  });
+      storageUrl: key,
+    });
+  }
+  return built;
 }

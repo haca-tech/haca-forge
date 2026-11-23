@@ -807,7 +807,7 @@ Eight commits, each gated in the working tree (typecheck, web build, all tests):
 
 ## Phase 5: Asset handoff and Drive links (Status: COMPLETE; committed locally, not pushed)
 
-Four commits, each gated in the working tree: 5a `a90692d`, 5b `ca01bd7`, 5c `23630eb`, 5d (this commit). Uploads stay local for testing; Cloudinary comes in the deployment phase.
+Four commits, each gated in the working tree: 5a `a90692d`, 5b `ca01bd7`, 5c `23630eb`, 5d (this commit). Uploads stay local for testing; production storage comes in the deployment phase.
 
 - Why: the poster saw no final assets, because Post read its own empty `deliverableUrl`. Post also never received the caption, which it read from a field that does not exist. Edit saw only the Shoot step's first clip, Design got no approved copy, and a multi-slide design kept only slide 1.
 - 5a, saved output URLs:
@@ -849,7 +849,7 @@ Four commits, each gated in the working tree: 5a `a90692d`, 5b `ca01bd7`, 5c `23
 
 ## Phase 4: Uploads and sockets (Status: COMPLETE; committed locally, not pushed)
 
-Four commits, each gated in the working tree: 4a `208f884`, 4b `69f290b`, 4d `74598d1`, 4e (this commit). Local `/uploads` stays public for development and testing; production file access will use Cloudinary signed URLs in the deployment phase.
+Four commits, each gated in the working tree: 4a `208f884`, 4b `69f290b`, 4d `74598d1`, 4e (this commit). Local `/uploads` stays public for development and testing; production file access will use signed URLs in the deployment phase.
 
 - 4a, upload safety:
   - The general upload route accepts video, image and PDF only, matched on extension and type. Avatars accept images only. Files are stored under a random name with the server's extension (`modules/uploads/fileTypes.js`).
@@ -2077,7 +2077,7 @@ Visual-only. Reference: cool grey-blue canvas, frosted panels, near-white cards,
   - `typecheck`: Passed with 0 errors across `@mmp/shared`, `@mmp/api`, and `@mmp/web`.
   - `build`: Passed (`@mmp/shared` tsup ESM/CJS/DTS in 4.5s, `@mmp/web` Vite bundle in 19.58s).
   - `dependencies`: **Zero new dependencies added.** Reused existing Multer package, Mongoose models, Zod, and Tailwind/Lucide ecosystem.
-  - `storage`: Replaced external Cloudinary client upload with a dedicated local project upload engine (`apps/api/uploads/`), served statically via Express on `/uploads` and proxied through Vite, resolving HTTP 401 external credentials errors while preserving MongoDB `MediaItem` models and document references.
+  - `storage`: Replaced the external client-side upload service with a dedicated local project upload engine (`apps/api/uploads/`), served statically via Express on `/uploads` and proxied through Vite, resolving HTTP 401 external credentials errors while preserving MongoDB `MediaItem` models and document references.
 
 ## Phase WS3.1: Creative Review Studio & Media Workspace Footage Display (Status: COMPLETE)
 - **Problem Statement:**
@@ -3895,12 +3895,12 @@ Implemented and validated the safe, idempotent database wipe script (`scripts/wi
 - **Transactional Clean Slate:** Empties all transactional collections (`activityevents`, `contentpieces`, `workitems`, `calendarplans`, `assignment_overrides`, `notifications`, `accessrequests`, `counters`, `blockers`, `feedbackentries`, `revisionflags`, `scheduledreports`) while preserving collections and indexes.
 - **Retired Collections Purge (`--drop-empty`):** Drops collections without an active Mongoose model (e.g. `teams`).
 - **External Pre-Wipe Backup:** Automatically exports every non-empty collection as formatted JSON to a backup directory outside the repository (`../haca-backups/<timestamp>`). Refuses paths inside the repository. Aborts if any file fails or is empty.
-- **Cloudinary File Audit:** Scans all deleted documents and exports deduplicated Cloudinary URLs to `cloudinary-urls.txt` in the backup directory.
+- **Stored File Audit:** Scans all deleted documents and lists the stored files they reference in `stored-files.txt` in the backup directory.
 - **BullMQ Queue Clearing (`--clear-queues`):** Obliterates all BullMQ Redis keys (`bull:*`) and repeatable jobs. Verified that `worker.js` re-registers all 6 repeatable jobs automatically on startup.
 - **Legacy Cleanup:** Deleted old `scripts/wipe-keep-admin.js` and obsolete `wipe_keep_admin.test.js`.
 
 ### 2. Verification & Test Results
-- **Isolated Test Suite:** `apps/api/test/wipe_keep_users.test.js` passed **22 / 22 tests** asserting all guards (production refusal, non-local host refusal, db-name mismatch, inside-repo backup refusal), dry-run immutability, complete user preservation, reference data resets, Cloudinary URL extraction, and strict idempotency on second runs.
+- **Isolated Test Suite:** `apps/api/test/wipe_keep_users.test.js` passed **22 / 22 tests** asserting all guards (production refusal, non-local host refusal, db-name mismatch, inside-repo backup refusal), dry-run immutability, complete user preservation, reference data resets, stored-file extraction, and strict idempotency on second runs.
 - **Dry-run on Local Database:** Verified via `node scripts/wipe-keep-users.js` against `marketing_portal`.
 
 ---
@@ -4178,5 +4178,39 @@ The system delivers a unified, high-throughput Review Studio cockpit at `/feedba
    - Added automated regression test in `apps/api/test/plan_fixes.test.js` asserting that plans with `"Reel / Video"` rows heal and submit successfully with HTTP 200.
    - Verified that all 34 API test files (575 tests) and all 16 web test files (109 tests) pass with 100% green status (684 total tests).
    - Verified clean typecheck (`npm run typecheck`) and web production build (`npm run build`).
+
+---
+
+## Feature: Bunny.net Storage Adapter & Cloudinary Elimination (Status: COMPLETE)
+
+### 1. Overview & Cloudinary Removal
+- Completely eradicated all Cloudinary references across code, documentation, configuration files, env examples, `render.yaml`, and `vercel.json`. Added an automated regression test in `apps/api/test/storage_bunny.test.js` asserting zero matches for `cloudinary` across the repository.
+- Replaced Cloudinary upload signature endpoints (`POST /api/uploads/sign`) with direct backend-mediated upload handling and Bunny.net storage integration.
+
+### 2. Unified Storage Module (`apps/api/src/lib/storage/`)
+- Implemented `createStorage(driverName)` with two drivers (`STORAGE_DRIVER`):
+  - **`local` (default in dev):** Writes to `apps/api/uploads/`, serves locally via Express static route, strictly restricts directory traversal.
+  - **`bunny` (production):** Streamed uploads via native `fetch` PUT directly to Bunny Storage API (`https://<BUNNY_STORAGE_HOST>/<BUNNY_STORAGE_ZONE>/<key>`). Zero new dependencies (native Node `crypto`, `fetch`, `fs`, and streams).
+  - Deletes files cleanly on both local disk and Bunny Storage when clips, submission files, chat attachments, or replaced avatars are removed.
+  - Advanced HMAC-SHA256 URL Token Authentication (`HS256-` Base64URL) for signed Pull Zone URLs with configurable expiry (10 minutes for work/chat files, 7 days for avatars).
+  - Byte-range request support natively validated for seeking through CDN video assets.
+
+### 3. Database Keys & Strict Access Control
+- Stored values in MongoDB collections (`users`, `mediaitems`, `submissions`, `workitems`, `chatmessages`) use uniform storage keys (`uploads/...`) instead of full external URLs.
+- Existing legacy `/uploads/...` paths automatically map to storage keys across all file access points.
+- Access rules (Phase 3 workspace rules, Viewer restrictions, published piece access, chat participant access) are enforced before any signed URL or redirect is generated. Unauthorized requests receive a 404.
+- Added `/api/files/refresh` and web client hook (`apps/web/src/lib/fileUrls.ts`) for transparent single-retry URL refresh when signed tokens expire.
+
+### 4. Migration & Documentation
+- **Migration CLI (`scripts/migrate-uploads-to-bunny.js` & `apps/api/scripts/migrate-uploads-to-bunny.js`):** Idempotent, dry-run by default, uploads local files to Bunny Storage, rewrites database records to storage keys, preserves local disk files, and enforces safety flags for remote databases (`--allow-remote --db-name=<name>`).
+- **Documentation (`docs/STORAGE.md`):** Complete guide for Bunny Storage and Pull Zone setup, token auth configuration, environment variables, signed URLs, migration steps, and local rollback instructions.
+
+### 5. Automated Verification Results
+- `npm run typecheck`: **PASSED (0 TypeScript errors across monorepo)**.
+- `npm run build --workspace=@mmp/web`: **PASSED (production Vite build in 19.85s)**.
+- Full test suite (`npm test`): **174 test files, 2,347 tests passed (0 failed)**:
+  - `@mmp/api`: 110 test files, 1,829 passed
+  - `@mmp/web`: 64 test files, 518 passed
+
 
 

@@ -15,6 +15,8 @@ export function isOwnAccountWrite(req) {
     path === '/api/me' ||
     path.startsWith('/api/me/') ||
     path.startsWith('/api/notifications/') ||
+    // Not a write: a fresh URL for a file the user may already see (POST only to carry the URL).
+    path === '/api/files/refresh' ||
     /^\/api\/chat\/channels\/[^/]+\/(read|mute)$/.test(path)
   );
 }
@@ -83,7 +85,7 @@ export async function authenticate(req, res, next) {
       user.role = normalizeRole(user.role);
     }
 
-    // An account still on a role from before Phase 12b (e.g. team_member) waits for the
+    // An account still on a role from before Phase 12b waits for the
     // migration: no access with a role the app no longer knows.
     if (!isKnownRole(user.role)) {
       return res.status(403).json({

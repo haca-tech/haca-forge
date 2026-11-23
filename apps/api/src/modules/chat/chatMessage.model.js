@@ -1,12 +1,13 @@
 import mongoose from 'mongoose';
+import { toStoredFile } from '../../lib/storage/keys.js';
 
 const attachmentSchema = new mongoose.Schema(
   {
     fileName: { type: String, required: true },
     fileSize: { type: Number, required: true },
     mimeType: { type: String, required: true },
-    storageUrl: { type: String, required: true },
-    thumbnailUrl: { type: String },
+    storageUrl: { type: String, required: true, set: toStoredFile },
+    thumbnailUrl: { type: String, set: toStoredFile },
     width: { type: Number },
     height: { type: Number },
     duration: { type: Number },
@@ -44,9 +45,9 @@ const sharedMediaSchema = new mongoose.Schema(
     contentPieceTitle: { type: String, required: true },
     stageKey: { type: String, required: true },
     title: { type: String, required: true },
-    thumbnailUrl: { type: String },
-    previewUrl: { type: String },
-    downloadUrl: { type: String },
+    thumbnailUrl: { type: String, set: toStoredFile },
+    previewUrl: { type: String, set: toStoredFile },
+    downloadUrl: { type: String, set: toStoredFile },
     owner: {
       _id: { type: mongoose.Schema.Types.ObjectId, ref: 'Person' },
       name: { type: String },

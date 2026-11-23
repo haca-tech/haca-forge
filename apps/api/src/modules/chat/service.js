@@ -23,6 +23,9 @@ import {
   isReadOnlyViewer,
 } from '@mmp/shared';
 import { hasPermission, isReadOnly } from '../../lib/roleAccess.js';
+import { removeFile } from '../../lib/storage/index.js';
+import { fileRefFilter } from '../../lib/storage/keys.js';
+import { storageKeyOf } from '@mmp/shared';
 
 // Helper to strip executable HTML tags (XSS guard)
 export function sanitizeChatContent(content = '') {
@@ -657,7 +660,7 @@ export async function sendMessage(channelId, user, { content = '', replyToId = n
 
   const sanitized = sanitizeChatContent(content);
   // Built from the files on disk; the client's own name, size, type or link are not used.
-  const builtAttachments = buildChatAttachments(channel._id, attachments);
+  const builtAttachments = await buildChatAttachments(channel._id, attachments);
 
   if (!sanitized && builtAttachments.length === 0 && !sharedMedia) {
     const error = new Error('Message content or an attachment is required.');
@@ -790,12 +793,23 @@ export async function deleteMessage(channelId, messageId, user) {
     throw error;
   }
 
+  const removedFiles = (message.attachments || []).map((a) => a.storageUrl);
   message.isDeleted = true;
   message.deletedAt = new Date();
   message.deletedById = user.userId;
   message.content = isAuthor ? 'Message deleted' : 'Message removed by admin';
   message.attachments = [];
   await message.save();
+  // The deleted message's files go too, unless another message still shows the same file.
+  for (const value of removedFiles) {
+    const key = storageKeyOf(value);
+    if (!key || (await ChatMessage.exists({ 'attachments.storageUrl': fileRefFilter(key) }))) continue;
+    try {
+      await removeFile(key);
+    } catch (err) {
+      logger.warn({ code: err.code }, 'Could not delete a chat attachment from storage');
+    }
+  }
 
   if (isAdmin && !isAuthor) {
     await logActivity({

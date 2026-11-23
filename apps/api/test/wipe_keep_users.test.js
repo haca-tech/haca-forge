@@ -7,7 +7,7 @@ import {
   runWipeKeepUsers,
   validateHost,
   isPathInsideRepo,
-  extractCloudinaryUrls,
+  extractStoredFileKeys,
   CANONICAL_DEPARTMENT_CODES,
   CANONICAL_REPORT_KEYS,
 } from '../../../scripts/wipe-keep-users.js';
@@ -84,17 +84,17 @@ describe('Database Wipe Script (scripts/wipe-keep-users.js)', () => {
       },
     ]);
 
-    // 2. Transactional collections with mock documents (some including Cloudinary URLs)
+    // 2. Transactional collections with mock documents (some referencing stored app files)
     await testDb.collection('workitems').deleteMany({});
     await testDb.collection('workitems').insertMany([
-      { title: 'Work Item 1', status: 'in_progress', deliverableUrl: 'https://res.cloudinary.com/demo/image/upload/sample.jpg' },
+      { title: 'Work Item 1', status: 'in_progress', deliverableUrl: 'uploads/2026/11/sample.jpg' },
       { title: 'Work Item 2', status: 'done', deliverableUrl: 'https://figma.com/file/123' },
     ]);
 
     await testDb.collection('activityevents').deleteMany({});
     await testDb.collection('activityevents').insertMany([
       { type: 'item_created', title: 'Event 1' },
-      { type: 'item_moved', title: 'Event 2', metadata: { assetUrl: 'https://cloudinary.com/demo/video.mp4' } },
+      { type: 'item_moved', title: 'Event 2', metadata: { assetUrl: '/uploads/demo-video.mp4' } },
     ]);
 
     await testDb.collection('calendarplans').deleteMany({});
@@ -239,16 +239,14 @@ describe('Database Wipe Script (scripts/wipe-keep-users.js)', () => {
       expect(isPathInsideRepo('C:\\temp\\backups')).toBe(false);
     });
 
-    it('extractCloudinaryUrls extracts and deduplicates cloudinary URLs', () => {
+    it('extractStoredFileKeys lists and deduplicates stored files (keys, /uploads paths, signed URLs)', () => {
       const docs = [
-        { url: 'https://res.cloudinary.com/haca/image/upload/banner.png' },
-        { nested: { media: ['https://res.cloudinary.com/haca/image/upload/banner.png', 'https://figma.com/file'] } },
-        { video: 'https://cloudinary.com/v1/video.mp4' },
+        { url: 'uploads/2026/11/banner.png' },
+        { nested: { media: ['/uploads/2026/11/banner.png', 'https://figma.com/file'] } },
+        { video: 'https://cdn.example.b-cdn.net/uploads/v1-video.mp4?token=HS256-x&expires=1' },
       ];
-      const urls = extractCloudinaryUrls(docs);
-      expect(urls).toHaveLength(2);
-      expect(urls).toContain('https://res.cloudinary.com/haca/image/upload/banner.png');
-      expect(urls).toContain('https://cloudinary.com/v1/video.mp4');
+      const keys = extractStoredFileKeys(docs);
+      expect(keys).toEqual(['uploads/2026/11/banner.png', 'uploads/v1-video.mp4']);
     });
   });
 
@@ -335,12 +333,12 @@ describe('Database Wipe Script (scripts/wipe-keep-users.js)', () => {
       expect(userStat.size).toBeGreaterThan(0);
     });
 
-    it('wrote cloudinary-urls.txt with all referenced URLs found in deleted documents', () => {
-      const cloudinaryPath = path.join(testBackupDir, 'cloudinary-urls.txt');
-      expect(fs.existsSync(cloudinaryPath)).toBe(true);
-      const content = fs.readFileSync(cloudinaryPath, 'utf8');
-      expect(content).toContain('https://res.cloudinary.com/demo/image/upload/sample.jpg');
-      expect(content).toContain('https://cloudinary.com/demo/video.mp4');
+    it('wrote stored-files.txt with the stored files referenced by deleted documents', () => {
+      const listPath = path.join(testBackupDir, 'stored-files.txt');
+      expect(fs.existsSync(listPath)).toBe(true);
+      const content = fs.readFileSync(listPath, 'utf8');
+      expect(content).toContain('uploads/2026/11/sample.jpg');
+      expect(content).toContain('uploads/demo-video.mp4');
     });
 
     it('KEPT ALL 6 USERS UNCHANGED, preserving roles, passwords, and pending invites', async () => {

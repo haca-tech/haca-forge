@@ -6,21 +6,21 @@ import crypto from 'crypto';
 import { authenticate } from '../../middleware/auth.js';
 import { requirePermission, requireAnyPermission } from '../../middleware/requirePermission.js';
 import * as chatController from './controller.js';
-import { CHAT_UPLOAD_ROOT, requireChatUploadChannel } from './attachments.js';
+import os from 'os';
+import { chatFileKey, requireChatUploadChannel } from './attachments.js';
 import { CHAT_ATTACHMENT_CONFIG } from '@mmp/shared';
+import { putFile } from '../../lib/storage/index.js';
 
-const rootUploads = CHAT_UPLOAD_ROOT;
+// Each upload is streamed to its own random temp folder, then moved into storage under
+// uploads/chat/<channelId>/<random id>/<name>. The channel id was validated, and membership
+// checked, by requireChatUploadChannel before this runs.
+const tmpRoot = path.join(os.tmpdir(), 'haca-uploads', 'chat');
+fs.mkdirSync(tmpRoot, { recursive: true });
 
-if (!fs.existsSync(rootUploads)) {
-  fs.mkdirSync(rootUploads, { recursive: true });
-}
-
-// Each upload gets its own random folder inside the channel's folder. The channel id
-// was validated, and membership checked, by requireChatUploadChannel before this runs.
 const storage = multer.diskStorage({
   destination: (req, _file, cb) => {
     const uuid = crypto.randomUUID();
-    const dest = path.join(rootUploads, req.chatUploadChannelId, uuid);
+    const dest = path.join(tmpRoot, uuid);
     fs.mkdirSync(dest, { recursive: true });
     cb(null, dest);
   },
@@ -102,21 +102,21 @@ chatRouter.get('/shared-asset/:grantId', requireAnyPermission(['chat.use', 'chat
 chatRouter.get('/search', requireAnyPermission(['chat.use', 'chat.read']), chatController.searchMessages);
 
 // 5. File upload
-chatRouter.post('/upload', requirePermission('chat.use'), requireChatUploadChannel, upload.array('files', 5), (req, res) => {
+chatRouter.post('/upload', requirePermission('chat.use'), requireChatUploadChannel, upload.array('files', 5), async (req, res, next) => {
   const files = req.files || [];
-  const attachments = files.map((f) => {
-    // Relative storage URL
-    const relPath = path.relative(path.dirname(rootUploads), f.path).replace(/\\/g, '/');
-    const storageUrl = `/uploads/${relPath}`;
-
-    return {
-      fileName: f.originalname,
-      fileSize: f.size,
-      mimeType: f.mimetype,
-      storageUrl,
-    };
-  });
-
-  res.status(201).json({ attachments });
+  try {
+    const attachments = [];
+    for (const f of files) {
+      const key = chatFileKey(req.chatUploadChannelId, path.basename(path.dirname(f.path)), f.filename);
+      await putFile(key, f.path, { contentType: f.mimetype });
+      // A storage key; the response turns storageUrl into a URL the browser can open.
+      attachments.push({ fileName: f.originalname, fileSize: f.size, mimeType: f.mimetype, storageUrl: key });
+    }
+    res.status(201).json({ attachments });
+  } catch (err) {
+    next(err);
+  } finally {
+    for (const f of files) fs.rmSync(path.dirname(f.path), { recursive: true, force: true });
+  }
 });
 

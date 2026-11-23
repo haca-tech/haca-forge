@@ -17,7 +17,7 @@ export function linkKind(url) {
   return 'link';
 }
 
-const SAFE_URL = /^(https?:\/\/|\/uploads\/)/i;
+const SAFE_URL = { test: (v) => /^https?:\/\//i.test(String(v)) || isAppUploadPath(v) };
 
 /** An output's items: files first, then fileUrl and linkUrl, without duplicates or unsafe URLs. */
 export function outputItems(submission) {

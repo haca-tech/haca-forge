@@ -497,7 +497,7 @@ export async function updateWorkItem(id, data, user) {
   }
   if (data.deliverableUrl !== undefined) {
     // A new deliverable link must be an upload or a Drive link; an existing value may be re-sent.
-    assertChangedOutputUrl(data.deliverableUrl, workItem.deliverableUrl, 'deliverableUrl');
+    await assertChangedOutputUrl(data.deliverableUrl, workItem.deliverableUrl, 'deliverableUrl');
     workItem.deliverableUrl = data.deliverableUrl;
   }
   // The live link is set by posting (transition) and changed by Edit live link only.

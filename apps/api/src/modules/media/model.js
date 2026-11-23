@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { toStoredFile } from '../../lib/storage/keys.js';
 import { MEDIA_ITEM_STATUSES } from '@mmp/shared';
 
 // ==========================================
@@ -41,6 +42,7 @@ const mediaItemSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      set: toStoredFile,
     },
     storageId: {
       type: String,
@@ -51,6 +53,7 @@ const mediaItemSchema = new mongoose.Schema(
       type: String,
       default: '',
       trim: true,
+      set: toStoredFile,
     },
     title: {
       type: String,

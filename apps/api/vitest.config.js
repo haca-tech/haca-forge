@@ -26,6 +26,15 @@ export default defineConfig({
       // for the test database only and are never used anywhere else.
       JWT_SECRET: 'test-only-jwt-secret-not-for-any-real-environment-0001',
       JWT_REFRESH_SECRET: 'test-only-refresh-secret-not-for-any-real-environment-0001',
+      // Tests never reach a real Bunny account, whatever apps/api/.env says: local storage, and the
+      // Bunny settings blanked (dotenv does not override values already set here). Bunny tests
+      // build their own driver against a mock server (test/helpers/mockBunny.js).
+      STORAGE_DRIVER: 'local',
+      BUNNY_STORAGE_ZONE: '',
+      BUNNY_STORAGE_HOST: '',
+      BUNNY_STORAGE_KEY: '',
+      BUNNY_CDN_URL: '',
+      BUNNY_TOKEN_KEY: '',
     },
   },
 });

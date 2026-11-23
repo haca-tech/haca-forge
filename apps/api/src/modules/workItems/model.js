@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { toStoredFile } from '../../lib/storage/keys.js';
 import '../people/model.js';
 import '../calendar/plan.model.js';
 import '../calendar/contentPiece.model.js';
@@ -84,6 +85,7 @@ const workItemSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: toStoredFile,
     },
     publishedUrl: {
       type: String,

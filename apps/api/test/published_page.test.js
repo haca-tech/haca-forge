@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken';
 import {
   FRAME_SRC_HOSTS,
   FRAME_SRC_POLICY,
+  WEB_CSP_POLICY,
   SITE_ROOT_URL_ERROR,
   embedPreviewText,
   isLivePostUrl,
@@ -155,9 +156,12 @@ describe('frame-src policy: one allowlist in every config', () => {
   it('vercel.json sends it on every route; Vite and helmet use the shared list', () => {
     const vercel = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'));
     const csp = vercel.headers.find((h) => h.source === '/(.*)')?.headers.find((x) => x.key === 'Content-Security-Policy');
-    expect(csp?.value).toBe(FRAME_SRC_POLICY);
+    // The frame list plus where files come from (Bunny storage: the CDN host in img/media/connect-src).
+    expect(csp?.value).toBe(WEB_CSP_POLICY);
+    expect(WEB_CSP_POLICY.startsWith(`${FRAME_SRC_POLICY}; `)).toBe(true);
+    for (const d of ['img-src', 'media-src', 'connect-src']) expect(WEB_CSP_POLICY).toMatch(new RegExp(`${d} [^;]*https://\\*\\.b-cdn\\.net`));
     const vite = fs.readFileSync(path.join(ROOT, 'apps/web/vite.config.ts'), 'utf8');
-    expect(vite).toMatch(/FRAME_SRC_POLICY/);
+    expect(vite).toMatch(/webContentSecurityPolicy\(/);
     expect(vite).toMatch(/server:\s*\{[^}]*headers: securityHeaders/);
     const server = fs.readFileSync(path.join(ROOT, 'apps/api/src/server.js'), 'utf8');
     expect(server).toMatch(/frameSrc: \["'self'", \.\.\.FRAME_SRC_HOSTS\]/);

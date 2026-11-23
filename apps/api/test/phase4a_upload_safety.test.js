@@ -123,7 +123,8 @@ describe('Phase 4a: upload safety', () => {
           .attach('file', Buffer.from('DATA'), { filename: name, contentType: type });
         expect(res.status).toBe(201);
         track(res.body.data.url);
-        expect(res.body.data.url).toMatch(new RegExp(`^/uploads/${UUID}\\${ext}$`));
+        // Stored under uploads/<yyyy>/<mm>/ (storage key); the response gives its /uploads/ URL.
+        expect(res.body.data.url).toMatch(new RegExp(`^/uploads/\\d{4}/\\d{2}/${UUID}\\${ext}$`));
         expect(res.body.data.kind).toBe(kind);
         expect(res.body.data.fileName).toBe(name);
       });
@@ -166,7 +167,7 @@ describe('Phase 4a: upload safety', () => {
         .attach('avatar', Buffer.from('PNG'), { filename: 'Me & My Cat.webp', contentType: 'image/webp' });
       expect(res.status).toBe(200);
       track(res.body.data.avatarUrl);
-      expect(res.body.data.avatarUrl).toMatch(new RegExp(`^/uploads/avatar-${UUID}\\.webp$`));
+      expect(res.body.data.avatarUrl).toMatch(new RegExp(`^/uploads/avatars/avatar-${UUID}\\.webp$`));
     });
   });
 

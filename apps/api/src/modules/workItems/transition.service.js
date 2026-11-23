@@ -354,7 +354,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
   }
 
   // A new deliverable link is checked before anything below writes or notifies.
-  if (deliverableUrl) assertChangedOutputUrl(deliverableUrl, workItem.deliverableUrl, 'deliverableUrl');
+  if (deliverableUrl) await assertChangedOutputUrl(deliverableUrl, workItem.deliverableUrl, 'deliverableUrl');
 
   // Posting a Post step: the live post link only (https, any host). No caption or hashtags
   // are asked for or saved; captions saved earlier are left as they are.

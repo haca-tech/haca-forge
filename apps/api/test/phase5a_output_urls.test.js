@@ -136,7 +136,7 @@ describe('Phase 5a: saved output URLs', () => {
       });
       expect(res.status).toBe(201);
       const sub = await Submission.findOne({ workItemId: steps.design._id, version: { $gt: 0 } }).lean();
-      expect(sub.files.map((f) => f.url)).toEqual([uploaded, DRIVE, uploaded]);
+      expect(sub.files.map((f) => f.url)).toEqual([uploaded.slice(1), DRIVE, uploaded.slice(1)]) // stored as its storage key;
       expect(sub.linkUrl || '').toBe('');
     });
 
@@ -147,7 +147,7 @@ describe('Phase 5a: saved output URLs', () => {
       const ok = await auth(request(app).post('/api/submissions')).send({ workItemId: String(steps.legacy._id), fileUrl: uploaded, contentUrl: DOCS });
       expect(ok.status).toBe(201);
       const sub = await Submission.findOne({ workItemId: steps.legacy._id, version: { $gt: 0 } }).lean();
-      expect(sub.files.map((f) => f.url)).toEqual([uploaded]);
+      expect(sub.files.map((f) => f.url)).toEqual([uploaded.slice(1)]) // stored as its storage key;
       expect(sub.linkUrl).toBe(DOCS);
     });
 

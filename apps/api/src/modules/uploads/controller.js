@@ -1,14 +1,5 @@
 import * as uploadService from './service.js';
 
-export async function signUploadHandler(req, res, next) {
-  try {
-    const signatureData = await uploadService.generateUploadSignature(req.body);
-    res.json({ data: signatureData });
-  } catch (err) {
-    next(err);
-  }
-}
-
 export async function recordMetadataHandler(req, res, next) {
   try {
     const metadata = await uploadService.recordUploadMetadata(req.body);

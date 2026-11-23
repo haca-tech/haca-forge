@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { toStoredFile } from '../../lib/storage/keys.js';
 import { ROLE_KEYS, JOB_ROLES, normalizeRole, WORK_PREFERENCES, WORKER_ROLE, CALENDAR_KEYS } from '@mmp/shared';
 
 const personSchema = new mongoose.Schema(
@@ -91,6 +92,7 @@ const personSchema = new mongoose.Schema(
       type: String,
       default: null,
       trim: true,
+      set: toStoredFile,
     },
     avatarStorageId: {
       type: String,

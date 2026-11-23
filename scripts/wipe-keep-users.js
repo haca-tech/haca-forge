@@ -9,7 +9,7 @@
  * - Requires: --confirm and --db-name=<connected-db-name>
  * - Exports backup OUTSIDE repository before any deletion or mutation.
  * - Verifies backup files exist and are non-empty before proceeding.
- * - Extracts Cloudinary URLs from deleted documents to cloudinary-urls.txt.
+ * - Lists the stored files (storage keys) referenced by deleted documents in stored-files.txt.
  * - Preserves ALL users unchanged (invalidates refresh tokens only).
  * - Resets reference and configuration collections to canonical seed state.
  * - Empties transactional collections; resets counters.
@@ -22,6 +22,7 @@ import { MongoClient } from 'mongodb';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { storageKeyOf } from '@mmp/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -237,14 +238,14 @@ export function isPathInsideRepo(targetPath, repoRoot = REPO_ROOT) {
   return !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
-export function extractCloudinaryUrls(docs) {
-  const urls = new Set();
+/** Storage keys of app files referenced anywhere in these documents (keys, /uploads/... paths, signed file URLs). */
+export function extractStoredFileKeys(docs) {
+  const keys = new Set();
   function scan(val) {
     if (!val) return;
     if (typeof val === 'string') {
-      if (val.includes('cloudinary.com') || val.includes('res.cloudinary.com')) {
-        urls.add(val.trim());
-      }
+      const key = storageKeyOf(val);
+      if (key) keys.add(key);
     } else if (Array.isArray(val)) {
       for (const item of val) scan(item);
     } else if (typeof val === 'object') {
@@ -254,7 +255,7 @@ export function extractCloudinaryUrls(docs) {
   for (const doc of docs) {
     scan(doc);
   }
-  return Array.from(urls);
+  return [...keys].sort();
 }
 
 export async function runWipeKeepUsers(rawArgv = process.argv.slice(2), injectedDb = null) {
@@ -422,16 +423,16 @@ export async function runWipeKeepUsers(rawArgv = process.argv.slice(2), injected
   }
   console.log('  ✓ All affected collections successfully backed up and verified.\n');
 
-  // Step 2: Extract Cloudinary URLs from deleted documents
-  console.log('🔍 Scanning deleted documents for referenced Cloudinary URLs...');
-  const cloudinaryUrls = extractCloudinaryUrls(allDeletedDocuments);
-  const cloudinaryUrlsFile = path.join(backupDir, 'cloudinary-urls.txt');
-  fs.writeFileSync(cloudinaryUrlsFile, cloudinaryUrls.join('\n') + (cloudinaryUrls.length > 0 ? '\n' : ''), 'utf8');
+  // Step 2: List the stored files referenced by deleted documents (to clean up in storage)
+  console.log('🔍 Scanning deleted documents for referenced stored files...');
+  const storedFileKeys = extractStoredFileKeys(allDeletedDocuments);
+  const storedFilesFile = path.join(backupDir, 'stored-files.txt');
+  fs.writeFileSync(storedFilesFile, storedFileKeys.join('\n') + (storedFileKeys.length > 0 ? '\n' : ''), 'utf8');
 
-  if (cloudinaryUrls.length > 0) {
-    console.log(`  ⚠️ Found ${cloudinaryUrls.length} Cloudinary URL(s). Written to: ${cloudinaryUrlsFile}`);
+  if (storedFileKeys.length > 0) {
+    console.log(`  ⚠️ Found ${storedFileKeys.length} stored file(s). Written to: ${storedFilesFile}`);
   } else {
-    console.log(`  ✓ 0 Cloudinary URLs found. Empty list saved to: ${cloudinaryUrlsFile}`);
+    console.log(`  ✓ 0 stored files found. Empty list saved to: ${storedFilesFile}`);
   }
 
   // Step 3: Preserve Users & Invalidate Refresh Tokens
