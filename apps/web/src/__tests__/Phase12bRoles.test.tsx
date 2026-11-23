@@ -3,7 +3,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { ROLE_KEYS, ROLE_LABELS, READ_ONLY_VIEWER_ROLES, getAvailableActions } from '@mmp/shared';
 import { handleServerDisconnect } from '../hooks/useSocket';
 import { roleClass } from '../lib/statusTone';
-import { QUICK_LOGIN_GROUPS } from '../components/DevQuickLogin';
 import fs from 'fs';
 import path from 'path';
 
@@ -44,10 +43,6 @@ describe('Phase 12b roles in the web app', () => {
       expect(ROLE_LABELS[role]).toBeTruthy();
     }
     expect(roleClass('team_member')).toBe('role-executive');
-  });
-
-  it('quick sign-in lists the 8 roles in order', () => {
-    expect(QUICK_LOGIN_GROUPS.map((g) => g.title)).toEqual(['Admin', 'Marketing Head', 'Production Head', 'Creative Manager', 'Marketing Growth Manager', 'SM Manager', 'Executive', 'Viewer']);
   });
 
   it('the read-only heads get no action on any step, even one waiting for review', () => {

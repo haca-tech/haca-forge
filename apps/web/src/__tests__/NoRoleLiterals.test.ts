@@ -11,10 +11,10 @@ import path from 'path';
  *   literal list of role keys (['admin', 'sm_manager']);
  * - uses the retired portal.view key.
  * Role definitions, labels and pickers (ROLE_KEYS, ROLE_LABELS, a form's default WORKER_ROLE)
- * are fine. Allow-listed: Quick sign in (dev only) groups accounts by role key.
+ * are fine.
  */
 const SRC = path.resolve(__dirname, '..');
-const ALLOW = new Set(['components/DevQuickLogin.tsx']);
+const ALLOW = new Set<string>([]);
 const KEYS = 'admin|sm_manager|creative_lead|growth_lead|executive|creative_head|production_head';
 const RULES: Array<[string, RegExp]> = [
   ['old role helper', /\b(isApprover|isWorker|isReadOnlyViewer|canDecide|canDecideOn|decisionCalendarsFor|canReview|canSeeContactDetails|canSeeAllReviewText|canManageOperationalFields|canViewProfileReport)\s*\(/],

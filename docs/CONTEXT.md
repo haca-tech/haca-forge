@@ -133,7 +133,7 @@ Display names (Phase 10): SM Calendar, Sales Calendar, Ads Calendar, Academics &
 
 ## 5. Canonical Database Seed Users
 
-Seeded only by `apps/api/scripts/reset-and-seed.js` (Phase 9: dry run by default; `--confirm --db-name=marketing_portal` on a local database only). Passwords are never in source or docs: each user uses `SEED_PASSWORD_<KEY>` and the admin `ADMIN_SEED_PASSWORD`, all in the git-ignored `apps/api/.env`. The keys are unchanged from Phase 9 so existing `.env` entries keep working; Phase 12b changed the roles behind them. `PRODUCTIONHEAD` and `GROWTHLEAD` are optional: seeded only when their passwords are set. The app creates the admin at startup only when it is missing and never rewrites users or passwords. Dev quick sign-in reads `VITE_QUICK_LOGINS` from the git-ignored `apps/web/.env.local` and is absent from production builds.
+Seeded only by `apps/api/scripts/reset-and-seed.js` (Phase 9: dry run by default; `--confirm --db-name=marketing_portal` on a local database only). Passwords are never in source or docs: each user uses `SEED_PASSWORD_<KEY>` and the admin `ADMIN_SEED_PASSWORD`, all in the git-ignored `apps/api/.env`. The keys are unchanged from Phase 9 so existing `.env` entries keep working; Phase 12b changed the roles behind them. `PRODUCTIONHEAD` and `GROWTHLEAD` are optional: seeded only when their passwords are set. The app creates the admin at startup only when it is missing and never rewrites users or passwords. The dev quick sign-in (login page and "Switch account (dev)") was removed; sign in with the form.
 
 | # | Key | Role | Job Role | Department | Email | Phone |
 |---|---|---|---|---|---|---|

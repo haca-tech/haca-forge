@@ -15,11 +15,7 @@ import {
   EyeOff,
   Sparkles,
 } from 'lucide-react';
-import { DevQuickLogin, devQuickLogins } from '../components/DevQuickLogin';
 import { homePathFor } from '../lib/access';
-
-// Dev server only: DEV is false in a production build, so the list and its passwords are left out.
-const QUICK_LOGINS = devQuickLogins();
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -333,20 +329,6 @@ export const LoginPage: React.FC = () => {
             </button>
           </div>
         </div>
-
-        {/* Dev server only: DEV is false in a production build, so the component and the account
-            list are dropped from the bundle (checked by Phase9QuickLoginBuild.test). */}
-        {import.meta.env.DEV && (
-          <DevQuickLogin
-            accounts={QUICK_LOGINS}
-            busy={isLoggingIn}
-            onPick={(account) => {
-              setEmail(account.email);
-              setPassword('');
-              void signIn(account.email, account.password);
-            }}
-          />
-        )}
       </div>
 
       {/* Request Access Modal (Glassmorphic) */}
