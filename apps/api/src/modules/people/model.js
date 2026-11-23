@@ -118,6 +118,13 @@ const personSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // How the phone number was verified: 'email' (code sent to the registered email) or 'sms'.
+    // Null for numbers saved before this was recorded.
+    phoneVerifiedVia: {
+      type: String,
+      enum: ['email', 'sms', null],
+      default: null,
+    },
     whatsappNumber: {
       type: String,
       default: '',

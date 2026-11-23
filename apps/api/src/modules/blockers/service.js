@@ -6,7 +6,7 @@ import { WorkItem } from '../workItems/model.js';
 import { Person } from '../people/model.js';
 import { logActivity } from '../activity/service.js';
 import { createNotification } from '../notifications/service.js';
-import { sendMail } from '../../lib/mailer.js';
+import { sendNotificationEmail } from '../notifications/email.js';
 import { BLOCKER_DEPENDENCY_REASONS, isWorker } from '@mmp/shared';
 import { isTeamMember, participantWorkItemIds, requireParticipant } from '../workItems/access.js';
 import * as access from '../../lib/accessResolver.js';
@@ -122,17 +122,19 @@ export async function createBlocker(data, user) {
       metadata: { workItemId: workItem._id, blockerId: blocker._id, reason },
     });
 
-    try {
-      if (dependencyPerson.email) {
-        await sendMail({
-          to: dependencyPerson.email,
-          subject: `[Marketing OS] Deliverable Blocked: Waiting on Your Input (${workItem.title})`,
-          text: `Hello ${dependencyPerson.name},\n\nDeliverable "${workItem.title}" has been marked as Blocked waiting on you.\n\nReason: ${reason}\nNotes: ${notes || 'None provided'}\nReported by: ${blockerPerson?.name || 'Team'}\n\nPlease review and unblock in Marketing OS: http://localhost:5173/issues\n`,
-        });
-      }
-    } catch (mailErr) {
-      // Non-blocking mail failure
-    }
+    await sendNotificationEmail({
+      recipient: dependencyPerson,
+      type: 'work_item.blocked',
+      subject: `Deliverable Blocked: Waiting on Your Input (${workItem.title})`,
+      title: 'Deliverable blocked: waiting on you',
+      message: `"${workItem.title}" has been marked as Blocked waiting on you.
+
+Reason: ${reason}
+Notes: ${notes || 'None provided'}
+Reported by: ${blockerPerson?.name || 'Team'}`,
+      itemName: workItem.title,
+      link: '/issues',
+    });
   }
 
   // Notify SM Manager of active blocker
@@ -273,17 +275,15 @@ export async function notifyDependencyOwner(blockerId, user) {
     metadata: { blockerId: blocker._id, workItemId: blocker.workItemId?._id },
   });
 
-  try {
-    if (blocker.dependencyOwnerId.email) {
-      await sendMail({
-        to: blocker.dependencyOwnerId.email,
-        subject: `[Reminder] Action Needed: Deliverable Blocked (${blocker.workItemId?.title})`,
-        text: `Hello ${blocker.dependencyOwnerId.name},\n\nThis is a friendly reminder that "${blocker.workItemId?.title}" is still blocked waiting on your input (${blocker.reason}).\n\nPlease review at: http://localhost:5173/issues\n`,
-      });
-    }
-  } catch (err) {
-    // Non-blocking
-  }
+  await sendNotificationEmail({
+    recipient: blocker.dependencyOwnerId,
+    type: 'blocker.reminder',
+    subject: `[Reminder] Action Needed: Deliverable Blocked (${blocker.workItemId?.title})`,
+    title: 'Reminder: deliverable still blocked',
+    message: `This is a friendly reminder that "${blocker.workItemId?.title}" is still blocked waiting on your input (${blocker.reason}).`,
+    itemName: blocker.workItemId?.title,
+    link: '/issues',
+  });
 
   // Log Activity
   await logActivity({

@@ -4,7 +4,7 @@ import { REQUESTABLE_ROLES, ROLE_KEYS, APPROVER_ROLES, READ_ONLY_VIEWER_ROLES, W
 import { AccessRequest } from './model.js';
 import { Person } from '../people/model.js';
 import { Department } from '../departments/model.js';
-import { sendMail, templates } from '../../lib/mailer.js';
+import { sendEmail } from '../../lib/email/index.js';
 import { env } from '../../config/env.js';
 import { eventBus, EVENTS } from '../../lib/events.js';
 import { logActivity } from '../activity/service.js';
@@ -119,19 +119,17 @@ export async function submitAccessRequest(data) {
       adminEmails.add(env.ADMIN_SEED_EMAIL.toLowerCase().trim());
     }
 
-    const emailTemplate = templates().accessRequestSubmitted({
+    const emailData = {
       name: data.name,
       email: normalizedEmail,
       department: data.department,
       jobRole: data.jobRole,
       requestedRole: data.requestedRole,
-    });
+    };
 
+    // sendEmail retries once and never throws; a failure is logged.
     for (const adminEmail of adminEmails) {
-      await sendMail({
-        to: adminEmail,
-        ...emailTemplate,
-      }).catch(() => {});
+      await sendEmail({ to: adminEmail, template: 'accessRequestReceived', data: emailData });
     }
   } catch (err) {
     // Non-blocking notification error
@@ -266,15 +264,11 @@ export async function approveAccessRequest(id, reviewData = {}, adminUser) {
 
   // Send single-use 48-hour set-password invitation
   const setPasswordUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
-  const inviteTemplate = templates().invite({
-    name: accessReq.name,
-    setPasswordUrl,
-  });
-
-  await sendMail({
+  await sendEmail({
     to: accessReq.email,
-    ...inviteTemplate,
-  }).catch(() => {});
+    template: 'accessApproved',
+    data: { name: accessReq.name, setPasswordUrl, hours: 48 },
+  });
 
   // Record ActivityEvent
   await logActivity({
@@ -325,14 +319,7 @@ export async function rejectAccessRequest(id, reason, adminUser) {
   await accessReq.save();
 
   // Send rejection email
-  const template = templates().requestRejected({
-    name: accessReq.name,
-    reason,
-  });
-  await sendMail({
-    to: accessReq.email,
-    ...template,
-  }).catch(() => {});
+  await sendEmail({ to: accessReq.email, template: 'accessRejected', data: { name: accessReq.name, reason } });
 
   // Record ActivityEvent
   await logActivity({
@@ -371,14 +358,7 @@ export async function requestInfoForAccess(id, question, adminUser) {
   accessReq.reviewedAt = new Date();
   await accessReq.save();
 
-  const template = templates().infoNeeded({
-    name: accessReq.name,
-    question,
-  });
-  await sendMail({
-    to: accessReq.email,
-    ...template,
-  }).catch(() => {});
+  await sendEmail({ to: accessReq.email, template: 'accessInfoNeeded', data: { name: accessReq.name, question } });
 
   // Record ActivityEvent
   await logActivity({

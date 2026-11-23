@@ -2,7 +2,7 @@ import { Queue, Worker } from 'bullmq';
 import Redis from 'ioredis';
 import { env } from '../config/env.js';
 import { logger } from './logger.js';
-import { sendMail, templates } from './mailer.js';
+import { deliver, renderEmail } from './email/index.js';
 
 let redisClient = null;
 let isRedisAvailable = false;
@@ -76,18 +76,20 @@ export function isRedisReady() {
 }
 
 /**
- * Enqueue an email to be sent asynchronously.
- * If Redis is unavailable or EMAIL_PROVIDER is console, sends directly.
+ * Queue an email for the background worker, or deliver it now when Redis is not available.
+ * Pass a rendered message ({ to, subject, html, text }) or a template ({ to, template, context }).
+ * The worker tries a job twice (once, then one retry); a direct send retries once too. Never throws.
  */
 export async function enqueueEmail({ to, subject, html, text, template, context }) {
-  // If template is provided, generate email content from mailer templates
   if (template) {
-    const templateFactory = templates()[template];
-    if (typeof templateFactory === 'function') {
-      const rendered = templateFactory(context || {});
+    try {
+      const rendered = renderEmail(template, context || {});
       subject = subject || rendered.subject;
-      html = html || rendered.html;
-      text = text || rendered.text;
+      html = rendered.html;
+      text = rendered.text;
+    } catch (err) {
+      logger.error({ err: err.message, template }, 'Email template failed to render');
+      return { success: false, error: err.message, mode: 'none' };
     }
   }
 
@@ -95,13 +97,10 @@ export async function enqueueEmail({ to, subject, html, text, template, context 
     try {
       const job = await emailQueue.add(
         'send-email',
-        { to, subject, html, text },
+        { to, subject, html, text, template },
         {
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 2000,
-          },
+          attempts: 2,
+          backoff: { type: 'fixed', delay: 2000 },
           removeOnComplete: true,
           removeOnFail: 100,
         }
@@ -112,14 +111,10 @@ export async function enqueueEmail({ to, subject, html, text, template, context 
     }
   }
 
-  // Fallback: send directly via mailer
-  try {
-    const res = await sendMail({ to, subject, html, text });
-    return { success: true, messageId: res.messageId, mode: 'direct' };
-  } catch (err) {
-    logger.error({ err: err.message, to, subject }, 'Direct email delivery failed');
-    return { success: false, error: err.message, mode: 'direct' };
-  }
+  const result = await deliver({ to, subject, html, text, template });
+  return result.ok
+    ? { success: true, messageId: result.messageId, mode: 'direct' }
+    : { success: false, error: result.error, mode: 'direct' };
 }
 
 export { QUEUE_NAMES, emailQueue, scheduledJobsQueue };

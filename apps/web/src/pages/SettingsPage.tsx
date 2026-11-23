@@ -27,7 +27,11 @@ interface SessionItem {
 
 export const SettingsPage: React.FC = () => {
   const access = useAccess();
-  const [activeTab, setActiveTab] = useState<'security' | 'notifications' | 'preferences'>('security');
+  // ?tab=notifications (the link in notification emails) opens that tab.
+  const [activeTab, setActiveTab] = useState<'security' | 'notifications' | 'preferences'>(() => {
+    const tab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
+    return tab === 'notifications' || tab === 'preferences' ? tab : 'security';
+  });
 
   // Security - Password Change State
   const [passwordForm, setPasswordForm] = useState({

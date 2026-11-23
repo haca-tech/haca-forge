@@ -139,6 +139,7 @@ export const WorkerProfilePage: React.FC = () => {
   const [otpError, setOtpError] = useState<string | null>(null);
   const [otpSuccess, setOtpSuccess] = useState<string | null>(null);
   const [otpCountdown, setOtpCountdown] = useState(0);
+  const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
 
   useEffect(() => {
     if (otpCountdown <= 0) return;
@@ -378,7 +379,13 @@ export const WorkerProfilePage: React.FC = () => {
     setOtpError(null);
     setOtpSuccess(null);
     try {
-      const res = await apiFetch<{ success: boolean; message: string; testOtp?: string }>(
+      const res = await apiFetch<{
+        success: boolean;
+        message: string;
+        sentTo?: string;
+        resendAfterSeconds?: number;
+        testOtp?: string;
+      }>(
         '/api/me/phone-otp/send',
         {
           method: 'POST',
@@ -386,11 +393,15 @@ export const WorkerProfilePage: React.FC = () => {
           body: JSON.stringify({ phone: clean }),
         }
       );
+      // The code goes to the registered email ("We sent a 6-digit code to m•••@…").
       setOtpSent(true);
-      setOtpCountdown(30);
-      setOtpSuccess(res.message || 'OTP verification code sent to your mobile phone.');
+      setOtpCode('');
+      setOtpSentTo(res.sentTo || null);
+      setOtpCountdown(res.resendAfterSeconds ?? 60);
     } catch (err: any) {
-      setOtpError(err?.message || 'Failed to send OTP. Please check your number.');
+      const wait = Number(err?.details?.retryAfterSeconds);
+      if (wait > 0) setOtpCountdown(wait);
+      setOtpError(err?.message || "We couldn't send the email. Try again.");
     } finally {
       setOtpSending(false);
     }
@@ -1831,12 +1842,14 @@ export const WorkerProfilePage: React.FC = () => {
                       {otpSending ? (
                         <>
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Sending OTP...</span>
+                          <span>Sending code...</span>
                         </>
                       ) : otpCountdown > 0 ? (
-                        `Resend OTP in ${otpCountdown}s`
+                        `Resend in ${otpCountdown}s`
+                      ) : otpSent ? (
+                        'Resend code'
                       ) : (
-                        'Send OTP'
+                        'Send code'
                       )}
                     </button>
                   )}
@@ -1844,20 +1857,26 @@ export const WorkerProfilePage: React.FC = () => {
 
                 <p className="text-[11px] text-ui-muted">
                   Enter mobile number with country code (e.g. +91 9876543210 or 9000000011).
-                  Changes require OTP verification before saving.
+                  To save a new number, verify it with a 6-digit code sent to your registered email.
                 </p>
+
+                {!isPhoneVerified && !otpSent && otpError && (
+                  <p className="text-xs font-semibold rounded-lg px-2 py-1 status-tint status-changes">{otpError}</p>
+                )}
 
                 {/* OTP Verification Box */}
                 {!isPhoneVerified && otpSent && (
                   <div className="p-3.5 rounded-2xl bg-white border border-ui-line shadow-2xs space-y-3 animate-in fade-in duration-150">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-ui-ink">
-                        Enter 6-Digit OTP Code
-                      </span>
-                      <span className="text-[11px] font-semibold text-ui-ink">
-                        Code sent to {profileForm.phone}
+                        Enter the 6-digit code
                       </span>
                     </div>
+                    <p className="text-[11px] text-ui-muted">
+                      {otpSentTo
+                        ? `We sent a 6-digit code to ${otpSentTo}`
+                        : 'We sent a 6-digit code to your registered email.'}
+                    </p>
 
                     <div className="flex gap-2">
                       <input

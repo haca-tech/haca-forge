@@ -101,6 +101,14 @@ const SettingsPage = React.lazy(() =>
 );
 const ChatPage = React.lazy(() => import('./pages/chat/ChatPage'));
 
+// Dev-only email previews (/dev/emails). In a production build import.meta.env.DEV is false, so
+// this is null, the route below is dropped and the page's code is not in the bundle. The API side
+// (/api/dev/emails) is not mounted when NODE_ENV=production either. Rendered by App below.
+const EmailPreviewPage =
+  import.meta.env.DEV && import.meta.env.MODE !== 'production'
+    ? React.lazy(() => import('./pages/dev/EmailPreviewPage'))
+    : null;
+
 /**
  * RootRedirect: Directs authenticated users according to completion and preferences:
  * 1. If profileCompletedAt is missing/empty -> /welcome
@@ -140,6 +148,15 @@ const RootRedirect: React.FC = () => {
 };
 
 export const App: React.FC = () => {
+  // Dev-only email previews render outside the auth providers: no sign-in, no redirect to /login.
+  if (EmailPreviewPage && typeof window !== 'undefined' && window.location.pathname === '/dev/emails') {
+    return (
+      <React.Suspense fallback={<PageSkeleton />}>
+        <EmailPreviewPage />
+      </React.Suspense>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>

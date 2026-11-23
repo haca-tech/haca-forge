@@ -63,6 +63,8 @@ import { authenticate } from "./middleware/auth.js";
 import { setSocketServer } from "./lib/socketHub.js";
 import { User } from "./modules/people/model.js";
 import { initQueues } from "./lib/queue.js";
+import { verifyEmailOnStartup } from "./lib/email/index.js";
+import { mountDevRoutes } from "./modules/dev/routes.js";
 import { initDomainEventListeners } from "./modules/notifications/service.js";
 
 const app = express();
@@ -239,6 +241,8 @@ app.use("/api/chat", chatRouter);
 app.use("/api/published", publishedRoutes);
 app.use("/api/review-hub", reviewHubRoutes);
 app.use("/api/access-admin", accessAdminRoutes);
+// Dev-only email previews (/api/dev/emails); never mounted when NODE_ENV=production.
+mountDevRoutes(app, env);
 app.use("/chat", chatRouter);
 
 app.set("io", io);
@@ -261,6 +265,8 @@ export async function startServer() {
   await connectDB();
   await ensureBaselineUsers();
   await initQueues();
+  // Not awaited: a slow or failing SMTP check is logged and never delays or blocks startup.
+  verifyEmailOnStartup();
   await ensureAutomationRules();
   initDomainEventListeners(io);
 

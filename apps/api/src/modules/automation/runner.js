@@ -5,7 +5,7 @@ import { Blocker } from '../blockers/model.js';
 import { RevisionFlag } from '../feedback/model.js';
 import { Notification } from '../notifications/model.js';
 import { ActivityEvent } from '../activity/model.js';
-import { enqueueEmail } from '../../lib/queue.js';
+import { sendNotificationEmail } from '../notifications/email.js';
 import { isRetiredJob, runRetiredJob } from '../jobs/retired.js';
 import { logger } from '../../lib/logger.js';
 import { hasTimeLabel, istDateKey, overdueDays, stepTimeLabels, APPROVER_ROLES, deciderRoleFor } from '@mmp/shared';
@@ -225,17 +225,14 @@ async function runOverdueEscalationRule(rule, user) {
         link: `/work/${item._id}`,
         metadata: { workItemId: item._id, type: 'overdue_owner', dueDay, daysOverdue: days },
       });
-      if (owner.email) {
-        await enqueueEmail({
-          to: owner.email,
-          subject: `Overdue: ${item.title}`,
-          text: `Hello ${owner.name},
-
-"${item.title}" was due ${dueDay} (IST) and is now overdue. Please update it in HACA Marketing OS.
-
-Link: /work/${item._id}`,
-        });
-      }
+      await sendNotificationEmail({
+        recipient: owner,
+        type: 'overdue',
+        title: `Overdue: ${item.title}`,
+        message: `"${item.title}" was due ${dueDay} (IST) and is now overdue. Please update it in HACA Forge.`,
+        itemName: item.title,
+        link: `/work/${item._id}`,
+      });
       ownerNotified++;
     }
 
@@ -251,17 +248,14 @@ Link: /work/${item._id}`,
         link: `/work/${item._id}`,
         metadata: { workItemId: item._id, type: 'overdue_manager', dueDay, daysOverdue: days },
       });
-      if (manager.email) {
-        await enqueueEmail({
-          to: manager.email,
-          subject: `Overdue: ${item.title}`,
-          text: `Hello ${manager.name},
-
-"${item.title}" (${owner?.name || 'unassigned'}) was due ${dueDay} (IST) and is now overdue.
-
-Link: /work/${item._id}`,
-        });
-      }
+      await sendNotificationEmail({
+        recipient: manager,
+        type: 'overdue',
+        title: `Overdue: ${item.title}`,
+        message: `"${item.title}" (${owner?.name || 'unassigned'}) was due ${dueDay} (IST) and is now overdue.`,
+        itemName: item.title,
+        link: `/work/${item._id}`,
+      });
       managerNotified++;
     }
     }
@@ -368,13 +362,17 @@ async function runBlockerDependencyAlertRule(rule, user) {
           },
         });
 
-        if (depOwner.email) {
-          await enqueueEmail({
-            to: depOwner.email,
-            subject: `[Reminder] Deliverable Blocked Waiting on You (${blocker.reason})`,
-            text: `Hello ${depOwner.name},\n\nDeliverable "${blocker.workItemId?.title || 'Deliverable'}" is still blocked awaiting your input.\nReason: ${blocker.reason}\nNotes: ${blocker.notes || 'None'}\n\nPlease review and unblock at: http://localhost:5173/issues`,
-          });
-        }
+        await sendNotificationEmail({
+          recipient: depOwner,
+          type: 'blocker.reminder',
+          subject: `[Reminder] Deliverable Blocked Waiting on You (${blocker.reason})`,
+          title: 'Reminder: deliverable blocked waiting on you',
+          message: `"${blocker.workItemId?.title || 'Deliverable'}" is still blocked awaiting your input.
+Reason: ${blocker.reason}
+Notes: ${blocker.notes || 'None'}`,
+          itemName: blocker.workItemId?.title,
+          link: '/issues',
+        });
         remindedCount++;
       }
     }

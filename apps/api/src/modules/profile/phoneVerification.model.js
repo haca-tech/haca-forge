@@ -18,6 +18,12 @@ const phoneVerificationSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // How the code was delivered: 'email' (the registered email) or 'sms' (kept for later).
+    channel: {
+      type: String,
+      enum: ['email', 'sms'],
+      default: 'email',
+    },
     token: {
       type: String,
       default: null,

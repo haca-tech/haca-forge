@@ -1,7 +1,7 @@
 import { Worker } from 'bullmq';
 import { connectDB } from './config/db.js';
 import { logger } from './lib/logger.js';
-import { sendMail } from './lib/mailer.js';
+import { deliver, verifyEmailOnStartup } from './lib/email/index.js';
 import {
   getRedisConnection,
   initQueues,
@@ -31,7 +31,10 @@ export async function startWorker() {
   // 1. Connect to MongoDB
   await connectDB();
 
-  // 2. Attempt Redis connection for BullMQ
+  // 2. Check the email connection once (logs success or failure, never secrets)
+  await verifyEmailOnStartup();
+
+  // 3. Attempt Redis connection for BullMQ
   const queuesReady = await initQueues();
 
   if (queuesReady && isRedisReady()) {
@@ -42,7 +45,10 @@ export async function startWorker() {
       QUEUE_NAMES.EMAIL,
       async (job) => {
         logger.info({ jobId: job.id, to: job.data.to, subject: job.data.subject }, 'Processing email job');
-        return sendMail(job.data);
+        // One try per attempt; BullMQ retries the job once (attempts: 2) when this throws.
+        const result = await deliver(job.data, { retries: 0 });
+        if (!result.ok) throw new Error(result.error);
+        return result;
       },
       { connection, concurrency: 5 }
     );

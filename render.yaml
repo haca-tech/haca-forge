@@ -32,12 +32,25 @@ services:
         sync: false
       - key: COOKIE_DOMAIN
         sync: false
-      - key: EMAIL_PROVIDER
-        value: resend
-      - key: RESEND_API_KEY
+      # Email (docs/EMAIL.md): EMAIL_DRIVER=smtp with a Gmail app password. Values are set in the Render dashboard.
+      - key: EMAIL_DRIVER
         sync: false
-      - key: MAIL_FROM
-        value: Marketing Portal <no-reply@yourdomain.com>
+      - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_LOGO_URL
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_SECURE
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: PHONE_OTP_CHANNEL
+        sync: false
       # File storage on Bunny (docs/STORAGE.md). Values are set in the Render dashboard.
       - key: STORAGE_DRIVER
         value: bunny
@@ -74,12 +87,25 @@ services:
           type: redis
           name: mmp-redis
           property: connectionString
-      - key: EMAIL_PROVIDER
-        value: resend
-      - key: RESEND_API_KEY
+      # Email (docs/EMAIL.md): EMAIL_DRIVER=smtp with a Gmail app password. Values are set in the Render dashboard.
+      - key: EMAIL_DRIVER
         sync: false
-      - key: MAIL_FROM
-        value: Marketing Portal <no-reply@yourdomain.com>
+      - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_LOGO_URL
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_SECURE
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: PHONE_OTP_CHANNEL
+        sync: false
 
   # 3. Redis Instance for BullMQ
   - type: redis

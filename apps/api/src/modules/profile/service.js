@@ -8,7 +8,14 @@ import { env } from '../../config/env.js';
 import { User } from '../people/model.js';
 import { Session } from '../auth/session.model.js';
 import { ActivityEvent } from '../activity/model.js';
-import { sendMail, templates } from '../../lib/mailer.js';
+import {
+  sendEmail,
+  sendEmailOrFail,
+  checkEmailThrottle,
+  recordEmailSent,
+  maskEmail,
+  THROTTLE_WINDOW_MS,
+} from '../../lib/email/index.js';
 import { createNotification } from '../notifications/service.js';
 import { logger } from '../../lib/logger.js';
 import { normalizeRole, isApprover, isReadOnlyViewer, isWorker, activeStepLimitOf } from '@mmp/shared';
@@ -114,6 +121,7 @@ export async function getProfile(userId) {
     phone: user.phone || '',
     phoneVerified: Boolean(user.phoneVerified || user.phoneVerifiedAt || user.phone),
     phoneVerifiedAt: user.phoneVerifiedAt || null,
+    phoneVerifiedVia: user.phoneVerifiedVia || null,
     whatsappNumber: user.whatsappNumber || '',
     languages: Array.isArray(user.languages) ? user.languages : [],
     about: user.about || '',
@@ -142,8 +150,13 @@ export async function getProfile(userId) {
   };
 }
 
+export const PHONE_OTP_MINUTES = 10;
+export const PHONE_OTP_RESEND_SECONDS = THROTTLE_WINDOW_MS / 1000;
+
 /**
- * Send 6-digit OTP to mobile phone for verification
+ * Send a 6-digit code to verify a phone number. With PHONE_OTP_CHANNEL=email (the default) the code
+ * goes to the user's registered email. Storage, the 10-minute expiry and the 5-attempt limit are the
+ * same for every channel; at most one code per user per minute.
  */
 export async function sendPhoneOtp(userId, { phone }) {
   const cleanPhone = normalizePhone(phone);
@@ -154,9 +167,29 @@ export async function sendPhoneOtp(userId, { phone }) {
     throw error;
   }
 
+  const channel = env.PHONE_OTP_CHANNEL === 'sms' ? 'sms' : 'email';
+  let user = null;
+  if (channel === 'email') {
+    user = await User.findById(userId).select('name email').lean();
+    if (!user?.email) {
+      const error = new Error('Your account has no registered email to send the code to. Contact your administrator.');
+      error.statusCode = 400;
+      error.code = 'NO_REGISTERED_EMAIL';
+      throw error;
+    }
+    const throttle = checkEmailThrottle('phone_otp', user.email);
+    if (!throttle.allowed) {
+      const error = new Error(`Please wait ${throttle.retryAfterSeconds} seconds before requesting a new code.`);
+      error.statusCode = 429;
+      error.code = 'OTP_COOLDOWN';
+      error.details = { retryAfterSeconds: throttle.retryAfterSeconds };
+      throw error;
+    }
+  }
+
   // Generate 6-digit numeric OTP
-  const otp = env.NODE_ENV === 'test' ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  const otp = env.NODE_ENV === 'test' ? '123456' : crypto.randomInt(100000, 1000000).toString();
+  const expiresAt = new Date(Date.now() + PHONE_OTP_MINUTES * 60 * 1000);
 
   // Invalidate any existing OTP requests for this user & phone
   await PhoneVerification.deleteMany({ userId, phone: cleanPhone });
@@ -165,22 +198,56 @@ export async function sendPhoneOtp(userId, { phone }) {
     userId,
     phone: cleanPhone,
     otp,
+    channel,
     expiresAt,
     attempts: 0,
     verified: false,
   });
 
-  logger.info({ phone: cleanPhone, otp }, '📱 [SMS OTP] Mobile verification code generated');
-  console.log(`\n========================================\n📱 [SMS OTP] Mobile verification for ${cleanPhone}: ${otp}\n========================================\n`);
+  if (channel === 'sms') return sendPhoneOtpBySms({ phone: cleanPhone, otp, expiresAt });
 
-  const maskedPhone = cleanPhone.length > 4
-    ? `${cleanPhone.slice(0, 3)}****${cleanPhone.slice(-4)}`
-    : cleanPhone;
+  try {
+    await sendEmailOrFail({
+      to: user.email,
+      template: 'phoneVerificationCode',
+      data: { name: user.name, code: otp, phone: cleanPhone, minutes: PHONE_OTP_MINUTES },
+    });
+  } catch (err) {
+    // Not sent: drop the code so nothing is left waiting, and let the user try again at once.
+    await PhoneVerification.deleteMany({ userId, phone: cleanPhone });
+    throw err;
+  }
+  recordEmailSent('phone_otp', user.email);
+
+  const sentTo = maskEmail(user.email);
+  return {
+    success: true,
+    channel: 'email',
+    sentTo,
+    message: `We sent a 6-digit code to ${sentTo}`,
+    expiresAt,
+    resendAfterSeconds: PHONE_OTP_RESEND_SECONDS,
+    testOtp: env.NODE_ENV === 'test' ? otp : undefined,
+  };
+}
+
+/**
+ * The SMS path, kept for when an SMS provider is added (PHONE_OTP_CHANNEL=sms). Unused today:
+ * startup refuses PHONE_OTP_CHANNEL=sms. There is no provider, so it only logs the code.
+ */
+function sendPhoneOtpBySms({ phone, otp, expiresAt }) {
+  logger.info({ phone, otp }, '📱 [SMS OTP] Mobile verification code generated');
+
+  const maskedPhone = phone.length > 4
+    ? `${phone.slice(0, 3)}****${phone.slice(-4)}`
+    : phone;
 
   return {
     success: true,
+    channel: 'sms',
     message: `Verification code sent to ${maskedPhone}`,
     expiresAt,
+    resendAfterSeconds: PHONE_OTP_RESEND_SECONDS,
     testOtp: env.NODE_ENV === 'test' ? otp : undefined,
   };
 }
@@ -243,6 +310,7 @@ export async function verifyPhoneOtp(userId, { phone, otp }) {
     success: true,
     verified: true,
     verificationToken: token,
+    verifiedVia: record.channel || 'email',
     message: 'Mobile number verified successfully!',
   };
 }
@@ -299,6 +367,7 @@ export async function updateProfile(userId, data) {
         }
 
         await PhoneVerification.deleteOne({ _id: verification._id });
+        user.phoneVerifiedVia = verification.channel || 'email';
       }
 
       user.phone = cleanPhone;
@@ -309,6 +378,7 @@ export async function updateProfile(userId, data) {
       user.phone = '';
       user.phoneVerified = false;
       user.phoneVerifiedAt = null;
+      user.phoneVerifiedVia = null;
       changedFields.push('phone');
     }
   }
@@ -653,16 +723,12 @@ export async function changePassword(userId, { currentPassword, newPassword, con
 
   // Send mandatory security email notice
   try {
-    const template = templates().passwordChanged({
-      name: user.name,
-      time: new Date().toLocaleString(),
-    });
-    await sendMail({
+    const result = await sendEmail({
       to: user.email,
-      subject: template.subject,
-      text: template.text,
-      html: template.html,
+      template: 'passwordChanged',
+      data: { name: user.name, time: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST' },
     });
+    if (!result.ok) throw new Error(result.error);
   } catch (err) {
     logger.error({ err: err.message }, 'Failed to dispatch password change security email');
   }
@@ -840,18 +906,17 @@ export async function submitChangeRequest(userId, { requestedChanges }) {
 
     // 2. Dispatch email
     try {
-      const template = templates().changeRequestSubmitted({
-        requesterName: user.name,
-        requesterEmail: user.email,
-        requesterRole: user.role,
-        requestedChanges: sanitizedChanges,
-      });
-      await sendMail({
+      const result = await sendEmail({
         to: admin.email,
-        subject: template.subject,
-        text: template.text,
-        html: template.html,
+        template: 'changeRequest',
+        data: {
+          requesterName: user.name,
+          requesterEmail: user.email,
+          requesterRole: user.role,
+          requestedChanges: sanitizedChanges,
+        },
       });
+      if (!result.ok) throw new Error(result.error);
     } catch (err) {
       logger.warn({ err: err.message }, 'Failed to dispatch email for change request');
     }

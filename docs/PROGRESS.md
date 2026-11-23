@@ -1,6 +1,59 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after the Viewer role and fresh-database setup):** 2341 passing, 0 failing, 0 skipped: API 1810 (107 files), web 531 (67 files). Typecheck 0 errors; web build clean.
+**Current test count (after email via Gmail SMTP and phone verification by email):** API 1876 passing, 1 failing (111 files); web 521 passing (66 files). The failing API test is `storage_bunny.test.js` "No Cloudinary anywhere": it was already failing before this branch, because the Bunny commit's PROGRESS entry and the test file itself contain the word. Typecheck 0 errors; web build clean.
+
+## Email (Gmail SMTP), branded templates, phone verification by email OTP (Status: COMPLETE; committed on `feature/email-smtp`, not pushed)
+
+Full guide: `docs/EMAIL.md`.
+
+**What was there.**
+- One `lib/mailer.js` with console, smtp and resend options, and 16 unescaped "HACA Marketing OS" templates, 9 of them unused.
+- Most sends swallowed failures silently. `render.yaml` asked for `resend`, which was never installed.
+- Phone OTP had no SMS provider: the code was only written to the logs, and the 30s cooldown was enforced only in the browser.
+
+**Email module (`apps/api/src/lib/email/`).**
+- **Drivers:** `EMAIL_DRIVER` chooses `console` (default; logs recipient, subject and a short preview) or `smtp` (Nodemailer 10.6.1, pinned). `resend` has a marked place in `drivers.js` and is refused at startup until it is built.
+- **Retry:** each send gets one retry after about 1.5s, and failures are logged without secrets. Codes and resets answer 503 `EMAIL_SEND_FAILED` "We couldn't send the email. Try again."; other emails log the failure and carry on.
+- **Queue:** BullMQ email jobs now get 2 attempts.
+- **Startup:** with `smtp`, a missing `SMTP_*` setting or `EMAIL_FROM` makes the app exit and list the names. `PHONE_OTP_CHANNEL=sms` and an SVG `EMAIL_LOGO_URL` are refused too. The API and the worker check the SMTP connection once at start and log the result.
+- **Throttle:** one phone code or password reset per address per minute, kept in memory. It starts only after a successful send.
+
+**Templates.**
+- **Layout:** one 600px table layout with inline CSS and the UI.md neutrals. It has a wordmark or PNG logo, a preheader, at most one button and a footer; notification emails also link to `/settings?tab=notifications`. Colors are set explicitly, every email has a plain-text version, and all text is escaped.
+- **The 12 templates:** verificationCode, phoneVerificationCode, passwordReset, accessRequestReceived, accessApproved, accessRejected, accessInfoNeeded, welcome, passwordChanged, changeRequest, notification and test.
+- **Built but not sent:** `verificationCode` (there is no sign-in code flow) and `welcome` (admin-created accounts get no email today).
+- **Notification emails:** overdue (owner and manager), blocked waiting on you, and both blocker reminders now use the shared `notification` template through `sendNotificationEmail`. It honors the user's email setting for that category, which nothing checked before. Review, changes requested, approval, pause and help stay in-app only, as before.
+- **Dev preview:** `/dev/emails` in the web app (dev only; rendered outside the auth providers), fed by `GET /api/dev/emails` (not mounted in production).
+
+**Phone verification by email.**
+- `POST /api/me/phone-otp/send` emails the code to the registered email. The email shows the number masked except the last 4 digits. The answer includes `sentTo` (`m•••@…`) and `resendAfterSeconds: 60`.
+- A repeat request inside the minute gets 429 `OTP_COOLDOWN`. A failed send removes the code.
+- Storage, the 10-minute expiry and the 5-attempt limit are unchanged.
+- Verify returns `verifiedVia: 'email'`, and saving the profile records `phoneVerifiedVia` on the person (a new optional field; no migration).
+- The code is no longer logged.
+- The SMS path stays as `sendPhoneOtpBySms`, unused.
+- UI: "Send code", "We sent a 6-digit code to m•••@…", "Resend in Ns" from the server's cooldown, and send errors shown before a code is sent.
+
+**Also.**
+- `scripts/send-test-email.js --to= [--template=]`.
+- `.env.example` and `render.yaml` use the new keys (`sync: false`).
+- `EMAIL_PROVIDER`, `MAIL_FROM` and `RESEND_API_KEY` are gone.
+- Tests always use the console driver, whatever `.env` says.
+
+**Tests.**
+- `email_smtp.test.js` (47):
+  - drivers, with SMTP on a mocked transport;
+  - retry and the friendly error;
+  - no secrets in logs;
+  - startup refusals (spawned process);
+  - snapshot of every template's HTML and text;
+  - escaping, and codes never in subjects;
+  - the throttle;
+  - every path through the module;
+  - phone OTP: send, verify and save, wrong code, expiry, attempt limit, cooldown, failed send;
+  - dev routes absent in production.
+- `phone_otp_profile.test.js` resets the throttle between tests.
+- Web: `PhoneOtpByEmail.test.tsx` (2), and `DevEmailsNotInProduction.test.ts`, which runs a real production `vite build` and searches it.
 
 ## Role labels, Viewer role, fresh-database setup (Status: COMPLETE; committed locally, not pushed)
 

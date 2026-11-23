@@ -6,7 +6,11 @@ import { User } from "../people/model.js";
 import { AccessRequest } from "../access/model.js";
 import { Session } from "./session.model.js";
 import { ROLE_PERMISSIONS, isKnownRole, normalizeRole, WORKER_ROLE } from "@mmp/shared";
-import { sendMail, templates } from "../../lib/mailer.js";
+import {
+  sendEmailOrFail,
+  checkEmailThrottle,
+  recordEmailSent,
+} from "../../lib/email/index.js";
 
 /** An account still on a role from before Phase 12b waits for the migration. */
 function assertKnownRole(user) {
@@ -419,6 +423,16 @@ export async function requestPasswordReset(email) {
     };
   }
 
+  // At most one reset email per address per minute. A repeat inside the minute gets the same
+  // answer as any other request (no enumeration) and sends nothing.
+  if (!checkEmailThrottle("password_reset", user.email).allowed) {
+    return {
+      success: true,
+      message:
+        "If an active account exists with that email, a password reset link has been dispatched.",
+    };
+  }
+
   const rawToken = crypto.randomBytes(32).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
   const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h
@@ -429,18 +443,13 @@ export async function requestPasswordReset(email) {
 
   const resetUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
 
-  const template = templates().inviteUser({
-    name: user.name,
-    email: user.email,
-    inviteUrl: resetUrl,
-  });
-
-  await sendMail({
+  // Retries once; when both tries fail the user sees "We couldn't send the email. Try again." (503).
+  await sendEmailOrFail({
     to: user.email,
-    subject: "HACA Marketing OS - Password Reset Request",
-    text: `Hello ${user.name},\n\nA password reset was requested for your account. Please click the following link to set your password (valid for 48 hours):\n${resetUrl}\n\nIf you did not request this, you can ignore this email.`,
-    html: template.html,
-  }).catch(() => {});
+    template: "passwordReset",
+    data: { name: user.name, resetUrl, hours: 48 },
+  });
+  recordEmailSent("password_reset", user.email);
 
   return {
     success: true,

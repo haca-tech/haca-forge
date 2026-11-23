@@ -35,6 +35,18 @@ export default defineConfig({
       BUNNY_STORAGE_KEY: '',
       BUNNY_CDN_URL: '',
       BUNNY_TOKEN_KEY: '',
+      // Tests never send real email, whatever apps/api/.env says: the console driver, and the SMTP
+      // settings blanked. SMTP tests build their own driver against a mocked transport.
+      EMAIL_DRIVER: 'console',
+      EMAIL_FROM: 'HACA Forge <no-reply@haca-forge.test>',
+      EMAIL_LOGO_URL: '',
+      SMTP_HOST: '',
+      SMTP_PORT: '',
+      SMTP_SECURE: '',
+      SMTP_USER: '',
+      SMTP_PASS: '',
+      PHONE_OTP_CHANNEL: 'email',
+      FRONTEND_URL: 'http://localhost:5173',
     },
   },
 });

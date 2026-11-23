@@ -1,0 +1,842 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Branded templates > accessApproved: base layout, HTML and plain text (snapshot) 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Welcome to the team, Aisha Noor</title>
+<style>
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  a { color:#0B0B0D; }
+  @media only screen and (max-width:620px) {
+    .hf-card { width:100% !important; }
+    .hf-pad { padding-left:24px !important; padding-right:24px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#F3F5F9" style="margin:0;padding:0;background-color:#F3F5F9;color:#1B1F27;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#F3F5F9;">Your access request was approved. Set your password within 48 hours.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F5F9" style="background-color:#F3F5F9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="hf-card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+<tr><td class="hf-pad" style="padding:0 40px 20px 40px;"><span style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:800;letter-spacing:4px;color:#0B0B0D;">HACA FORGE</span></td></tr>
+<tr><td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border:1px solid #DDE2EB;border-radius:16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td class="hf-pad" style="padding:36px 40px 20px 40px;">
+<h1 style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:800;letter-spacing:-0.2px;color:#0B0B0D;">Welcome to the team, Aisha Noor</h1>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;color:#586170;">Your access request has been approved by the administrator.</p>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;">Click the button below to set your account password and activate your workspace. This single-use link is valid for 48 hours.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px 0;"><tr><td align="center" bgcolor="#0B0B0D" style="background-color:#0B0B0D;border-radius:8px;"><a href="http://localhost:5173/set-password?token=sample-token" target="_blank" style="display:inline-block;padding:14px 28px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:8px;background-color:#0B0B0D;">Set Password &amp; Activate Account</a></td></tr></table>
+<p style="margin:0 0 8px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">If the button does not work, copy and paste this link into your browser:<br><a href="http://localhost:5173/set-password?token=sample-token" target="_blank" style="color:#0B0B0D;text-decoration:underline;word-break:break-all;">http://localhost:5173/set-password?token=sample-token</a></p>
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="hf-pad" style="padding:24px 40px 0 40px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#586170;">
+<p style="margin:0 0 8px 0;color:#586170;">You&#39;re receiving this because you have a HACA Forge account.</p>
+<p style="margin:0;color:#586170;">Haris &amp; Co Academy &middot; <a href="http://localhost:5173" target="_blank" style="color:#586170;text-decoration:underline;">localhost:5173</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+",
+  "subject": "Welcome to HACA Forge - Set Your Password",
+  "text": "HACA FORGE
+
+Welcome to the team, Aisha Noor
+
+Your access request has been approved by the administrator.
+
+Click the button below to set your account password and activate your workspace. This single-use link is valid for 48 hours.
+
+Set Password & Activate Account: http://localhost:5173/set-password?token=sample-token
+
+If the button does not work, copy and paste this link into your browser:
+http://localhost:5173/set-password?token=sample-token
+
+--
+You're receiving this because you have a HACA Forge account.
+Haris & Co Academy
+http://localhost:5173
+",
+}
+`;
+
+exports[`Branded templates > accessInfoNeeded: base layout, HTML and plain text (snapshot) 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>More information needed</title>
+<style>
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  a { color:#0B0B0D; }
+  @media only screen and (max-width:620px) {
+    .hf-card { width:100% !important; }
+    .hf-pad { padding-left:24px !important; padding-right:24px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#F3F5F9" style="margin:0;padding:0;background-color:#F3F5F9;color:#1B1F27;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#F3F5F9;">The administrator needs a little more information.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F5F9" style="background-color:#F3F5F9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="hf-card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+<tr><td class="hf-pad" style="padding:0 40px 20px 40px;"><span style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:800;letter-spacing:4px;color:#0B0B0D;">HACA FORGE</span></td></tr>
+<tr><td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border:1px solid #DDE2EB;border-radius:16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td class="hf-pad" style="padding:36px 40px 20px 40px;">
+<h1 style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:800;letter-spacing:-0.2px;color:#0B0B0D;">More information needed</h1>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;color:#586170;">Hello Aisha Noor,</p>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;">Before your access request can be completed, the administrator needs additional information:</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;"><tr><td bgcolor="#F3F5F9" style="background-color:#F3F5F9;border-left:3px solid #0B0B0D;border-radius:6px;padding:14px 16px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:22px;color:#1B1F27;">Which brand will you be writing for?</td></tr></table>
+<p style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">Please reply to this email or send the details to your administrator.</p>
+
+
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="hf-pad" style="padding:24px 40px 0 40px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#586170;">
+<p style="margin:0 0 8px 0;color:#586170;">You&#39;re receiving this because you have a HACA Forge account.</p>
+<p style="margin:0;color:#586170;">Haris &amp; Co Academy &middot; <a href="http://localhost:5173" target="_blank" style="color:#586170;text-decoration:underline;">localhost:5173</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+",
+  "subject": "Action Needed: Your HACA Forge Access Request",
+  "text": "HACA FORGE
+
+More information needed
+
+Hello Aisha Noor,
+
+Before your access request can be completed, the administrator needs additional information:
+
+Which brand will you be writing for?
+
+Please reply to this email or send the details to your administrator.
+
+--
+You're receiving this because you have a HACA Forge account.
+Haris & Co Academy
+http://localhost:5173
+",
+}
+`;
+
+exports[`Branded templates > accessRejected: base layout, HTML and plain text (snapshot) 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Access request update</title>
+<style>
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  a { color:#0B0B0D; }
+  @media only screen and (max-width:620px) {
+    .hf-card { width:100% !important; }
+    .hf-pad { padding-left:24px !important; padding-right:24px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#F3F5F9" style="margin:0;padding:0;background-color:#F3F5F9;color:#1B1F27;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#F3F5F9;">Your access request was reviewed.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F5F9" style="background-color:#F3F5F9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="hf-card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+<tr><td class="hf-pad" style="padding:0 40px 20px 40px;"><span style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:800;letter-spacing:4px;color:#0B0B0D;">HACA FORGE</span></td></tr>
+<tr><td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border:1px solid #DDE2EB;border-radius:16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td class="hf-pad" style="padding:36px 40px 20px 40px;">
+<h1 style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:800;letter-spacing:-0.2px;color:#0B0B0D;">Access request update</h1>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;color:#586170;">Hello Aisha Noor,</p>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;">Your request for access to HACA Forge was reviewed by an administrator, but could not be approved at this time.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;"><tr><td bgcolor="#F3F5F9" style="background-color:#F3F5F9;border-left:3px solid #0B0B0D;border-radius:6px;padding:14px 16px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:22px;color:#1B1F27;"><strong style="color:#0B0B0D;">Reason</strong><br>Please ask your department head to confirm your role first.</td></tr></table>
+<p style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">If you have questions or believe this was in error, please reach out to your administrator.</p>
+
+
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="hf-pad" style="padding:24px 40px 0 40px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#586170;">
+<p style="margin:0 0 8px 0;color:#586170;">You&#39;re receiving this because you have a HACA Forge account.</p>
+<p style="margin:0;color:#586170;">Haris &amp; Co Academy &middot; <a href="http://localhost:5173" target="_blank" style="color:#586170;text-decoration:underline;">localhost:5173</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+",
+  "subject": "Update Regarding Your HACA Forge Access Request",
+  "text": "HACA FORGE
+
+Access request update
+
+Hello Aisha Noor,
+
+Your request for access to HACA Forge was reviewed by an administrator, but could not be approved at this time.
+
+Reason
+Please ask your department head to confirm your role first.
+
+If you have questions or believe this was in error, please reach out to your administrator.
+
+--
+You're receiving this because you have a HACA Forge account.
+Haris & Co Academy
+http://localhost:5173
+",
+}
+`;
+
+exports[`Branded templates > accessRequestReceived: base layout, HTML and plain text (snapshot) 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>New access request</title>
+<style>
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  a { color:#0B0B0D; }
+  @media only screen and (max-width:620px) {
+    .hf-card { width:100% !important; }
+    .hf-pad { padding-left:24px !important; padding-right:24px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#F3F5F9" style="margin:0;padding:0;background-color:#F3F5F9;color:#1B1F27;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#F3F5F9;">Aisha Noor asked for access to HACA Forge.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F5F9" style="background-color:#F3F5F9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="hf-card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+<tr><td class="hf-pad" style="padding:0 40px 20px 40px;"><span style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:800;letter-spacing:4px;color:#0B0B0D;">HACA FORGE</span></td></tr>
+<tr><td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border:1px solid #DDE2EB;border-radius:16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td class="hf-pad" style="padding:36px 40px 20px 40px;">
+<h1 style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:800;letter-spacing:-0.2px;color:#0B0B0D;">New access request</h1>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;color:#586170;">A new user has submitted details for review:</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;border-top:1px solid #DDE2EB;"><tr><td valign="top" width="38%" style="padding:10px 12px 10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">Name</td><td valign="top" style="padding:10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#1B1F27;">Aisha Noor</td></tr><tr><td valign="top" width="38%" style="padding:10px 12px 10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">Email</td><td valign="top" style="padding:10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#1B1F27;">aisha@harisandcoacademy.com</td></tr><tr><td valign="top" width="38%" style="padding:10px 12px 10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">Department</td><td valign="top" style="padding:10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#1B1F27;">Social Media</td></tr><tr><td valign="top" width="38%" style="padding:10px 12px 10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">Job role</td><td valign="top" style="padding:10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#1B1F27;">Writer</td></tr><tr><td valign="top" width="38%" style="padding:10px 12px 10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">Requested role</td><td valign="top" style="padding:10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#1B1F27;">Executive</td></tr></table>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;">Sign in to HACA Forge to confirm the final role, reports-to and capacity.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px 0;"><tr><td align="center" bgcolor="#0B0B0D" style="background-color:#0B0B0D;border-radius:8px;"><a href="http://localhost:5173/admin/access-requests" target="_blank" style="display:inline-block;padding:14px 28px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:8px;background-color:#0B0B0D;">Review access requests</a></td></tr></table>
+
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="hf-pad" style="padding:24px 40px 0 40px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#586170;">
+<p style="margin:0 0 8px 0;color:#586170;">You&#39;re receiving this because you have a HACA Forge account.</p>
+<p style="margin:0;color:#586170;">Haris &amp; Co Academy &middot; <a href="http://localhost:5173" target="_blank" style="color:#586170;text-decoration:underline;">localhost:5173</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+",
+  "subject": "New Access Request: Aisha Noor (Social Media)",
+  "text": "HACA FORGE
+
+New access request
+
+A new user has submitted details for review:
+
+Name: Aisha Noor
+Email: aisha@harisandcoacademy.com
+Department: Social Media
+Job role: Writer
+Requested role: Executive
+
+Sign in to HACA Forge to confirm the final role, reports-to and capacity.
+
+Review access requests: http://localhost:5173/admin/access-requests
+
+--
+You're receiving this because you have a HACA Forge account.
+Haris & Co Academy
+http://localhost:5173
+",
+}
+`;
+
+exports[`Branded templates > changeRequest: base layout, HTML and plain text (snapshot) 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Work details change request</title>
+<style>
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  a { color:#0B0B0D; }
+  @media only screen and (max-width:620px) {
+    .hf-card { width:100% !important; }
+    .hf-pad { padding-left:24px !important; padding-right:24px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#F3F5F9" style="margin:0;padding:0;background-color:#F3F5F9;color:#1B1F27;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#F3F5F9;">Mohammed Rafi asked for a work details change.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F5F9" style="background-color:#F3F5F9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="hf-card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+<tr><td class="hf-pad" style="padding:0 40px 20px 40px;"><span style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:800;letter-spacing:4px;color:#0B0B0D;">HACA FORGE</span></td></tr>
+<tr><td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border:1px solid #DDE2EB;border-radius:16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td class="hf-pad" style="padding:36px 40px 20px 40px;">
+<h1 style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:800;letter-spacing:-0.2px;color:#0B0B0D;">Work details change request</h1>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;color:#586170;">A work details change request was submitted:</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;border-top:1px solid #DDE2EB;"><tr><td valign="top" width="38%" style="padding:10px 12px 10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">Requester</td><td valign="top" style="padding:10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#1B1F27;">Mohammed Rafi (rafi@harisandcoacademy.com)</td></tr><tr><td valign="top" width="38%" style="padding:10px 12px 10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">Current role</td><td valign="top" style="padding:10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#1B1F27;">Executive</td></tr></table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;"><tr><td bgcolor="#F3F5F9" style="background-color:#F3F5F9;border-left:3px solid #0B0B0D;border-radius:6px;padding:14px 16px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:22px;color:#1B1F27;">Please move me to the Design department from next month.</td></tr></table>
+<p style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">Review this request in People to adjust role, department or capacity if appropriate.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px 0;"><tr><td align="center" bgcolor="#0B0B0D" style="background-color:#0B0B0D;border-radius:8px;"><a href="http://localhost:5173/people" target="_blank" style="display:inline-block;padding:14px 28px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:8px;background-color:#0B0B0D;">Open in HACA Forge</a></td></tr></table>
+
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="hf-pad" style="padding:24px 40px 0 40px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#586170;">
+<p style="margin:0 0 8px 0;color:#586170;">You&#39;re receiving this because you have a HACA Forge account.</p>
+<p style="margin:0;color:#586170;">Haris &amp; Co Academy &middot; <a href="http://localhost:5173" target="_blank" style="color:#586170;text-decoration:underline;">localhost:5173</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+",
+  "subject": "[Change Request] Work Details Update Requested by Mohammed Rafi",
+  "text": "HACA FORGE
+
+Work details change request
+
+A work details change request was submitted:
+
+Requester: Mohammed Rafi (rafi@harisandcoacademy.com)
+Current role: Executive
+
+Please move me to the Design department from next month.
+
+Review this request in People to adjust role, department or capacity if appropriate.
+
+Open in HACA Forge: http://localhost:5173/people
+
+--
+You're receiving this because you have a HACA Forge account.
+Haris & Co Academy
+http://localhost:5173
+",
+}
+`;
+
+exports[`Branded templates > notification: base layout, HTML and plain text (snapshot) 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Overdue: Ramadan reel script</title>
+<style>
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  a { color:#0B0B0D; }
+  @media only screen and (max-width:620px) {
+    .hf-card { width:100% !important; }
+    .hf-pad { padding-left:24px !important; padding-right:24px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#F3F5F9" style="margin:0;padding:0;background-color:#F3F5F9;color:#1B1F27;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#F3F5F9;">&quot;Ramadan reel script&quot; was due 2026-11-21 (IST) and is now overdue. Please update it in HACA Forge.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F5F9" style="background-color:#F3F5F9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="hf-card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+<tr><td class="hf-pad" style="padding:0 40px 20px 40px;"><span style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:800;letter-spacing:4px;color:#0B0B0D;">HACA FORGE</span></td></tr>
+<tr><td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border:1px solid #DDE2EB;border-radius:16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td class="hf-pad" style="padding:36px 40px 20px 40px;">
+<h1 style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:800;letter-spacing:-0.2px;color:#0B0B0D;">Overdue: Ramadan reel script</h1>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;color:#586170;">Hello Mohammed Rafi,</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;border-top:1px solid #DDE2EB;"><tr><td valign="top" width="38%" style="padding:10px 12px 10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">Item</td><td valign="top" style="padding:10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#1B1F27;">Ramadan reel script</td></tr></table>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;">&quot;Ramadan reel script&quot; was due 2026-11-21 (IST) and is now overdue. Please update it in HACA Forge.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px 0;"><tr><td align="center" bgcolor="#0B0B0D" style="background-color:#0B0B0D;border-radius:8px;"><a href="http://localhost:5173/work/665f1c2e9b1e8a0012345678" target="_blank" style="display:inline-block;padding:14px 28px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:8px;background-color:#0B0B0D;">Open in HACA Forge</a></td></tr></table>
+
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="hf-pad" style="padding:24px 40px 0 40px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#586170;">
+<p style="margin:0 0 8px 0;color:#586170;">You&#39;re receiving this because you have a HACA Forge account. <a href="http://localhost:5173/settings?tab=notifications" target="_blank" style="color:#586170;text-decoration:underline;">Notification settings</a></p>
+<p style="margin:0;color:#586170;">Haris &amp; Co Academy &middot; <a href="http://localhost:5173" target="_blank" style="color:#586170;text-decoration:underline;">localhost:5173</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+",
+  "subject": "Overdue: Ramadan reel script",
+  "text": "HACA FORGE
+
+Overdue: Ramadan reel script
+
+Hello Mohammed Rafi,
+
+Item: Ramadan reel script
+
+"Ramadan reel script" was due 2026-11-21 (IST) and is now overdue. Please update it in HACA Forge.
+
+Open in HACA Forge: http://localhost:5173/work/665f1c2e9b1e8a0012345678
+
+--
+You're receiving this because you have a HACA Forge account.
+Notification settings: http://localhost:5173/settings?tab=notifications
+Haris & Co Academy
+http://localhost:5173
+",
+}
+`;
+
+exports[`Branded templates > passwordChanged: base layout, HTML and plain text (snapshot) 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Your password was changed</title>
+<style>
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  a { color:#0B0B0D; }
+  @media only screen and (max-width:620px) {
+    .hf-card { width:100% !important; }
+    .hf-pad { padding-left:24px !important; padding-right:24px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#F3F5F9" style="margin:0;padding:0;background-color:#F3F5F9;color:#1B1F27;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#F3F5F9;">Your HACA Forge password was changed.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F5F9" style="background-color:#F3F5F9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="hf-card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+<tr><td class="hf-pad" style="padding:0 40px 20px 40px;"><span style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:800;letter-spacing:4px;color:#0B0B0D;">HACA FORGE</span></td></tr>
+<tr><td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border:1px solid #DDE2EB;border-radius:16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td class="hf-pad" style="padding:36px 40px 20px 40px;">
+<h1 style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:800;letter-spacing:-0.2px;color:#0B0B0D;">Your password was changed</h1>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;color:#586170;">Hello Mohammed Rafi,</p>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;">The password for your HACA Forge account was changed on 23 Nov 2026, 10:42 am IST.</p>
+<p style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">If you did not make this change, contact your administrator immediately to secure your account.</p>
+
+
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="hf-pad" style="padding:24px 40px 0 40px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#586170;">
+<p style="margin:0 0 8px 0;color:#586170;">You&#39;re receiving this because you have a HACA Forge account.</p>
+<p style="margin:0;color:#586170;">Haris &amp; Co Academy &middot; <a href="http://localhost:5173" target="_blank" style="color:#586170;text-decoration:underline;">localhost:5173</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+",
+  "subject": "[Security Alert] Password Changed for Your HACA Forge Account",
+  "text": "HACA FORGE
+
+Your password was changed
+
+Hello Mohammed Rafi,
+
+The password for your HACA Forge account was changed on 23 Nov 2026, 10:42 am IST.
+
+If you did not make this change, contact your administrator immediately to secure your account.
+
+--
+You're receiving this because you have a HACA Forge account.
+Haris & Co Academy
+http://localhost:5173
+",
+}
+`;
+
+exports[`Branded templates > passwordReset: base layout, HTML and plain text (snapshot) 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Reset your password</title>
+<style>
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  a { color:#0B0B0D; }
+  @media only screen and (max-width:620px) {
+    .hf-card { width:100% !important; }
+    .hf-pad { padding-left:24px !important; padding-right:24px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#F3F5F9" style="margin:0;padding:0;background-color:#F3F5F9;color:#1B1F27;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#F3F5F9;">Set a new password. The link is valid for 48 hours.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F5F9" style="background-color:#F3F5F9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="hf-card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+<tr><td class="hf-pad" style="padding:0 40px 20px 40px;"><span style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:800;letter-spacing:4px;color:#0B0B0D;">HACA FORGE</span></td></tr>
+<tr><td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border:1px solid #DDE2EB;border-radius:16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td class="hf-pad" style="padding:36px 40px 20px 40px;">
+<h1 style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:800;letter-spacing:-0.2px;color:#0B0B0D;">Reset your password</h1>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;color:#586170;">Hello Mohammed Rafi, a password reset was requested for your account.</p>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;">Click the button below to set your password. This single-use link is valid for 48 hours.</p>
+<p style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">If you didn&#39;t request this, ignore this email.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px 0;"><tr><td align="center" bgcolor="#0B0B0D" style="background-color:#0B0B0D;border-radius:8px;"><a href="http://localhost:5173/set-password?token=sample-token" target="_blank" style="display:inline-block;padding:14px 28px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:8px;background-color:#0B0B0D;">Set Password &amp; Sign In</a></td></tr></table>
+<p style="margin:0 0 8px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">If the button does not work, copy and paste this link into your browser:<br><a href="http://localhost:5173/set-password?token=sample-token" target="_blank" style="color:#0B0B0D;text-decoration:underline;word-break:break-all;">http://localhost:5173/set-password?token=sample-token</a></p>
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="hf-pad" style="padding:24px 40px 0 40px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#586170;">
+<p style="margin:0 0 8px 0;color:#586170;">You&#39;re receiving this because you have a HACA Forge account.</p>
+<p style="margin:0;color:#586170;">Haris &amp; Co Academy &middot; <a href="http://localhost:5173" target="_blank" style="color:#586170;text-decoration:underline;">localhost:5173</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+",
+  "subject": "HACA Forge - Password Reset Request",
+  "text": "HACA FORGE
+
+Reset your password
+
+Hello Mohammed Rafi, a password reset was requested for your account.
+
+Click the button below to set your password. This single-use link is valid for 48 hours.
+
+If you didn't request this, ignore this email.
+
+Set Password & Sign In: http://localhost:5173/set-password?token=sample-token
+
+If the button does not work, copy and paste this link into your browser:
+http://localhost:5173/set-password?token=sample-token
+
+--
+You're receiving this because you have a HACA Forge account.
+Haris & Co Academy
+http://localhost:5173
+",
+}
+`;
+
+exports[`Branded templates > phoneVerificationCode: base layout, HTML and plain text (snapshot) 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Verify your phone number</title>
+<style>
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  a { color:#0B0B0D; }
+  @media only screen and (max-width:620px) {
+    .hf-card { width:100% !important; }
+    .hf-pad { padding-left:24px !important; padding-right:24px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#F3F5F9" style="margin:0;padding:0;background-color:#F3F5F9;color:#1B1F27;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#F3F5F9;">Enter this code in HACA Forge to add +••••••••3210 to your profile.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F5F9" style="background-color:#F3F5F9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="hf-card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+<tr><td class="hf-pad" style="padding:0 40px 20px 40px;"><span style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:800;letter-spacing:4px;color:#0B0B0D;">HACA FORGE</span></td></tr>
+<tr><td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border:1px solid #DDE2EB;border-radius:16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td class="hf-pad" style="padding:36px 40px 20px 40px;">
+<h1 style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:800;letter-spacing:-0.2px;color:#0B0B0D;">Verify your phone number</h1>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;color:#586170;">Hello Mohammed Rafi, enter this code in HACA Forge to add this phone number to your profile.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;border-top:1px solid #DDE2EB;"><tr><td valign="top" width="38%" style="padding:10px 12px 10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">Phone number</td><td valign="top" style="padding:10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#1B1F27;">+••••••••3210</td></tr></table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px 0;"><tr><td align="center" bgcolor="#F3F5F9" style="background-color:#F3F5F9;border:1px solid #DDE2EB;border-radius:12px;padding:20px 12px;"><span style="font-family:'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;font-size:34px;line-height:40px;font-weight:700;letter-spacing:10px;color:#0B0B0D;">730158</span></td></tr></table>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;">This code is valid for 10 minutes.</p>
+<p style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">If you didn&#39;t request this, ignore this email.</p>
+
+
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="hf-pad" style="padding:24px 40px 0 40px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#586170;">
+<p style="margin:0 0 8px 0;color:#586170;">You&#39;re receiving this because you have a HACA Forge account.</p>
+<p style="margin:0;color:#586170;">Haris &amp; Co Academy &middot; <a href="http://localhost:5173" target="_blank" style="color:#586170;text-decoration:underline;">localhost:5173</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+",
+  "subject": "Verify your phone number for HACA Forge",
+  "text": "HACA FORGE
+
+Verify your phone number
+
+Hello Mohammed Rafi, enter this code in HACA Forge to add this phone number to your profile.
+
+Phone number: +••••••••3210
+
+    7 3 0 1 5 8
+
+This code is valid for 10 minutes.
+
+If you didn't request this, ignore this email.
+
+--
+You're receiving this because you have a HACA Forge account.
+Haris & Co Academy
+http://localhost:5173
+",
+}
+`;
+
+exports[`Branded templates > test: base layout, HTML and plain text (snapshot) 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Email is working</title>
+<style>
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  a { color:#0B0B0D; }
+  @media only screen and (max-width:620px) {
+    .hf-card { width:100% !important; }
+    .hf-pad { padding-left:24px !important; padding-right:24px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#F3F5F9" style="margin:0;padding:0;background-color:#F3F5F9;color:#1B1F27;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#F3F5F9;">Email from HACA Forge is working.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F5F9" style="background-color:#F3F5F9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="hf-card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+<tr><td class="hf-pad" style="padding:0 40px 20px 40px;"><span style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:800;letter-spacing:4px;color:#0B0B0D;">HACA FORGE</span></td></tr>
+<tr><td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border:1px solid #DDE2EB;border-radius:16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td class="hf-pad" style="padding:36px 40px 20px 40px;">
+<h1 style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:800;letter-spacing:-0.2px;color:#0B0B0D;">Email is working</h1>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;color:#586170;">This is a test email from HACA Forge. If you can read it, email delivery is set up correctly.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;border-top:1px solid #DDE2EB;"><tr><td valign="top" width="38%" style="padding:10px 12px 10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">Driver</td><td valign="top" style="padding:10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#1B1F27;">console</td></tr><tr><td valign="top" width="38%" style="padding:10px 12px 10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">Sent</td><td valign="top" style="padding:10px 0;border-bottom:1px solid #DDE2EB;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;font-weight:600;color:#1B1F27;">23 Nov 2026, 10:42 am IST</td></tr></table>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px 0;"><tr><td align="center" bgcolor="#0B0B0D" style="background-color:#0B0B0D;border-radius:8px;"><a href="http://localhost:5173/" target="_blank" style="display:inline-block;padding:14px 28px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:8px;background-color:#0B0B0D;">Open HACA Forge</a></td></tr></table>
+
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="hf-pad" style="padding:24px 40px 0 40px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#586170;">
+<p style="margin:0 0 8px 0;color:#586170;">You&#39;re receiving this because you have a HACA Forge account.</p>
+<p style="margin:0;color:#586170;">Haris &amp; Co Academy &middot; <a href="http://localhost:5173" target="_blank" style="color:#586170;text-decoration:underline;">localhost:5173</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+",
+  "subject": "HACA Forge test email",
+  "text": "HACA FORGE
+
+Email is working
+
+This is a test email from HACA Forge. If you can read it, email delivery is set up correctly.
+
+Driver: console
+Sent: 23 Nov 2026, 10:42 am IST
+
+Open HACA Forge: http://localhost:5173/
+
+--
+You're receiving this because you have a HACA Forge account.
+Haris & Co Academy
+http://localhost:5173
+",
+}
+`;
+
+exports[`Branded templates > verificationCode: base layout, HTML and plain text (snapshot) 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Your verification code</title>
+<style>
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  a { color:#0B0B0D; }
+  @media only screen and (max-width:620px) {
+    .hf-card { width:100% !important; }
+    .hf-pad { padding-left:24px !important; padding-right:24px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#F3F5F9" style="margin:0;padding:0;background-color:#F3F5F9;color:#1B1F27;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#F3F5F9;">Your verification code is valid for 10 minutes.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F5F9" style="background-color:#F3F5F9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="hf-card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+<tr><td class="hf-pad" style="padding:0 40px 20px 40px;"><span style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:800;letter-spacing:4px;color:#0B0B0D;">HACA FORGE</span></td></tr>
+<tr><td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border:1px solid #DDE2EB;border-radius:16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td class="hf-pad" style="padding:36px 40px 20px 40px;">
+<h1 style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:800;letter-spacing:-0.2px;color:#0B0B0D;">Your verification code</h1>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;color:#586170;">Hello Mohammed Rafi, use this code to confirm it is you.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px 0;"><tr><td align="center" bgcolor="#F3F5F9" style="background-color:#F3F5F9;border:1px solid #DDE2EB;border-radius:12px;padding:20px 12px;"><span style="font-family:'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;font-size:34px;line-height:40px;font-weight:700;letter-spacing:10px;color:#0B0B0D;">482913</span></td></tr></table>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;">This code is valid for 10 minutes.</p>
+<p style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#586170;">If you didn&#39;t request this, ignore this email.</p>
+
+
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="hf-pad" style="padding:24px 40px 0 40px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#586170;">
+<p style="margin:0 0 8px 0;color:#586170;">You&#39;re receiving this because you have a HACA Forge account.</p>
+<p style="margin:0;color:#586170;">Haris &amp; Co Academy &middot; <a href="http://localhost:5173" target="_blank" style="color:#586170;text-decoration:underline;">localhost:5173</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+",
+  "subject": "Your HACA Forge verification code",
+  "text": "HACA FORGE
+
+Your verification code
+
+Hello Mohammed Rafi, use this code to confirm it is you.
+
+    4 8 2 9 1 3
+
+This code is valid for 10 minutes.
+
+If you didn't request this, ignore this email.
+
+--
+You're receiving this because you have a HACA Forge account.
+Haris & Co Academy
+http://localhost:5173
+",
+}
+`;
+
+exports[`Branded templates > welcome: base layout, HTML and plain text (snapshot) 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Welcome to HACA Forge, Aisha Noor</title>
+<style>
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  a { color:#0B0B0D; }
+  @media only screen and (max-width:620px) {
+    .hf-card { width:100% !important; }
+    .hf-pad { padding-left:24px !important; padding-right:24px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#F3F5F9" style="margin:0;padding:0;background-color:#F3F5F9;color:#1B1F27;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#F3F5F9;">Your HACA Forge account is ready to use.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F5F9" style="background-color:#F3F5F9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="hf-card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+<tr><td class="hf-pad" style="padding:0 40px 20px 40px;"><span style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:800;letter-spacing:4px;color:#0B0B0D;">HACA FORGE</span></td></tr>
+<tr><td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border:1px solid #DDE2EB;border-radius:16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td class="hf-pad" style="padding:36px 40px 20px 40px;">
+<h1 style="margin:0 0 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:800;letter-spacing:-0.2px;color:#0B0B0D;">Welcome to HACA Forge, Aisha Noor</h1>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;color:#586170;">Your account has been created and is ready to use.</p>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#1B1F27;">Sign in to see your work, calendars and team.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px 0;"><tr><td align="center" bgcolor="#0B0B0D" style="background-color:#0B0B0D;border-radius:8px;"><a href="http://localhost:5173/login" target="_blank" style="display:inline-block;padding:14px 28px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:8px;background-color:#0B0B0D;">Sign in to HACA Forge</a></td></tr></table>
+
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="hf-pad" style="padding:24px 40px 0 40px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#586170;">
+<p style="margin:0 0 8px 0;color:#586170;">You&#39;re receiving this because you have a HACA Forge account.</p>
+<p style="margin:0;color:#586170;">Haris &amp; Co Academy &middot; <a href="http://localhost:5173" target="_blank" style="color:#586170;text-decoration:underline;">localhost:5173</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+",
+  "subject": "Your HACA Forge account is ready",
+  "text": "HACA FORGE
+
+Welcome to HACA Forge, Aisha Noor
+
+Your account has been created and is ready to use.
+
+Sign in to see your work, calendars and team.
+
+Sign in to HACA Forge: http://localhost:5173/login
+
+--
+You're receiving this because you have a HACA Forge account.
+Haris & Co Academy
+http://localhost:5173
+",
+}
+`;

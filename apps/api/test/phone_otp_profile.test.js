@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import { app } from '../src/server.js';
@@ -6,6 +6,7 @@ import { env } from '../src/config/env.js';
 import { Person } from '../src/modules/people/model.js';
 import { PhoneVerification } from '../src/modules/profile/phoneVerification.model.js';
 import { connectDB } from '../src/config/db.js';
+import { resetEmailThrottle } from '../src/lib/email/index.js';
 
 describe('PHONE OTP VERIFICATION & PROFILE EMAIL LOCK SUITE', () => {
   let testWorker, testAdmin;
@@ -50,6 +51,9 @@ describe('PHONE OTP VERIFICATION & PROFILE EMAIL LOCK SUITE', () => {
     workerToken = makeToken(testWorker);
     adminToken = makeToken(testAdmin);
   });
+
+  // One code per user per minute (lib/email throttle); each test here starts outside that minute.
+  beforeEach(() => resetEmailThrottle());
 
   afterAll(async () => {
     await Person.deleteMany({ email: /@phone-otp-test\.com$/ });
