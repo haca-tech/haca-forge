@@ -34,6 +34,7 @@ import { WORK_PREFERENCES, ROLE_LABELS, UserRole } from '@mmp/shared';
 import { confirmDialog, toast } from '../lib/uiFeedback';
 import { roleAccess } from '../lib/access';
 
+import { DataLoader } from './DataLoader';
 export interface ProfileData {
   id: string;
   _id?: string;
@@ -947,9 +948,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
 
         {loadingMetrics ? (
-          <div className="py-8 text-center text-slate-400 text-xs animate-pulse">
-            Loading operational telemetry...
-          </div>
+          <DataLoader className="py-8" label="Loading operational telemetry..." />
         ) : (
           <div>
             {/* 1. Admin Role Panel */}

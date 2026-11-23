@@ -11,6 +11,12 @@ import {
   istDateKey,
   monthKeyInAppTz,
   workflowFromFlags,
+  TRACKER_STATUS_OPTIONS,
+  isTrackerStatusKey,
+  trackerRowMatchesStatus,
+  trackerRowNotApproved,
+  trackerRowPosted,
+  trackerRowShown,
   type CalendarKey,
   type RowWorkflow,
   type StageKey,
@@ -82,6 +88,8 @@ export interface TrackerPiece {
   hasWaitingApproval: boolean;
   hasBlocked: boolean;
   hasOverdue: boolean;
+  /** A step being worked on is due within 3 days (IST), and the row is not overdue. */
+  hasAtRisk?: boolean;
   hasDoneLate?: boolean;
   hasPaused?: boolean;
   hasPauseRequested?: boolean;
@@ -96,18 +104,9 @@ export interface TrackerPiece {
 // Filters
 // ---------------------------------------------------------------------------
 
-export const TRACKER_STATUSES = [
-  { value: 'overdue', label: 'Overdue' },
-  { value: 'done_late', label: 'Done late' },
-  { value: 'blocked', label: 'Blocked' },
-  { value: 'on_track', label: 'On track' },
-  { value: 'posted', label: 'Posted' },
-  { value: 'needs_owner', label: 'Needs owner' },
-  { value: 'waiting_approval', label: 'Waiting for approval' },
-  { value: 'not_approved', label: 'Not approved yet' },
-  { value: 'paused', label: 'Paused' },
-  { value: 'pause_requested', label: 'Pause requested' },
-] as const;
+// The Status choices and their rules live in @mmp/shared, so the dashboard KPI cards count rows
+// exactly as this filter shows them.
+export const TRACKER_STATUSES = TRACKER_STATUS_OPTIONS;
 export type TrackerStatus = (typeof TRACKER_STATUSES)[number]['value'];
 
 export const TRACKER_STEPS: Array<{ value: string; label: string }> = [
@@ -134,6 +133,8 @@ export interface TrackerFilters {
   workflow: string;
   step: string;
   owner: string;
+  /** A step in this department (links from the dashboard's Department filter). */
+  department: string;
   status: string;
   urgent: boolean;
   sort: TrackerSort;
@@ -149,9 +150,9 @@ const LEGACY_STATUS_PARAMS: Array<[string, TrackerStatus]> = [
   ['blocked', 'blocked'],
   ['doneLate', 'done_late'],
 ];
-const FILTER_KEYS = ['q', 'month', 'type', 'workflow', 'step', 'owner', 'status', 'urgent', 'sort', 'stageStatus'];
+const FILTER_KEYS = ['q', 'month', 'type', 'workflow', 'step', 'owner', 'department', 'status', 'urgent', 'sort', 'stageStatus'];
 
-const isStatus = (v: string): v is TrackerStatus => TRACKER_STATUSES.some((s) => s.value === v);
+const isStatus = (v: string): v is TrackerStatus => isTrackerStatusKey(v);
 
 export function filtersFromParams(sp: URLSearchParams): TrackerFilters {
   let status = sp.get('status') || '';
@@ -170,6 +171,7 @@ export function filtersFromParams(sp: URLSearchParams): TrackerFilters {
     workflow: (ROW_WORKFLOWS as readonly string[]).includes(sp.get('workflow') || '') ? sp.get('workflow')! : '',
     step: TRACKER_STEPS.some((s) => s.value === sp.get('step')) ? sp.get('step')! : '',
     owner: sp.get('owner') || '',
+    department: /^[a-f0-9]{24}$/i.test(sp.get('department') || '') ? sp.get('department')! : '',
     status,
     urgent: sp.get('urgent') === '1',
     sort,
@@ -190,6 +192,7 @@ export function filtersToParams(f: TrackerFilters, base: URLSearchParams): URLSe
   put('workflow', f.workflow);
   put('step', f.step);
   put('owner', f.owner);
+  put('department', f.department);
   put('status', f.status);
   if (f.urgent) sp.set('urgent', '1');
   if (f.sort === 'due') sp.set('sort', 'due');
@@ -197,12 +200,13 @@ export function filtersToParams(f: TrackerFilters, base: URLSearchParams): URLSe
   return sp;
 }
 
-/** The filters the API applies (month, calendar, type and the older step-status filter). */
+/** The filters the API applies (month, calendar, type, department and the step-status filter). */
 export function apiParams(f: TrackerFilters): URLSearchParams {
   const p = new URLSearchParams();
   if (f.month) p.set('month', f.month);
   if (f.calendar) p.set('calendar', f.calendar);
   if (f.type) p.set('type', f.type);
+  if (f.department) p.set('departmentId', f.department);
   if (f.stageStatus) p.set('stageStatus', f.stageStatus);
   return p;
 }
@@ -226,51 +230,21 @@ export function nextDueOf(p: TrackerPiece): string | null {
 }
 
 /** Posted: a published Post step (or a publish date), or a non-posted design whose steps are all done (handed over). */
-export function isPosted(p: TrackerPiece): boolean {
-  if (p.publishedAt) return true;
-  if (p.stages.some((s) => s.stageKey === 'Post' && s.status === 'Published')) return true;
-  const hasPost = p.stages.some((s) => s.stageKey === 'Post');
-  return !hasPost && p.hasPostStage === false && p.stages.length > 0 && p.stages.every(isStepDone);
-}
+export const isPosted = (p: TrackerPiece): boolean => trackerRowPosted(p);
 
-export const isNotApproved = (p: TrackerPiece) => p.stages.length === 0;
+export const isNotApproved = (p: TrackerPiece) => trackerRowNotApproved(p);
 
 export function workflowOf(p: TrackerPiece): RowWorkflow | null {
   return workflowFromFlags(p.contentType, p);
 }
 
-export function matchesStatus(p: TrackerPiece, status: string): boolean {
-  switch (status) {
-    case 'overdue':
-      return Boolean(p.hasOverdue);
-    case 'done_late':
-      return Boolean(p.hasDoneLate);
-    case 'blocked':
-      return Boolean(p.hasBlocked);
-    case 'posted':
-      return isPosted(p);
-    case 'on_track':
-      return !isNotApproved(p) && !isPosted(p) && !p.hasOverdue && !p.hasBlocked;
-    case 'needs_owner':
-      return Boolean(p.hasNeedsOwner);
-    case 'waiting_approval':
-      return Boolean(p.hasWaitingApproval);
-    case 'not_approved':
-      return isNotApproved(p);
-    case 'paused':
-      return Boolean(p.hasPaused) || p.stages.some((s) => s.pauseState === 'paused');
-    case 'pause_requested':
-      return Boolean(p.hasPauseRequested) || p.stages.some((s) => s.pauseState === 'requested');
-    default:
-      return true;
-  }
-}
+export const matchesStatus = (p: TrackerPiece, status: string): boolean => trackerRowMatchesStatus(p, status);
 
-/** Filters the API does not apply, then the chosen sort. Rows with no steps show only for "Not approved yet". */
+/** Filters the API does not apply, then the chosen sort. Rows with no steps show only for "All planned rows" and "Not approved yet". */
 export function applyTrackerFilters(pieces: TrackerPiece[], f: TrackerFilters): TrackerPiece[] {
   const q = f.q.trim().toLowerCase();
   const rows = pieces.filter((p) => {
-    if (f.status !== 'not_approved' && isNotApproved(p)) return false;
+    if (!trackerRowShown(p, f.status)) return false;
     if (q && !p.topic.toLowerCase().includes(q) && !(p.planId?.code || '').toLowerCase().includes(q)) return false;
     if (f.workflow && workflowOf(p) !== f.workflow) return false;
     if (f.step) {
@@ -278,7 +252,6 @@ export function applyTrackerFilters(pieces: TrackerPiece[], f: TrackerFilters): 
       if (f.step === 'done' ? cur !== null || isNotApproved(p) : cur?.stageKey !== f.step) return false;
     }
     if (f.owner && !p.stages.some((s) => s.ownerId?._id === f.owner)) return false;
-    if (f.status && !matchesStatus(p, f.status)) return false;
     if (f.urgent && p.priority !== 'Urgent') return false;
     return true;
   });

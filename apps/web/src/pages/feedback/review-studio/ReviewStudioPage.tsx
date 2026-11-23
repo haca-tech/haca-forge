@@ -31,6 +31,7 @@ import { AssetLinks, assetKind, type AssetItem } from '../../../components/Asset
 import { toast } from '../../../lib/uiFeedback';
 import { roleAccess, useAccess } from '../../../lib/access';
 
+import { DataLoader } from '../../../components/DataLoader';
 interface ReviewQueueItem {
   id: string;
   versionNumber: number;
@@ -937,7 +938,7 @@ export const ReviewStudioPage: React.FC = () => {
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
-            <div className="w-8 h-8 border-4 border-ui-ink border-t-transparent rounded-full motion-safe:animate-spin" role="status" aria-label="Loading" />
+            <DataLoader label="Loading" />
           </div>
         ) : !activeSubmission ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">

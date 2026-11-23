@@ -83,6 +83,7 @@ const mockDashboardData = {
     blocked: 1,
     pendingApproval: 4,
     overdue: 2,
+    month: '2026-10',
   },
   priorities: [
     {
@@ -287,6 +288,47 @@ describe('TeamDashboardPage Role Views & Scope Reset R4 Specifications', () => {
 
     // 8. Recent Activity
     expect(screen.getByText(/Recent Activity Feed/i)).toBeInTheDocument();
+  });
+
+  it('each KPI card opens the Tracker with its own status and the dashboard filters (the rows its number counts)', async () => {
+    mockUser = { _id: 'u-head', name: 'Marketing Head User', role: 'creative_lead' };
+    Object.assign(defaultFilters, { month: '2026-10', departmentId: 'a'.repeat(24), ownerId: 'all', status: 'In Progress' });
+    try {
+      render(
+        <MemoryRouter>
+          <TeamDashboardPage />
+        </MemoryRouter>
+      );
+      await screen.findByText(/Month Plan Status/i, {}, { timeout: 5000 });
+      const cards: Array<[RegExp, string, string]> = [
+        [/^Planned$/, '25', 'all'],
+        [/^Completed$/, '10', 'posted'],
+        [/^In progress$/, '8', 'on_track'],
+        [/^At risk$/, '2', 'at_risk'],
+        [/^Blocked$/, '1', 'blocked'],
+        [/^Pending appr\.$/, '4', 'waiting_approval'],
+        [/^Overdue$/, '2', 'overdue'],
+      ];
+      for (const [label, value, status] of cards) {
+        const card = screen.getAllByText(label).map((el) => el.closest('button')).find(Boolean) as HTMLButtonElement;
+        expect(card, String(label)).toBeTruthy();
+        expect(within(card).getByText(value)).toBeInTheDocument();
+        mockNavigate.mockClear();
+        fireEvent.click(card);
+        const to = String(mockNavigate.mock.calls[0][0]);
+        const url = new URL(to, 'http://x');
+        expect(url.pathname).toBe('/calendar');
+        expect(Object.fromEntries(url.searchParams)).toEqual({
+          tab: 'tracker',
+          month: '2026-10',
+          status,
+          department: 'a'.repeat(24),
+          stageStatus: 'In Progress',
+        });
+      }
+    } finally {
+      for (const k of Object.keys(defaultFilters)) delete (defaultFilters as any)[k];
+    }
   });
 
   it('Team Workload shows the band summary chips (step counts), linking to the Workload page, with no hours or %', async () => {

@@ -21,6 +21,7 @@ import { OverdueChip, overdueLabel } from '../../components/OverdueChip';
 import { TrackerTab } from './TrackerTab';
 import { useAccess } from '../../lib/access';
 
+import { DataLoader } from '../../components/DataLoader';
 interface WorkItemCalendar {
   _id: string;
   title: string;
@@ -604,8 +605,8 @@ export const CalendarPage: React.FC = () => {
       {activeTab === 'month' && (
         <>
           {isLoading && (
-            <div className="text-center py-1 text-[13px] text-ui-muted animate-pulse font-medium">
-              Loading calendar deliverables...
+            <div className="flex justify-center py-1">
+              <DataLoader variant="inline" label="Loading calendar deliverables..." />
             </div>
           )}
 

@@ -16,6 +16,7 @@ import { FromPlanCard } from '../FromPlanCard';
 import { toast } from '../../../lib/uiFeedback';
 import { roleAccess } from '../../../lib/access';
 
+import { DataLoader } from '../../../components/DataLoader';
 export const MediaWorkspacePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -335,7 +336,7 @@ export const MediaWorkspacePage: React.FC = () => {
   if (loading) {
     return (
       <div className="h-screen w-screen bg-ui-canvas flex items-center justify-center text-ui-ink">
-        <div className="w-8 h-8 border-4 border-ui-ink border-t-transparent rounded-full motion-safe:animate-spin" />
+        <DataLoader variant="page" label="Loading workspace" />
       </div>
     );
   }

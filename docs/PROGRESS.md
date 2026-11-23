@@ -1,6 +1,26 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after email via Gmail SMTP and phone verification by email):** API 1876 passing, 1 failing (111 files); web 521 passing (66 files). The failing API test is `storage_bunny.test.js` "No Cloudinary anywhere": it was already failing before this branch, because the Bunny commit's PROGRESS entry and the test file itself contain the word. Typecheck 0 errors; web build clean.
+**Current test count (after dashboard KPI links, the dot-matrix loader and the profile fixes):** API 1885 passing, 1 failing (113 files); web 528 passing (67 files). The failing API test is `storage_bunny.test.js` "No Cloudinary anywhere", which was already failing before (the word is in an older PROGRESS entry and in the test itself). Typecheck 0 errors; web build clean.
+
+## Dashboard KPI cards, dot-matrix loader, profile save fixes (Status: COMPLETE; committed locally, not pushed)
+
+**Dashboard KPI cards.**
+- **Counting:** the seven cards count the Content Flow Tracker's rows for the selected month (IST publish date) with the Tracker's own rules. These rules now live in `@mmp/shared`: `TRACKER_STATUS_OPTIONS`, `trackerRowShown` and `dashboardKpiCounts`. The dashboard's department, owner and step-status filters apply too.
+- **Links:** each card opens `/calendar?tab=tracker` with its status (`all`, `posted`, `on_track`, `at_risk`, `blocked`, `waiting_approval`, `overdue`) and the same filters, so the number on a card is the number of rows its link shows.
+- **Before:** cards counted all-time steps, ignored the Month and Status filters, and linked with values the Tracker ignored.
+- **Tracker additions:** an "All planned rows" status, a "Due within 3 days" status (`hasAtRisk`, the shared `stepIsAtRisk` rule), and a department filter (`department=`, applied by the API).
+- **Month:** the dashboard's default month is now the IST month.
+- **Tests:** `dashboard_kpi_tracker_links.test.js` checks that every card equals the rows its Tracker link returns.
+
+**Loading animation.**
+- `components/MatrixLoader.tsx` is the dot-matrix "Tide" loader, adapted from Originkit with only the Tide pattern and kept compact. `components/DataLoader.tsx` wraps it at 56px for a page, 44px for a panel and 18px inline.
+- It replaces every data-loading state: the route `PageSkeleton` (the Skeleton component is deleted), the ring spinners, the pulse skeletons and the "Loading…" placeholders.
+- Small spinners inside buttons (saving, sending, refresh) stay.
+
+**Profile.**
+- **Phone numbers:** the shared schemas strip spaces, dashes, dots and brackets before checking (`phoneField`). "+91 9072190088" in WhatsApp no longer fails with "Invalid input parameters", and numbers are saved cleaned.
+- **Errors:** Edit Profile shows the field's own validation message.
+- **Mobile verification is off for now** (`PHONE_VERIFICATION_REQUIRED = false` in `@mmp/shared`). The number is entered and saved directly, marked not verified. The email-code flow stays in place behind the switch.
 
 ## Email (Gmail SMTP), branded templates, phone verification by email OTP (Status: COMPLETE; committed on `feature/email-smtp`, not pushed)
 

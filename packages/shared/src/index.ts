@@ -1226,19 +1226,29 @@ export const NOTIFICATION_CATEGORIES = [
 ] as const;
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
 
+/**
+ * A phone number field: spaces, dashes, dots and brackets people type ("+91 90721 90088",
+ * "(907) 219-0088") are removed first, then it must be + and 7–15 digits. The parsed value is the
+ * cleaned number, so the API stores it without separators.
+ */
+export const PHONE_SEPARATORS = /[\s\-().]/g;
+export const cleanPhoneInput = (value: unknown) => (typeof value === "string" ? value.replace(PHONE_SEPARATORS, "") : value);
+const phoneField = (message: string) => z.preprocess(cleanPhoneInput, z.string().regex(/^\+?[1-9]\d{6,14}$/, message));
+
+/**
+ * Whether a new or changed mobile number needs a 6-digit code before it is saved. Off for now:
+ * the number is entered directly. The code flow (/api/me/phone-otp, code sent to the registered
+ * email) stays in place; set this to true to require it again.
+ */
+export const PHONE_VERIFICATION_REQUIRED: boolean = false;
+
 export const sendPhoneOtpSchema = z.object({
-  phone: z
-    .string()
-    .trim()
-    .regex(/^\+?[1-9]\d{6,14}$/, "Please enter a valid mobile number (e.g. +919876543210)"),
+  phone: phoneField("Please enter a valid mobile number (e.g. +919876543210)"),
 });
 export type SendPhoneOtpInput = z.infer<typeof sendPhoneOtpSchema>;
 
 export const verifyPhoneOtpSchema = z.object({
-  phone: z
-    .string()
-    .trim()
-    .regex(/^\+?[1-9]\d{6,14}$/, "Please enter a valid mobile number"),
+  phone: phoneField("Please enter a valid mobile number"),
   otp: z
     .string()
     .trim()
@@ -1250,18 +1260,12 @@ export const profileUpdateSchema = z
   .object({
     name: z.string().trim().min(2, "Full name must be at least 2 characters").max(100).optional(),
     preferredName: z.string().trim().max(60, "Preferred name must not exceed 60 characters").optional(),
-    phone: z
-      .string()
-      .trim()
-      .regex(/^\+?[1-9]\d{6,14}$/, "Phone number must be a valid format (e.g. +919876543210)")
+    phone: phoneField("Phone number must be a valid format (e.g. +919876543210)")
       .optional()
       .or(z.literal("")),
     phoneVerificationToken: z.string().optional(),
     enforceOtp: z.boolean().optional(),
-    whatsappNumber: z
-      .string()
-      .trim()
-      .regex(/^\+?[1-9]\d{6,14}$/, "WhatsApp number must be a valid format (e.g. +919876543210)")
+    whatsappNumber: phoneField("WhatsApp number must be a valid format (e.g. +919876543210)")
       .optional()
       .or(z.literal("")),
     languages: z.array(z.string().trim().max(40)).max(5, "Maximum 5 languages permitted").optional(),
@@ -1328,10 +1332,7 @@ export type ChangeRequestInput = z.infer<typeof changeRequestSchema>;
 export const adminUpdatePersonBasicSchema = z
   .object({
     name: z.string().trim().min(2, "Name must be at least 2 characters").optional(),
-    phone: z
-      .string()
-      .trim()
-      .regex(/^\+?[1-9]\d{6,14}$/, "Valid phone number required")
+    phone: phoneField("Valid phone number required")
       .optional()
       .or(z.literal("")),
   })
@@ -1341,10 +1342,7 @@ export type AdminUpdatePersonBasicInput = z.infer<typeof adminUpdatePersonBasicS
 export const welcomeCompleteSchema = z
   .object({
     name: z.string().trim().min(2, "Full name must be at least 2 characters"),
-    phone: z
-      .string()
-      .trim()
-      .regex(/^\+?[1-9]\d{6,14}$/, "Valid phone number required (e.g. +919876543210)"),
+    phone: phoneField("Valid phone number required (e.g. +919876543210)"),
     avatarUrl: z.string().trim().optional().nullable(),
     avatarStorageId: z.string().trim().optional().nullable(),
   })
@@ -5023,4 +5021,143 @@ export function roleGuide(): Array<{ role: UserRole; label: string; locked: bool
     })).filter((a) => a.items.length);
     return { role, label: ROLE_LABELS[role], locked: def.locked, areas };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Content Flow Tracker statuses (one row = one content piece). The Tracker's Status filter and
+// the dashboard KPI cards use these same rules, so a card's number is the number of rows its
+// link opens. The API sets the row flags (hasOverdue, hasBlocked, hasWaitingApproval, hasAtRisk …).
+// ---------------------------------------------------------------------------
+
+export const TRACKER_STATUS_OPTIONS = [
+  { value: "all", label: "All planned rows" },
+  { value: "overdue", label: "Overdue" },
+  { value: "at_risk", label: "Due within 3 days" },
+  { value: "done_late", label: "Done late" },
+  { value: "blocked", label: "Blocked" },
+  { value: "on_track", label: "On track" },
+  { value: "posted", label: "Posted" },
+  { value: "needs_owner", label: "Needs owner" },
+  { value: "waiting_approval", label: "Waiting for approval" },
+  { value: "not_approved", label: "Not approved yet" },
+  { value: "paused", label: "Paused" },
+  { value: "pause_requested", label: "Pause requested" },
+] as const;
+export type TrackerStatusKey = (typeof TRACKER_STATUS_OPTIONS)[number]["value"];
+export const isTrackerStatusKey = (v: unknown): v is TrackerStatusKey =>
+  TRACKER_STATUS_OPTIONS.some((s) => s.value === v);
+
+/** Days ahead (IST calendar days, today included) that count as "Due within 3 days" / at risk. */
+export const AT_RISK_DAYS = 3;
+
+interface TrackerRowStep {
+  stageKey?: string | null;
+  status?: string | null;
+  isSkipped?: boolean | null;
+  isLocked?: boolean | null;
+  awaitingReview?: boolean | null;
+  dueDate?: DateLike;
+  deadline?: DateLike;
+  pauseState?: string | null;
+  timeLabels?: ReadonlyArray<{ kind: string }> | null;
+}
+
+export interface TrackerRow {
+  publishedAt?: DateLike;
+  hasPostStage?: boolean;
+  stages: TrackerRowStep[];
+  hasOverdue?: boolean;
+  hasAtRisk?: boolean;
+  hasDoneLate?: boolean;
+  hasBlocked?: boolean;
+  hasNeedsOwner?: boolean;
+  hasWaitingApproval?: boolean;
+  hasPaused?: boolean;
+  hasPauseRequested?: boolean;
+}
+
+const trackerStepDone = (s: TrackerRowStep) => Boolean(s.isSkipped) || isFinishedStepStatus(s.status);
+
+/**
+ * At risk: a step being worked on (unlocked, not done, not waiting on a reviewer, not already
+ * overdue) whose due date is today or within the next AT_RISK_DAYS - 1 days (IST).
+ */
+export function stepIsAtRisk(step: TrackerRowStep, now: DateLike = new Date()): boolean {
+  if (!step || trackerStepDone(step) || step.isLocked || step.awaitingReview) return false;
+  if (step.timeLabels?.some((l) => l.kind === "overdue")) return false;
+  const due = step.dueDate || step.deadline;
+  if (!due) return false;
+  const daysLeft = istDayDiff(due, now);
+  return daysLeft !== null && daysLeft >= 0 && daysLeft < AT_RISK_DAYS;
+}
+
+/** A row whose plan row was not approved yet: it has no steps. */
+export const trackerRowNotApproved = (p: TrackerRow) => !p.stages || p.stages.length === 0;
+
+/** Posted: a publish date or a published Post step, or a design with no Post step whose steps are all done. */
+export function trackerRowPosted(p: TrackerRow): boolean {
+  if (p.publishedAt) return true;
+  if (p.stages.some((s) => s.stageKey === "Post" && s.status === "Published")) return true;
+  const hasPost = p.stages.some((s) => s.stageKey === "Post");
+  return !hasPost && p.hasPostStage === false && p.stages.length > 0 && p.stages.every(trackerStepDone);
+}
+
+/**
+ * Whether a row belongs under a Tracker status. With no status (or "all") every row matches;
+ * the Tracker's plain view still hides rows that are not approved yet (see trackerRowShown).
+ */
+export function trackerRowMatchesStatus(p: TrackerRow, status: string): boolean {
+  switch (status) {
+    case "overdue":
+      return Boolean(p.hasOverdue);
+    case "at_risk":
+      return Boolean(p.hasAtRisk);
+    case "done_late":
+      return Boolean(p.hasDoneLate);
+    case "blocked":
+      return Boolean(p.hasBlocked);
+    case "posted":
+      return trackerRowPosted(p);
+    case "on_track":
+      return !trackerRowNotApproved(p) && !trackerRowPosted(p) && !p.hasOverdue && !p.hasBlocked;
+    case "needs_owner":
+      return Boolean(p.hasNeedsOwner);
+    case "waiting_approval":
+      return Boolean(p.hasWaitingApproval);
+    case "not_approved":
+      return trackerRowNotApproved(p);
+    case "paused":
+      return Boolean(p.hasPaused) || p.stages.some((s) => s.pauseState === "paused");
+    case "pause_requested":
+      return Boolean(p.hasPauseRequested) || p.stages.some((s) => s.pauseState === "requested");
+    default:
+      return true;
+  }
+}
+
+/** Rows the Tracker lists for a status: rows not approved yet show only under "all" and "not_approved". */
+export function trackerRowShown(p: TrackerRow, status: string): boolean {
+  if (status !== "all" && status !== "not_approved" && trackerRowNotApproved(p)) return false;
+  return trackerRowMatchesStatus(p, status);
+}
+
+/** The dashboard KPI cards: each card's Tracker status. */
+export const DASHBOARD_KPI_STATUSES = {
+  planned: "all",
+  completed: "posted",
+  inProgress: "on_track",
+  atRisk: "at_risk",
+  blocked: "blocked",
+  pendingApproval: "waiting_approval",
+  overdue: "overdue",
+} as const satisfies Record<string, TrackerStatusKey>;
+export type DashboardKpiKey = keyof typeof DASHBOARD_KPI_STATUSES;
+
+/** Count rows per dashboard KPI card with the Tracker's own rules. */
+export function dashboardKpiCounts(rows: TrackerRow[]): Record<DashboardKpiKey, number> {
+  const out = {} as Record<DashboardKpiKey, number>;
+  for (const [key, status] of Object.entries(DASHBOARD_KPI_STATUSES) as Array<[DashboardKpiKey, string]>) {
+    out[key] = rows.filter((r) => trackerRowShown(r, status)).length;
+  }
+  return out;
 }

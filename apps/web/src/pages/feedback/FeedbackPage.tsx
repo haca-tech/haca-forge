@@ -28,6 +28,7 @@ import { PlansApprovalTab } from './PlansApprovalTab';
 import { PauseRequestsTab } from './PauseRequestsTab';
 import { useAccess } from '../../lib/access';
 
+import { DataLoader } from '../../components/DataLoader';
 /**
  * Review Hub: an inbox of review rounds and their history. Decisions happen in Review Studio
  * and Work Detail; owners answer with Start rework and Resubmit link. Leads see the calendars
@@ -269,7 +270,7 @@ const DetailPanel: React.FC<{ workItemId: string; onBack: () => void; onChanged:
   if (!data) {
     return (
       <section className="glass-card p-5" aria-label="Step details">
-        {error ? <p role="alert" className="text-sm text-ui-ink">{error}</p> : <p className="text-sm text-ui-muted">Loading…</p>}
+        {error ? <p role="alert" className="text-sm text-ui-ink">{error}</p> : <DataLoader label="Loading…" />}
       </section>
     );
   }

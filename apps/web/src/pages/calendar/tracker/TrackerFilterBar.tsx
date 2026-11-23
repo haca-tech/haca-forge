@@ -44,6 +44,7 @@ export const TrackerFilterBar: React.FC<Props> = ({ filters: f, owners, showOwne
   if (f.workflow) chips.push({ key: 'workflow', text: label(WORKFLOW_OPTIONS, f.workflow), clear: { workflow: '' } });
   if (f.step) chips.push({ key: 'step', text: `Current step: ${label(TRACKER_STEPS, f.step)}`, clear: { step: '' } });
   if (f.owner) chips.push({ key: 'owner', text: `Owner: ${label(owners, f.owner)}`, clear: { owner: '' } });
+  if (f.department) chips.push({ key: 'department', text: 'One department (from the dashboard)', clear: { department: '' } });
   if (f.status) chips.push({ key: 'status', text: label(TRACKER_STATUSES, f.status), clear: { status: '' } });
   if (f.urgent) chips.push({ key: 'urgent', text: 'Urgent only', clear: { urgent: false } });
   if (f.stageStatus) chips.push({ key: 'stageStatus', text: `Any step ${getStepStatusLabel(f.stageStatus).toLowerCase()}`, clear: { stageStatus: '' } });

@@ -20,6 +20,7 @@ import {
 import { toast } from '../../lib/uiFeedback';
 import { useAccess } from '../../lib/access';
 
+import { DataLoader } from '../../components/DataLoader';
 interface BlockerItem {
   _id: string;
   reason: BlockerReason;
@@ -458,8 +459,8 @@ export const IssuesBlockersPage: React.FC = () => {
       {activeTab === 'blockers' && (
         <div className="space-y-4">
           {isLoading ? (
-            <div className="glass-card p-12 text-center text-[13px] text-ui-muted">
-              Loading active blockers...
+            <div className="glass-card">
+              <DataLoader label="Loading active blockers..." />
             </div>
           ) : filteredBlockers.length === 0 ? (
             <div className="glass-card p-12 text-center space-y-2">
@@ -574,8 +575,8 @@ export const IssuesBlockersPage: React.FC = () => {
       {activeTab === 'flags' && (
         <div className="space-y-4">
           {isLoading ? (
-            <div className="glass-card p-12 text-center text-[13px] text-ui-muted">
-              Loading revision flags...
+            <div className="glass-card">
+              <DataLoader label="Loading revision flags..." />
             </div>
           ) : filteredFlags.length === 0 ? (
             <div className="glass-card p-12 text-center space-y-2">

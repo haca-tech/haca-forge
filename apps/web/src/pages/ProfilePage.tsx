@@ -4,6 +4,7 @@ import { ProfileView, ProfileData } from '../components/ProfileView';
 import { apiFetch } from '../lib/api';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
+import { DataLoader } from '../components/DataLoader';
 export const ProfilePage: React.FC = () => {
   const { refreshUser } = useAuth();
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -29,13 +30,7 @@ export const ProfilePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto space-y-6 animate-pulse py-6">
-        <div className="h-44 bg-slate-200/70 rounded-3xl" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="h-80 bg-slate-200/70 rounded-3xl" />
-          <div className="h-80 bg-slate-200/70 rounded-3xl" />
-        </div>
-      </div>
+      <DataLoader variant="page" label="Loading profile" />
     );
   }
 

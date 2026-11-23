@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { formatShortDate, formatShortDateTime } from '@mmp/shared';
 import {
   applyTrackerFilters,
+  apiParams,
   approvalDateOf,
   filtersFromParams,
   filtersToParams,
@@ -34,6 +35,21 @@ const ids = (list: TrackerPiece[]) => list.map((p) => p._id);
 const f = (q: string) => filtersFromParams(new URLSearchParams(q));
 
 describe('Tracker filters', () => {
+  it('"All planned rows" includes rows not approved yet; "Due within 3 days" reads hasAtRisk', () => {
+    expect(ids(applyTrackerFilters(rows, f('status=all')))).toEqual(['c', 'b', 'd', 'a', 'e']); // by publish date
+    const risky = [...rows.slice(0, 4), { ...rows[4], hasAtRisk: true }];
+    expect(ids(applyTrackerFilters(risky, f('status=at_risk')))).toEqual(['e']);
+  });
+
+  it('department from a dashboard link: kept in the URL and sent to the API (which applies it)', () => {
+    const dept = 'b'.repeat(24);
+    const parsed = f(`tab=tracker&department=${dept}&status=overdue&month=2026-11`);
+    expect(parsed).toMatchObject({ department: dept, status: 'overdue', month: '2026-11' });
+    expect(apiParams(parsed).get('departmentId')).toBe(dept);
+    expect(filtersToParams(parsed, new URLSearchParams('tab=tracker')).get('department')).toBe(dept);
+    expect(f('department=not-an-id').department).toBe('');
+  });
+
   it('approved rows only by default; rows with no steps only under "Not approved yet"', () => {
     expect(ids(applyTrackerFilters(rows, f('')))).toEqual(['c', 'b', 'a', 'e']);
     expect(ids(applyTrackerFilters(rows, f('status=not_approved')))).toEqual(['d']);

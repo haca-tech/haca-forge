@@ -99,7 +99,9 @@ Any template name works and is sent with its sample data. The script exits with 
 
 ## Phone verification by email
 
-Adding or changing a phone number on the profile needs a 6-digit code. The code goes to the user's **registered email**, not by SMS.
+**Off for now.** `PHONE_VERIFICATION_REQUIRED` in `@mmp/shared` is `false`: the mobile number is entered directly on the profile and saved without a code (marked not verified). The Edit Profile dialog shows no badge, Send code button or code box. Everything below stays in place; set the switch to `true` to require it again.
+
+When it is on, adding or changing a phone number on the profile needs a 6-digit code. The code goes to the user's **registered email**, not by SMS.
 
 1. `POST /api/me/phone-otp/send { phone }` validates the number and emails the code using `phoneVerificationCode`. The email shows the number being added, masked except the last 4 digits (`+••••••••3210`).
    - The answer includes `sentTo: "m•••@harisandcoacademy.com"`, `resendAfterSeconds: 60` and the message "We sent a 6-digit code to m•••@harisandcoacademy.com". The profile screen shows that message and a "Resend in Ns" countdown.

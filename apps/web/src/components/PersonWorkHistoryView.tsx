@@ -11,6 +11,7 @@ import { displayStatus, statusClass, statusTone } from '../lib/statusTone';
 import { Avatar } from './Avatar';
 import { ROLE_LABELS, formatDuration, getStepStatusLabel, reworkTimeMs, type WorkItemIndividualMeasures, INTERVAL_KIND_LABELS, PAUSE_REASON_LABELS } from '@mmp/shared';
 
+import { DataLoader } from './DataLoader';
 export interface PersonWorkHistoryData {
   person: {
     _id: string;
@@ -75,10 +76,7 @@ export const PersonWorkHistoryView: React.FC<PersonWorkHistoryViewProps> = ({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 space-y-3">
-        <div className="w-8 h-8 border-3 border-ui-ink border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs font-semibold text-slate-500">Loading individual work view...</p>
-      </div>
+      <DataLoader label="Loading individual work view..." />
     );
   }
 

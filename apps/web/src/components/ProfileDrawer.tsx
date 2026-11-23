@@ -4,6 +4,7 @@ import { ProfileView, ProfileData } from './ProfileView';
 import { apiFetch } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
+import { DataLoader } from './DataLoader';
 interface ProfileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -87,12 +88,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
           {/* Drawer Body */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
             {loading && (
-              <div className="space-y-4 animate-pulse py-8">
-                <div className="w-20 h-20 rounded-full bg-slate-200 mx-auto" />
-                <div className="h-6 w-48 bg-slate-200 rounded-xl mx-auto" />
-                <div className="h-32 bg-slate-200 rounded-3xl" />
-                <div className="h-32 bg-slate-200 rounded-3xl" />
-              </div>
+              <DataLoader className="py-16" label="Loading profile" />
             )}
 
             {error && (

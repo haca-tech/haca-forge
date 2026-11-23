@@ -7,6 +7,7 @@ import { ReportTable } from '../reports/ReportViews';
 import { FIGURE_COLUMNS, STEP_COLUMNS, reviewerFigureRows, workerFigureRows, type ProfileKpiData } from './profileFigures';
 import { ReviewerCharts, WorkerCharts } from './ProfileKpiViews';
 
+import { DataLoader } from '../../components/DataLoader';
 const ROLE_NAMES: Record<string, string> = ROLE_LABELS;
 
 /**
@@ -41,7 +42,7 @@ export const ProfileReportPage: React.FC = () => {
   if (state === 'missing') return <NotFoundState />;
   if (state === 'forbidden') return <div className="glass-card max-w-xl mx-auto my-16 p-8 text-sm" role="alert">Only an Admin, the Marketing Head, the Production Head, a Creative Manager or a Marketing Growth Manager can download this report.</div>;
   if (state === 'error') return <div className="glass-card max-w-xl mx-auto my-16 p-8 text-sm" role="alert">Could not load the report.</div>;
-  if (!data) return <div className="p-8 text-sm text-ui-muted">Loading…</div>;
+  if (!data) return <DataLoader variant="page" label="Loading…" />;
 
   const p = data.person;
   const filters = { month: data.period.from.slice(0, 7), calendar: 'all', stepType: 'all' };

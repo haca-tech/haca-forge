@@ -18,6 +18,7 @@ import { Avatar } from '../../components/Avatar';
 import { ROLE_LABELS, ROLE_KEYS } from '@mmp/shared';
 import { useAccess } from '../../lib/access';
 
+import { DataLoader } from '../../components/DataLoader';
 interface DirectoryMember {
   _id: string;
   name: string;
@@ -313,10 +314,7 @@ export const TeamDirectoryPage: React.FC = () => {
 
       {/* Directory Grid & Cards */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center p-16 space-y-3">
-          <div className="w-8 h-8 border-3 border-ui-line border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-semibold text-ui-muted">Loading team directory...</p>
-        </div>
+        <DataLoader className="py-16" label="Loading team directory..." />
       ) : error ? (
         <div className="p-8 text-center space-y-3 rounded-ui-card status-tint status-changes">
           <AlertTriangle className="w-8 h-8 mx-auto" />

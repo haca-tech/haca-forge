@@ -5,6 +5,7 @@ import { apiFetch } from '../../lib/api';
 import { REPORT_TABS, ReportView, type ReportData, type ReportName } from './ReportViews';
 import { readReportFilters, reportQuery } from './ReportsPage';
 
+import { DataLoader } from '../../components/DataLoader';
 /**
  * Print layout (Phase 7): one report with every chart at a fixed size and every table in
  * full, for the browser's Save as PDF. Opens the print dialog once the report has loaded.
@@ -44,7 +45,7 @@ export const ReportPrintPage: React.FC = () => {
           Print or save as PDF
         </button>
       </div>
-      {error ? <p role="alert">{error}</p> : data ? <ReportView name={report} data={data} filters={filters} print /> : <p>Loading…</p>}
+      {error ? <p role="alert">{error}</p> : data ? <ReportView name={report} data={data} filters={filters} print /> : <DataLoader variant="page" label="Loading…" />}
     </div>
   );
 };

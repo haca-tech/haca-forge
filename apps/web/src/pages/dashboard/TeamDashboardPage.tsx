@@ -1,4 +1,4 @@
-import { getStepStatusLabel, ROLE_LABELS, type UserRole } from '@mmp/shared';
+import { getStepStatusLabel, ROLE_LABELS, DASHBOARD_KPI_STATUSES, type DashboardKpiKey, type UserRole } from '@mmp/shared';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useAccess } from '../../lib/access';
 
+import { DataLoader } from '../../components/DataLoader';
 interface DashboardData {
   scope: {
     profileId: string;
@@ -60,8 +61,8 @@ interface DashboardData {
     blocked: number;
     pendingApproval: number;
     overdue: number;
-    totalWorkItems?: number;
-    completionRatePct?: number;
+    /** The month the cards count (IST), as sent by the API. */
+    month?: string;
   };
   priorities: {
     _id: string;
@@ -158,7 +159,7 @@ export const TeamDashboardPage: React.FC = () => {
   const { user, hasPermission } = useAuth();
   const access = useAccess();
   const navigate = useNavigate();
-  const { queryParams } = useGlobalFilter();
+  const { queryParams, filters } = useGlobalFilter();
 
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -215,17 +216,33 @@ export const TeamDashboardPage: React.FC = () => {
     'inline-flex items-center gap-1 min-h-[44px] -my-3 text-[13px] font-semibold text-ui-text hover:underline underline-offset-4 rounded-full';
   const row = 'rounded-2xl bg-white/60 hover:bg-white transition-colors';
 
+  /**
+   * A KPI card's link: the Tracker with that card's status and the dashboard's month, department,
+   * owner and step-status filters, so the list it opens has exactly the card's number of rows.
+   */
+  const trackerLink = (key: DashboardKpiKey) => {
+    const sp = new URLSearchParams({ tab: 'tracker' });
+    // Dashboard filters left at "all" are not passed on.
+    const put = (k: string, v?: string) => v && v !== 'all' && sp.set(k, v);
+    put('month', data?.kpis.month || filters.month);
+    sp.set('status', DASHBOARD_KPI_STATUSES[key]); // the Tracker's own "all" (Planned) is a real status
+    put('department', filters.departmentId);
+    put('owner', filters.ownerId);
+    put('stageStatus', filters.status);
+    return `/calendar?${sp.toString()}`;
+  };
+
   // KPI strip: icon carries the only colour (blue = in progress, coral = blocked/overdue, ink = neutral)
   const kpis = data
     ? [
-        { label: 'Planned', value: data.kpis.planned, link: 'View all', to: '/calendar?tab=tracker', Icon: Layers, tone: 'text-ui-ink' },
-        { label: 'Completed', value: data.kpis.completed, link: 'Published/Approved', to: '/calendar?tab=tracker&status=Approved,Published', Icon: CheckCircle2, tone: 'text-ui-ink' },
-        { label: 'In progress', value: data.kpis.inProgress, link: 'Active stages', to: '/calendar?tab=tracker&status=In%20Progress', Icon: Clock, tone: 'text-ui-blue' },
-        { label: 'At risk', value: data.kpis.atRisk, link: 'Due in ≤72h', to: '/calendar?tab=tracker&filter=at_risk', Icon: AlertOctagon, tone: 'text-ui-ink' },
-        { label: 'Blocked', value: data.kpis.blocked, link: 'Dependencies', to: '/calendar?tab=tracker&status=Blocked', Icon: ShieldAlert, tone: 'text-ui-coral' },
-        { label: 'Pending appr.', value: data.kpis.pendingApproval, link: 'In review', to: '/feedback', Icon: FileCheck, tone: 'text-ui-ink' },
-        { label: 'Overdue', value: data.kpis.overdue, link: 'Past deadline', to: '/calendar?tab=tracker&filter=overdue', Icon: AlertTriangle, tone: 'text-ui-coral' },
-      ]
+        { key: 'planned', label: 'Planned', value: data.kpis.planned, link: 'All rows', Icon: Layers, tone: 'text-ui-ink' },
+        { key: 'completed', label: 'Completed', value: data.kpis.completed, link: 'Posted', Icon: CheckCircle2, tone: 'text-ui-ink' },
+        { key: 'inProgress', label: 'In progress', value: data.kpis.inProgress, link: 'On track', Icon: Clock, tone: 'text-ui-blue' },
+        { key: 'atRisk', label: 'At risk', value: data.kpis.atRisk, link: 'Due within 3 days', Icon: AlertOctagon, tone: 'text-ui-ink' },
+        { key: 'blocked', label: 'Blocked', value: data.kpis.blocked, link: 'Blocked steps', Icon: ShieldAlert, tone: 'text-ui-coral' },
+        { key: 'pendingApproval', label: 'Pending appr.', value: data.kpis.pendingApproval, link: 'Waiting for approval', Icon: FileCheck, tone: 'text-ui-ink' },
+        { key: 'overdue', label: 'Overdue', value: data.kpis.overdue, link: 'Past deadline', Icon: AlertTriangle, tone: 'text-ui-coral' },
+      ].map((k) => ({ ...k, to: trackerLink(k.key as DashboardKpiKey) }))
     : [];
 
   return (
@@ -264,8 +281,8 @@ export const TeamDashboardPage: React.FC = () => {
         <GlobalFilterBar />
 
         {isLoading ? (
-          <div className="glass-card p-12 text-center text-[13px] text-ui-muted">
-            Loading operational dashboard overview...
+          <div className="glass-card">
+            <DataLoader label="Loading operational dashboard overview..." />
           </div>
         ) : !data ? (
           <div className="glass-card p-12 text-center text-[13px] text-ui-muted">Failed to load dashboard metrics.</div>

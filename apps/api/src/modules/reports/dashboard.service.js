@@ -9,7 +9,8 @@ import { CalendarPlan } from '../calendar/plan.model.js';
 import { ContentPiece } from '../calendar/contentPiece.model.js';
 import { workloadByPerson, bandCounts as workloadBandCounts } from '../workload/service.js';
 import { resolveScope } from '../../lib/scope.js';
-import { derivePlanStatus, WORKER_ROLE, isWorker } from '@mmp/shared';
+import { derivePlanStatus, WORKER_ROLE, isWorker, dashboardKpiCounts, isMonthKey, monthKeyInAppTz } from '@mmp/shared';
+import { listContentPieces } from '../calendar/contentPiece.service.js';
 import { isOwnScope, stepTakingRoles } from '../../lib/roleAccess.js';
 
 /**
@@ -20,7 +21,8 @@ import { isOwnScope, stepTakingRoles } from '../../lib/roleAccess.js';
 export async function getDashboardOverview(filters = {}, user) {
   const scope = await resolveScope(user, filters);
   const now = new Date();
-  const currentMonthStr = filters.month || now.toISOString().slice(0, 7);
+  // The month in IST, like the Tracker (a UTC month key is a day off around midnight IST).
+  const currentMonthStr = isMonthKey(filters.month) ? filters.month : monthKeyInAppTz(now);
 
   // Construct WorkItem query applying resolved scope
   const workItemQuery = {};
@@ -113,65 +115,34 @@ export async function getDashboardOverview(filters = {}, user) {
   };
 
   // ----------------------------------------------------
-  // SECTION 2: KPI Strip (7 core operational metrics)
+  // SECTION 2: KPI Strip (7 cards)
   // ----------------------------------------------------
+  // Counted from the Content Flow Tracker's own rows and rules (@mmp/shared dashboardKpiCounts):
+  // the month's content pieces (IST publish date), with the same department, owner and step-status
+  // filters the card links pass to the Tracker. So each card's number is the number of rows its
+  // link opens.
+  const trackerRows = await listContentPieces(
+    {
+      month: currentMonthStr,
+      calendar: filters.calendar,
+      departmentId: filters.departmentId && filters.departmentId !== 'all' ? filters.departmentId : undefined,
+      ownerId: !isOwnScope(user) && filters.ownerId && filters.ownerId !== 'all' ? filters.ownerId : undefined,
+      stageStatus: filters.status && filters.status !== 'all' ? filters.status : undefined,
+    },
+    user
+  );
+  const kpisStrip = {
+    ...dashboardKpiCounts(trackerRows),
+    month: currentMonthStr,
+  };
+
+  // Step-level lists further down (priorities, department stats) still read the scoped steps.
   const allScopedWorkItems = await WorkItem.find(workItemQuery)
     .select('status deadline estimatedEffortHrs workType revisions departmentId updatedAt createdAt')
     .lean();
   // Pending approval = waiting on a reviewer by the latest version; a step sent back is with its owner.
   await markAwaitingReview(allScopedWorkItems);
-
-  let inProgressCount = 0;
-  let inFeedbackCount = 0;
-  let blockedCount = 0;
-  let approvedCount = 0;
-  let publishedCount = 0;
-  let overdueCount = 0;
-  let atRiskCount = 0;
-
-  const in72h = new Date(now.getTime() + 72 * 60 * 60 * 1000);
-
-  for (const item of allScopedWorkItems) {
-    const isTerminal = item.status === 'Approved' || item.status === 'Published';
-    const isOverdue = !isTerminal && item.deadline && new Date(item.deadline) < now;
-    const isAtRisk =
-      !isTerminal &&
-      !item.awaitingReview &&
-      item.deadline &&
-      new Date(item.deadline) <= in72h &&
-      new Date(item.deadline) >= now;
-
-    if (item.awaitingReview) inFeedbackCount++;
-    else if (item.status === 'In Progress' || item.status === 'Feedback') inProgressCount++;
-    else if (item.status === 'Blocked') blockedCount++;
-    else if (item.status === 'Approved') approvedCount++;
-    else if (item.status === 'Published') publishedCount++;
-
-    if (isOverdue) overdueCount++;
-    if (isAtRisk) atRiskCount++;
-  }
-
-  const completedCount = approvedCount + publishedCount;
-  const plannedCount = Math.max(totalPlannedRows, allScopedWorkItems.length);
-  const completionRatePct = plannedCount > 0 ? Math.round((completedCount / plannedCount) * 100) : 0;
-
-  const kpisStrip = {
-    // 7 Core Metrics
-    planned: plannedCount,
-    completed: completedCount,
-    inProgress: inProgressCount,
-    atRisk: atRiskCount,
-    blocked: blockedCount,
-    pendingApproval: inFeedbackCount,
-    overdue: overdueCount,
-
-    // Backward compatibility aliases
-    totalWorkItems: allScopedWorkItems.length,
-    inFeedback: inFeedbackCount,
-    approved: approvedCount,
-    published: publishedCount,
-    completionRatePct,
-  };
+  const inFeedbackCount = allScopedWorkItems.filter((i) => i.awaitingReview).length;
 
   // ----------------------------------------------------
   // SECTION 3: Today's Priorities

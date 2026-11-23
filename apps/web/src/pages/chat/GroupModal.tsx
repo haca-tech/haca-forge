@@ -6,6 +6,7 @@ import { Avatar } from '../../components/Avatar';
 import { useAuth } from '../../context/AuthContext';
 import { ChatChannelTypeDetail } from '@mmp/shared';
 
+import { DataLoader } from '../../components/DataLoader';
 interface ActiveUser {
   _id: string;
   id?: string;
@@ -245,7 +246,7 @@ export function GroupModal({ onClose, onSuccess, channelToEdit }: GroupModalProp
             )}
 
             {loading ? (
-              <div className="p-4 text-center text-xs text-ui-muted">Loading team members...</div>
+              <DataLoader className="py-6" label="Loading team members..." />
             ) : filteredUsers.length === 0 ? (
               <div className="p-4 text-center text-xs text-ui-muted border border-ui-line rounded-xl bg-white/60">
                 {memberSearch.trim() ? 'No matching team members found.' : 'No active team members available.'}

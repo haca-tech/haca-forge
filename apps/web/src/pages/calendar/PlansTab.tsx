@@ -26,6 +26,7 @@ import { type StepLineState, calculateDueDateString, getExpectedStepDefs, buildD
 import { confirmDialog, toast } from '../../lib/uiFeedback';
 import { useAccess } from '../../lib/access';
 
+import { DataLoader } from '../../components/DataLoader';
 export interface StagePlanPreviewItem {
   stageKey: 'Content' | 'Script' | 'Design' | 'Shoot' | 'Edit' | 'Post';
   ownerId?: string | { _id: string; name: string; avatarUrl?: string; workPreferences?: string[] };
@@ -986,7 +987,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
               <span className="text-[13px] font-semibold text-ui-text">
                 All Plans ({plans.length})
               </span>
-              {isLoading && <span className="text-xs text-ui-muted">Loading...</span>}
+              {isLoading && <DataLoader variant="inline" label="Loading..." />}
             </div>
 
             <div className="divide-y divide-ui-line max-h-[600px] overflow-y-auto">

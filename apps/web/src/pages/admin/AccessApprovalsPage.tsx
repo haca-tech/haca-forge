@@ -17,6 +17,7 @@ import { confirmDialog, toast } from '../../lib/uiFeedback';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import { useAuth } from '../../context/AuthContext';
 
+import { DataLoader } from '../../components/DataLoader';
 /**
  * Access & Approvals (Access Phase D, admin only): people's roles and calendar limits, who
  * approves plans / reviews / posts on each calendar, the history of every change (with
@@ -199,7 +200,7 @@ const PeopleTab: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="py-16 text-center text-xs text-ui-muted animate-pulse">Loading people…</div>
+        <DataLoader className="py-16" label="Loading people…" />
       ) : !people.length ? (
         <div className="glass-card p-10 text-center text-sm text-ui-muted">Nobody matches these filters.</div>
       ) : (
@@ -431,7 +432,7 @@ const CalendarsTab: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
-  if (!data) return <div className="py-16 text-center text-xs text-ui-muted animate-pulse">Loading calendars…</div>;
+  if (!data) return <DataLoader className="py-16" label="Loading calendars…" />;
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
       {data.calendars.map((c) => (
@@ -723,7 +724,7 @@ const HistoryTab: React.FC = () => {
         </select>
       </div>
       {!rows ? (
-        <div className="py-16 text-center text-xs text-ui-muted animate-pulse">Loading history…</div>
+        <DataLoader className="py-16" label="Loading history…" />
       ) : !rows.length ? (
         <div className="glass-card p-10 text-center text-sm text-ui-muted">No changes yet.</div>
       ) : (

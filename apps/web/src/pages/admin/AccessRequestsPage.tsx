@@ -25,6 +25,7 @@ import {
 import { Avatar } from '../../components/Avatar';
 import { confirmDialog, toast } from '../../lib/uiFeedback';
 
+import { DataLoader } from '../../components/DataLoader';
 interface AccessRequestItem {
   _id: string;
   name: string;
@@ -330,9 +331,7 @@ export const AccessRequestsPage: React.FC = () => {
 
       {/* Request Cards Grid */}
       {isLoading ? (
-        <div className="py-20 text-center text-xs text-ui-muted animate-pulse">
-          Loading access requests...
-        </div>
+        <DataLoader className="py-20" label="Loading access requests..." />
       ) : filteredRequests.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <h3 className="text-base font-bold text-ui-ink">No requests found</h3>

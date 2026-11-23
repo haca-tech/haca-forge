@@ -20,6 +20,7 @@ import {
   LayoutGrid,
 } from 'lucide-react';
 
+import { DataLoader } from '../../components/DataLoader';
 interface WorkItemRow {
   _id: string;
   title: string;
@@ -210,9 +211,7 @@ export const WorkListPage: React.FC = () => {
 
       {/* 3. Items View */}
       {isLoading ? (
-        <div className="py-20 text-center text-sm text-ui-muted" role="status">
-          Loading work items...
-        </div>
+        <DataLoader className="py-20" label="Loading work items..." />
       ) : items.length === 0 ? (
         <div className="glass-card p-12 text-center rounded-ui-card">
           <Film className="w-10 h-10 text-ui-muted mx-auto mb-2" aria-hidden="true" />

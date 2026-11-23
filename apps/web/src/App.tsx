@@ -8,7 +8,6 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { RoleBoundary } from './components/RoleBoundary';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { PageSkeleton } from './components/Skeleton';
 import { UiFeedbackHost } from './lib/uiFeedback';
 
 import { LoginPage } from './pages/LoginPage';
@@ -66,6 +65,7 @@ const ReviewStudioPage = React.lazy(() =>
   import('./pages/feedback/review-studio/ReviewStudioPage').then((m) => ({ default: m.ReviewStudioPage }))
 );
 import { WorkspaceRoute } from './pages/work/workspaces/WorkspaceLockedPage';
+import { DataLoader } from './components/DataLoader';
 const MediaWorkspacePage = React.lazy(() =>
   import('./pages/work/workspaces/MediaWorkspacePage').then((m) => ({ default: m.MediaWorkspacePage }))
 );
@@ -121,8 +121,8 @@ const RootRedirect: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
-        <div className="w-8 h-8 border-4 border-ui-ink border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-ui-canvas">
+        <DataLoader variant="page" label="Loading" />
       </div>
     );
   }
@@ -151,7 +151,7 @@ export const App: React.FC = () => {
   // Dev-only email previews render outside the auth providers: no sign-in, no redirect to /login.
   if (EmailPreviewPage && typeof window !== 'undefined' && window.location.pathname === '/dev/emails') {
     return (
-      <React.Suspense fallback={<PageSkeleton />}>
+      <React.Suspense fallback={<DataLoader variant="page" label="Loading" />}>
         <EmailPreviewPage />
       </React.Suspense>
     );
@@ -163,7 +163,7 @@ export const App: React.FC = () => {
         <AuthProvider>
           <GlobalFilterProvider>
             <ErrorBoundary>
-              <React.Suspense fallback={<PageSkeleton />}>
+              <React.Suspense fallback={<DataLoader variant="page" label="Loading" />}>
               <Routes>
                 {/* Public Authentication Routes */}
                 <Route path="/login" element={<LoginPage />} />

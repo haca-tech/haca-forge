@@ -24,6 +24,7 @@ import {
 import { toast } from '../../lib/uiFeedback';
 import { useAccess } from '../../lib/access';
 
+import { DataLoader } from '../../components/DataLoader';
 type ContentPieceTrackerRow = TrackerPiece;
 
 interface AssignRecommendation {
@@ -68,7 +69,7 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
     setSearchParams(filtersToParams({ ...filters, ...next }, searchParams), { replace: true });
   const clearFilters = () =>
     setSearchParams(
-      filtersToParams({ q: '', month: '', calendar: '', type: '', workflow: '', step: '', owner: '', status: '', urgent: false, sort: filters.sort, stageStatus: '' }, searchParams),
+      filtersToParams({ q: '', month: '', calendar: '', type: '', workflow: '', step: '', owner: '', department: '', status: '', urgent: false, sort: filters.sort, stageStatus: '' }, searchParams),
       { replace: true }
     );
 
@@ -308,7 +309,9 @@ export const TrackerTab: React.FC<{ selectedCalendar?: string }> = () => {
       )}
 
       {isLoading && pieces.length === 0 ? (
-        <p className="glass-card p-8 text-center text-sm text-ui-muted" aria-busy="true">Loading the tracker…</p>
+        <div className="glass-card">
+          <DataLoader label="Loading the tracker…" />
+        </div>
       ) : rows.length === 0 ? (
         <p className="glass-card p-8 text-center text-sm text-ui-muted" data-testid="tracker-empty">{emptyText}</p>
       ) : (

@@ -213,11 +213,12 @@ describe('Phase 6: Global Filter Bar & Team Dashboard (Screen 2)', () => {
     expect(d.campaigns).toBeUndefined();
     expect(d.leadFunnel).toBeUndefined();
 
-    // Verify KPIs strip
-    expect(d.kpis.totalWorkItems).toBe(3);
-    expect(d.kpis.inProgress).toBe(2);
-    expect(d.kpis.approved).toBe(1);
-    expect(d.kpis.overdue).toBe(1); // workItemAlpha1 has passed deadline
+    // KPI strip: the month's Tracker rows by the Tracker's rules (dashboard_kpi_tracker_links.test.js
+    // checks the numbers). Steps without a content piece, like the ones seeded here, are not rows.
+    expect(d.kpis.month).toMatch(/^\d{4}-\d{2}$/);
+    for (const key of ['planned', 'completed', 'inProgress', 'atRisk', 'blocked', 'pendingApproval', 'overdue']) {
+      expect(Number.isInteger(d.kpis[key]) && d.kpis[key] >= 0, key).toBe(true);
+    }
 
     // Verify Issues
     expect(d.issues.activeBlockersCount).toBeGreaterThanOrEqual(1);

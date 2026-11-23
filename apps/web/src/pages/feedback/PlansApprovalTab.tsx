@@ -14,6 +14,7 @@ import { planMonthKey, type CalendarPlanStatus, type RowStatus } from '@mmp/shar
 import { toast } from '../../lib/uiFeedback';
 import { useAccess } from '../../lib/access';
 
+import { DataLoader } from '../../components/DataLoader';
 interface PlanRow {
   _id: string;
   postingDate: string;
@@ -174,8 +175,8 @@ export const PlansApprovalTab: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="glass-card p-8 text-center text-xs text-ui-muted">
-        Loading plans waiting for approval...
+      <div className="glass-card">
+        <DataLoader label="Loading plans waiting for approval..." />
       </div>
     );
   }

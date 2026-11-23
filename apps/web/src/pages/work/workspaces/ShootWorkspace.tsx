@@ -21,6 +21,7 @@ import { MediaThread } from './MediaThread';
 import { DriveLinkInput, driveLinkError } from '../../../components/DriveLinkInput';
 import { toast } from '../../../lib/uiFeedback';
 
+import { DataLoader } from '../../../components/DataLoader';
 interface ShootWorkspaceProps {
   workItem: {
     id: string;
@@ -368,9 +369,7 @@ export const ShootWorkspace: React.FC<ShootWorkspaceProps> = ({
             </div>
 
             {loading ? (
-              <div className="p-8 text-center text-ui-muted text-xs">
-                Loading footage clips...
-              </div>
+              <DataLoader className="py-8" label="Loading footage clips..." />
             ) : clips.length === 0 ? (
               <div className="p-8 border border-ui-line rounded-2xl bg-white/60 text-center text-ui-muted text-xs flex flex-col items-center gap-2">
                 <Film className="w-8 h-8 text-ui-muted" />

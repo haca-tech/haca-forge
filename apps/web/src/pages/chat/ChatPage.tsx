@@ -41,6 +41,7 @@ import { ChatChannelTypeDetail, ChatMessageType, ChannelMemberType, ChatReaction
 import { confirmDialog, toast } from '../../lib/uiFeedback';
 import { useAccess } from '../../lib/access';
 
+import { DataLoader } from '../../components/DataLoader';
 const ENTER_TO_SEND_KEY = 'haca.chat.enterToSend';
 const GROUPING_WINDOW_MS = 5 * 60 * 1000;
 
@@ -1396,7 +1397,9 @@ export default function ChatPage() {
             </div>
           </div>
         ) : !activeChannel ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-ui-muted">Loading conversation…</div>
+          <div className="flex-1 flex items-center justify-center">
+            <DataLoader label="Loading conversation…" />
+          </div>
         ) : (
           <>
             {/* Header */}
@@ -1529,7 +1532,7 @@ export default function ChatPage() {
               data-testid="chat-message-stream"
             >
               {loadingMessages ? (
-                <div className="text-center py-10 text-sm text-ui-muted">Loading messages…</div>
+                <DataLoader label="Loading messages…" />
               ) : messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-center text-ui-muted">
                   <div>

@@ -66,6 +66,7 @@ import { AskForHelpDialog, HelpRequestsCard, useHelpRequests } from '../../compo
 import { confirmDialog, promptDialog, toast } from '../../lib/uiFeedback';
 import { useAccess } from '../../lib/access';
 
+import { DataLoader } from '../../components/DataLoader';
 const NO_SUBMISSION_TO_REVIEW =
   'This step has no submission to review yet. It can be approved or sent back once the owner submits their work.';
 
@@ -608,10 +609,7 @@ export const WorkDetailPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-ui-ink border-t-transparent rounded-full motion-safe:animate-spin mb-4" />
-        <p className="text-sm font-semibold text-ui-muted">Loading work item details...</p>
-      </div>
+      <DataLoader variant="page" label="Loading work item details..." />
     );
   }
 

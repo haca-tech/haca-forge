@@ -4,6 +4,7 @@ import { Share2, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { apiFetch } from '../../lib/api';
 import { ChatChannelTypeDetail } from '@mmp/shared';
 
+import { DataLoader } from '../../components/DataLoader';
 interface ShareToChatModalProps {
   assetId: string;
   assetType: 'clip' | 'finalCut' | 'designImages' | 'designPdf' | 'document';
@@ -161,8 +162,8 @@ export function ShareToChatModal({
               Destination Channel <span className="text-ui-ink" aria-hidden="true">*</span>
             </label>
             {loading ? (
-              <div className="p-2.5 rounded-xl border border-ui-line text-xs text-ui-muted">
-                Loading channels...
+              <div className="p-2.5 rounded-xl border border-ui-line">
+                <DataLoader variant="inline" label="Loading channels..." />
               </div>
             ) : (
               <select

@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSocket } from '../hooks/useSocket';
 import { apiFetch } from '../lib/api';
 
+import { DataLoader } from './DataLoader';
 export const NotificationCenter: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -220,7 +221,7 @@ export const NotificationCenter: React.FC = () => {
             {/* Notifications List */}
             <div className="max-h-80 overflow-y-auto divide-y divide-slate-100/80 my-1 pr-1">
               {isLoading ? (
-                <div className="py-12 text-center text-slate-400">Loading notifications...</div>
+                <DataLoader label="Loading notifications..." />
               ) : notifications.length === 0 ? (
                 <div className="py-12 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
                   <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300">

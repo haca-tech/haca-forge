@@ -51,6 +51,7 @@ import {
 import { toast } from '../../lib/uiFeedback';
 import { AskForHelpDialog, helpApi, type HelpData } from '../../components/help/HelpRequests';
 
+import { DataLoader } from '../../components/DataLoader';
 interface WorkItemSummary {
   /** Phase 7: computed time labels. */
   timeLabels?: TimeLabel[];
@@ -934,9 +935,7 @@ export const MyWorkPage: React.FC = () => {
 
       {/* 3. Main Queues */}
       {isLoading ? (
-        <div className="py-20 text-center text-xs text-ui-muted animate-pulse">
-          Loading personal work queue...
-        </div>
+        <DataLoader className="py-20" label="Loading personal work queue..." />
       ) : !hasAnyFilteredActive && filteredCompleted.length === 0 ? (
         <div className="glass-card p-12 text-center rounded-3xl border border-white/80 shadow-glass">
           <Sparkles className="w-10 h-10 text-emerald-500 mx-auto mb-3" />

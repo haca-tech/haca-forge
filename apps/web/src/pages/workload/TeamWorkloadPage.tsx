@@ -9,6 +9,7 @@ import { useDialogFocus } from '../../lib/useDialogFocus';
 import { displayStatus, statusClass, statusTone } from '../../lib/statusTone';
 import { BandChip, countsText, type WorkloadFigures, type WorkloadList, type WorkloadRow } from '../../lib/workload';
 
+import { DataLoader } from '../../components/DataLoader';
 /**
  * Team Workload (step counts). A planning view: how many steps each person has in progress
  * and due this week, against their limit. Rows are sorted by name, never ranked by load.
@@ -67,7 +68,7 @@ const PersonPanel: React.FC<{ personId: string; onClose: () => void }> = ({ pers
           </button>
         </div>
         {error && <p role="alert" className="text-sm text-ui-ink">{error}</p>}
-        {!data && !error && <p className="text-sm text-ui-muted">Loading…</p>}
+        {!data && !error && <DataLoader label="Loading…" />}
         {data && data.steps.length === 0 && <p className="text-sm text-ui-muted">No open steps.</p>}
         {data && data.steps.length > 0 && (
           <ul className="space-y-2" aria-label="Open steps">
@@ -323,7 +324,11 @@ export const TeamWorkloadPage: React.FC = () => {
       </div>
 
       {error && <p role="alert" className="p-3 rounded-xl status-tint status-changes text-xs font-semibold">{error}</p>}
-      {!data && !error && <div className="glass-card p-8 text-center text-sm text-ui-muted">Loading…</div>}
+      {!data && !error && (
+        <div className="glass-card">
+          <DataLoader label="Loading…" />
+        </div>
+      )}
       {data && rows.length === 0 && (
         <div className="glass-card p-8 text-center text-sm text-ui-muted">
           <Users className="w-8 h-8 mx-auto mb-2 text-ui-muted" aria-hidden="true" /> Nobody matches these filters.

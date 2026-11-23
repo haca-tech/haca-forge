@@ -15,6 +15,7 @@ import { VideoPlayer } from './VideoPlayer';
 import { MediaThread } from './MediaThread';
 import { toast } from '../../../lib/uiFeedback';
 
+import { DataLoader } from '../../../components/DataLoader';
 interface ShootReviewViewProps {
   stageItemId: string;
   workItemTitle: string;
@@ -254,8 +255,8 @@ export const ShootReviewView: React.FC<ShootReviewViewProps> = ({
       )}
 
       {loading && (
-        <div className="p-2 text-center text-xs text-ui-muted bg-white/60 border-b border-ui-line">
-          Loading clips for review...
+        <div className="p-2 flex justify-center bg-white/60 border-b border-ui-line">
+          <DataLoader variant="inline" label="Loading clips for review..." />
         </div>
       )}
 

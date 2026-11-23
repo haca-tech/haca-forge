@@ -1,4 +1,4 @@
-import { getStepStatusLabel, INTERVAL_KIND_LABELS, PAUSE_REASON_LABELS } from '@mmp/shared';
+import { getStepStatusLabel, INTERVAL_KIND_LABELS, PAUSE_REASON_LABELS, PHONE_VERIFICATION_REQUIRED } from '@mmp/shared';
 import React, { useState, useEffect, useRef } from 'react';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
@@ -49,6 +49,7 @@ import {
 import { promptDialog, toast } from '../../lib/uiFeedback';
 import { roleAccess, useAccess } from '../../lib/access';
 
+import { DataLoader } from '../../components/DataLoader';
 export const WorkerProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -140,6 +141,8 @@ export const WorkerProfilePage: React.FC = () => {
   const [otpSuccess, setOtpSuccess] = useState<string | null>(null);
   const [otpCountdown, setOtpCountdown] = useState(0);
   const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
+  // A new number needs a code only while PHONE_VERIFICATION_REQUIRED is on (off for now).
+  const needsCode = PHONE_VERIFICATION_REQUIRED && !isPhoneVerified;
 
   useEffect(() => {
     if (otpCountdown <= 0) return;
@@ -247,10 +250,7 @@ export const WorkerProfilePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-3">
-        <div className="w-8 h-8 border-3 border-ui-line border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs font-semibold text-ui-muted">Loading worker profile...</p>
-      </div>
+      <DataLoader variant="page" label="Loading worker profile..." />
     );
   }
 
@@ -500,9 +500,10 @@ export const WorkerProfilePage: React.FC = () => {
 
     const cleanPhone = profileForm.phone.replace(/[\s\-\(\)]/g, '');
     const cleanInitial = initialPhone.replace(/[\s\-\(\)]/g, '');
+    const cleanWhatsapp = profileForm.whatsappNumber.replace(/[\s\-\(\).]/g, '');
 
-    // Mobile verification enforcement
-    if (cleanPhone && cleanPhone !== cleanInitial && !isPhoneVerified) {
+    // Mobile verification enforcement (only while PHONE_VERIFICATION_REQUIRED is on)
+    if (PHONE_VERIFICATION_REQUIRED && cleanPhone && cleanPhone !== cleanInitial && !isPhoneVerified) {
       setProfileError('Mobile phone number must be verified with OTP before saving.');
       return;
     }
@@ -514,7 +515,8 @@ export const WorkerProfilePage: React.FC = () => {
         const payload: any = {
           name: profileForm.name.trim(),
           preferredName: profileForm.preferredName.trim(),
-          whatsappNumber: profileForm.whatsappNumber,
+          // Cleaned like the mobile number: "+91 90721 90088" is saved as "+919072190088".
+          whatsappNumber: cleanWhatsapp,
           about: profileForm.about.trim(),
           languages: profileForm.languages,
           skills: profileForm.skills,
@@ -542,7 +544,7 @@ export const WorkerProfilePage: React.FC = () => {
           preferredName: profileForm.preferredName.trim(),
           email: profileForm.email.trim(),
           phone: cleanPhone,
-          whatsappNumber: profileForm.whatsappNumber,
+          whatsappNumber: cleanWhatsapp,
           about: profileForm.about.trim(),
           languages: profileForm.languages,
           skills: profileForm.skills,
@@ -560,7 +562,10 @@ export const WorkerProfilePage: React.FC = () => {
         setTimeout(() => setShowEditProfileModal(false), 500);
       }
     } catch (err: any) {
-      setProfileError(err?.message || 'Failed to update profile.');
+      // A validation error names the field ("WhatsApp number must be a valid format …"), not just
+      // "Invalid input parameters or request body".
+      const fieldMessage = Array.isArray(err?.details) ? err.details.find((d: any) => d?.message)?.message : undefined;
+      setProfileError(fieldMessage || err?.message || 'Failed to update profile.');
     } finally {
       setSavingProfile(false);
     }
@@ -1805,16 +1810,17 @@ export const WorkerProfilePage: React.FC = () => {
                     <span>Mobile Phone Number</span>
                     <span className="text-ui-ink" aria-hidden="true">*</span>
                   </label>
-                  {isPhoneVerified ? (
-                    <span className="status-chip status-approved text-[11px] font-semibold px-2 py-0.5">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      Verified
-                    </span>
-                  ) : (
-                    <span className="status-chip status-waiting text-[11px] font-semibold px-2 py-0.5">
-                      Verification Required
-                    </span>
-                  )}
+                  {PHONE_VERIFICATION_REQUIRED &&
+                    (isPhoneVerified ? (
+                      <span className="status-chip status-approved text-[11px] font-semibold px-2 py-0.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="status-chip status-waiting text-[11px] font-semibold px-2 py-0.5">
+                        Verification Required
+                      </span>
+                    ))}
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2">
@@ -1828,7 +1834,7 @@ export const WorkerProfilePage: React.FC = () => {
                     />
                   </div>
 
-                  {!isPhoneVerified && (
+                  {needsCode && (
                     <button
                       type="button"
                       onClick={handleSendPhoneOtp}
@@ -1857,15 +1863,15 @@ export const WorkerProfilePage: React.FC = () => {
 
                 <p className="text-[11px] text-ui-muted">
                   Enter mobile number with country code (e.g. +91 9876543210 or 9000000011).
-                  To save a new number, verify it with a 6-digit code sent to your registered email.
+                  {PHONE_VERIFICATION_REQUIRED && ' To save a new number, verify it with a 6-digit code sent to your registered email.'}
                 </p>
 
-                {!isPhoneVerified && !otpSent && otpError && (
+                {needsCode && !otpSent && otpError && (
                   <p className="text-xs font-semibold rounded-lg px-2 py-1 status-tint status-changes">{otpError}</p>
                 )}
 
                 {/* OTP Verification Box */}
-                {!isPhoneVerified && otpSent && (
+                {needsCode && otpSent && (
                   <div className="p-3.5 rounded-2xl bg-white border border-ui-line shadow-2xs space-y-3 animate-in fade-in duration-150">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-ui-ink">
@@ -2088,7 +2094,8 @@ export const WorkerProfilePage: React.FC = () => {
                   type="submit"
                   disabled={
                     savingProfile ||
-                    (Boolean(profileForm.phone.replace(/[\s\-\(\)]/g, '')) &&
+                    (PHONE_VERIFICATION_REQUIRED &&
+                      Boolean(profileForm.phone.replace(/[\s\-\(\)]/g, '')) &&
                       profileForm.phone.replace(/[\s\-\(\)]/g, '') !==
                         initialPhone.replace(/[\s\-\(\)]/g, '') &&
                       !isPhoneVerified)

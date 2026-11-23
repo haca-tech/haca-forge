@@ -16,6 +16,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../lib/api';
 
+import { DataLoader } from '../components/DataLoader';
 export const NotificationsPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -177,7 +178,7 @@ export const NotificationsPage: React.FC = () => {
       {/* Notifications List */}
       <div className="glass-card overflow-hidden divide-y divide-ui-line">
         {isLoading ? (
-          <div className="py-20 text-center text-ui-muted text-sm">Loading notifications...</div>
+          <DataLoader className="py-20" label="Loading notifications..." />
         ) : filteredNotifications.length === 0 ? (
           <div className="py-20 text-center text-ui-muted flex flex-col items-center justify-center gap-3">
             <div className="w-12 h-12 rounded-full bg-white/70 flex items-center justify-center text-ui-muted">

@@ -5,6 +5,7 @@ import { CALENDAR_LIST, STAGE_KEYS, monthKeyInAppTz } from '@mmp/shared';
 import { apiFetch } from '../../lib/api';
 import { REPORT_TABS, ReportView, type ReportData, type ReportFilters, type ReportName } from './ReportViews';
 
+import { DataLoader } from '../../components/DataLoader';
 const isReport = (v: string | null): v is ReportName => REPORT_TABS.some((t) => t.id === v);
 
 export function readReportFilters(params: URLSearchParams): ReportFilters {
@@ -136,7 +137,9 @@ export const ReportsPage: React.FC = () => {
             {error}
           </div>
         ) : !data ? (
-          <div className="glass-card p-6 text-sm text-ui-muted">Loading report…</div>
+          <div className="glass-card">
+            <DataLoader label="Loading report…" />
+          </div>
         ) : data ? (
           <div aria-busy={loading} data-testid={`report-${report}`}>
             <ReportView name={report} data={data} filters={filters} />

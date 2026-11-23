@@ -8,6 +8,7 @@ import { TimeLabelChips } from '../../components/TimeLabelChips';
 import { fmtDate, fmtHours } from '../../lib/reportExport';
 import { firstPassText, onTimeText, projectStatusText, workTimeText, type ProjectKpis } from './ReportViews';
 
+import { DataLoader } from '../../components/DataLoader';
 interface KpiStep {
   id: string;
   stepType: string;
@@ -67,7 +68,7 @@ export const ProjectKpiPage: React.FC = () => {
 
   if (state === 'missing') return <NotFoundState />;
   if (state === 'error') return <div className="glass-card max-w-xl mx-auto my-16 p-8 text-sm">Could not load this project.</div>;
-  if (!data) return <div className="glass-card max-w-xl mx-auto my-16 p-8 text-sm text-ui-muted">Loading project…</div>;
+  if (!data) return <DataLoader variant="page" label="Loading project…" />;
 
   const { project, kpis, steps } = data;
   return (

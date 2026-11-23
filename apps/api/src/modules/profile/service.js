@@ -18,7 +18,7 @@ import {
 } from '../../lib/email/index.js';
 import { createNotification } from '../notifications/service.js';
 import { logger } from '../../lib/logger.js';
-import { normalizeRole, isApprover, isReadOnlyViewer, isWorker, activeStepLimitOf } from '@mmp/shared';
+import { normalizeRole, isApprover, isReadOnlyViewer, isWorker, activeStepLimitOf, PHONE_VERIFICATION_REQUIRED } from '@mmp/shared';
 import { AccessRequest } from '../access/model.js';
 import { CalendarPlan } from '../calendar/plan.model.js';
 import { WorkItem } from '../workItems/model.js';
@@ -350,8 +350,13 @@ export async function updateProfile(userId, data) {
   if (data.phone !== undefined) {
     const cleanPhone = normalizePhone(data.phone);
     if (cleanPhone && cleanPhone !== user.phone) {
-      // Must be verified via OTP in production or when token/enforceOtp is specified
-      if (data.phoneVerificationToken || data.enforceOtp || env.NODE_ENV !== 'test') {
+      // A code is needed only while PHONE_VERIFICATION_REQUIRED is on (off for now: the number is
+      // entered directly). A verification token, when sent, is still checked.
+      const codeRequired = PHONE_VERIFICATION_REQUIRED && (data.enforceOtp || env.NODE_ENV !== 'test');
+      user.phoneVerified = false;
+      user.phoneVerifiedAt = null;
+      user.phoneVerifiedVia = null;
+      if (data.phoneVerificationToken || codeRequired) {
         const verification = await PhoneVerification.findOne({
           userId: user._id,
           phone: cleanPhone,
@@ -367,12 +372,12 @@ export async function updateProfile(userId, data) {
         }
 
         await PhoneVerification.deleteOne({ _id: verification._id });
+        user.phoneVerified = true;
+        user.phoneVerifiedAt = new Date();
         user.phoneVerifiedVia = verification.channel || 'email';
       }
 
       user.phone = cleanPhone;
-      user.phoneVerified = true;
-      user.phoneVerifiedAt = new Date();
       changedFields.push('phone');
     } else if (!cleanPhone && user.phone) {
       user.phone = '';

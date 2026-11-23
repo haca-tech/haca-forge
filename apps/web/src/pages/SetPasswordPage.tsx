@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { apiFetch, ApiError } from '../lib/api';
 import { Lock, CheckCircle2, AlertCircle, ArrowRight, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
+import { DataLoader } from '../components/DataLoader';
 export const SetPasswordPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
@@ -124,10 +125,7 @@ export const SetPasswordPage: React.FC = () => {
 
         <div className="glass-modal p-8 shadow-modal-glass border border-white">
           {isVerifying ? (
-            <div className="text-center py-8 space-y-3">
-              <div className="w-8 h-8 border-2 border-ui-ink border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs text-slate-500 font-medium">Verifying security token...</p>
-            </div>
+            <DataLoader label="Verifying security token..." />
           ) : !token || verifyError ? (
             <div className="text-center py-4 space-y-4">
               <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-600 flex items-center justify-center mx-auto">

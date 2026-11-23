@@ -5,6 +5,7 @@ import { CALENDAR_LIST, formatShortDateTime } from '@mmp/shared';
 import { apiFetch } from '../../lib/api';
 import { RejectPauseDialog, pauseApi, shortDay } from '../../components/pause/PauseControls';
 
+import { DataLoader } from '../../components/DataLoader';
 interface PendingItem {
   _id: string;
   workItem: { _id: string; title: string; stageKey?: string; status?: string; calendar: string };
@@ -61,7 +62,11 @@ export const PauseRequestsTab: React.FC<{ onCount?: (n: number) => void }> = ({ 
     }
   };
 
-  if (!items && !error) return <div className="glass-card p-8 text-center text-xs text-ui-muted">Loading pause requests…</div>;
+  if (!items && !error) return (
+    <div className="glass-card">
+      <DataLoader label="Loading pause requests…" />
+    </div>
+  );
 
   return (
     <div className="space-y-3" data-testid="pause-requests-tab">

@@ -21,6 +21,7 @@ import { ShareToChatModal } from '../../chat/ShareToChatModal';
 import { toast } from '../../../lib/uiFeedback';
 import { useAccess } from '../../../lib/access';
 
+import { DataLoader } from '../../../components/DataLoader';
 interface MediaThreadProps {
   clipId: string;
   clipTitle: string;
@@ -255,8 +256,8 @@ export const MediaThread: React.FC<MediaThreadProps> = ({
         className="flex-1 overflow-y-auto p-4 space-y-3 relative"
       >
         {loading ? (
-          <div className="h-full flex items-center justify-center text-ui-muted text-xs">
-            Loading messages...
+          <div className="h-full flex items-center justify-center">
+            <DataLoader label="Loading messages..." />
           </div>
         ) : messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-ui-muted text-xs gap-2 p-6 text-center">

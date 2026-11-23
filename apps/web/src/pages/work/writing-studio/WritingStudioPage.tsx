@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { toast } from '../../../lib/uiFeedback';
 
+import { DataLoader } from '../../../components/DataLoader';
 export const WritingStudioPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -539,10 +540,7 @@ export const WritingStudioPage: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-ui-canvas flex items-center justify-center text-ui-ink">
-        <div className="flex flex-col items-center gap-3" role="status">
-          <div className="w-8 h-8 border-4 border-ui-ink border-t-transparent rounded-full motion-safe:animate-spin" aria-hidden="true" />
-          <p className="text-xs font-semibold text-ui-muted">Loading Writing Studio...</p>
-        </div>
+        <DataLoader variant="page" label="Loading Writing Studio..." />
       </div>
     );
   }

@@ -16,6 +16,7 @@ import {
 import { RATING_TAGS } from '@mmp/shared';
 import { toast } from '../lib/uiFeedback';
 
+import { DataLoader } from './DataLoader';
 interface RatingEditItem {
   editedBy?: { name?: string; role?: string } | string;
   editedAt: string;
@@ -175,9 +176,7 @@ export const RatingsFeedbackSection: React.FC<RatingsFeedbackSectionProps> = ({
 
   if (isLoading) {
     return (
-      <div className="p-8 text-center text-slate-400 text-xs animate-pulse">
-        Loading quality ratings and feedback...
-      </div>
+      <DataLoader className="py-8" label="Loading quality ratings and feedback..." />
     );
   }
 

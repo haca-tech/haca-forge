@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { afterOwnerChange } from '../workItems/pause.service.js';
 import { markAwaitingReview } from '../workItems/reviewState.js';
 import { evaluateSteps } from '../workItems/timeLabels.js';
-import { hasTimeLabel, projectDelivery, projectTimeLabel, workflowLabel, isMonthKey, monthPeriod, istDateKey, isApprover, isWorker, PAUSE_REASON_LABELS } from '@mmp/shared';
+import { hasTimeLabel, stepIsAtRisk, projectDelivery, projectTimeLabel, workflowLabel, isMonthKey, monthPeriod, istDateKey, isApprover, isWorker, PAUSE_REASON_LABELS } from '@mmp/shared';
 
 import { ContentPiece } from './contentPiece.model.js';
 import { WorkItem } from '../workItems/model.js';
@@ -242,6 +242,8 @@ export async function listContentPieces(filters = {}, user) {
     p.hasOverdue = p.stages.some((s) => hasTimeLabel(s.timeLabels, 'overdue')) || p.projectLabel?.kind === 'overdue';
     p.hasDoneLate = p.stages.some((s) => hasTimeLabel(s.timeLabels, 'done_late')) || p.projectLabel?.kind === 'completed_late';
     p.hasBlocked = p.hasBlocked || p.stages.some((s) => hasTimeLabel(s.timeLabels, 'blocked'));
+    // Due within 3 days (IST) on a step being worked on, and not already overdue (shared rule).
+    p.hasAtRisk = !p.hasOverdue && p.stages.some((s) => stepIsAtRisk(s, now));
   }
 
   // Pause with lead approval: the reason behind a "Paused" / "Pause requested" step (chip tooltip).
@@ -275,6 +277,10 @@ export async function listContentPieces(filters = {}, user) {
     if (filters.waitingApproval && !p.hasWaitingApproval) return false;
     if (filters.blocked && !p.hasBlocked) return false;
     if (filters.overdue && !p.hasOverdue) return false;
+    if (filters.departmentId) {
+      const inDepartment = p.stages.some((s) => String(s.departmentId || '') === String(filters.departmentId));
+      if (!inDepartment) return false;
+    }
     if (filters.ownerId) {
       const hasOwner = p.stages.some(
         (s) => s.ownerId?._id?.toString() === filters.ownerId.toString()

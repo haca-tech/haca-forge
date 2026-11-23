@@ -16,6 +16,7 @@ import { START_PAGE_OPTIONS, DATE_FORMAT_OPTIONS, TIME_FORMAT_OPTIONS, WEEK_STAR
 import { confirmDialog, toast } from '../lib/uiFeedback';
 import { useAccess } from '../lib/access';
 
+import { DataLoader } from '../components/DataLoader';
 interface SessionItem {
   id: string;
   _id?: string;
@@ -500,7 +501,7 @@ export const SettingsPage: React.FC = () => {
 
                 <div className="space-y-3">
                   {loadingSessions ? (
-                    <p className="text-xs text-ui-muted italic py-4 text-center">Loading active devices...</p>
+                    <DataLoader className="py-6" label="Loading active devices..." />
                   ) : !Array.isArray(sessions) || sessions.length === 0 ? (
                     <p className="text-xs text-ui-muted italic py-4 text-center">No active sessions recorded.</p>
                   ) : (

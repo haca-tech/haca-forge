@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { monthKeyInAppTz } from '@mmp/shared';
 
 export interface GlobalFilterState {
   departmentId: string;
@@ -19,7 +20,7 @@ interface GlobalFilterContextType {
 export const defaultFilters: GlobalFilterState = {
   departmentId: 'all',
   ownerId: 'all',
-  month: new Date().toISOString().slice(0, 7),
+  month: monthKeyInAppTz(new Date()),
   status: 'all',
 };
 
@@ -32,7 +33,7 @@ export const GlobalFilterProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const filters: GlobalFilterState = useMemo(() => ({
     departmentId: searchParams.get('departmentId') || 'all',
     ownerId: searchParams.get('ownerId') || 'all',
-    month: searchParams.get('month') || new Date().toISOString().slice(0, 7),
+    month: searchParams.get('month') || monthKeyInAppTz(new Date()),
     status: searchParams.get('status') || 'all',
   }), [searchParams]);
 

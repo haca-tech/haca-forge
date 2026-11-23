@@ -7,6 +7,7 @@ import { Person } from '../src/modules/people/model.js';
 import { PhoneVerification } from '../src/modules/profile/phoneVerification.model.js';
 import { connectDB } from '../src/config/db.js';
 import { resetEmailThrottle } from '../src/lib/email/index.js';
+import { PHONE_VERIFICATION_REQUIRED } from '@mmp/shared';
 
 describe('PHONE OTP VERIFICATION & PROFILE EMAIL LOCK SUITE', () => {
   let testWorker, testAdmin;
@@ -120,14 +121,29 @@ describe('PHONE OTP VERIFICATION & PROFILE EMAIL LOCK SUITE', () => {
   });
 
   describe('2. Profile Update with Phone Verification & Email Lock', () => {
-    it('blocks updating phone number when enforceOtp is true without token', async () => {
+    it('saves a new phone number directly, without a code (PHONE_VERIFICATION_REQUIRED is off)', async () => {
+      expect(PHONE_VERIFICATION_REQUIRED).toBe(false);
       const res = await request(app)
         .patch('/api/me/profile')
         .set('Authorization', `Bearer ${workerToken}`)
         .send({
-          phone: '+919999999999',
+          phone: '+91 99999 99999',
           enforceOtp: true,
         });
+
+      expect(res.status).toBe(200);
+      const saved = await Person.findById(testWorker._id);
+      expect(saved.phone).toBe('+919999999999');
+      // Entered directly, so not marked verified.
+      expect(saved.phoneVerified).toBe(false);
+      expect(saved.phoneVerifiedVia).toBeNull();
+    });
+
+    it('a verification token that is sent is still checked', async () => {
+      const res = await request(app)
+        .patch('/api/me/profile')
+        .set('Authorization', `Bearer ${workerToken}`)
+        .send({ phone: '+919888888888', phoneVerificationToken: 'not-a-real-token' });
 
       expect(res.status).toBe(400);
       expect(res.body.code).toBe('PHONE_OTP_REQUIRED');
