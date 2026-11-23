@@ -282,7 +282,7 @@ describe('INDIVIDUAL TRACKING AND TIMING SUITE', () => {
       expect(submittedItem.submittedAt).toBeDefined();
       expect(submittedItem.rounds[0].submittedAt).toBeDefined();
 
-      // 3. Creative Head requests a revision
+      // 3. Marketing Head requests a revision
       const revRes = await request(app)
         .post(`/api/submissions/${submitRes.body.data._id}/request-revision`)
         .set('Authorization', `Bearer ${headToken}`)
@@ -328,7 +328,7 @@ describe('INDIVIDUAL TRACKING AND TIMING SUITE', () => {
       expect(resubmittedItem.resubmittedAt).toBeDefined();
       expect(resubmittedItem.rounds[1].submittedAt).toBeDefined();
 
-      // 5. Creative Head approves with rating
+      // 5. Marketing Head approves with rating
       const approveRes = await request(app)
         .post(`/api/submissions/${resubmitRes.body.data._id}/approve`)
         .set('Authorization', `Bearer ${headToken}`)
@@ -379,7 +379,7 @@ describe('INDIVIDUAL TRACKING AND TIMING SUITE', () => {
       expect(smRes.body.data.summary.totalCompleted).toBeDefined();
       expect(smRes.body.data.summary.onTimeRate).toBeDefined();
 
-      // Creative Head can view Bob
+      // Marketing Head can view Bob
       const headRes = await request(app)
         .get(`/api/people/${workerB._id}/work-history`)
         .set('Authorization', `Bearer ${headToken}`);

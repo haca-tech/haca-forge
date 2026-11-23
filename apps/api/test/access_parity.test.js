@@ -1,5 +1,5 @@
 // PERMANENT parity test (Phase B): the new access resolver must return exactly what today's
-// hard-coded rules return, for access (7 roles × every action × 5 calendars × owner and
+// hard-coded rules return, for access (8 roles × every action × 5 calendars × owner and
 // non-owner) and for routing (reviewer, plan approver, poster, notification recipients,
 // eligibility). Old rules are called directly where they are functions, or mirrored from the
 // cited source line where they are inline queries. 100% equal or the test fails.
@@ -76,7 +76,8 @@ const ACTIONS = [
   ['share any asset (chat 1060)', (r) => LEADERS.includes(r), (u) => can(u, 'chat.share_asset')],
   ['revoke any share (chat 1154)', (r) => ['admin', ...APPROVER_ROLES].includes(r), (u) => can(u, 'chat.revoke_share')],
   ['manage any group (chat 303..779)', (r) => r === 'admin', (u) => can(u, 'chat.manage_groups')],
-  ['read-only role (auth.js 99)', (r) => isReadOnlyViewer(r), (u) => isReadOnlyRole(u)],
+  // The Viewer is a new role with no old rule: read-only by definition.
+  ['read-only role (auth.js 99)', (r) => isReadOnlyViewer(r) || r === 'viewer', (u) => isReadOnlyRole(u)],
   ['takes steps (WORKLOAD_ROLES)', (r) => WORKLOAD_ROLES.includes(r), (u) => takesSteps(u)],
 ];
 
@@ -115,7 +116,7 @@ describe('Access parity: old rules vs the resolver', () => {
     expect(Object.keys(snapshot).length).toBeGreaterThan(120);
   });
 
-  it(`decision actions: 7 roles × ${ACTIONS.length} actions × 5 calendars × owner/non-owner are 100% equal`, () => {
+  it(`decision actions: 8 roles × ${ACTIONS.length} actions × 5 calendars × owner/non-owner are 100% equal`, () => {
     let checks = 0;
     const diffs = [];
     for (const role of ROLE_KEYS) {

@@ -2,7 +2,7 @@ import { isReadOnlyViewer } from '@mmp/shared';
 import { ChannelMember } from './channelMember.model.js';
 import { logger } from '../../lib/logger.js';
 import { withoutContact } from '../../lib/socketHub.js';
-import { isReadOnly } from '../../lib/roleAccess.js';
+import { hasPermission, isReadOnly } from '../../lib/roleAccess.js';
 
 let ioInstance = null;
 
@@ -25,8 +25,10 @@ export function setupChatSocket(io, socket) {
 
   if (!userId) return;
   const isExecutive = isReadOnly(socket.user);
+  // No chat permission (the Viewer): no channel room, whatever the membership says.
+  const canChat = hasPermission(socket.user, 'chat.use') || hasPermission(socket.user, 'chat.read');
   const isMember = async (channelId) =>
-    Boolean(channelId) && Boolean(await ChannelMember.exists({ channelId, userId }));
+    canChat && Boolean(channelId) && Boolean(await ChannelMember.exists({ channelId, userId }));
 
   // 1. Join channel room with DB membership verification
   socket.on('chat:join', async ({ channelId } = {}, callback) => {

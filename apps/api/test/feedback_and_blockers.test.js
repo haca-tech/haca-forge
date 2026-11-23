@@ -68,7 +68,7 @@ describe('Phase 5: Feedback Loops, Revision Flags & Blockers', () => {
     });
 
     leadUser = await Person.create({
-      name: 'Creative Head Reviewer',
+      name: 'Marketing Head Reviewer',
       email: 'lead@feedback-test.com',
       role: 'creative_lead',
       departmentId: deptDesign._id,
@@ -255,7 +255,7 @@ describe('Phase 5: Feedback Loops, Revision Flags & Blockers', () => {
       expect(res.status).toBe(400);
     });
 
-    it('allows Creative Head to classify root cause with 1 of 7 fixed values', async () => {
+    it('allows Marketing Head to classify root cause with 1 of 7 fixed values', async () => {
       const flag = await RevisionFlag.findOne({ workItemId: testWorkItem._id });
       const res = await request(app)
         .post(`/api/revisions/flags/${flag._id}/classify`)

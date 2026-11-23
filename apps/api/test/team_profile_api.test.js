@@ -56,7 +56,7 @@ describe('Team Directory and Worker Profile API Suite', () => {
     });
 
     creativeHead = await Person.create({
-      name: 'TP Creative Head',
+      name: 'TP Marketing Head',
       email: 'head@team-profile-test.local',
       role: 'creative_lead',
       jobRole: 'Creative Manager (TL)',

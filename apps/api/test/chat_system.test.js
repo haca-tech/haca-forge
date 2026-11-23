@@ -62,7 +62,7 @@ describe('Team Chat Comprehensive API Suite (Phase CH1)', () => {
       profileId: testProfile._id,
     });
     head = await Person.create({
-      name: 'Creative Head User',
+      name: 'Marketing Head User',
       preferredName: 'CreativeBoss',
       email: `head-${salt}@chat.com`,
       role: 'creative_lead',

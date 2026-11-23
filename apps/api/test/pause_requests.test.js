@@ -209,7 +209,7 @@ describe('Pause work with lead approval', () => {
       expect(String(s.deadline)).toBe(String(w.deadline)); // due date unchanged
     });
 
-    it('Ads steps go to the Growth Lead; admin decides any calendar; nobody decides their own request', async () => {
+    it('Ads steps go to the Marketing Growth Manager; admin decides any calendar; nobody decides their own request', async () => {
       const ads = await step('worker', { calendar: 'ads' });
       await ask('worker', ads);
       expect((await decide('creativeLead', ads, 'approve')).body.error.code).toBe('WRONG_CALENDAR');
@@ -434,7 +434,7 @@ describe('Pause work with lead approval', () => {
       expect((await decide('creativeLead', w, 'approve')).body.error.code).toBe('NOT_PENDING');
     });
 
-    it('posting a Post step withdraws it too (Ads: the Growth Lead is told)', async () => {
+    it('posting a Post step withdraws it too (Ads: the Marketing Growth Manager is told)', async () => {
       const post = await step('sm', { stageKey: 'Post', calendar: 'ads', reviewRequired: false });
       expect((await ask('sm', post)).status).toBe(201);
       const res = await as('sm').post(`/api/work/${post._id}/transition`, { toStatus: 'Published', publishedUrl: 'https://www.instagram.com/reel/C8xYz12AbCd/' });
@@ -495,7 +495,7 @@ describe('Pause work with lead approval', () => {
       expect((await as('other').post(`/api/work/${p._id}/resume`)).status).toBe(200);
     });
 
-    it('a plan moved to Ads sends its pending requests to the Growth Lead', async () => {
+    it('a plan moved to Ads sends its pending requests to the Marketing Growth Manager', async () => {
       const plan = await CalendarPlan.create({ code: `PT-${Date.now()}`, title: `${TAG} plan`, calendar: 'sm', kind: 'monthly', periodStart: new Date('2034-03-01'), periodEnd: new Date('2034-03-31'), createdById: P.sm._id });
       const w = await step('worker', { calendarPlanId: plan._id });
       await ask('worker', w);

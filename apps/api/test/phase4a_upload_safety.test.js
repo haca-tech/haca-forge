@@ -317,7 +317,7 @@ describe('Phase 4a: upload safety', () => {
           stageKey: 'Shoot',
           title: 'FORGED_SHARE',
           downloadUrl: 'javascript:document.title="RAN"',
-          owner: { name: 'Creative Head' },
+          owner: { name: 'Marketing Head' },
         },
       });
       expect(res.status).toBe(201);

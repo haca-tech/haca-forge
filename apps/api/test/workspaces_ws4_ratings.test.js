@@ -43,7 +43,7 @@ describe('Workspaces WS4: Ratings in Profiles, Guardrails, and Reports', () => {
     });
 
     creativeHeadUser = await Person.create({
-      name: 'Creative Head WS4',
+      name: 'Marketing Head WS4',
       email: 'ch@ws4-test.com',
       role: 'creative_lead',
       department: 'Creative',
@@ -468,7 +468,7 @@ describe('Workspaces WS4: Ratings in Profiles, Guardrails, and Reports', () => {
       expect(first.feedback).toBeDefined();
       expect(first.stageKey).toBeDefined();
       expect(first.deliverableTitle).toBe('WS4 Test Script Deliverable');
-      expect(first.raterName).toBe('Creative Head WS4');
+      expect(first.raterName).toBe('Marketing Head WS4');
       expect(first.seenAt).toBeNull();
     });
   });
@@ -523,7 +523,7 @@ describe('Workspaces WS4: Ratings in Profiles, Guardrails, and Reports', () => {
       expect(res.body.error?.code).toBe('FORBIDDEN_ACTION');
     });
 
-    it('allows Creative Head (the original rater) to edit rating and logs edit history', async () => {
+    it('allows Marketing Head (the original rater) to edit rating and logs edit history', async () => {
       const res = await request(app)
         .patch(`/api/submissions/ratings/${testRating1._id}`)
         .set('Authorization', `Bearer ${headToken}`)

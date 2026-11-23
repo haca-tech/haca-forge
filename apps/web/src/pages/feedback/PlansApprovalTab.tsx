@@ -48,9 +48,9 @@ interface CalendarPlanWaiting {
 export const PlansApprovalTab: React.FC = () => {
   const access = useAccess();
   const navigate = useNavigate();
-  // Plan row review is the Creative Lead's alone (PG-3); others see the queue read-only.
+  // Plan row review is the Creative Manager's alone (PG-3); others see the queue read-only.
   // The leads review plan rows; admin is a backup reviewer.
-  // Phase 13: the lead of the plan's calendar decides (Growth Lead: Ads; Creative Lead: the rest).
+  // Phase 13: the lead of the plan's calendar decides (Marketing Growth Manager: Ads; Creative Manager: the rest).
   // Nobody reviews their own plan (fixed rule).
   const canReviewPlan = (plan: { calendar?: string; createdById?: { _id: string } }) =>
     access.can('calendar.approve', { calendar: plan.calendar || 'sm', ownerId: plan.createdById?._id });
@@ -264,11 +264,11 @@ export const PlansApprovalTab: React.FC = () => {
               {/* Expanded Review Section */}
               {isExpanded && (
                 <div className="border-t border-ui-line p-4 space-y-4">
-                  {/* Creative Lead Action Bar */}
+                  {/* Creative Manager Action Bar */}
                   <div className="flex items-center justify-between flex-wrap gap-2 p-3 bg-white/60 rounded-xl">
                     <div className="flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-ui-ink" aria-hidden="true" />
-                      <span className="text-xs font-semibold text-ui-ink">Creative Lead Review Actions:</span>
+                      <span className="text-xs font-semibold text-ui-ink">Creative Manager Review Actions:</span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -285,7 +285,7 @@ export const PlansApprovalTab: React.FC = () => {
                         </button>
                       )}
                       {!canReviewPlan(plan) && plan.kind !== 'monthly' && (
-                        <p className="text-xs text-ui-muted">Only a Creative Lead, a Growth Lead or an Admin can approve or return plan rows.</p>
+                        <p className="text-xs text-ui-muted">Only a Creative Manager, a Marketing Growth Manager or an Admin can approve or return plan rows.</p>
                       )}
                       {plan.kind === 'monthly' && (
                         <p className="text-xs text-ui-muted">Monthly plans are reviewed row by row in the plan grid.</p>

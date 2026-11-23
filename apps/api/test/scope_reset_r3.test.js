@@ -33,7 +33,7 @@ import { setWorkspacesLockedForTests } from '../src/lib/workspaceLock.js';
 // (WORKSPACES_LOCKED). They run with it off, as the app will when it is unlocked.
 setWorkspacesLockedForTests(false);
 
-describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment Suite', () => {
+describe('SCOPE RESET R3: Calendar Plans, Marketing Head Approval and Assignment Suite', () => {
   let adminUser, headUser, smUser, execUser, writerUser, designerUser, editorUser;
   let adminToken, headToken, smToken, execToken, writerToken;
   let hacaProfile, contentDept, designDept, videoDept;
@@ -86,7 +86,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
     });
     adminToken = makeToken(adminUser);
 
-    // 2. Creative Head
+    // 2. Marketing Head
     headUser = await Person.create({
       name: 'Claire Head',
       email: 'creative.head@r3-test.com',
@@ -364,7 +364,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
   // ==========================================================================
   // 3. SUBMISSION, CREATIVE HEAD REVIEW & STAGE GENERATION
   // ==========================================================================
-  describe('3. Submission, Creative Head Review & Stage Generation', () => {
+  describe('3. Submission, Marketing Head Review & Stage Generation', () => {
     let testPlan, rowReelA, rowReelB, rowDesignPostable, rowDesignNonPostable;
     const finalDate = new Date(Date.now() + 25 * 86400000);
 
@@ -457,7 +457,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
       expect(stagesCount).toBe(0);
     });
 
-    it('Creative Head reviews plan: approve selected rows & request changes with comments', async () => {
+    it('Marketing Head reviews plan: approve selected rows & request changes with comments', async () => {
       // 1. Submit plan first
       await request(app)
         .post(`/api/calendar-plans/${testPlan._id}/submit`)
@@ -470,7 +470,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
         .send({ action: 'approve_all' });
       expect(smReviewRes.status).toBe(403);
 
-      // 3. Creative Head reviews: approve rowReelA and rowDesignPostable; request changes on rowReelB
+      // 3. Marketing Head reviews: approve rowReelA and rowDesignPostable; request changes on rowReelB
       const chReviewRes = await request(app)
         .post(`/api/calendar-plans/${testPlan._id}/review`)
         .set('Authorization', `Bearer ${headToken}`)
@@ -643,7 +643,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
       });
     });
 
-    it('worker submits review stage to Feedback -> Creative Head approves -> unlocks next stage', async () => {
+    it('worker submits review stage to Feedback -> Marketing Head approves -> unlocks next stage', async () => {
       // 1. Worker submits Script stage for approval
       await transitionService.transitionWorkItem(
         s1Script._id,
@@ -662,14 +662,14 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
       // 3. SM Manager cannot approve review stage (403)
       await expect(
         transitionService.transitionWorkItem(s1Script._id, { toStatus: 'Approved' }, smUser)
-      ).rejects.toThrow(/Review stages can be approved only by Creative Lead and Admin/);
+      ).rejects.toThrow(/Review stages can be approved only by Creative Manager and Admin/);
 
-      // 4. Creative Head cannot approve a review stage through /transition
+      // 4. Marketing Head cannot approve a review stage through /transition
       await expect(
         transitionService.transitionWorkItem(s1Script._id, { toStatus: 'Approved' }, headUser)
       ).rejects.toThrow(/Use the review flow/);
 
-      // 5. Creative Head approves Script stage through the review flow, with a rating
+      // 5. Marketing Head approves Script stage through the review flow, with a rating
       const { approveWithRating } = await import('../src/modules/submissions/service.js');
       const latest = await Submission.findOne({ workItemId: s1Script._id, version: { $gt: 0 } }).sort({ version: -1 });
       await approveWithRating(latest._id, { score: 4 }, headUser);
@@ -680,7 +680,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
       expect(unlockedShoot.unlockedAt).toBeDefined();
     });
 
-    it('non-review stage (Shoot): the owner cannot approve it; a Creative Head can, and the next stage unlocks', async () => {
+    it('non-review stage (Shoot): the owner cannot approve it; a Marketing Head can, and the next stage unlocks', async () => {
       // Unlock Shoot stage directly
       s2Shoot.isLocked = false;
       s2Shoot.status = 'In Progress';
@@ -992,7 +992,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
         .set('Authorization', `Bearer ${adminToken}`);
       expect(adminRes.status).toBe(200);
 
-      // 2. Creative Head
+      // 2. Marketing Head
       const headRes = await request(app)
         .get('/api/calendar-plans')
         .set('Authorization', `Bearer ${headToken}`);
@@ -1198,7 +1198,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
         .send({ toStatus: 'In Progress', comment: 'SM Manager wanted change' });
       expect(smRevRes.status).toBe(403);
 
-      // Creative Head requests revision -> 200, increments revisions, sends revision_requested notification
+      // Marketing Head requests revision -> 200, increments revisions, sends revision_requested notification
       const headRevRes = await request(app)
         .post(`/api/work-items/${stage._id}/transition`)
         .set('Authorization', `Bearer ${headToken}`)
@@ -1262,7 +1262,7 @@ describe('SCOPE RESET R3: Calendar Plans, Creative Head Approval and Assignment 
         profileId: hacaProfile._id,
       });
 
-      // Submit Stage 1 to Feedback and have Creative Head approve it
+      // Submit Stage 1 to Feedback and have Marketing Head approve it
       await request(app)
         .post(`/api/work-items/${st1._id}/transition`)
         .set('Authorization', `Bearer ${writerToken}`)

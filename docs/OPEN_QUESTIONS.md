@@ -15,10 +15,10 @@
 ### 1.2 Five Canonical Roles (`admin`, `creative_lead`, `creative_head`, `sm_manager`, `executive`)
 * **Decision:**
   * **`admin` (System Owner):** IT / System Owner outside the creative hierarchy. Derived all permissions. Only admin creates users, approves access requests, changes roles, grants elevated roles (`admin`, `creative_lead`, `creative_head`), suspends, resets passwords, forces logout. Excluded from workload and candidate pools.
-  * **`creative_lead` (Creative Leadership — formerly `marketing_head`):** Verifies and approves calendar plans (approve all, selected rows, request changes with row comments, or reject the entire plan with an overall concern); approves or requests revisions on review stages (`Script`, `Content`, `Design`, `Edit`); classifies revision root causes (7 canonical causes); reassigns owners; manages team operating fields (`departmentId`, `jobRole`, `workPreferences`, `reportsToIds`, `weeklyCapacityHours`); controls reports and automation. Cannot create users, suspend, or change roles.
-  * **`sm_manager` (Operational Planning Lead — formerly `team_lead`):** Uploads or enters calendar plans (`monthly` and `individual`), selects deliverable types with instant stage list and owner/deadline auto-fill suggestions, customizes suggestions (tagged 'set by SM Manager'), submits to Creative Lead. Once approved, can change stage owners/deadlines or reschedule $F$ with audit logging, tracks all stages in the Content Tracker, resolves blockers, monitors workload. Cannot approve plans or review stages.
+  * **`creative_lead` (Creative Managerership — formerly `marketing_head`):** Verifies and approves calendar plans (approve all, selected rows, request changes with row comments, or reject the entire plan with an overall concern); approves or requests revisions on review stages (`Script`, `Content`, `Design`, `Edit`); classifies revision root causes (7 canonical causes); reassigns owners; manages team operating fields (`departmentId`, `jobRole`, `workPreferences`, `reportsToIds`, `weeklyCapacityHours`); controls reports and automation. Cannot create users, suspend, or change roles.
+  * **`sm_manager` (Operational Planning Lead — formerly `team_lead`):** Uploads or enters calendar plans (`monthly` and `individual`), selects deliverable types with instant stage list and owner/deadline auto-fill suggestions, customizes suggestions (tagged 'set by SM Manager'), submits to Creative Manager. Once approved, can change stage owners/deadlines or reschedule $F$ with audit logging, tracks all stages in the Content Tracker, resolves blockers, monitors workload. Cannot approve plans or review stages.
   * **`creative_head` (Company Leadership Viewer):** CEO, Business Head, Directors. Universal read-only view of all marketing work, calendar, tracker, workload, and reports. Zero mutation privileges (HTTP 403 on all POST, PUT, PATCH, DELETE). People contact details (email/phone) masked. Excluded from workload and candidate pools.
-  * **`executive` (Creative Contributor / Worker):** Own dashboard and portal only (`/my-work`, personal Todo, own Calendar items, Work Detail, Notifications, My Account). Starts work, updates status, pastes deliverable links, submits to Creative Lead (review stages) or clicks Done and forward (non-review stages), replies to feedback, marks Blocked (9 canonical reasons), requests work from SM Manager. Sees only own items (downstream locked stages appear greyed out with scheduled due dates).
+  * **`executive` (Creative Contributor / Worker):** Own dashboard and portal only (`/my-work`, personal Todo, own Calendar items, Work Detail, Notifications, My Account). Starts work, updates status, pastes deliverable links, submits to Creative Manager (review stages) or clicks Done and forward (non-review stages), replies to feedback, marks Blocked (9 canonical reasons), requests work from SM Manager. Sees only own items (downstream locked stages appear greyed out with scheduled due dates).
   * **No Other Department or Team Lead Roles:** Department lead silos are eliminated. The "Creative Manager (TL) job-role approver" rule is replaced directly by the `creative_lead` role.
 
 ### 1.3 Single-Brand Mode (HACA Only)
@@ -65,7 +65,7 @@
 ### 4.2 Row Fields & Auto-Fill Suggestions
 * **Decision:** Selecting the deliverable type (and reel toggles) immediately creates the stage list, suggested owners, and suggested deadlines directly in the row draft.
 * **Row Fields:** `Posting date F`, `Posting time`, `Topic`, `Type` (15 types), `For team` (Sales, Marketing, Academics, Other), `Program or event`, `Brief` (up to 1,000 chars), `Reference link` (input URL only; never reuse output fields), `Priority` (Normal/Urgent, default Normal), `Remarks`, `Posting owner` (for live types), `Source video link` (when reel needsShoot=no).
-* **Owner Suggestions:** Evaluates active `executive` candidates matching `workPreferences[]`, under 85% workload (including draft plan stage hours: Content 2h, Script 2h, Design 4h, Shoot 4h, Edit 6h, Post 1h), ranked by lowest workload $\rightarrow$ fewest 90-day revisions $\rightarrow$ earliest availability. Fallback: `'No available person with this role'`. Admin, Creative Lead, SM Manager, Creative Head excluded.
+* **Owner Suggestions:** Evaluates active `executive` candidates matching `workPreferences[]`, under 85% workload (including draft plan stage hours: Content 2h, Script 2h, Design 4h, Shoot 4h, Edit 6h, Post 1h), ranked by lowest workload $\rightarrow$ fewest 90-day revisions $\rightarrow$ earliest availability. Fallback: `'No available person with this role'`. Admin, Creative Manager, SM Manager, Marketing Head excluded.
 * **Suggested Deadlines (Calendar days from $F$; 2-day buffer after last creation stage):**
   * Postable Design: Content $F-5$, Design $F-2$, Post $F$.
   * Non-postable Design: Content $F-5$, Design $F-2$, Handover $F$.
@@ -78,10 +78,10 @@
 * **Errors (Block Submit):** Missing required fields, unknown type, past posting date or deadline, deadline after $F$, out-of-order deadlines, Reel without shoot lacking source video link, postable type missing posting owner, invalid owner, duplicate row in plan, individual plan != 1 row.
 * **Warnings (Allowed):** Last creation stage $>F-1$, owner workload $>85\%$, date outside plan month.
 
-### 4.4 Plan Verification & Creative Lead Actions
+### 4.4 Plan Verification & Creative Manager Actions
 * **Decision:**
   * SM Manager submits the plan (`Draft` $\rightarrow$ `Submitted`).
-  * Creative Lead inspects the plan and can:
+  * Creative Manager inspects the plan and can:
     1. **Approve All:** Approves all submitted rows.
     2. **Approve Selected:** Approves valid rows.
     3. **Request Changes:** Attaches mandatory comment to row (`changes_requested`).
@@ -92,12 +92,12 @@
 * **Decision:**
   * Approved rows generate **ContentPiece** and sequential stage **WorkItems** with row owners and deadlines.
   * Stage 1 is unlocked immediately (`unlockedAt: new Date()`); downstream stages are locked (`unlockedAt: null`, greyed out with due date).
-  * SM Manager and Admin can adjust owner, deadline, reschedule $F$, or skip unstarted stage (logged in ActivityEvent: `who`, `when`, `old`, `new`; worker and Creative Lead notified).
+  * SM Manager and Admin can adjust owner, deadline, reschedule $F$, or skip unstarted stage (logged in ActivityEvent: `who`, `when`, `old`, `new`; worker and Creative Manager notified).
   * **Immutable Fields:** Topic and type cannot change after row approval.
 
 ### 4.6 Review Stages vs. Non-Review Stages
 * **Decision:**
-  * **Review stages** (`Script`, `Content`, `Design`, `Edit`): Worker submits for approval. Only `creative_lead` (or `admin`) can approve. Rejection is `Revision Required` (increments revision count, returns to worker). 4th revision raises flag pinned to top of Creative Lead dashboard.
+  * **Review stages** (`Script`, `Content`, `Design`, `Edit`): Worker submits for approval. Only `creative_lead` (or `admin`) can approve. Rejection is `Revision Required` (increments revision count, returns to worker). 4th revision raises flag pinned to top of Creative Manager dashboard.
   * **Non-review stages** (`Shoot`, `Post`): `Shoot` is Done and forward (footage link unlocks edit); `Post` is Publish (live URL and timestamp).
   * **Turnaround:** Computed as $\text{Published Date} - \text{First Stage Start Date}$.
 
@@ -106,7 +106,7 @@
   * **Blocker:** Dependency owner and SM Manager notified instantly. Tracker shows **`Blocked since <date>`**. No 4-hour alert.
   * **Overdue:** Checked once daily at end-of-day in `REPORT_TIMEZONE`. Tracker shows **`Late by X days`**. No 4-hour alert.
   * **Approval:** Queue displays **`Waiting for X days`**.
-  * **Revision flag:** Pinned at top of Creative Lead dashboard until classified. No 48-hour alert.
+  * **Revision flag:** Pinned at top of Creative Manager dashboard until classified. No 48-hour alert.
   * Messages never say *"blocked for 4h"*.
   * **Preserved:** 4th revision flag; 3-day inactivity reminder (owner Day 3, SM Manager Day 4).
   * **At Risk:** Any active stage due within **2 calendar days** that is currently `Not Started`, `Pending`, or `Blocked`.
@@ -164,7 +164,7 @@
   - `Edit`: Video final cut up to 500 MB (fallback video link).
   - `Design`: Images up to 20 MB or PDF up to 50 MB.
   - `Post`: Live URL with date and time.
-* **Shoot Review Step:** `Shoot` is elevated from "Done and forward" to a **Review Step**. Raw footage must be reviewed and approved by the Creative Lead (or Admin) before the downstream `Edit` stage unlocks.
+* **Shoot Review Step:** `Shoot` is elevated from "Done and forward" to a **Review Step**. Raw footage must be reviewed and approved by the Creative Manager (or Admin) before the downstream `Edit` stage unlocks.
 * **Resubmission Prefill & Versioning:** Every resubmission creates a new immutable version (`v1`, `v2`, ...). Requesting a revision returns the stage to `In Progress` with the last version's data pre-filled.
 * **Videographer Job Role:** `Videographer` is added to the 13 canonical Job Roles (department: Video Production; default work preference: Shoot), integrated into Request Access, People management, and demo seeds.
 
@@ -219,9 +219,9 @@
 
 ### 7.1 Channels & Membership Architecture
 * **Decision:**
-  - **Team Chat (System Singleton):** Immutable channel (`type: 'team'`, `systemSlug: 'team-chat'`). Every active user joins automatically upon activation; suspended accounts lose access immediately. Cannot be renamed, archived, or left. Creative Head role is strictly read-only.
+  - **Team Chat (System Singleton):** Immutable channel (`type: 'team'`, `systemSlug: 'team-chat'`). Every active user joins automatically upon activation; suspended accounts lose access immediately. Cannot be renamed, archived, or left. Marketing Head role is strictly read-only.
   - **Groups:** Created only by `creative_lead`, `sm_manager`, and `admin` (`chat.group.create`). Creator is initial owner. Owner manages members, renaming (up to 40 characters), description (up to 200 characters), and archival. Members may leave voluntarily; the owner must transfer ownership or archive before leaving. Admin can moderate and unarchive any group. Archived groups become read-only and move under an Archived section.
-  - **Direct Messages:** Strictly 1:1 between any two active non-creative_head users. No group DMs. Private: Admin cannot view, list, or query DM contents. Creative Heads cannot send or receive DMs.
+  - **Direct Messages:** Strictly 1:1 between any two active non-creative_head users. No group DMs. Private: Admin cannot view, list, or query DM contents. Marketing Heads cannot send or receive DMs.
 
 ### 7.2 Real-Time Engine, Socket.io Guards & Optimistic Updates
 * **Decision:**
@@ -252,7 +252,7 @@
 ### 7.5 Role Boundaries, Permissions & Zero Surveillance
 * **Decision:**
   - **Permissions:** `chat.use` (`admin`, `creative_lead`, `sm_manager`, `executive`), `chat.group.create` (`admin`, `creative_lead`, `sm_manager`), `chat.moderate` (`admin`), `chat.read` (`creative_head`).
-  - **Creative Head:** Strictly read-only viewer in Team chat and groups they are explicitly added to. Cannot post messages, react, share outputs, or send/receive DMs.
+  - **Marketing Head:** Strictly read-only viewer in Team chat and groups they are explicitly added to. Cannot post messages, react, share outputs, or send/receive DMs.
   - **Strict Anti-Surveillance Rule:** Strictly NO chat activity leaderboards, NO message counts per person in performance digests, and NO ranking of employees by chat responsiveness or activity anywhere in the platform.
 
 

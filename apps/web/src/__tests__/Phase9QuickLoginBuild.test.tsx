@@ -11,23 +11,23 @@ const ROOT = path.resolve(__dirname, '../..');
 const acc = (label: string, role: string, i: number, jobRole = ''): QuickLoginAccount => ({ label, role, jobRole, email: `${label.toLowerCase().replace(/\W/g, '')}${i}@demo.haca.local`, password: 'not-a-real-password' });
 const ACCOUNTS = [
   acc('Admin', 'admin', 0),
-  acc('Test Creative Lead', 'creative_lead', 1, 'Creative Manager (TL)'),
+  acc('Test Creative Manager', 'creative_lead', 1, 'Creative Manager (TL)'),
   acc('Test SM Manager', 'sm_manager', 2, 'Social Media Manager'),
-  acc('Test Creative Head', 'creative_head', 3),
+  acc('Test Marketing Head', 'creative_head', 3),
   acc('Test Production Head', 'production_head', 4),
-  acc('Test Growth Lead', 'growth_lead', 5),
+  acc('Test Marketing Growth Manager', 'growth_lead', 5),
   ...[['Test Writer One', 'Writer'], ['Test Writer Two', 'Writer'], ['Test Designer One', 'Graphic Designer'], ['Test Poster', '']].map(([l, j], i) => acc(l, 'executive', 10 + i, j)),
 ];
 const b64 = (v: unknown) => Buffer.from(JSON.stringify(v), 'utf8').toString('base64');
 
 describe('Quick sign in (dev only)', () => {
-  it('groups the buttons by the 7 roles, in order, each "Name · job role"', () => {
+  it('groups the buttons by the 8 roles, in order, each "Name · job role"', () => {
     const onPick = vi.fn();
     render(<DevQuickLogin accounts={ACCOUNTS} onPick={onPick} />);
     expect(screen.getByRole('region', { name: 'Quick sign in (dev only)' })).toBeInTheDocument();
     const groups = screen.getAllByTestId('quick-login-group');
-    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual(['Admin', 'Creative Head', 'Production Head', 'Creative Lead', 'Growth Lead', 'SM Manager', 'Executive']);
-    expect(within(groups[3]).getByRole('button').textContent).toBe('Test Creative Lead · Creative Manager (TL)');
+    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual(['Admin', 'Marketing Head', 'Production Head', 'Creative Manager', 'Marketing Growth Manager', 'SM Manager', 'Executive', 'Viewer']);
+    expect(within(groups[3]).getByRole('button').textContent).toBe('Test Creative Manager · Creative Manager (TL)');
     expect(within(groups[6]).getAllByRole('button').map((b) => b.textContent)).toEqual([
       'Test Writer One · Writer',
       'Test Writer Two · Writer',
@@ -41,9 +41,9 @@ describe('Quick sign in (dev only)', () => {
   it('a role without a test account still has its row, saying so; unknown roles go under Other', () => {
     render(<DevQuickLogin accounts={[ACCOUNTS[0], { label: 'X', email: 'x@y.z', password: 'p', role: 'team_member' }]} onPick={vi.fn()} />);
     const groups = screen.getAllByTestId('quick-login-group');
-    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual(['Admin', 'Creative Head', 'Production Head', 'Creative Lead', 'Growth Lead', 'SM Manager', 'Executive', 'Other']);
+    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual(['Admin', 'Marketing Head', 'Production Head', 'Creative Manager', 'Marketing Growth Manager', 'SM Manager', 'Executive', 'Viewer', 'Other']);
     expect(groups[2]).toHaveTextContent('No test account');
-    expect(groupQuickLogins([]).length).toBe(7);
+    expect(groupQuickLogins([]).length).toBe(8);
   });
 
   it('reads both list formats, and ignores a bad value', () => {

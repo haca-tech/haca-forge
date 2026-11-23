@@ -34,7 +34,7 @@ function toStartOfDay(d) {
  * @param {Object} params
  * @param {Object} params.plan Calendar plan or metadata (title, kind, periodStart, periodEnd)
  * @param {Array} params.rows List of row objects (draft or existing)
- * @param {Boolean} params.isSubmitting Set to true when submitting to Creative Lead
+ * @param {Boolean} params.isSubmitting Set to true when submitting to Creative Manager
  * @returns {Promise<{ isValid: boolean, errors: Array, warnings: Array }>}
  */
 export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting = false }) {

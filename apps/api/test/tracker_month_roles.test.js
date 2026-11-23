@@ -63,7 +63,7 @@ describe('Tracker list: IST month and role scoping', () => {
     expect(mine(bad)).toHaveLength(4);
   });
 
-  it('admin, SM manager, Creative Head and executive see every row and step; team members have no Tracker (403, as before)', async () => {
+  it('admin, SM manager, Marketing Head and executive see every row and step; team members have no Tracker (403, as before)', async () => {
     for (const who of ['admin', 'sm', 'head', 'exec']) {
       const res = await request(app).get('/api/content-pieces').set(as(who));
       expect(res.status, who).toBe(200);

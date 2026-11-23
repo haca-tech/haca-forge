@@ -7,7 +7,7 @@
  *   node apps/api/scripts/write-quick-logins.js --no-db    # from the seed definitions (seedUsers.js)
  *
  * Accounts: the admin (ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD) and the seed users whose
- * SEED_PASSWORD_<KEY> is set in apps/api/.env (Production Head and Growth Lead are optional:
+ * SEED_PASSWORD_<KEY> is set in apps/api/.env (Production Head and Marketing Growth Manager are optional:
  * only when their passwords exist). With the database, each account's CURRENT name, role and
  * job role are used; missing or suspended accounts, and accounts whose password no longer matches
  * the seed password, are left out. The database is only read.

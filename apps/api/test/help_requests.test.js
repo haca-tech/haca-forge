@@ -98,7 +98,7 @@ describe('Help requests', () => {
         ['step_owner', `${TAG} writer`],
       ])
     );
-    // SM calendar: the Creative Lead decides, not the Growth Lead.
+    // SM calendar: the Creative Manager decides, not the Marketing Growth Manager.
     expect(mine.some((o) => o.name === `${TAG} growthLead`)).toBe(false);
     const def = options.find((o) => o.personId === defaultHelperId);
     expect(def.kind).toBe('lead');

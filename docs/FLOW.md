@@ -3,7 +3,7 @@
 > [!WARNING]
 > **SUPERSEDED / DEPRECATED:** This document has been replaced by [docs/WORKFLOW.md](file:///c:/Users/ADMIN/OneDrive/Desktop/HACA/TECH/haca-forge/docs/WORKFLOW.md), which is the authoritative single source of truth for Workflow V2.
 
-*A definitive guide to Monthly Calendar Plans, Individual Works, Worker Execution, Inter-Worker Handoffs, and Creative Lead Approvals.*
+*A definitive guide to Monthly Calendar Plans, Individual Works, Worker Execution, Inter-Worker Handoffs, and Creative Manager Approvals.*
 
 ---
 
@@ -18,12 +18,12 @@ The system enforces three immutable principles:
 
 ```mermaid
 graph TD
-    A[SM Manager: Plans & Calendars] -->|Submit for Approval| B(Creative Lead: Line-Item Review)
+    A[SM Manager: Plans & Calendars] -->|Submit for Approval| B(Creative Manager: Line-Item Review)
     B -->|Approved Rows Only| C[Automated Pipeline Generation]
     C -->|Auto-Assign via Preferences| D[SM Manager: 1-Click Assignment Confirmation]
     D -->|Unlocked Stage 1| E[Worker 1: Execution in My Work]
     E -->|Submit Deliverable| F{Review Required?}
-    F -->|Yes: Script, Content, Design, Edit| G[Creative Lead: Verification & Approval]
+    F -->|Yes: Script, Content, Design, Edit| G[Creative Manager: Verification & Approval]
     F -->|No: Shoot, Post| H[Done & Forward]
     G -->|Approved| I[Automated Unlock of Stage 2]
     G -->|Revision Requested| E
@@ -39,11 +39,11 @@ Every user in the system operates under one of five strictly scoped roles:
 
 | Role Key | Title | Planning & Entry | Approvals & Reviews | Worker Handoffs | Dashboard & Visibility |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`creative_lead`** | **Creative Lead** | Cannot upload plans or create initial raw items. | **Primary Approver:** Line-item verification of Calendar Plans (Approve All, Selected, or Changes Requested); approves review stages (`Script`, `Content`, `Design`, `Edit`); classifies revision causes. | Reviews submissions from workers; requests revisions with explicit notes. | Lands on `/dashboard` with pending approval counters, production stats, and team workload. |
+| **`creative_lead`** | **Creative Manager** | Cannot upload plans or create initial raw items. | **Primary Approver:** Line-item verification of Calendar Plans (Approve All, Selected, or Changes Requested); approves review stages (`Script`, `Content`, `Design`, `Edit`); classifies revision causes. | Reviews submissions from workers; requests revisions with explicit notes. | Lands on `/dashboard` with pending approval counters, production stats, and team workload. |
 | **`sm_manager`** | **SM Manager** *(Operational Lead)* | **Primary Planner:** Uploads CSV/Excel templates, enters rows in interactive grid, defines deadlines and formats. | **Zero approval authority:** Cannot approve calendar plans or review stages. | Recommends/confirms stage assignments; reassigns; shifts deadlines; resolves blocker dependencies. Executes assigned publishing tasks (e.g., `Post` stage) via **`/my-work`** with asset upload and live social reference links. | Lands on `/dashboard` with monthly plan progress, KPI strips, Content Tracker, and direct access to `/my-work` for personal posting assignments. |
 | **`executive`** | **Creative Contributor** *(Worker)* | Cannot submit plans or assign work to others. | Cannot approve work; cannot self-approve own stages. | **Executes assigned stages in `/my-work`:** starts work, pastes links (Zoho, Drive, Figma), submits for review or clicks Done and forward. | Redirected strictly to `/my-work` (sees only own assigned and unlocked items). |
 | **`admin`** | **System Administrator** | Full operational override across all modules. | Holds emergency approval rights if needed. | Manages user directory, permissions, departments, and brand profiles. | Full access across all views. Excluded from capacity/workload calculations. |
-| **`creative_head`** | **Creative Head Leadership** | Zero mutation / write access (HTTP 403 Forbidden). | Zero approval authority. | Zero assignment authority. Contact info masked. | Full read-only visibility into Dashboard, Calendar, Tracker, Workload, and Reports. |
+| **`creative_head`** | **Marketing Head Leadership** | Zero mutation / write access (HTTP 403 Forbidden). | Zero approval authority. | Zero assignment authority. Contact info masked. | Full read-only visibility into Dashboard, Calendar, Tracker, Workload, and Reports. |
 
 ---
 
@@ -99,13 +99,13 @@ flowchart LR
    - `contentLink` (Zoho Writer draft or brief document)
    - `remarks` (Creative notes or instructions)
 
-### Step 2: Submission to Creative Lead
+### Step 2: Submission to Creative Manager
 - The SM Manager verifies the monthly lineup and clicks **Submit for Approval**.
 - **Plan Status Transition:** `Draft` $\rightarrow$ `Submitted`.
-- Notification alert appears on the Creative Lead's Dashboard under **Waiting for Approval (Plans)**.
+- Notification alert appears on the Creative Manager's Dashboard under **Waiting for Approval (Plans)**.
 
-### Step 3: Creative Lead Verification & Line-Item Approval
-The Creative Lead opens the plan review interface (`/calendar?tab=plans` or `/feedback`):
+### Step 3: Creative Manager Verification & Line-Item Approval
+The Creative Manager opens the plan review interface (`/calendar?tab=plans` or `/feedback`):
 - **Approve All:** Approves all rows in one click if the entire calendar aligns with strategy.
 - **Approve Selected:** Approves validated rows while leaving questions on others.
 - **Request Changes:** Attaches line-item comments to specific rows (e.g., *"Hook is too generic for Reel #4; replace with admission FAQ"*).
@@ -147,7 +147,7 @@ sequenceDiagram
     autonumber
     actor Requester as Requesting Team / Stakeholder
     actor SMM as SM Manager
-    actor CH as Creative Lead
+    actor CH as Creative Manager
     actor Writer as Copywriter
     actor Designer as Graphic Designer
 
@@ -168,7 +168,7 @@ sequenceDiagram
 1. **Strict One-Row Boundary:** An `individual` plan must contain exactly one deliverable row.
 2. **Unified Approval & Form:** Uses the exact same plan builder, stage auto-fill, and approval flow as monthly plans.
 3. **Programs and Events Tagging:** Programs and events are identified using the row field `Program or event`.
-4. **Non-Postable Termination:** Items like `Poster`, `Brochure`, and `Certificate` conclude upon Creative Lead `Design` approval.
+4. **Non-Postable Termination:** Items like `Poster`, `Brochure`, and `Certificate` conclude upon Creative Manager `Design` approval.
 
 ---
 
@@ -211,7 +211,7 @@ Every stage inherits the parent `ContentPiece` metadata, the original brief, and
    - Writer opens `/my-work`, sees the item, clicks **Start Work** (`In Progress`).
    - Writes copy in Zoho Writer, pastes document link in `deliverableUrl`, clicks **Submit for Approval**.
    - Status becomes `Feedback` (or `Under Review`).
-   - **Creative Lead** reviews copy. When approved, Stage 1 becomes `Approved`.
+   - **Creative Manager** reviews copy. When approved, Stage 1 becomes `Approved`.
 2. **Automated Handoff:**
    - System immediately sets `unlockedAt = new Date()` on **Stage 2 (Design)**.
    - Designer receives an automated notification: *"New deliverable ready for design: Admission Announcement Carousel"*.
@@ -219,7 +219,7 @@ Every stage inherits the parent `ContentPiece` metadata, the original brief, and
 3. **Stage 2 (Design - Graphic Designer):**
    - Designer clicks **Start Work**, creates graphics in Illustrator/Photoshop/Figma.
    - Pastes Google Drive assets link into `deliverableUrl` and clicks **Submit for Approval**.
-   - Creative Lead reviews visual quality, typography, and brand adherence. When approved, Stage 2 becomes `Approved`.
+   - Creative Manager reviews visual quality, typography, and brand adherence. When approved, Stage 2 becomes `Approved`.
 4. **Stage 3 (Post - Social Media Specialist):**
    - Stage 3 unlocks.
    - Posting owner downloads the approved assets, schedules/posts to Instagram/LinkedIn.
@@ -236,31 +236,31 @@ stateDiagram-v2
     [*] --> Stage1_Script
     Stage1_Script --> ScriptReview: Submit for Approval
     ScriptReview --> Stage1_Script: Revision Required (stays with Writer)
-    ScriptReview --> Stage2_Shoot: Creative Lead Approved
+    ScriptReview --> Stage2_Shoot: Creative Manager Approved
 
     Stage2_Shoot --> Stage3_Edit: Videographer clicks Done & Forward (Drive Footage Link)
     
     Stage3_Edit --> EditReview: Submit for Approval
     EditReview --> Stage3_Edit: Revision Required (stays with Editor)
-    EditReview --> Stage4_Post: Creative Lead Approved
+    EditReview --> Stage4_Post: Creative Manager Approved
 
     Stage4_Post --> [*]: Mark Published (Live URL entered)
 ```
 
 1. **Stage 1: Script (Writer)**
    - Writes dialogue, hook, and shot breakdown.
-   - Submits to Creative Lead.
-   - **Creative Lead approves:** Stage 2 unlocks.
+   - Submits to Creative Manager.
+   - **Creative Manager approves:** Stage 2 unlocks.
 2. **Stage 2: Shoot (Videographer)**
    - Non-review stage. Videographer reads approved script link directly on the screen.
    - Conducts shoot, uploads raw footage to Google Drive.
    - Pastes Drive folder link and clicks **Done and forward**.
-   - **No Creative Lead signoff required for raw shoot:** Stage 3 unlocks instantly.
+   - **No Creative Manager signoff required for raw shoot:** Stage 3 unlocks instantly.
 3. **Stage 3: Edit (Video Editor)**
    - Editor sees raw footage link + approved script link.
    - Cuts reel, adds captions, audio, and color grade.
    - Pastes review link (Frame.io, Drive, or Loom) and clicks **Submit for Approval**.
-   - **Creative Lead reviews:**
+   - **Creative Manager reviews:**
      - If audio needs leveling: clicks **Revision Required**. Item returns to Editor's queue (`In Progress`) with revision count incremented to 1.
      - When satisfied: clicks **Approve**. Stage 4 unlocks.
 4. **Stage 4: Post (Posting Owner)**
@@ -282,12 +282,12 @@ stateDiagram-v2
 | **`Post`** | All postable items | **Non-Review Stage** | None | **Publish** $\rightarrow$ Requires live URL input. |
 
 ### The Revision Loopback Mechanism
-When the Creative Lead requests revisions on a review stage:
+When the Creative Manager requests revisions on a review stage:
 1. The stage does **NOT** advance to the next worker.
 2. The item reverts to `In Progress` in the current worker's `/my-work` queue.
 3. The system increments `workItem.revisions`.
-4. The Creative Lead's feedback appears as a prominent alert block on the worker's card.
-5. If `revisions >= 4`, a **Revision Flag** is raised on the manager's dashboard and the Creative Lead classifies the root cause (`brief_gap`, `creative_choice`, `technical_error`, `scope_change`).
+4. The Creative Manager's feedback appears as a prominent alert block on the worker's card.
+5. If `revisions >= 4`, a **Revision Flag** is raised on the manager's dashboard and the Creative Manager classifies the root cause (`brief_gap`, `creative_choice`, `technical_error`, `scope_change`).
 
 ---
 
@@ -307,7 +307,7 @@ If a worker is impeded during execution:
    - If blocked by `assets_missing` or `waiting_approval`, system alerts the preceding stage owner and the SM Manager.
    - Status changes to `Blocked`. The item appears highlighted in red on `/issues` (Issues & Blockers).
    - If unresolved for $>4$ hours, an automated escalation notification triggers to the SM Manager.
-5. **Resolution:** SM Manager or Creative Lead resolves the blocker with a note; the item returns to `In Progress`.
+5. **Resolution:** SM Manager or Creative Manager resolves the blocker with a note; the item returns to `In Progress`.
 
 ---
 
@@ -323,7 +323,7 @@ Due dates are calculated backwards from the final delivery/posting date $F$:
 | **Reel Variant B** *(No Script, Shoot)* | 1. Shoot $\rightarrow$ 2. Edit $\rightarrow$ 3. Post | Shoot ($F-7$), Edit ($F-4$), Post ($F$) |
 | **Reel Variant C** *(Raw Footage Provided)*| 1. Edit $\rightarrow$ 2. Post | Edit ($F-4$), Post ($F$) |
 
-*Approval Turnaround Expectation:* Creative Lead review turnaround is standard 24 hours (1 working day) from submission.
+*Approval Turnaround Expectation:* Creative Manager review turnaround is standard 24 hours (1 working day) from submission.
 
 ---
 

@@ -12,14 +12,14 @@ In **HACA Marketing OS**, approval requests happen at **two distinct levels**:
 ```mermaid
 graph TD
     subgraph Level 1: Planning Approval
-        A[SM Manager: Calendar Plan or Individual Work] -->|Submit for Approval| B(Creative Lead: Line-Item Verification)
+        A[SM Manager: Calendar Plan or Individual Work] -->|Submit for Approval| B(Creative Manager: Line-Item Verification)
         B -->|Approve Rows| C[Automated Pipeline & WorkItem Generation]
     end
 
     subgraph Level 2: Work Deliverable Approvals
         C --> D[Stage 1 Unlocks in My Work]
         D -->|Worker Submits| E{Is Stage a Review Stage?}
-        E -->|Yes: Script, Shoot, Edit, Content, Design| F[Creative Lead: Review Studio]
+        E -->|Yes: Script, Shoot, Edit, Content, Design| F[Creative Manager: Review Studio]
         E -->|No: Post| G[Posting Owner: Publish & Record Live URL]
         F -->|Approve + Rating 1-5| H[Auto-Unlock Downstream Stage]
         F -->|Request Revision| D
@@ -28,13 +28,13 @@ graph TD
 
 1. **Level 1 — Plan & Deliverable Inception (Calendar Plans & Individual Works):**
    - **Requester:** `sm_manager` (Social Media Manager) or `admin`.
-   - **Approver:** `creative_lead` (Creative Lead).
+   - **Approver:** `creative_lead` (Creative Manager).
    - **Purpose:** Approves the monthly calendar or ad-hoc individual work deliverable before any workers begin execution.
    - **Result of Approval:** Automatically instantiates the `ContentPiece` parent and creates the sequential stage `WorkItems`, instantly unlocking Stage 1.
 
 2. **Level 2 — Stage Deliverable Execution (Review Stages):**
    - **Requester:** Assigned `executive` (Writer, Designer, Videographer, Editor) or stage owner.
-   - **Approver:** `creative_lead` (Creative Lead).
+   - **Approver:** `creative_lead` (Creative Manager).
    - **Review Stages:** `Script`, `Shoot`, `Edit`, `Content`, and `Design`.
    - **Non-Review Stage:** `Post` (Final posting to social channels; completed by recording live URL & time).
    - **Result of Approval:** Triggers automatic unlock of the next sequential stage in the downstream worker's `/my-work` queue.
@@ -94,7 +94,7 @@ Here is the comprehensive matrix of every page, workspace, role, and UI button a
   3. Click the task card to open the **Submission Drawer** or preview pane.
   4. Fill in the required deliverable assets:
      - External deliverable link (Zoho Writer, Google Drive, Figma, or Dropbox).
-     - Optional notes/remarks for the Creative Lead.
+     - Optional notes/remarks for the Creative Manager.
      - Optional direct file uploads.
   5. Click the green/purple button: **`Submit for approval`**.
 * **Direct Workspace Links:**
@@ -102,7 +102,7 @@ Here is the comprehensive matrix of every page, workspace, role, and UI button a
 * **Under the Hood (API):**
   - Calls `POST /api/work/:id/submit`
   - WorkItem status transitions `in_progress` &rarr; `review` / `feedback`.
-  - Creative Lead receives real-time Socket.io alert and email notification.
+  - Creative Manager receives real-time Socket.io alert and email notification.
 
 ---
 
@@ -120,7 +120,7 @@ Here is the comprehensive matrix of every page, workspace, role, and UI button a
      - Upload files or paste cloud asset links (Figma, Drive, Zoho).
      - Save draft auto-saves your progress.
   4. When ready, click **`Submit for approval`**.
-  5. The UI enters read-only review mode with a banner: *"Submitted for review by Creative Lead"*.
+  5. The UI enters read-only review mode with a banner: *"Submitted for review by Creative Manager"*.
 
 ---
 
@@ -137,8 +137,8 @@ Here is the comprehensive matrix of every page, workspace, role, and UI button a
   3. Click **`Submit for Approval`** in the top-right sticky control bar.
   4. A submission modal displays:
      - Version snapshot: `v1` (or `v2`, `v3` if re-submitting after revision).
-     - Optional submission notes for the Creative Lead.
-  5. Confirming increments submission version and hands control to the Creative Lead.
+     - Optional submission notes for the Creative Manager.
+  5. Confirming increments submission version and hands control to the Creative Manager.
 
 ---
 
@@ -150,7 +150,7 @@ Here is the comprehensive matrix of every page, workspace, role, and UI button a
   1. Upload master visual artwork files (or paste Figma file link).
   2. Review the built-in dimension pre-flight check (e.g. 1080x1080 for Static, 1080x1350 for Carousel, 1080x1920 for Stories).
   3. Click **`Submit for Approval`** (displays as **`Submitting Design...`** while uploading).
-  4. Assets are version-stamped and queued in the Creative Lead's Review Studio.
+  4. Assets are version-stamped and queued in the Creative Manager's Review Studio.
 
 ---
 
@@ -162,7 +162,7 @@ Here is the comprehensive matrix of every page, workspace, role, and UI button a
   2. Upload raw video clips (supports chunked upload up to 500 MB per clip) or provide a Google Drive / cloud footage folder link.
   3. Verify that at least **1 clip or link** is attached. (The button remains disabled with *"At least one clip is required to submit for approval"* if empty).
   4. Click **`Submit for approval`**.
-  5. Creative Lead reviews the raw footage quality before Video Editing begins.
+  5. Creative Manager reviews the raw footage quality before Video Editing begins.
 
 ---
 
@@ -180,9 +180,9 @@ Here is the comprehensive matrix of every page, workspace, role, and UI button a
 
 ---
 
-## 4. The Approval & Feedback Loop (Creative Lead Perspective)
+## 4. The Approval & Feedback Loop (Creative Manager Perspective)
 
-Where does the Creative Lead review and act on these approval requests?
+Where does the Creative Manager review and act on these approval requests?
 
 ```mermaid
 stateDiagram-v2
@@ -190,7 +190,7 @@ stateDiagram-v2
     InProgress --> ReviewQueue: Worker clicks "Submit for Approval"
     
     state ReviewQueue {
-        [*] --> ReviewStudio: Creative Lead opens /feedback/review-studio
+        [*] --> ReviewStudio: Creative Manager opens /feedback/review-studio
         ReviewStudio --> Approved: Approve + Rate (1 to 5 Stars)
         ReviewStudio --> Revision: Request Revision + Root Cause
     }
@@ -228,5 +228,5 @@ stateDiagram-v2
 ## 5. Security & Permission Rules
 
 1. **No Self-Approval:** A worker cannot approve their own submission, even if they hold administrative or managerial permissions.
-2. **Deterministic Sequence:** A downstream worker cannot request approval for Stage 2 until Stage 1 has been approved by the Creative Lead.
+2. **Deterministic Sequence:** A downstream worker cannot request approval for Stage 2 until Stage 1 has been approved by the Creative Manager.
 3. **Immutable History:** Every approval, rejection, and comment is permanently recorded in `ActivityEvent` and `FeedbackEntry` audit logs with timestamp, actor, and version tag.

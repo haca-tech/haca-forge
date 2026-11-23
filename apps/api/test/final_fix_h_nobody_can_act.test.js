@@ -100,7 +100,7 @@ describe('Final fix H1–H3: somebody can always act', () => {
 
   describe('H1: the fallback decides', () => {
     it('a named non-admin fallback decides when the main reviewer is suspended, and is notified', async () => {
-      // Other calendar: reviewed by gl2 only; the fallback is the Creative Lead by name (no admin role).
+      // Other calendar: reviewed by gl2 only; the fallback is the Creative Manager by name (no admin role).
       await config('other', { reviewers: { roles: [], userIds: [String(P.gl2._id)] }, fallbackApprovers: { roles: [], userIds: [String(P.cl._id)] } });
       const w = await waiting('other');
       expect(await canDecideOn(await fresh('cl'), 'other')).toBe(false); // gl2 is active: the main list decides
@@ -113,7 +113,7 @@ describe('Final fix H1–H3: somebody can always act', () => {
       expect(await decisionCalendarFilter(await fresh('cl'))).toContain('other');
       // The fallback never decides on their own work.
       expect(await canDecideOn(await fresh('cl'), 'other', { ownerId: P.cl._id })).toBe(false);
-      // A Creative Lead not in the fallback still cannot.
+      // A Creative Manager not in the fallback still cannot.
       expect(await canDecideOn(await fresh('gl'), 'other')).toBe(false);
 
       const me = await request(app).get('/api/auth/me').set(as('cl'));

@@ -38,7 +38,7 @@ describe('Database Wipe Script (scripts/wipe-keep-users.js)', () => {
         refreshTokens: ['token_123', 'token_456'],
       },
       {
-        name: 'Creative Head',
+        name: 'Marketing Head',
         email: 'head@demo.haca.local',
         role: 'creative_lead',
         passwordHash: 'head_hash_preserved',

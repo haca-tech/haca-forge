@@ -26,7 +26,7 @@ import { hasPermission, isReadOnly } from '../../lib/roleAccess.js';
 
 /**
  * Pause work with lead approval. A worker asks to pause a step they are working on; the
- * lead of the step's calendar (Growth Lead for Ads, Creative Lead otherwise, admin as a
+ * lead of the step's calendar (Marketing Growth Manager for Ads, Creative Manager otherwise, admin as a
  * backup; never the requester) approves or rejects it. While pending, time keeps counting.
  * An approved pause opens a `manual_pause` interval at the approval time (work time stops);
  * resume closes it. The status stays In Progress; `pauseState` says "requested" or "paused".

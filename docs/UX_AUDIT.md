@@ -153,9 +153,9 @@ The System Administrator is responsible for user provisioning, access request ap
 
 ---
 
-### Role 2: Creative Lead (`creative_lead`)
+### Role 2: Creative Manager (`creative_lead`)
 
-The Creative Lead is the primary quality and creative authority. They review monthly plans, approve creative stages (scripts, designs, video cuts), provide constructive revision feedback, and monitor creative department throughput.
+The Creative Manager is the primary quality and creative authority. They review monthly plans, approve creative stages (scripts, designs, video cuts), provide constructive revision feedback, and monitor creative department throughput.
 
 #### 1. Home / Dashboard (`/dashboard`)
 * **What the person is trying to do:** Immediately see which creative plans and stage deliverables are waiting for their sign-off, review urgent priorities, and check creative department throughput.
@@ -163,8 +163,8 @@ The Creative Lead is the primary quality and creative authority. They review mon
   * 0 clicks to view; 1 click on "Open Approvals Console" or "Review Plans".
 * **What is confusing & friction points:**
   * **1366px (Desktop):**
-    * The Creative Lead sees Section 1 (Month Plan Status) and Section 2 (7-column KPI strip) before seeing their own sign-off queue (Section 7). They must scroll past charts to find what requires their attention.
-    * Section 7 ("Waiting for Creative Lead Approval") has sub-boxes dividing submitted plans from deliverable stages, each with its own navigation button.
+    * The Creative Manager sees Section 1 (Month Plan Status) and Section 2 (7-column KPI strip) before seeing their own sign-off queue (Section 7). They must scroll past charts to find what requires their attention.
+    * Section 7 ("Waiting for Creative Manager Approval") has sub-boxes dividing submitted plans from deliverable stages, each with its own navigation button.
   * **360px (Mobile):**
     * Section 7 is pushed 900px down the page, below KPIs and plan progress bars. The user has to scroll through 3 full screen-lengths before seeing tasks that need their approval.
 
@@ -174,7 +174,7 @@ The Creative Lead is the primary quality and creative authority. They review mon
   * 1 click to select submitted plan; 1 click per row to inspect; 2 clicks to request changes (with comment modal); 1 click to approve.
 * **What is confusing & friction points:**
   * **1366px (Desktop):**
-    * When requesting changes on a row, the Creative Lead must click an edit/comment icon, wait for a modal, type a comment, submit, and repeat for every row.
+    * When requesting changes on a row, the Creative Manager must click an edit/comment icon, wait for a modal, type a comment, submit, and repeat for every row.
     * There is no side-by-side drawer showing all fields (Topic, Type, Brief, Reference Link, Priority, Stages) while keeping the row list in view.
     * Rejecting the entire plan requires hunting for a destructive option that isn't clearly separated from approving selected rows.
   * **360px (Mobile):**
@@ -188,7 +188,7 @@ The Creative Lead is the primary quality and creative authority. They review mon
   * **1366px (Desktop):**
     * The screen is titled "Feedback and Revisions", which sounds like a reporting archive rather than an urgent "Waiting for Approval" queue.
     * The deliverable URL is often an external Google Drive or Cloudinary link formatted as plain blue text without preview or thumbnail embedding.
-    * Previous stage context (e.g. what the approved script was when reviewing an edit) is not displayed on the review card; the Creative Lead must navigate away to find it.
+    * Previous stage context (e.g. what the approved script was when reviewing an edit) is not displayed on the review card; the Creative Manager must navigate away to find it.
   * **360px (Mobile):**
     * Feedback thread items take up the entire viewport. Comment text area is cramped, and clicking the text area triggers virtual keyboard popups that hide the "Approve" button completely.
 
@@ -198,7 +198,7 @@ The Creative Lead is the primary quality and creative authority. They review mon
   * 0 clicks to view; 1 click to filter by department.
 * **What is confusing & friction points:**
   * **1366px (Desktop):**
-    * Administrative controls (Suspend account, Reset password) are either disabled or hidden with vague tooltips, leaving the Creative Lead unsure of what they can or cannot edit.
+    * Administrative controls (Suspend account, Reset password) are either disabled or hidden with vague tooltips, leaving the Creative Manager unsure of what they can or cannot edit.
   * **360px (Mobile):**
     * Overflows horizontally; department badges and job roles collide visually.
 
@@ -220,7 +220,7 @@ The SM Manager builds and submits the monthly content calendar, schedules day-wi
     * High visual noise; KPI badges wrap awkwardly; navigating to the calendar plan builder requires opening the hamburger menu.
 
 #### 2. Plan Builder & Row Editor (`/calendar?tab=plans`)
-* **What the person is trying to do:** Create a new Monthly or Individual plan, add deliverable rows, set posting dates, pick content types, assign stage owners, review validation errors/warnings, and submit to the Creative Lead.
+* **What the person is trying to do:** Create a new Monthly or Individual plan, add deliverable rows, set posting dates, pick content types, assign stage owners, review validation errors/warnings, and submit to the Creative Manager.
 * **Number of clicks & fields:**
   * Creating a plan: 1 click on "+ Create Plan" -> 4 fields (Title, Kind, Period Start, Period End) -> 1 click to save.
   * Adding a row manually: 1 click on "+ Add Row" -> 7 fields (Posting Date, Topic, Content Type, Needs Script, Needs Shoot, Content Link, Remarks) -> 1 click to save.
@@ -247,9 +247,9 @@ The SM Manager builds and submits the monthly content calendar, schedules day-wi
 
 ---
 
-### Role 4: Creative Head (`creative_head`)
+### Role 4: Marketing Head (`creative_head`)
 
-The Creative Head Director needs high-level, read-only operational visibility: on-time delivery rates, publishing output across schools, bottlenecks, and team health, with sensitive contact details masked.
+The Marketing Head Director needs high-level, read-only operational visibility: on-time delivery rates, publishing output across schools, bottlenecks, and team health, with sensitive contact details masked.
 
 #### 1. Home / Dashboard (`/dashboard`)
 * **What the person is trying to do:** Check high-level marketing throughput, on-time delivery rate, published deliverables vs target, and identify persistent operational bottlenecks.
@@ -272,7 +272,7 @@ The Creative Head Director needs high-level, read-only operational visibility: o
   * **360px (Mobile):**
     * Overflows horizontally; text overlaps on small screens.
 
-#### 3. Creative Head Reports (`/reports`)
+#### 3. Marketing Head Reports (`/reports`)
 * **What the person is trying to do:** View and export the Weekly Marketing Report and Monthly Scorecard.
 * **Number of clicks & fields:**
   * 1 click to select report, 1 click to view HTML digest.
@@ -342,7 +342,7 @@ The specialist worker (Copywriter, Graphic Designer, Video Editor, Video Shooter
 | Rank | Problem Area | Severity | Root Cause & Impact on User |
 | :---: | :--- | :---: | :--- |
 | **1** | **Multi-Level Dropdown Navigation** | **Critical** | Top menu hides essential daily tools behind generic category dropdowns ("Schedule", "Operations", "Organization"). Mobile requires 3–4 taps through deep accordions just to reach the Calendar or Workload. |
-| **2** | **Duplicate Plan Approval Screens** | **Critical** | Monthly plans are reviewed under `/calendar?tab=plans` AND under `/feedback?tab=plans`. The Creative Lead faces split attention and conflicting review controls across two routes. |
+| **2** | **Duplicate Plan Approval Screens** | **Critical** | Monthly plans are reviewed under `/calendar?tab=plans` AND under `/feedback?tab=plans`. The Creative Manager faces split attention and conflicting review controls across two routes. |
 | **3** | **Fragmented Worker Experience (`/my-work` vs `/todo`)** | **Critical** | Specialist workers have two separate menu destinations showing their tasks. This creates double maintenance and severe confusion over where to log work. |
 | **4** | **Unusable Mobile Table Overflow (360px)** | **Critical** | Tables in Calendar, Tracker, Workload, and People overflow horizontally by 200–800px on mobile screens. Users must scroll horizontally back and forth to read rows. |
 | **5** | **Sub-Standard Touch Targets (<44px)** | **High** | Action buttons on table rows (Approve, Reject, Start, Submit) have heights between 26px and 34px, causing frequent mis-taps on mobile touchscreens. |
@@ -350,7 +350,7 @@ The specialist worker (Copywriter, Graphic Designer, Video Editor, Video Shooter
 | **7** | **Inconsistent Status Terminology & Colors** | **High** | Disparate status words across entities: deliverables use "Feedback", plans use "Submitted", rows use "changes_requested". Colors clash (amber for feedback, purple for pending, teal for published). |
 | **8** | **Charts Before "What Needs You Now"** | **High** | Home screens display large analytics cards, velocity gauges, and 7-column KPI strips before displaying urgent items that require immediate sign-off or action. |
 | **9** | **Plan Builder Lacks Live Auto-Fill & Auto-Save** | **High** | The SM Manager cannot see auto-calculated stage owners and deadlines before saving rows. Lack of auto-save causes high risk of data loss on long monthly plans. |
-| **10** | **Stage Approval Lacks Direct Asset Previews & Context** | **High** | The Creative Lead must open external URLs in new browser tabs to review work and cannot see previous stage outputs (e.g. approved script) alongside the current submission. |
+| **10** | **Stage Approval Lacks Direct Asset Previews & Context** | **High** | The Creative Manager must open external URLs in new browser tabs to review work and cannot see previous stage outputs (e.g. approved script) alongside the current submission. |
 | **11** | **Exposed Form Complexity (No Progressive Disclosure)** | **Medium** | Add User and Add Row forms expose 10+ fields at once without progressive disclosure ("More details"), overwhelming the user with optional or internal settings. |
 | **12** | **Candidate Request Access Form Demands Internal Knowledge** | **Medium** | Public candidates are asked to choose internal role keys (`executive`, `sm_manager`) and internal brand codes (`haca_mideast`) before they even join the company. |
 | **13** | **Tracker Table Lacks Compact Visual Steppers** | **Medium** | The Tracker renders multi-column text tables rather than clean stage progression dots (Script &bull; Shoot &bull; Edit &bull; Post) with hovering tooltips and a detail drawer. |

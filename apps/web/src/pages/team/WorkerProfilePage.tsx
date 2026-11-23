@@ -55,7 +55,7 @@ export const WorkerProfilePage: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   const access = useAccess();
-  const teamWorkload = useTeamWorkload(Boolean(user?.role) && !access.isOwnScope);
+  const teamWorkload = useTeamWorkload(access.can('people.view'));
 
   // If path is /profile, target person is current logged in user
   const isProfileRoute = location.pathname.startsWith('/profile');
@@ -297,8 +297,8 @@ export const WorkerProfilePage: React.FC = () => {
       availableTabs.push({ id: 'changes', label: 'Changes Log' });
     }
   } else if (isSmOrCreativeRole) {
-    // Phase 8: an SM manager or Creative Lead who owns production steps gets the worker tabs
-    // too, and a Creative Lead's own review work is on the Reviews tab (when visible).
+    // Phase 8: an SM manager or Creative Manager who owns production steps gets the worker tabs
+    // too, and a Creative Manager's own review work is on the Reviews tab (when visible).
     if (kpiData?.worker) availableTabs.push({ id: 'work', label: 'Work' }, { id: 'performance', label: 'Performance' });
     if (kpiData?.creativeHead) availableTabs.push({ id: 'reviews', label: 'Reviews' });
     availableTabs.push({ id: 'activity', label: 'Activity' });
@@ -618,7 +618,7 @@ export const WorkerProfilePage: React.FC = () => {
         <div className="p-4 rounded-ui-card bg-white/60 text-[13px] text-ui-text flex items-start gap-2.5">
           <Info className="w-4 h-4 text-ui-ink shrink-0 mt-0.5" />
           <p className="font-medium">
-            Your work history, timings and ratings are visible to the Admin, Creative Head, Production Head, Creative Lead, Growth Lead
+            Your work history, timings and ratings are visible to the Admin, Marketing Head, Production Head, Creative Manager, Marketing Growth Manager
             and SM Manager.
           </p>
         </div>
@@ -1368,7 +1368,7 @@ export const WorkerProfilePage: React.FC = () => {
         </div>
       )}
 
-      {/* Phase 8: Creative Lead review work (admin, executive, and the Creative Lead on their own profile) */}
+      {/* Phase 8: Creative Manager review work (admin, executive, and the Creative Manager on their own profile) */}
       {activeTab === 'reviews' && kpiData?.creativeHead && (
         <div className="space-y-6" data-testid="profile-reviews">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">

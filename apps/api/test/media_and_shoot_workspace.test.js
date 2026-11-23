@@ -77,7 +77,7 @@ describe('Media & Shoot Workspace Backend Engine', () => {
     shooterToken = makeToken(shooterUser);
 
     creativeHeadUser = await User.create({
-      name: 'Test Creative Head',
+      name: 'Test Marketing Head',
       email: `head_${Date.now()}@haca.local`,
       role: 'creative_lead',
       jobRole: 'Creative Manager (TL)',
@@ -448,7 +448,7 @@ describe('Media & Shoot Workspace Backend Engine', () => {
       expect(post1.body.data.timeSeconds).toBe(4);
       expect(post1.body.data.authorId._id).toBe(shooterUser._id.toString());
 
-      // Creative Head posts quoted reply
+      // Marketing Head posts quoted reply
       const post2 = await request(app)
         .post(`/api/clips/${clip._id}/messages`)
         .set('Authorization', `Bearer ${creativeHeadToken}`)
@@ -495,7 +495,7 @@ describe('Media & Shoot Workspace Backend Engine', () => {
     });
 
     it('tracks unread counts and marks messages as seen', async () => {
-      // Creative Head posts feedback message
+      // Marketing Head posts feedback message
       await request(app)
         .post(`/api/clips/${clip._id}/messages`)
         .set('Authorization', `Bearer ${creativeHeadToken}`)
@@ -552,7 +552,7 @@ describe('Media & Shoot Workspace Backend Engine', () => {
 
       expect(reopenShooter.body.error.code).toBe('FORBIDDEN_ACTION');
 
-      // Creative Head reopens -> 200 OK
+      // Marketing Head reopens -> 200 OK
       const reopenCH = await request(app)
         .patch(`/api/clips/${clip._id}/messages/${msg._id}/toggle-done`)
         .set('Authorization', `Bearer ${creativeHeadToken}`)

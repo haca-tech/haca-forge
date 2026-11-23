@@ -53,7 +53,7 @@ const pct = (n, d) => (d ? Math.round((n / d) * 100) : null);
 
 export const canDownloadProfileReport = (actor) => hasPermission(actor, 'team.profile.report');
 
-/** Who sees the Creative Lead review section: admin, creative_head/production_head, and the Creative Lead on their own profile. */
+/** Who sees the Creative Manager review section: admin, creative_head/production_head, and the Creative Manager on their own profile. */
 const canSeeReviewSection = (actor, target) => {
   const role = normalizeRole(actor?.role);
   return isSuperuser(actor) || isReadOnly(actor) || idOf(actor) === String(target._id);
@@ -320,6 +320,6 @@ export async function getProfileKpis(targetId, actor, query = {}, { withSteps = 
 /** GET /api/team/:id/report: the same figures plus the step list. admin, creative_lead/growth_lead, creative_head/production_head only. */
 export async function getProfileReport(targetId, actor, query = {}) {
   assertProfileAccess(targetId, actor);
-  if (!canDownloadProfileReport(actor)) throw forbidden('Only admin, creative head and executive can download a profile report.');
+  if (!canDownloadProfileReport(actor)) throw forbidden('Only an Admin, the Marketing Head, the Production Head, a Creative Manager or a Marketing Growth Manager can download a profile report.');
   return getProfileKpis(targetId, actor, query, { withSteps: true });
 }

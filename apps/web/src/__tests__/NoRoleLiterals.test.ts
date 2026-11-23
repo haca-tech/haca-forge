@@ -17,7 +17,7 @@ const SRC = path.resolve(__dirname, '..');
 const ALLOW = new Set(['components/DevQuickLogin.tsx']);
 const KEYS = 'admin|sm_manager|creative_lead|growth_lead|executive|creative_head|production_head';
 const RULES: Array<[string, RegExp]> = [
-  ['old role helper', /\b(isApprover|isWorker|isReadOnlyViewer|canDecide|canDecideOn|decisionCalendarsFor|canReview|canSeeContactDetails|canManageOperationalFields|canViewProfileReport)\s*\(/],
+  ['old role helper', /\b(isApprover|isWorker|isReadOnlyViewer|canDecide|canDecideOn|decisionCalendarsFor|canReview|canSeeContactDetails|canSeeAllReviewText|canManageOperationalFields|canViewProfileReport)\s*\(/],
   // Any value compared with a role key, whatever the variable is called (role, roleLower, userRole, r ...).
   ['value compared with a role key', new RegExp(`[!=]==?\\s*['"\`](${KEYS})['"\`]|['"\`](${KEYS})['"\`]\\s*[!=]==?`)],
   ['switch case on a role key', new RegExp(`\\bcase\\s+['"\`](${KEYS})['"\`]\\s*:`)],

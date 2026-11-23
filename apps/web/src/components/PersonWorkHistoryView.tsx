@@ -9,7 +9,7 @@ import {
 import { apiFetch } from '../lib/api';
 import { displayStatus, statusClass, statusTone } from '../lib/statusTone';
 import { Avatar } from './Avatar';
-import { formatDuration, getStepStatusLabel, reworkTimeMs, type WorkItemIndividualMeasures, INTERVAL_KIND_LABELS, PAUSE_REASON_LABELS } from '@mmp/shared';
+import { ROLE_LABELS, formatDuration, getStepStatusLabel, reworkTimeMs, type WorkItemIndividualMeasures, INTERVAL_KIND_LABELS, PAUSE_REASON_LABELS } from '@mmp/shared';
 
 export interface PersonWorkHistoryData {
   person: {
@@ -204,7 +204,7 @@ export const PersonWorkHistoryView: React.FC<PersonWorkHistoryViewProps> = ({
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">{person.name}</h2>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                {person.role.replace('_', ' ')}
+                {(ROLE_LABELS as Record<string, string>)[person.role] || person.role}
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium mt-0.5">

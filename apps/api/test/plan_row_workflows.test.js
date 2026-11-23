@@ -45,7 +45,7 @@ describe('Row workflows', () => {
       });
     await mk('sm', 'WF SM Manager', 'sm_manager');
     await mk('admin', 'WF Admin', 'admin');
-    await mk('head', 'WF Creative Head', 'creative_lead');
+    await mk('head', 'WF Marketing Head', 'creative_lead');
     await mk('writer', 'WF Writer', 'executive', ['Script', 'Content']);
     await mk('shooter', 'WF Shooter', 'executive', ['Shoot']);
     await mk('editor', 'WF Editor', 'executive', ['Edit']);

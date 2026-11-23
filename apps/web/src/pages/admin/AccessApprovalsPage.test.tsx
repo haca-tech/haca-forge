@@ -34,7 +34,7 @@ vi.mock('../../lib/uiFeedback', () => ({
 
 const PEOPLE = [
   { _id: 'admin-1', name: 'Ada Admin', email: 'ada@x.test', jobRole: '', role: 'admin', status: 'active', calendarScope: null, lastActive: null, calendarLimitApplies: false },
-  { _id: 'lead-1', name: 'Amjith Lead', email: 'am@x.test', jobRole: 'Creative Lead', role: 'creative_lead', status: 'active', calendarScope: null, lastActive: new Date().toISOString(), calendarLimitApplies: true },
+  { _id: 'lead-1', name: 'Amjith Lead', email: 'am@x.test', jobRole: 'Creative Manager', role: 'creative_lead', status: 'active', calendarScope: null, lastActive: new Date().toISOString(), calendarLimitApplies: true },
 ];
 const audience = (roles: string[] = [], userIds: string[] = []) => ({ roles, userIds });
 const healthy = { ok: true, errors: [], warnings: [], resolved: Object.fromEntries(WORKFLOW_SLOTS.map((s) => [s, [{ _id: 'x', name: 'X' }]])) };
@@ -192,14 +192,14 @@ describe('Access & Approvals page', () => {
     expect(await screen.findByText('Ads Calendar')).toBeInTheDocument();
     expect(screen.getByText('Plans approved by')).toBeInTheDocument();
     expect(screen.getByText('Fallback')).toBeInTheDocument();
-    // Remove the Growth Lead role from reviewers: nobody left → blocked.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Remove Growth Lead (role)' })[1]);
+    // Remove the Marketing Growth Manager role from reviewers: nobody left → blocked.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove Marketing Growth Manager (role)' })[1]);
     fireEvent.change(screen.getByPlaceholderText('Why is this changing?'), { target: { value: 'Leave' } });
     expect(await screen.findByText('Ads Calendar has no active reviewer, even with the fallback.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeDisabled();
     expect(screen.getByText('Saving is blocked until every check passes.')).toBeInTheDocument();
 
-    // Add the named Creative Lead: healthy, the preview says what moves.
+    // Add the named Creative Manager: healthy, the preview says what moves.
     failing = false;
     const picker = screen.getByRole('combobox', { name: 'Add to Work reviewed by on Ads Calendar' });
     expect(within(picker).getByRole('option', { name: /Amjith Lead/ })).toBeInTheDocument();
@@ -223,7 +223,7 @@ describe('Access & Approvals page', () => {
       'POST /access-admin/history/h1/restore': (b) => (b?.preview ? { health: healthy, sentences: ['Changing Ads Calendar reviewers will re-route nothing waiting.'], counts: {} } : { ok: true }),
     });
     renderAt('/settings/access?tab=history&type=workflow_config');
-    expect(await screen.findByText('Growth Lead (role)')).toBeInTheDocument();
+    expect(await screen.findByText('Marketing Growth Manager (role)')).toBeInTheDocument();
     expect(await screen.findByText('Amjith Lead', { selector: 'span.font-medium' })).toBeInTheDocument();
     expect(screen.getByText('SM Calendar', { selector: 'span.font-medium' })).toBeInTheDocument();
     expect(apiFetch).toHaveBeenCalledWith(expect.stringContaining('type=workflow_config'));
@@ -233,9 +233,9 @@ describe('Access & Approvals page', () => {
     expect(confirmDialog).toHaveBeenCalledWith(expect.objectContaining({ confirmLabel: 'Restore this version' }));
   });
 
-  it('Role guide: all seven roles with what they can do, by area', () => {
+  it('Role guide: all eight roles (with the Viewer) with what they can do, by area', () => {
     renderAt('/settings/access?tab=guide');
-    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(7);
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(8);
     expect(screen.getByText('Locked: everything')).toBeInTheDocument();
     expect(screen.getAllByText('Roles & access').length).toBeGreaterThan(0);
   });

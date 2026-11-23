@@ -431,7 +431,7 @@ export const RatingsFeedbackSection: React.FC<RatingsFeedbackSectionProps> = ({
                           </span>
                         )}
 
-                        {/* Edit Rating action for Creative Lead & Admin */}
+                        {/* Edit Rating action for Creative Manager & Admin */}
                         {canEditRating && !readOnly && (
                           <button
                             onClick={() => openEditModal(item)}

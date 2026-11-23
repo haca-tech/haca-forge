@@ -227,7 +227,7 @@ describe('CalendarPage 3 Tabs & Role-based Controls (Scope Reset R3)', () => {
     expect(screen.queryByText(/New Plan/i)).toBeNull();
   });
 
-  it('Creative Head: monthly plans are reviewed in the grid; individual plans keep their review controls', async () => {
+  it('Marketing Head: monthly plans are reviewed in the grid; individual plans keep their review controls', async () => {
     (authContext.useAuth as any).mockReturnValue({
       user: { role: 'creative_lead', name: 'Claire Head' },
       hasPermission: () => true,
@@ -243,7 +243,7 @@ describe('CalendarPage 3 Tabs & Role-based Controls (Scope Reset R3)', () => {
     expect(await screen.findByText(/to review this plan row by row/i)).toBeDefined();
     expect(screen.queryByText(/Review Mode:/i)).toBeNull();
     expect(screen.getAllByRole('button', { name: /Review in plan grid/i })).toHaveLength(1);
-    // Plan creation is SM/Admin only, so the Creative Head has no Add individual work button.
+    // Plan creation is SM/Admin only, so the Marketing Head has no Add individual work button.
     expect(screen.queryByRole('button', { name: /Add individual work/i })).toBeNull();
 
     fireEvent.click(screen.getByText(/Sales Individual Work/i));

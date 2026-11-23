@@ -21,7 +21,7 @@
    - [4.4 Edit Workspace (Video Editors)](#44-edit-workspace-video-editors)
    - [4.5 Post Workspace (Social Media Specialists & Posters)](#45-post-workspace-social-media-specialists--posters)
    - [4.6 Dynamic Workspace Router (Multidisciplinary Allrounders)](#46-dynamic-workspace-router-multidisciplinary-allrounders)
-   - [4.7 Review Studio (Creative Lead Quality Cockpit)](#47-review-studio-creative-head-quality-cockpit)
+   - [4.7 Review Studio (Creative Manager Quality Cockpit)](#47-review-studio-creative-head-quality-cockpit)
    - [4.8 Earlier Outputs Viewer (Downstream Asset Visibility)](#48-earlier-outputs-viewer-downstream-asset-visibility)
    - [4.9 Quality Ratings & Craftsmanship Engine](#49-quality-ratings--craftsmanship-engine)
 5. [Universal Profile, Security & Mobile OTP Verification](#5-universal-profile-security--mobile-otp-verification)
@@ -58,7 +58,7 @@
 ### Primary Operational Mandates
 1. **Work & Team Management Only:** Following the Major Scope Reset, all non-operational modules (Leads, LSQ, Funnels, Campaigns, Targets, Multi-Brand Profiles) were completely excised.
 2. **Specialized Role Workspaces:** Production specialists (Writers, Designers, Shooters, Editors, Posters) work inside dedicated, tailored studios—never in loose file-link forms.
-3. **Quality Gatekeeping via Review Studio:** Creative Lead verifies all stages with mandatory 1–5 star ratings, anchored annotations, and structured revision root causes.
+3. **Quality Gatekeeping via Review Studio:** Creative Manager verifies all stages with mandatory 1–5 star ratings, anchored annotations, and structured revision root causes.
 4. **Individual Timing Standards:** Each worker's time is measured strictly from their own click on `Start Work`. There are zero shared countdown clocks or artificial pressure timers derived from publish dates.
 5. **Dignity & Privacy Safeguards:** Strictly zero leaderboards, zero worker-to-worker comparisons, zero monitoring beyond logged timestamps, and `HTTP 404` isolation on unauthorized projects.
 
@@ -94,7 +94,7 @@ The system enforces 5 clean canonical roles across all endpoints, navigations, a
 | View Team Directory (`/team`)       | All Users     | All Users       | All Users     | Denied (404)  | All (Masked)                |
 | Team Chat Access (`chat.use`)       | Full          | Full            | Full          | Full          | Read-Only (`chat.read`)     |
 | Create Groups (`chat.group.create`) | Full          | Full            | Full          | Denied        | Denied                      |
-| Direct Messaging (1-to-1 DMs)       | Active Users  | Active Users    | Active Users  | Active Users  | Denied (Creative Head Excluded) |
+| Direct Messaging (1-to-1 DMs)       | Active Users  | Active Users    | Active Users  | Active Users  | Denied (Marketing Head Excluded) |
 | Navigation Menu Limit               | <= 8 items    | <= 8 items      | <= 8 items    | <= 8 items    | <= 8 items                  |
 +-----------------------------------------------------------------------------------------------------------------------------+
 ```
@@ -113,28 +113,28 @@ Every creative stage in a pipeline produces a typed submission within a speciali
                        Writing Studio (/work/:id/writing)
                                        |
                                        v
-                     [ Creative Lead Review in Review Studio ]
+                     [ Creative Manager Review in Review Studio ]
                                        | Approved (1-5★)
                                        v
                      [ 2. SHOOT STAGE (Videographer) ]
                        Clip-by-Clip Shoot Studio (/work/:id/shoot)
                                        |
                                        v
-                     [ Creative Lead Review in Review Studio ]  <-- (Shoot is a Review Step!)
+                     [ Creative Manager Review in Review Studio ]  <-- (Shoot is a Review Step!)
                                        | Approved (1-5★)
                                        v
                      [ 3. EDIT STAGE (Video Editor) ]
                        Edit Workspace (/work/:id/edit)
                                        |
                                        v
-                     [ Creative Lead Review in Review Studio ]
+                     [ Creative Manager Review in Review Studio ]
                                        | Approved (1-5★)
                                        v
                      [ 4. DESIGN STAGE (Graphic Designer) ]
                        Design Workspace (/work/:id/design)
                                        |
                                        v
-                     [ Creative Lead Review in Review Studio ]
+                     [ Creative Manager Review in Review Studio ]
                                        | Approved (1-5★)
                                        v
                      [ 5. POST STAGE (Social Media Specialist) ]
@@ -243,20 +243,20 @@ Every creative stage in a pipeline produces a typed submission within a speciali
 | CLIP GALLERY & PER-CLIP FEEDBACK THREADS:                                                         |
 |                                                                                                   |
 | Clip #1: Take 1 - Robot Claw Close.mp4                                                            |
-| Tags: [Scene 1] [Take 1] [4K 60fps]   Status: [✓ Approved by Creative Lead]                       |
-| Chat: Creative Lead: "Focus pull is razor sharp. Approved." (10:14 AM)                            |
+| Tags: [Scene 1] [Take 1] [4K 60fps]   Status: [✓ Approved by Creative Manager]                       |
+| Chat: Creative Manager: "Focus pull is razor sharp. Approved." (10:14 AM)                            |
 |                                                                                                   |
 | Clip #2: Take 2 - Student Reaction Wide.mp4                                                       |
 | Tags: [Scene 2] [Take 2] [4K 24fps]   Status: [⚠️ Reshoot Needed]                                 |
-| Chat: Creative Lead: "Too underexposed in the shadow area. Please recapture." (10:15 AM)         |
+| Chat: Creative Manager: "Too underexposed in the shadow area. Please recapture." (10:15 AM)         |
 | [ Replace Clip / Upload Retake ]                                                                  |
 +---------------------------------------------------------------------------------------------------+
-| STEP STATUS: 2 of 3 Clips Approved   [ Submit Shoot for Creative Lead Verification ]              |
+| STEP STATUS: 2 of 3 Clips Approved   [ Submit Shoot for Creative Manager Verification ]              |
 +---------------------------------------------------------------------------------------------------+
 ```
 
 #### Exact Features & Utilities:
-1. **Elevation as a Review Step:** Downstream `Edit` step remains strictly locked until the Creative Lead approves the `Shoot` submission.
+1. **Elevation as a Review Step:** Downstream `Edit` step remains strictly locked until the Creative Manager approves the `Shoot` submission.
 2. **Shot List Checklist:** Direct accordion integration displaying the writer's numbered visual shot list with interactive progress checkmarks.
 3. **Chunked Resumable Upload:** Phone-friendly upload handling raw camera clips (MP4, MOV, WebM) up to 500 MB per clip with automatic pause, resume, and retry on cellular drops.
 4. **Per-Clip Metadata:** Records Scene/Shot #, Take #, Resolution (4K/1080p), FPS (24/60/120), and cameraman field notes.
@@ -282,7 +282,7 @@ Every creative stage in a pipeline produces a typed submission within a speciali
 | APPROVED SCRIPT & AUDIO BREAKDOWN:                  | [✓ Aspect Ratio: 9:16 Vertical Detected]    |
 | 00:00 - 00:04: Hook ("Nobody warned me...")         | [✓ Duration: 58 seconds (<90s Limit)]       |
 | 00:04 - 00:18: Scene 1: Robotics lab action         |                                             |
-|                                                     | REVISION CHECKLIST (From Creative Lead):    |
+|                                                     | REVISION CHECKLIST (From Creative Manager):    |
 | [ Download Raw Assets Zip Bundle ]                  | [x] 00:12: Trim robot arm cut 1s earlier    |
 |                                                     | [x] 00:38: Boost vocal track by +2dB        |
 +-----------------------------------------------------+---------------------------------------------+
@@ -294,7 +294,7 @@ Every creative stage in a pipeline produces a typed submission within a speciali
 3. **Non-Blocking Pre-Flight Checks:**
    - **Aspect Ratio Check:** Warns if video is not 9:16 vertical ($1080\times 1920$).
    - **Duration Check:** Warns if runtime exceeds 90 seconds.
-4. **Interactive Revision Checklist:** When revisions are requested, the Creative Lead's timestamped notes render as an interactive checklist that the editor ticks off before re-submitting.
+4. **Interactive Revision Checklist:** When revisions are requested, the Creative Manager's timestamped notes render as an interactive checklist that the editor ticks off before re-submitting.
 5. **Rendered Cut Upload:** Master cut upload up to 500 MB with version tracking (Cut v1, Cut v2).
 
 ---
@@ -346,7 +346,7 @@ Every creative stage in a pipeline produces a typed submission within a speciali
 
 ---
 
-### 4.7 Review Studio (Creative Lead Quality Cockpit)
+### 4.7 Review Studio (Creative Manager Quality Cockpit)
 * **Route:** `/feedback/review-studio/:id` (and `/feedback`)
 * **Target Users:** `creative_lead`, `admin`.
 
@@ -545,8 +545,8 @@ CSV per table (the same cells as the screen) and a print layout (`/reports/print
 * **Real-time Gateway:** Socket.IO 4.x with authenticated handshakes.
 
 ### 9.1 Channels
-1. **Team Chat (`type: 'team'`):** Universal singleton channel for the entire company. Creative Head is read-only.
-2. **Specialist Groups (`type: 'group'`):** Created by Admin, Creative Lead, or SM Manager for specific projects.
+1. **Team Chat (`type: 'team'`):** Universal singleton channel for the entire company. Marketing Head is read-only.
+2. **Specialist Groups (`type: 'group'`):** Created by Admin, Creative Manager, or SM Manager for specific projects.
 3. **Direct Messages (`type: 'dm'`):** Private 1-to-1 conversations between active non-creative_head users. Admin cannot read DMs.
 
 ### 9.2 Real-time Messaging, Reactions, Mentions & Pinning

@@ -16,7 +16,7 @@ router.use(authenticate);
 router.get('/', requireAnyPermission('user.manage', 'people.assign', 'people.view'), peopleController.listPeople);
 router.get('/assignment-candidates', requireAnyPermission('people.assign', 'work.create', 'people.view'), peopleController.getAssignmentCandidates);
 router.get('/performance/team', requireAnyPermission('analytics.team', 'people.view'), peopleController.getTeamPerformance);
-router.get('/:id/performance', requireAnyPermission('analytics.team', 'people.view'), peopleController.getPersonPerformance);
+router.get('/:id/performance', requireAnyPermission('people.view'), peopleController.getPersonPerformance);
 router.get('/:id/ratings', ratingsSummaryHandler);
 router.get('/:id/profile', peopleController.getPersonProfileHandler);
 router.get('/:id/work-history', peopleController.getPersonWorkHistoryHandler);

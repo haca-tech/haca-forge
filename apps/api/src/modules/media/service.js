@@ -522,7 +522,7 @@ export async function postMessage(clipId, messageData, user) {
         recipient: workItem.ownerId,
         type: 'new_message',
         title: 'New feedback on clip',
-        message: `${user.name || 'Creative Lead'} commented on "${clip.title}"`,
+        message: `${user.name || 'Creative Manager'} commented on "${clip.title}"`,
         link: `/work/${workItem._id}?clipId=${clip._id}`,
       });
     }
@@ -662,7 +662,7 @@ export async function toggleMessageDone(clipId, messageId, done, user) {
  */
 export async function reviewClip(clipId, { action, message }, user) {
   if (!hasPermission(user, 'review.decide')) {
-    const error = new Error('Only Creative Lead or Admin can review clips');
+    const error = new Error('Only Creative Manager or Admin can review clips');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_ACTION';
     throw error;
@@ -870,7 +870,7 @@ export async function submitClipsForApproval(stageItemId, user) {
   const { transitionWorkItem } = await import('../workItems/transition.service.js');
   const updatedWorkItem = await transitionWorkItem(
     workItem._id,
-    { toStatus: 'Pending', notes: 'Footage clips submitted for Creative Lead review' },
+    { toStatus: 'Pending', notes: 'Footage clips submitted for Creative Manager review' },
     user,
     { ownerSubmission: true }
   );
@@ -891,7 +891,7 @@ export async function submitClipsForApproval(stageItemId, user) {
 }
 
 /**
- * 13. Finish review of shoot step (Creative Lead / Admin)
+ * 13. Finish review of shoot step (Creative Manager / Admin)
  * If any clip is reshoot_needed -> the step waits in "Changes requested", like any other revision.
  * If all clips are approved -> approve step with 1 to 5 rating.
  * A step cannot be approved while a clip is waiting_review or reshoot_needed.
@@ -971,7 +971,7 @@ export async function finishShootStepReview(stageItemId, reviewData, user) {
           recipient: workItem.ownerId?._id || workItem.ownerId,
           type: 'revision_requested',
           title: 'Revision Requested on Stage Deliverable',
-          message: `Creative Lead requested a revision on ${workItem.title}. Note: ${comment}`,
+          message: `Creative Manager requested a revision on ${workItem.title}. Note: ${comment}`,
           link: `/my-work?id=${workItem._id}`,
           metadata: { workItemId: workItem._id, comment },
         })

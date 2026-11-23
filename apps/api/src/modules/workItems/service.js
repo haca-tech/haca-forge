@@ -371,7 +371,7 @@ export async function getWorkItemById(id, user) {
   result.pause = await pauseInfoFor(result, user);
 
   // A finished non-postable Design step is handed over: its approved files, with download,
-  // for the SM manager, creative head and admin.
+  // for the SM manager, Marketing Head and admin.
   if (handlesDeliverables(user)) {
     const handover = await buildHandover(result);
     if (handover) result.handover = handover;
@@ -678,7 +678,7 @@ export async function getMyWork(user) {
     if (item.latestSubmissionStatus === 'changes_requested' && (item.status === 'Feedback' || item.status === 'In Progress')) {
       const sentBack = await Submission.findOne({ workItemId: item._id, version: { $gt: 0 } }).sort({ version: -1 }).lean();
       const note = await revisionNoteFor(item, sentBack);
-      if (note) item.latestFeedback = { ...note, reviewer: note.reviewer || 'Creative Lead' };
+      if (note) item.latestFeedback = { ...note, reviewer: note.reviewer || 'Creative Manager' };
     } else if (item.status === 'Feedback' && !item.latestSubmissionStatus) {
       // A step sent back before versions existed: the status event that sent it back, else the
       // old Feedback-page entry.
@@ -692,7 +692,7 @@ export async function getMyWork(user) {
         .populate('actorId', 'name')
         .lean();
       if (statusEvent) {
-        item.latestFeedback = { text: statusEvent.metadata.comment, reviewer: statusEvent.actorId?.name || 'Creative Lead', createdAt: statusEvent.timestamp };
+        item.latestFeedback = { text: statusEvent.metadata.comment, reviewer: statusEvent.actorId?.name || 'Creative Manager', createdAt: statusEvent.timestamp };
       }
       if (!item.latestFeedback) try {
         const { FeedbackEntry } = await import('../feedback/model.js');
@@ -702,7 +702,7 @@ export async function getMyWork(user) {
         if (latestEntry) {
           item.latestFeedback = {
             text: latestEntry.text,
-            reviewer: latestEntry.fromPersonId?.name || 'Creative Lead',
+            reviewer: latestEntry.fromPersonId?.name || 'Creative Manager',
             createdAt: latestEntry.createdAt,
           };
         }

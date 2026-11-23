@@ -43,7 +43,7 @@ describe('Phase 1: Profiles, People & Access Scoping Tests', () => {
     });
 
     headUser = await Person.create({
-      name: 'Creative Head',
+      name: 'Marketing Head',
       email: 'head@phase1test.com',
       role: 'creative_lead',
       status: 'active',
@@ -147,7 +147,7 @@ describe('Phase 1: Profiles, People & Access Scoping Tests', () => {
       expect(newPerson.status).toBe('active');
     });
 
-    it('Creative Head CANNOT create users', async () => {
+    it('Marketing Head CANNOT create users', async () => {
       await expect(
         peopleService.createPerson(
           {
@@ -160,7 +160,7 @@ describe('Phase 1: Profiles, People & Access Scoping Tests', () => {
       ).rejects.toThrow(/only Administrator can create users/);
     });
 
-    it('Creative Head CANNOT suspend users', async () => {
+    it('Marketing Head CANNOT suspend users', async () => {
       await expect(peopleService.suspendPerson(member1User._id, headUser)).rejects.toThrow(
         /only Administrator can suspend users/
       );
@@ -175,7 +175,7 @@ describe('Phase 1: Profiles, People & Access Scoping Tests', () => {
       expect(active.status).toBe('active');
     });
 
-    it('Creative Head CANNOT edit admin, executive, or other creative_head accounts', async () => {
+    it('Marketing Head CANNOT edit admin, executive, or other creative_head accounts', async () => {
       await expect(
         peopleService.updatePerson(adminUser._id, { weeklyCapacityHours: 20 }, headUser)
       ).rejects.toThrow(/a lead cannot modify admin, lead or head accounts/);
@@ -185,7 +185,7 @@ describe('Phase 1: Profiles, People & Access Scoping Tests', () => {
       ).rejects.toThrow(/a lead cannot modify admin, lead or head accounts/);
     });
 
-    it('Creative Head CANNOT change user roles or status or emails', async () => {
+    it('Marketing Head CANNOT change user roles or status or emails', async () => {
       await expect(
         peopleService.updatePerson(member1User._id, { role: 'sm_manager' }, headUser)
       ).rejects.toThrow(/a lead cannot change user roles/);
@@ -199,7 +199,7 @@ describe('Phase 1: Profiles, People & Access Scoping Tests', () => {
       ).rejects.toThrow(/a lead can only edit operational fields/);
     });
 
-    it('Creative Head CAN edit operational fields of sm_manager and team_member', async () => {
+    it('Marketing Head CAN edit operational fields of sm_manager and team_member', async () => {
       const updated = await peopleService.updatePerson(
         member1User._id,
         {

@@ -24,7 +24,7 @@ The system supports exactly **two** plan types:
 
 * **Cadence:** Around the 25th of each month, the **SM Manager** builds the upcoming month's calendar plan.
 * **Scope of Deliverables:** Collates programs, campaigns, and day-wise deliverables (reels, static posts, carousels, stories, brochures, etc.) needed across internal teams: **Sales**, **Marketing**, **Academics**, and **Other**.
-* **Submission:** Once all rows for the month are compiled and verified, the SM Manager submits the complete calendar plan to the **Creative Lead** for line-item review and verification.
+* **Submission:** Once all rows for the month are compiled and verified, the SM Manager submits the complete calendar plan to the **Creative Manager** for line-item review and verification.
 * **Ad-Hoc & Mid-Month Requests:** After the monthly calendar is submitted or approved, the SM Manager can create **Individual Works** (`kind: 'individual'`) for single ad-hoc deliverables arising mid-month.
 
 ---
@@ -70,7 +70,7 @@ Every row represents one planned marketing deliverable. The SM Manager enters th
   *Execution ends with the posting owner publishing to social channels and recording the live URL and timestamp.*
 * **Non-Postable Types (Collateral & Handover on $F$):**  
   `Cover Image`, `Thumbnail`, `Meta Ads Creative`, `Class Announcement`, `Orientation Creative`, `Graduation Creative`, `Brochure`, `Certificate`, `Offer Creative`, `Placement Poster`, `Custom Request`.  
-  *Execution concludes upon Creative Lead final approval; final assets are handed over on date $F$. No `Post` stage exists.*
+  *Execution concludes upon Creative Manager final approval; final assets are handed over on date $F$. No `Post` stage exists.*
 
 ### 3.3 Stage Owner & Deadline Fields by Type
 
@@ -144,7 +144,7 @@ Deadlines are calculated backward from posting date $F$ using **calendar days** 
 | **Reel Variant B** (Script: No, Shoot: Yes) | Shoot: $F - 5$ <br/> Edit: $F - 2$ | Post: $F$ | 2 days after Edit (1 day review + 1 spare) |
 | **Reel Variant C** (Script: No, Shoot: No) | Edit: $F - 2$ | Post: $F$ | 2 days after Edit (1 day review + 1 spare) |
 
-* **Buffer Rationale:** The 2-day gap between the final creation stage ($F - 2$) and delivery ($F$) provides 1 full working day for Creative Lead approval and 1 contingency buffer day.
+* **Buffer Rationale:** The 2-day gap between the final creation stage ($F - 2$) and delivery ($F$) provides 1 full working day for Creative Manager approval and 1 contingency buffer day.
 
 ### 4.3 Manual Overrides & Recalculation Rules
 * Any owner or deadline modified by the SM Manager is visually tagged: **`'set by SM Manager'`**.
@@ -171,8 +171,8 @@ A plan cannot be submitted while any row contains a blocking error:
 9. **Duplicate Row:** Two or more rows share the exact same `Posting date F`, `Topic`, and `Type` within the plan.
 10. **Individual Plan Row Violation:** Plan kind is `individual`, but contains more or fewer than exactly 1 row.
 
-### 5.2 Non-Blocking Warnings (Displayed to Creative Lead in Review)
-Warnings do not block submission, but are highlighted for the Creative Lead:
+### 5.2 Non-Blocking Warnings (Displayed to Creative Manager in Review)
+Warnings do not block submission, but are highlighted for the Creative Manager:
 1. **Tight Creation Buffer:** The last creation stage deadline is scheduled later than $F - 1$ (leaving $<24$ hours for review).
 2. **Workload Saturation:** Assigning the row pushes an owner's total workload above **$85\%$**.
 3. **Month Mismatch:** A row's posting date falls outside the calendar plan's stated month.
@@ -185,10 +185,10 @@ Warnings do not block submission, but are highlighted for the Creative Lead:
 stateDiagram-v2
     [*] --> Draft: SM Manager creates plan & rows
     Draft --> Submitted: SM Manager Submits (Errors block submit)
-    Submitted --> Approved: Creative Lead: Approve All
-    Submitted --> ApprovedWithPending: Creative Lead: Approve Selected Rows
-    Submitted --> ChangesRequested: Creative Lead: Request Changes (with comments)
-    Submitted --> ChangesRequested: Creative Lead: Reject Plan (with plan concern)
+    Submitted --> Approved: Creative Manager: Approve All
+    Submitted --> ApprovedWithPending: Creative Manager: Approve Selected Rows
+    Submitted --> ChangesRequested: Creative Manager: Request Changes (with comments)
+    Submitted --> ChangesRequested: Creative Manager: Reject Plan (with plan concern)
     
     ChangesRequested --> Submitted: SM Manager edits & resubmits flagged rows
     ApprovedWithPending --> Approved: Remaining rows revised & approved
@@ -204,7 +204,7 @@ stateDiagram-v2
   * `Approved`: Every row in the plan has been approved.
   * `Approved with pending rows`: Some rows are approved (producing live work), while others remain in `draft` or `changes_requested`.
 
-### 6.2 Review Actions (Creative Lead and Admin Only)
+### 6.2 Review Actions (Creative Manager and Admin Only)
 1. **Approve All:** Approves every submitted row with a single click.
 2. **Approve Selected Rows:** Selects specific valid rows to approve immediately while requesting revisions on others.
 3. **Request Changes on a Row:** Attaches a mandatory feedback comment to the row; row transitions to `changes_requested`.
@@ -232,7 +232,7 @@ When a row transitions to `approved`:
 ### 7.1 Mid-Flight Modifications & Governance
 * **Permitted Changes:** The SM Manager and Admin can reassign an owner, modify a stage deadline, reschedule posting date $F$, or skip an unstarted stage.
 * **Audit Trail:** Every post-approval mutation is logged in `ActivityEvent` with `who`, `when`, `oldValue`, and `newValue`.
-* **Alerts:** Both the affected worker and the Creative Lead receive instant notifications of the change.
+* **Alerts:** Both the affected worker and the Creative Manager receive instant notifications of the change.
 * **Immutable Fields:** **Topic** and **Type** cannot be altered after row approval. (If topic or type must change, the row is cancelled and a new row must be created).
 
 ---
@@ -243,7 +243,7 @@ When a row transitions to `approved`:
 sequenceDiagram
     autonumber
     actor Worker as Stage Assignee
-    actor CH as Creative Lead
+    actor CH as Creative Manager
     actor NextWorker as Downstream Worker
     actor Publisher as Posting Owner
 
@@ -271,25 +271,25 @@ sequenceDiagram
 Every stage produces a **typed Submission** (governed by [docs/WORKSPACES.md](file:///c:/Users/ADMIN/OneDrive/Desktop/HACA/TECH/haca-forge/docs/WORKSPACES.md)):
 * **Design Pipeline:**
   1. `Content Writer`: Drafts copy doc in **Writing Studio** (JSON + HTML snapshot; fallback doc link) $\rightarrow$ Submits for review.
-  2. `Creative Lead`: Reviews in **Review Studio** $\rightarrow$ Approves with 1–5 rating.
+  2. `Creative Manager`: Reviews in **Review Studio** $\rightarrow$ Approves with 1–5 rating.
   3. `Designer`: Creates visual assets in **Designer Workspace** (Images / PDF with dimension pre-flight) $\rightarrow$ Submits for review.
-  4. `Creative Lead`: Reviews in Review Studio $\rightarrow$ Final design approval with 1–5 rating.
+  4. `Creative Manager`: Reviews in Review Studio $\rightarrow$ Final design approval with 1–5 rating.
   5. *Handover:* Non-postable items are completed. Postable items proceed to step 6.
   6. `Posting Owner`: Accesses **Post Workspace**, downloads approved assets, copies caption/hashtags $\rightarrow$ Records public live link and timestamp (Mark as Posted).
 * **Reel Pipeline:**
   1. `Script Writer` (if required): Drafts script doc in **Writing Studio** (Scene table, duration estimator, hook check; fallback doc link) $\rightarrow$ Submits for review.
-  2. `Creative Lead`: Reviews script in Review Studio $\rightarrow$ Approves with 1–5 rating.
-  3. `Videographer / Shoot` (if required): Conducts shoot, accesses read-only script/shot list in **Videographer Workspace**, uploads video footage clips (resumable/chunked up to 500 MB; fallback drive link) $\rightarrow$ **Submits for Creative Lead review**. *(Shoot is now a Review Stage).*
-  4. `Creative Lead`: Reviews footage in Review Studio $\rightarrow$ Approves footage with 1–5 rating (unlocks Edit).
+  2. `Creative Manager`: Reviews script in Review Studio $\rightarrow$ Approves with 1–5 rating.
+  3. `Videographer / Shoot` (if required): Conducts shoot, accesses read-only script/shot list in **Videographer Workspace**, uploads video footage clips (resumable/chunked up to 500 MB; fallback drive link) $\rightarrow$ **Submits for Creative Manager review**. *(Shoot is now a Review Stage).*
+  4. `Creative Manager`: Reviews footage in Review Studio $\rightarrow$ Approves footage with 1–5 rating (unlocks Edit).
   5. `Video Editor`: Accesses footage and script in **Editor Workspace**, uploads cut with 9:16 / 90s checks $\rightarrow$ Submits for review.
-  6. `Creative Lead`: Reviews video cut in Review Studio with timecode-pinned comments $\rightarrow$ Final edit approval with 1–5 rating.
+  6. `Creative Manager`: Reviews video cut in Review Studio with timecode-pinned comments $\rightarrow$ Final edit approval with 1–5 rating.
   7. `Posting Owner`: Posts reel $\rightarrow$ Records public live link and timestamp.
 
 ### 8.2 Review vs. Non-Review Mechanics
 * **Review Stages (`Script`, `Shoot`, `Edit`, `Content`, `Design`):**
-  - Worker creates a typed submission and submits to Creative Lead.
-  - Creative Lead reviews: **Approve** (requires mandatory 1–5 quality rating, optional feedback and tags; unlocks next stage) or **Revision Required** (attaches comments or note, classifies root cause; work returns to worker queue in `In Progress` with previous submission pre-filled).
-  - Every resubmission creates a new version (`v1`, `v2`, ...). Revision count increments. If revisions reach **4**, a `RevisionFlag` is raised on the manager and Creative Lead dashboards.
+  - Worker creates a typed submission and submits to Creative Manager.
+  - Creative Manager reviews: **Approve** (requires mandatory 1–5 quality rating, optional feedback and tags; unlocks next stage) or **Revision Required** (attaches comments or note, classifies root cause; work returns to worker queue in `In Progress` with previous submission pre-filled).
+  - Every resubmission creates a new version (`v1`, `v2`, ...). Revision count increments. If revisions reach **4**, a `RevisionFlag` is raised on the manager and Creative Manager dashboards.
 * **Non-Review Stage (`Post`):**
   - `Post` is the only non-review step.
   - Posting owner verifies approved master and captions, publishes to platform, inputs live public URL and time, marking the piece complete.
@@ -313,13 +313,13 @@ For every stage, the system records exact dates and times for:
 ### 9.2 Derived Real-Time Operational Indicators
 * **Who holds it now:** Current holding party:
   - Worker name (when `In Progress`, `Not Started`, or `Pending`)
-  - `Creative Lead` (when in `Feedback` / awaiting approval)
+  - `Creative Manager` (when in `Feedback` / awaiting approval)
   - `SM Manager` (when status is `Needs owner`)
   - `Blocked since <date>` (when actively blocked)
   - `Locked` (waiting for upstream stage)
 * **Late by days:** Calendar days elapsed past due date without completion.
 * **Owner lag days:** Days between assigned due date and actual submission date.
-* **Approval wait days:** Days elapsed between worker submission and Creative Lead decision.
+* **Approval wait days:** Days elapsed between worker submission and Creative Manager decision.
 * **Piece Status:**
   - **`On Track`:** All active stages progressing normally.
   - **`At Risk`:** Any active stage is due within **2 calendar days** and is currently `Not Started`, `Pending`, or `Blocked`.
@@ -327,7 +327,7 @@ For every stage, the system records exact dates and times for:
 
 ### 9.3 Contributor & Leadership Metrics
 * **Per Contributor:** On-time completion rate, average days late, average revision cycles.
-* **For Creative Lead:** Average approval wait days.
+* **For Creative Manager:** Average approval wait days.
 * **Role-Based Visibility:**
   - `sm_manager`, `creative_lead`, `admin`, `creative_head` (read-only): Full visibility across all pieces, stages, and team metrics.
   - `executive`: Strictly scoped to their own assigned deliverables and stages.
@@ -343,7 +343,7 @@ All arbitrary hour-based escalation timers are removed. Exact dates and times ar
 | **Blockers** | Escalates to SM Manager after 4 hours. | When marked Blocked, dependency owner and SM Manager are notified **instantly**. Tracker displays: **`Blocked since <date>`**. No 4-hour alert. |
 | **Overdue Work** | Escalates after 4 hours past deadline. | Notification sent **once** when the due date passes (checked at end of day in `REPORT_TIMEZONE` by a daily job). Tracker shows **`Late by X days`**. |
 | **Approval Queue** | Targets 24-hour turnaround with escalations. | Queue displays **`Waiting for X days`**. No artificial hourly escalation. |
-| **Revision Flags** | Escalates to Creative Lead if unclassified after 48 hours. | Unclassified flags remain pinned at the **top of the Creative Lead dashboard** until classified. No 48-hour alert. |
+| **Revision Flags** | Escalates to Creative Manager if unclassified after 48 hours. | Unclassified flags remain pinned at the **top of the Creative Manager dashboard** until classified. No 48-hour alert. |
 | **System Messaging** | Messages referenced *"blocked for 4h"*. | System messages and UI chips **never reference hour counts**. |
 
 ### Preserved Day-Based and Count-Based Rules
@@ -367,7 +367,7 @@ When marking a stage Blocked, the worker selects from these exact 9 reasons:
 9. `Other` *(free-text explanation required only when 'Other' is selected)*
 
 ### 11.2 Standard Revision Root Causes (Exact 7)
-When classifying a revision flag, the Creative Lead selects from these exact 7 root causes:
+When classifying a revision flag, the Creative Manager selects from these exact 7 root causes:
 1. `Brief unclear`
 2. `Creative direction unclear`
 3. `Skill gap`
@@ -431,18 +431,18 @@ The system provides a downloadable spreadsheet template (`.xlsx` / `.csv`) for b
 ### 13.1 Workspaces Overview
 1. **Writing Studio (`Content`, `Script`):** Word-style desktop-first rich text editor, A4 page layout, zoom, 6 ribbon tabs (Home, Insert, Script, Review, View, File), Malayalam Unicode font support, anchored comments, single-editor lock, autosave with offline buffer, version history, script templates, 2-column scene table, duration estimator, hook check, caption/hashtag generator, shot list, and teleprompter. Document stored as JSON + sanitized HTML snapshot (1 MB limit).
 2. **Review Studio (`creative_lead`, `admin`):** High-throughput approval queue ('Waiting for approval', oldest first with waiting days), split-screen viewer (read-only doc with text diff, video player with timecode-pinned notes, image viewer with point-pinned notes, link opener), upstream outputs inspection, decision bar with mandatory 1–5 quality rating, optional tags, keyboard shortcuts, and auto-advance.
-3. **Videographer Workspace (`Shoot`):** Read-only script & shot list, upload 1–10 video files (resumable/chunked up to 500 MB, pause/retry, phone support), shoot notes. *Shoot is a review step evaluated by Creative Lead.*
+3. **Videographer Workspace (`Shoot`):** Read-only script & shot list, upload 1–10 video files (resumable/chunked up to 500 MB, pause/retry, phone support), shoot notes. *Shoot is a review step evaluated by Creative Manager.*
 4. **Editor Workspace (`Edit`):** Read-only footage and script, video upload with non-blocking 9:16 vertical and $\le 90\text{s}$ duration warnings, version list, revision comments interactive checklist.
 5. **Designer Workspace (`Design`):** Docked approved copy with copy-to-clipboard buttons, image & PDF upload with dimension checks (Static Post $1080\times 1080$, Carousel $1080\times 1080$, Story $1080\times 1920$, Thumbnail/Cover $1280\times 720$), drag-and-drop carousel slide ordering.
 6. **Posting Owner Workspace (`Post`):** Download approved master asset, copy caption & hashtags, platform checklist, live link and publication timestamp entry, Mark as posted.
 7. **Storage Limits:** Video (MP4, MOV, WebM) $\le 500\text{ MB}$; Images (PNG, JPG, WebP) $\le 20\text{ MB}$; PDF $\le 50\text{ MB}$. Unguessable storage paths, unlisted, with extracted metadata.
 
 ### 13.2 Quality Ratings & Feedback
-* **Mandatory on Approval:** Creative Lead rates approved output from 1 to 5 (1 Needs a lot of work, 3 Good, 5 Excellent). Rates creative craftsmanship only (never speed). Optional written feedback and tags (`Great hook`, `Clear message`, `Needs polish`, `Off brief`).
+* **Mandatory on Approval:** Creative Manager rates approved output from 1 to 5 (1 Needs a lot of work, 3 Good, 5 Excellent). Rates creative craftsmanship only (never speed). Optional written feedback and tags (`Great hook`, `Clear message`, `Needs polish`, `Off brief`).
 * **Worker Notification:** Worker sees rating and feedback on task card; can mark as seen.
 * **Audit Trail:** Rating editable only by rater or admin; all edits logged (`ActivityEvent`).
 * **Profile Metrics:** 30d, 90d, all-time average, monthly trend, distribution, step type average, recent feedback. Minimum 3 ratings required before displaying any average.
-* **Anti-Comparison / Privacy:** Worker sees strictly their own profile ratings. Creative Lead, SM Manager, Admin, Creative Head (read-only) can inspect profiles. Strictly no leaderboards, no rankings, no worker comparisons, and no incentive links.
+* **Anti-Comparison / Privacy:** Worker sees strictly their own profile ratings. Creative Manager, SM Manager, Admin, Marketing Head (read-only) can inspect profiles. Strictly no leaderboards, no rankings, no worker comparisons, and no incentive links.
 
 ### 13.3 Permissions
 * **Submissions:** Visible to step owner, reviewers (`creative_lead`, `admin`), `sm_manager`, `creative_head` (read-only), and read-only to colleagues assigned to stages in the same content piece.

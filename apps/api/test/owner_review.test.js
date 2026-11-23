@@ -157,13 +157,13 @@ describe('Review Studio for the step owner', () => {
     expect((await Notification.findOne({ recipient: P.owner._id, 'metadata.commentId': oid(lr.body.data._id) }).lean()).title).toBe('New reply on your review');
   });
 
-  it('Ads step: the Growth Lead and the owner exchange; a reply to someone who no longer decides goes to the deciding lead', async () => {
+  it('Ads step: the Marketing Growth Manager and the owner exchange; a reply to someone who no longer decides goes to the deciding lead', async () => {
     const g = await as('growthLead').post(`/api/submissions/${ads.v._id}/comments`, { text: 'Headline too long' });
     expect(await notes('owner', g.body.data._id)).toBe(1);
     const r = await as('owner').post(`/api/submissions/${ads.v._id}/comments`, { text: 'Shortened', parentId: g.body.data._id });
     expect(await notes('growthLead', r.body.data._id)).toBe(1);
     expect(await notes('creativeLead', r.body.data._id)).toBe(0);
-    // The Creative Lead commented on the Ads step but does not decide Ads: the reply goes to the Growth Lead.
+    // The Creative Manager commented on the Ads step but does not decide Ads: the reply goes to the Marketing Growth Manager.
     const c = await as('creativeLead').post(`/api/submissions/${ads.v._id}/comments`, { text: 'Brand colour check' });
     const r2 = await as('owner').post(`/api/submissions/${ads.v._id}/comments`, { text: 'Checked', parentId: c.body.data._id });
     expect(await notes('creativeLead', r2.body.data._id)).toBe(0);

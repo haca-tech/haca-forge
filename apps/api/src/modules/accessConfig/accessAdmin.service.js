@@ -20,7 +20,7 @@ import { ContentPiece } from '../calendar/contentPiece.model.js';
 import { AccessChange } from './accessChange.model.js';
 import { WorkflowConfig } from './workflowConfig.model.js';
 import { changePersonAccess } from './personAccess.service.js';
-import { updateWorkflowConfig } from './workflowConfig.service.js';
+import { assertSlotRoles, updateWorkflowConfig } from './workflowConfig.service.js';
 import { applyAccessDiff, snapshotAccess } from './responsibility.js';
 import { getAllWorkflowConfigs, readWorkflowConfigFresh } from '../../lib/accessResolver.js';
 import { countAwaitingReview } from '../workItems/reviewState.js';
@@ -403,6 +403,7 @@ export async function saveCalendarChange(calendar, body = {}, actor) {
   assertCalendar(calendar);
   const reason = requireReason(body.reason);
   const changes = Object.fromEntries(WORKFLOW_SLOTS.filter((s) => s in (body.changes || {})).map((s) => [s, body.changes[s]]));
+  assertSlotRoles(changes);
   // Compared with the stored settings (never the cache), at the version the page showed.
   const current = await readWorkflowConfigFresh(calendar);
   const expectedVersion = body.version === undefined || body.version === null ? current.version || 0 : Number(body.version);

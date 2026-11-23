@@ -384,11 +384,11 @@ export async function flagAfterChangesRequested(workItem, actor) {
 }
 
 /**
- * Classify root cause for a revision flag (SM Manager, Creative Lead or Admin)
+ * Classify root cause for a revision flag (SM Manager, Creative Manager or Admin)
  */
 export async function classifyRevisionFlag(flagId, { rootCause, rootCauseNotes }, user) {
   if (isOwnScope(user)) {
-    const error = new Error('Only an SM Manager, Creative Lead, or Admin can classify revision root causes');
+    const error = new Error('Only an SM Manager, Creative Manager, or Admin can classify revision root causes');
     error.statusCode = 403;
     throw error;
   }

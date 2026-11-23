@@ -941,7 +941,7 @@ export async function requestRevision(submissionId, { comment, rootCause }, user
         recipient: ownerId,
         type: 'revision_requested',
         title: 'Revision Requested on Stage Deliverable',
-        message: `Creative Lead requested a revision on ${workItem.title}. Note: ${trimmedComment || 'Please review comments and resubmit.'}`,
+        message: `Creative Manager requested a revision on ${workItem.title}. Note: ${trimmedComment || 'Please review comments and resubmit.'}`,
         link: `/my-work?id=${workItem._id}`,
         metadata: { workItemId: workItem._id, submissionId: submission._id, comment: trimmedComment },
       })
@@ -1167,7 +1167,7 @@ export async function getRatingsSummary(personId, user) {
   // - creative_lead/growth_lead, sm_manager, admin, creative_head/production_head read anyone's
   // - NO comparative ranking or leaderboards
   // Fixed rule 5: another person's ratings do not exist for a worker (404, not 403).
-  if (isOwnScope(role) && userId !== targetIdStr) {
+  if (userId !== targetIdStr && !hasPermission(role, 'team.profile.view')) {
     const err = new Error('Not found');
     err.statusCode = 404;
     err.code = 'NOT_FOUND';
@@ -1278,7 +1278,7 @@ export async function getRatingsSummary(personId, user) {
       workItemId: r.workItemId?._id || r.workItemId,
       date: r.createdAt,
       seenAt: r.seenAt,
-      raterName: r.raterId?.name || 'Creative Lead',
+      raterName: r.raterId?.name || 'Creative Manager',
       editedLog: r.editedLog || [],
     }));
 

@@ -46,7 +46,8 @@ export const BandChip: React.FC<{ band?: SimpleWorkloadBand | string | null; cla
 
 /**
  * Everyone's workload, by person id, for owner pickers. Loads once; an empty map when the
- * caller may not see it (the pickers then show names only).
+ * caller may not see it (the pickers then show names only). Callers pass `enabled` only for
+ * people who may see Team Workload (the API refuses the Viewer).
  */
 export function useTeamWorkload(enabled = true): Map<string, WorkloadRow> {
   const [map, setMap] = useState<Map<string, WorkloadRow>>(new Map());

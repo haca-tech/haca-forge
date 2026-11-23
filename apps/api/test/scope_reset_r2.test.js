@@ -75,7 +75,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
     });
 
     headUser = await Person.create({
-      name: 'R2 Creative Head',
+      name: 'R2 Marketing Head',
       email: 'head@r2-test.com',
       role: 'creative_lead',
       status: 'active',
@@ -186,13 +186,13 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
   // TASK 1 & 2: Permission Map Snapshot for the Five Roles
   // =========================================================================
   describe('1. Permission Map Snapshot & Canonical Contracts', () => {
-    it('defines exactly the 7 Phase 12b roles in ROLE_KEYS', () => {
-      expect(ROLE_KEYS).toEqual(['admin', 'creative_head', 'production_head', 'creative_lead', 'growth_lead', 'sm_manager', 'executive']);
+    it('defines exactly the 8 roles in ROLE_KEYS (with the Viewer)', () => {
+      expect(ROLE_KEYS).toEqual(['admin', 'creative_head', 'production_head', 'creative_lead', 'growth_lead', 'sm_manager', 'executive', 'viewer']);
     });
 
     it('exports ROLE_LABELS for the new roles', () => {
-      expect(ROLE_LABELS.creative_head).toBe('Creative Head');
-      expect(ROLE_LABELS.creative_lead).toBe('Creative Lead');
+      expect(ROLE_LABELS.creative_head).toBe('Marketing Head');
+      expect(ROLE_LABELS.creative_lead).toBe('Creative Manager');
       expect(ROLE_LABELS.sm_manager).toBe('SM Manager');
       expect(ROLE_LABELS.executive).toBe('Executive');
       expect(ROLE_LABELS.team_member).toBeUndefined();
@@ -497,7 +497,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
             { toStatus: 'Approved' },
             smUser
           )
-        ).rejects.toThrow(/Review stages can be approved only by Creative Lead and Admin/);
+        ).rejects.toThrow(/Review stages can be approved only by Creative Manager and Admin/);
       });
 
       it('POST /api/people -> 403 (Cannot create users)', async () => {
@@ -509,7 +509,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
       });
     });
 
-    describe('D. Creative Head: Approvals Allowed, User/Plan Creation Forbidden', () => {
+    describe('D. Marketing Head: Approvals Allowed, User/Plan Creation Forbidden', () => {
       it('POST /api/calendar-plans/:id/review -> 200 (Has calendar.approve)', async () => {
         // Final fix M3: only rows waiting for review are decided, so the plan needs a submitted row.
         await ContentPiece.create({ planId: testCalEntry._id, topic: 'R2 waiting row', contentType: 'Static Post', type: 'Static Post', pipeline: 'design', postingDate: new Date(Date.now() + 10 * 86400000), status: 'Not Started', calendar: 'sm', rowStatus: 'submitted', createdById: smUser._id, submittedById: smUser._id, brief: 'Brief.' });
@@ -527,7 +527,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
         const res = await request(app)
           .post('/api/calendar-plans')
           .set('Authorization', `Bearer ${headToken}`)
-          .send({ title: 'Creative Head Plan', kind: 'monthly', profileId: profileHaca._id });
+          .send({ title: 'Marketing Head Plan', kind: 'monthly', profileId: profileHaca._id });
         expect(res.status).toBe(403);
       });
 
@@ -570,10 +570,10 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
           { toStatus: 'Approved' },
           smUser
         )
-      ).rejects.toThrow(/Review stages can be approved only by Creative Lead and Admin/);
+      ).rejects.toThrow(/Review stages can be approved only by Creative Manager and Admin/);
     });
 
-    it('allows Creative Head to approve review stage deliverable', async () => {
+    it('allows Marketing Head to approve review stage deliverable', async () => {
       const approved = await transitionService.transitionWorkItem(
         memberWorkItem._id,
         { toStatus: 'Approved' },
@@ -628,7 +628,7 @@ describe('SCOPE RESET R2: Role Model Change & Permissions Verification Suite', (
 
       // Attempt on other creative_head
       const otherHead = await Person.create({
-        name: 'Other Creative Head',
+        name: 'Other Marketing Head',
         email: 'otherhead@r2-test.com',
         role: 'creative_lead',
         status: 'active',

@@ -659,7 +659,7 @@ export const IssuesBlockersPage: React.FC = () => {
                         </div>
                       ) : (
                         <p className="text-[11px] text-ui-muted italic">
-                          Requires SM Manager or Creative Lead root-cause classification.
+                          Requires SM Manager or Creative Manager root-cause classification.
                         </p>
                       )}
                     </div>

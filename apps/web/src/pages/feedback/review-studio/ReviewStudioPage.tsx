@@ -15,7 +15,7 @@ import {
   CheckCircle,
   Share2,
 } from 'lucide-react';
-import { ROLE_LABELS, type UserRole, canSeeAllReviewText } from '@mmp/shared';
+import { ROLE_LABELS, type UserRole } from '@mmp/shared';
 
 import { DocumentViewer, DocumentCommentAnchor } from './DocumentViewer';
 import { VideoPlayerViewer } from './VideoPlayerViewer';
@@ -29,7 +29,7 @@ import { ShareToChatModal } from '../../chat/ShareToChatModal';
 import { DRIVE_LINK_HINT, isAppUploadPath } from '@mmp/shared';
 import { AssetLinks, assetKind, type AssetItem } from '../../../components/AssetLinks';
 import { toast } from '../../../lib/uiFeedback';
-import { useAccess } from '../../../lib/access';
+import { roleAccess, useAccess } from '../../../lib/access';
 
 interface ReviewQueueItem {
   id: string;
@@ -747,8 +747,8 @@ export const ReviewStudioPage: React.FC = () => {
     activeSubmission?.workItemId?.ownerId
   )?.toString();
   const isOwner = Boolean(ownerId && ownerId === currentUserId);
-  // Same reviewer rule as the API: the lead of the step's calendar (Growth Lead for Ads,
-  // Creative Lead otherwise) and admin decide, never on their own work (Phase 13).
+  // Same reviewer rule as the API: the lead of the step's calendar (Marketing Growth Manager for Ads,
+  // Creative Manager otherwise) and admin decide, never on their own work (Phase 13).
   const isDecisionRole = access.can('review.decide');
   const stepCalendar = activeSubmission?.calendar || activeSubmission?.workItemId?.calendar || 'sm';
   const canDecide = access.can('review.decide', { calendar: stepCalendar }) && !isOwner;
@@ -772,7 +772,7 @@ export const ReviewStudioPage: React.FC = () => {
     setActiveCommentId(commentId);
     document.getElementById(`comment-${commentId}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   };
-  const canSeePins = canSeeAllReviewText(user?.role) || isOwner;
+  const canSeePins = roleAccess(String(user?.role || '')).can('review.read_all') || isOwner;
   const isPrivileged = access.can('chat.share_asset');
   const canShare = Boolean(isApproved && (isPrivileged || isOwner) && !access.isReadOnly);
 

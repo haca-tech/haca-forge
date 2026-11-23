@@ -12,7 +12,7 @@ feedbackRouter.param('workItemId', workItemParam);
 // Feedback threads list
 feedbackRouter.get(
   '/threads',
-  requireAnyPermission('analytics.team', 'feedback.view_all'),
+  requireAnyPermission('feedback.view_all', 'review.read_all'),
   feedbackController.listFeedbackThreads
 );
 
@@ -43,7 +43,7 @@ revisionsRouter.use(authenticate);
 // Revision Flags
 revisionsRouter.get(
   '/flags',
-  requireAnyPermission('analytics.team', 'feedback.view_all'),
+  requireAnyPermission('feedback.view_all', 'review.read_all'),
   feedbackController.listRevisionFlags
 );
 revisionsRouter.post(

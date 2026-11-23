@@ -862,7 +862,7 @@ export async function submitRow(planId, rowId, user) {
   plan.rejectionConcern = '';
   await plan.save();
 
-  // Notify the lead of the plan's calendar (Phase 13: Growth Lead for Ads, Creative Lead otherwise)
+  // Notify the lead of the plan's calendar (Phase 13: Marketing Growth Manager for Ads, Creative Manager otherwise)
   const creativeHeads = await decidersFor(calendarOf(plan), { plans: true });
   for (const ch of creativeHeads) {
     await createNotification({
@@ -889,7 +889,7 @@ export async function submitRow(planId, rowId, user) {
 /**
  * Submit Calendar Plan
  * Moves draft and changes_requested rows to 'submitted'
- * Notifies all Creative Leads
+ * Notifies all Creative Managers
  */
 export async function submitPlan(id, user) {
   const plan = await CalendarPlan.findById(id);
@@ -1180,7 +1180,7 @@ export async function generateStagesForApprovedRow(piece, user) {
 }
 
 /**
- * Creative Lead Review
+ * Creative Manager Review
  * Actions: approve_all | approve_selected | request_changes | reject
  */
 const STAGE_REPAIR_CLAIM_MS = 5 * 60 * 1000;
@@ -1228,14 +1228,14 @@ export async function reviewPlan(id, reviewData, user) {
   // Phase 12b: plan rows are reviewed by the leads (creative_lead, growth_lead), with admin as a backup.
   // Phase 13 splits the leads by calendar.
   if (!hasPermission(user, 'calendar.approve')) {
-    const error = new Error('Plan rows can be reviewed only by a Creative Lead, a Growth Lead or an Admin.');
+    const error = new Error('Plan rows can be reviewed only by a Creative Manager, a Marketing Growth Manager or an Admin.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_APPROVAL';
     throw error;
   }
 
   const plan = await CalendarPlan.findById(id);
-  // Phase 13: the lead of the plan's calendar (Growth Lead for Ads) or admin.
+  // Phase 13: the lead of the plan's calendar (Marketing Growth Manager for Ads) or admin.
   // Fixed rule: nobody approves or sends back their own plan (403 SELF_DECISION).
   if (plan) await assertDecidesOn(user, calendarOf(plan), { roleCode: 'FORBIDDEN_APPROVAL', permission: 'calendar.approve', ownerId: plan.createdById });
   if (!plan) {

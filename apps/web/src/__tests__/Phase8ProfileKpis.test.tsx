@@ -98,7 +98,7 @@ describe('Profile KPI cards', () => {
     expect(screen.getByTestId('kpi-changesRequested-last')).toHaveTextContent('Last period: No data');
   });
 
-  it('Creative Head cards: the queue label and the legacy note', () => {
+  it('Marketing Head cards: the queue label and the legacy note', () => {
     render(<ReviewerCards ch={ch} />);
     expect(screen.getByTestId('review-queue')).toHaveTextContent('Oldest item in the team review queue');
     expect(screen.getByTestId('review-legacy-note')).toHaveTextContent('1 earlier approvals have no review record and are not counted.');
@@ -157,6 +157,6 @@ describe('Profile report (print layout)', () => {
   it('a role without download access sees a refusal', async () => {
     response = { status: 403 };
     open();
-    expect(await screen.findByRole('alert')).toHaveTextContent('Only admin, creative head and executive can download this report.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Only an Admin, the Marketing Head, the Production Head, a Creative Manager or a Marketing Growth Manager can download this report.');
   });
 });

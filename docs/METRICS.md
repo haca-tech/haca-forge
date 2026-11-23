@@ -14,11 +14,11 @@ Every stage in a content piece records exact timestamps:
 1. `unlockedAt`: When preceding pipeline stages finished and this step became unblocked/actionable.
 2. `assignedAt`: When the owner was assigned to this step.
 3. `startedAt`: When the assigned worker explicitly began work (transitioned from `Not Started` to `In Progress`).
-4. `submittedAt`: When the worker submitted work for Creative Lead review.
-5. `decisionAt`: When the Creative Lead made a decision (`approved` or `changes_requested`).
+4. `submittedAt`: When the worker submitted work for Creative Manager review.
+5. `decisionAt`: When the Creative Manager made a decision (`approved` or `changes_requested`).
 6. `changesRequestedAt`: Recorded when a revision is requested (marks the start of the next round).
 7. `resubmittedAt`: When the worker submits revised work for the subsequent round.
-8. `approvedAt`: When Creative Lead approved the step.
+8. `approvedAt`: When Creative Manager approved the step.
 9. `postedAt`: When the Posting Owner marked live publication.
 
 ### 2.1 Interval Logs for Blocked and Pending
@@ -52,7 +52,7 @@ $$\text{Round Work Time}_r = (\text{roundEnd}_r - \text{roundStart}_r) - \sum \t
 $$\text{Total Work Time} = \sum_{r=1}^{N} \text{Round Work Time}_r$$
 
 ### 3.3 Approval Wait
-Time elapsed from worker submission until Creative Lead review decision:
+Time elapsed from worker submission until Creative Manager review decision:
 $$\text{Approval Wait} = \text{decisionAt} - \text{submittedAt}$$
 If currently under review in `Feedback`: $\text{now} - \text{submittedAt}$.
 
@@ -89,7 +89,7 @@ $$\text{Load}_W = \left(\frac{\sum_{i \in \text{AssignedSteps}_W} \text{DefaultS
 - **Individual Work Timer:** After clicking Start, the worker sees their own elapsed active work time (`Working for 2h 15m`), automatically pausing when Blocked or Pending.
 - **Post-Submission:** Shows their completed work time and approval wait.
 
-### 4.2 Leadership & Audit Views (Admin, Creative Lead, SM Manager, Creative Head)
+### 4.2 Leadership & Audit Views (Admin, Creative Manager, SM Manager, Marketing Head)
 - **Per-Person Work View:** Dedicated drawer and page accessible from Team Load and Tracker chips. Displays:
   1. **Now:** Tasks in progress, changes requested, waiting for approval, blocked.
   2. **Next:** Locked and not started tasks with step due dates.

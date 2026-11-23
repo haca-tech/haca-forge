@@ -59,7 +59,7 @@ describe('Share to Chat & Chat Polish Backend Specification Suite', () => {
       profileId: testProfile._id,
     });
     head = await Person.create({
-      name: 'Creative Head',
+      name: 'Marketing Head',
       preferredName: 'HeadReviewer',
       email: `head-${salt}@chatshare.com`,
       role: 'creative_lead',
@@ -526,9 +526,9 @@ describe('Share to Chat & Chat Polish Backend Specification Suite', () => {
   });
 
   // ==========================================
-  // Test 8: Creative Head approval with alsoShareToTeamChat
+  // Test 8: Marketing Head approval with alsoShareToTeamChat
   // ==========================================
-  describe('8. Atomic alsoShareToTeamChat on Creative Head Approval', () => {
+  describe('8. Atomic alsoShareToTeamChat on Marketing Head Approval', () => {
     it('creates ShareGrant and Team Chat message atomically when alsoShareToTeamChat: true', async () => {
       // Transition workItem to Pending so approval is allowed
       testWorkItem.status = 'Pending';

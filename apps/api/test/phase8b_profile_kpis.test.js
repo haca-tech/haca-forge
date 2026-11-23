@@ -150,7 +150,7 @@ describe('Phase 8b: profile KPIs', () => {
     });
   });
 
-  describe('Creative Head review figures', () => {
+  describe('Marketing Head review figures', () => {
     let ch;
     beforeAll(async () => {
       const res = await kpis('head', 'head');
@@ -180,7 +180,7 @@ describe('Phase 8b: profile KPIs', () => {
       expect(ch.charts.rootCausesUsed.find((c) => c.cause === 'Brief unclear').count).toBe(1);
     });
 
-    it('a Creative Head who owns production steps also gets the worker KPIs', async () => {
+    it('a Marketing Head who owns production steps also gets the worker KPIs', async () => {
       const res = await kpis('head', 'head');
       expect(res.body.data.worker.cards.assigned).toBe(1);
     });
@@ -202,7 +202,7 @@ describe('Phase 8b: profile KPIs', () => {
       expect(r.body.data.canDownload).toBe(false);
     });
 
-    it('review section: admin, executive, and the Creative Head on their own profile only', async () => {
+    it('review section: admin, executive, and the Marketing Head on their own profile only', async () => {
       expect((await kpis('admin', 'head')).body.data.creativeHead).not.toBeNull();
       expect((await kpis('exec', 'head')).body.data.creativeHead).not.toBeNull();
       expect((await kpis('head2', 'head')).body.data.creativeHead).toBeNull();

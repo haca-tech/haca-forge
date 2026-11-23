@@ -61,7 +61,7 @@ describe('Phase 8a: review and rework figures', () => {
   });
 });
 
-describe('Phase 8a: Creative Head figures', () => {
+describe('Phase 8a: Marketing Head figures', () => {
   it('approvals vs changes requested, and the average wait from submission to decision', () => {
     const r = reviewerStats([
       { status: 'approved', submittedAt: '2026-11-01T00:00:00Z', reviewedAt: '2026-11-01T04:00:00Z' },

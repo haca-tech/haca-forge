@@ -161,7 +161,8 @@
    "creative_lead",
    "growth_lead",
    "sm_manager",
-   "executive"
+   "executive",
+   "viewer"
   ]
  },
  "GET /api/calendar": {
@@ -178,7 +179,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/calendar/:id": {
@@ -195,7 +197,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/calendar/:id/rows/:rowId/history": {
@@ -212,7 +215,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/calendar/grid": {
@@ -229,7 +233,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/calendar/template": {
@@ -246,7 +251,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/chat/channels": {
@@ -348,7 +354,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/dashboard": {
@@ -364,7 +371,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/dashboard/:role": {
@@ -380,7 +388,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/dashboard/overview": {
@@ -396,7 +405,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/dashboard/summary": {
@@ -412,7 +422,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/docs": {
@@ -438,8 +449,8 @@
  "GET /api/feedback/threads": {
   "guards": [
    [
-    "analytics.team",
-    "feedback.view_all"
+    "feedback.view_all",
+    "review.read_all"
    ]
   ],
   "roles": [
@@ -506,7 +517,6 @@
  "GET /api/people/:id/performance": {
   "guards": [
    [
-    "analytics.team",
     "people.view"
    ]
   ],
@@ -549,7 +559,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/reports/overdue": {
@@ -564,7 +575,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/reports/overview": {
@@ -579,7 +591,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/reports/production": {
@@ -594,7 +607,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/reports/projects": {
@@ -609,7 +623,8 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
   ]
  },
  "GET /api/reports/quality": {
@@ -624,14 +639,51 @@
    "production_head",
    "creative_lead",
    "growth_lead",
-   "sm_manager"
+   "sm_manager",
+   "viewer"
+  ]
+ },
+ "GET /api/review-hub": {
+  "guards": [
+   [
+    "feedback.respond",
+    "feedback.view_all",
+    "review.read_all"
+   ]
+  ],
+  "roles": [
+   "admin",
+   "creative_head",
+   "production_head",
+   "creative_lead",
+   "growth_lead",
+   "sm_manager",
+   "executive"
+  ]
+ },
+ "GET /api/review-hub/steps/:workItemId/timeline": {
+  "guards": [
+   [
+    "feedback.respond",
+    "feedback.view_all",
+    "review.read_all"
+   ]
+  ],
+  "roles": [
+   "admin",
+   "creative_head",
+   "production_head",
+   "creative_lead",
+   "growth_lead",
+   "sm_manager",
+   "executive"
   ]
  },
  "GET /api/revisions/flags": {
   "guards": [
    [
-    "analytics.team",
-    "feedback.view_all"
+    "feedback.view_all",
+    "review.read_all"
    ]
   ],
   "roles": [
@@ -688,7 +740,8 @@
    "creative_lead",
    "growth_lead",
    "sm_manager",
-   "executive"
+   "executive",
+   "viewer"
   ]
  },
  "GET /api/work/:id": {
@@ -706,7 +759,8 @@
    "creative_lead",
    "growth_lead",
    "sm_manager",
-   "executive"
+   "executive",
+   "viewer"
   ]
  },
  "GET /api/work/:id/activity": {
@@ -724,7 +778,8 @@
    "creative_lead",
    "growth_lead",
    "sm_manager",
-   "executive"
+   "executive",
+   "viewer"
   ]
  },
  "GET /api/work/calendar": {
@@ -742,7 +797,8 @@
    "creative_lead",
    "growth_lead",
    "sm_manager",
-   "executive"
+   "executive",
+   "viewer"
   ]
  },
  "GET /api/work/my-work": {
@@ -765,6 +821,41 @@
     "work.request",
     "work.update.own",
     "work.view_all"
+   ]
+  ],
+  "roles": [
+   "admin",
+   "creative_head",
+   "production_head",
+   "creative_lead",
+   "growth_lead",
+   "sm_manager",
+   "executive",
+   "viewer"
+  ]
+ },
+ "GET /api/workload": {
+  "guards": [
+   [
+    "people.view",
+    "work.update.own"
+   ]
+  ],
+  "roles": [
+   "admin",
+   "creative_head",
+   "production_head",
+   "creative_lead",
+   "growth_lead",
+   "sm_manager",
+   "executive"
+  ]
+ },
+ "GET /api/workload/:personId/steps": {
+  "guards": [
+   [
+    "people.view",
+    "work.update.own"
    ]
   ],
   "roles": [
@@ -1711,6 +1802,18 @@
    [
     "user.manage",
     "people.assign"
+   ]
+  ],
+  "roles": [
+   "admin",
+   "creative_lead",
+   "growth_lead"
+  ]
+ },
+ "PUT /api/workload/:personId/limit": {
+  "guards": [
+   [
+    "people.manage_operational"
    ]
   ],
   "roles": [

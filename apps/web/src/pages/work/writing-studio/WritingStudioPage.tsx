@@ -367,7 +367,7 @@ export const WritingStudioPage: React.FC = () => {
       // Refresh workItem
       const updatedRes = await apiFetch<any>(`/api/work/${id}`);
       setWorkItem(updatedRes.data);
-      toast.success('Your script has been submitted for Creative Lead approval.');
+      toast.success('Your script has been submitted for Creative Manager approval.');
     } catch (err: any) {
       toast.error(`Submission failed: ${err.message || 'Please check your connection and try again.'}`);
     } finally {
@@ -406,7 +406,7 @@ export const WritingStudioPage: React.FC = () => {
       setShowLinkFallbackModal(false);
       const updatedRes = await apiFetch<any>(`/api/work/${id}`);
       setWorkItem(updatedRes.data);
-      toast.success('Google Drive link submitted for Creative Lead approval.');
+      toast.success('Google Drive link submitted for Creative Manager approval.');
     } catch (err: any) {
       toast.error(`Submission failed: ${err.message}`);
     } finally {
@@ -657,7 +657,7 @@ export const WritingStudioPage: React.FC = () => {
                     ? 'Document is empty. Write your script before submitting.'
                     : isReadOnly
                     ? 'Studio is read-only or locked by another editor.'
-                    : 'Submit script for Creative Lead approval'
+                    : 'Submit script for Creative Manager approval'
                 }
               >
                 <Send className="w-3.5 h-3.5" aria-hidden="true" />
@@ -685,7 +685,7 @@ export const WritingStudioPage: React.FC = () => {
       {isUnderReview && !isLockedByOther && (
         <div role="status" className="no-print status-tint status-waiting px-4 py-2 text-xs font-semibold flex items-center justify-center gap-2 text-center">
           <Clock className="w-4 h-4 shrink-0" aria-hidden="true" />
-          <span>This step is currently waiting for Creative Lead approval. The studio is in read-only view.</span>
+          <span>This step is currently waiting for Creative Manager approval. The studio is in read-only view.</span>
         </div>
       )}
 

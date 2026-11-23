@@ -127,7 +127,7 @@ describe('Team Directory and Worker Profile Frontend Suite', () => {
 
     it('renders worker profile header, KPI strip, and minimum 3-ratings confidentiality notice', async () => {
       (authContext.useAuth as any).mockReturnValue({
-        user: { _id: 'head-1', role: 'creative_lead', name: 'Creative Head' },
+        user: { _id: 'head-1', role: 'creative_lead', name: 'Marketing Head' },
       });
 
       (apiModule.apiFetch as any).mockImplementation((url: string) => {

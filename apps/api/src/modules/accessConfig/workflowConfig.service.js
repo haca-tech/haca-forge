@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { CALENDAR_KEYS, ROLE_KEYS, WORKFLOW_SLOTS, defaultWorkflowConfig } from '@mmp/shared';
+import { CALENDAR_KEYS, ROLE_KEYS, WORKFLOW_SLOTS, defaultWorkflowConfig, slotEligibleRole } from '@mmp/shared';
 import { Person } from '../people/model.js';
 import { WorkflowConfig } from './workflowConfig.model.js';
 import { AccessChange } from './accessChange.model.js';
@@ -21,13 +21,21 @@ function badRequest(message, field) {
   return error;
 }
 
-function cleanAudience(a, slot) {
+function cleanAudience(a, slot, { strict = false } = {}) {
   const roles = [...new Set((a?.roles || []).map(String))];
   const badRoles = roles.filter((r) => !ROLE_KEYS.includes(r));
   if (badRoles.length) throw badRequest(`Unknown role in ${slot}: ${badRoles.join(', ')}`, slot);
+  // A role that can never act in the slot (the Viewer anywhere; a role without the permission).
+  const ineligible = strict ? roles.filter((r) => !slotEligibleRole(r, slot)) : [];
+  if (ineligible.length) throw badRequest(`This role cannot be named in ${slot}: ${ineligible.join(', ')}`, slot);
   const userIds = [...new Set((a?.userIds || []).map(String))];
   if (userIds.some((id) => !mongoose.isValidObjectId(id))) throw badRequest(`Invalid person in ${slot}`, slot);
   return { roles, userIds };
+}
+
+/** 400 for an unknown or ineligible role in any slot being changed (before any other check). */
+export function assertSlotRoles(changes = {}) {
+  for (const slot of WORKFLOW_SLOTS) if (slot in changes) cleanAudience(changes[slot], slot, { strict: true });
 }
 
 /** Everyone an audience names (active or not): by role and by id. */
@@ -64,7 +72,7 @@ export async function updateWorkflowConfig(calendar, changes = {}, actor = null,
   const changedSlots = [];
   for (const slot of WORKFLOW_SLOTS) {
     if (!(slot in changes)) continue;
-    const value = cleanAudience(changes[slot], slot);
+    const value = cleanAudience(changes[slot], slot, { strict: true });
     if (JSON.stringify(value) !== JSON.stringify(cleanAudience(current[slot], slot))) {
       next[slot] = value;
       changedSlots.push(slot);

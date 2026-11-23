@@ -42,7 +42,7 @@ describe('Phase 3: Work Items, Traceability, Transitions & Dynamic Overdue', () 
     });
 
     headUser = await Person.create({
-      name: 'P3 Creative Head',
+      name: 'P3 Marketing Head',
       email: 'head@p3-test.com',
       role: 'creative_lead',
       status: 'active',
@@ -205,7 +205,7 @@ describe('Phase 3: Work Items, Traceability, Transitions & Dynamic Overdue', () 
         memberUser
       );
 
-      // Move back to In Progress for revision (Creative Head or Admin required)
+      // Move back to In Progress for revision (Marketing Head or Admin required)
       const reworked = await transitionService.transitionWorkItem(
         testItem._id,
         { toStatus: 'In Progress' },
@@ -241,10 +241,10 @@ describe('Phase 3: Work Items, Traceability, Transitions & Dynamic Overdue', () 
           { toStatus: 'Approved' },
           leadUser
         )
-      ).rejects.toThrow(/Review stages can be approved only by Creative Lead and Admin/);
+      ).rejects.toThrow(/Review stages can be approved only by Creative Manager and Admin/);
     });
 
-    it('ALLOWS Creative Head to approve deliverable and move to Approved', async () => {
+    it('ALLOWS Marketing Head to approve deliverable and move to Approved', async () => {
       const approved = await transitionService.transitionWorkItem(
         testItem._id,
         { toStatus: 'Approved' },
@@ -592,7 +592,7 @@ describe('Phase 3: Work Items, Traceability, Transitions & Dynamic Overdue', () 
         )
       ).rejects.toThrow(/review flow/);
 
-      // Creative Head approves Stage 1 through the review flow
+      // Marketing Head approves Stage 1 through the review flow
       const { approveWithRating } = await import('../src/modules/submissions/service.js');
       const submission = await Submission.create({
         workItemId: stage1._id,

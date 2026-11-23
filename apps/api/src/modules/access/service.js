@@ -190,7 +190,7 @@ export async function approveAccessRequest(id, reviewData = {}, adminUser) {
 
   // Only admin may grant admin, creative_lead/growth_lead, or creative_head/production_head
   if (isProtectedAccount(assignedRole) && !hasPermission(adminUser, 'user.manage')) {
-    const error = new Error('Only an Admin can grant the Admin, Creative Head, Production Head, Creative Lead or Growth Lead roles');
+    const error = new Error('Only an Admin can grant the Admin, Marketing Head, Production Head, Creative Manager or Marketing Growth Manager roles');
     error.code = 'UNAUTHORIZED_ROLE_ASSIGNMENT';
     error.statusCode = 403;
     throw error;

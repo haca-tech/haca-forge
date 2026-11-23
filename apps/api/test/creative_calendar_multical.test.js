@@ -67,7 +67,7 @@ describe('CREATIVE CALENDAR AND MULTIPLE CALENDARS SUITE', () => {
     });
 
     headUser = await Person.create({
-      name: 'Creative Head MultiCal',
+      name: 'Marketing Head MultiCal',
       email: 'head@multical-test.com',
       role: 'creative_lead',
       status: 'active',

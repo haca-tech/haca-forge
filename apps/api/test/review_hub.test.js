@@ -132,7 +132,7 @@ describe('Review Hub', () => {
       expect(await RevisionFlag.countDocuments({ workItemId: w._id })).toBe(0);
     });
 
-    it('Work Detail "Request Rework" on an Ads step (the version endpoint): flags once and alerts the Growth Lead once', async () => {
+    it('Work Detail "Request Rework" on an Ads step (the version endpoint): flags once and alerts the Marketing Growth Manager once', async () => {
       const w = await step('worker', { calendar: 'ads', changes: 2 });
       const r = await as('growthLead').post(`/api/submissions/${(await latest(w))._id}/request-revision`, { comment: 'Wrong offer price', feedback: 'Wrong offer price', rootCause: 'Brief unclear' });
       expect(r.status, JSON.stringify(r.body)).toBe(200);

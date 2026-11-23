@@ -82,7 +82,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
     adminToken = makeToken(adminUser);
 
     creativeHeadUser = await Person.create({
-      name: 'WV2 Creative Head',
+      name: 'WV2 Marketing Head',
       email: 'creative.head@wv2-journey.com',
       role: 'creative_lead',
       passwordHash: 'dummy',
@@ -382,11 +382,11 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
   });
 
   // =========================================================================
-  // JOURNEY B: Creative Head requests changes on one row; SM Manager fixes
-  // and resubmits; Creative Head approves; stages exist with chosen owners/dates.
+  // JOURNEY B: Marketing Head requests changes on one row; SM Manager fixes
+  // and resubmits; Marketing Head approves; stages exist with chosen owners/dates.
   // =========================================================================
-  describe('Journey B: Creative Head Review, Row Changes Requested, Resubmission & Approval', () => {
-    it('Step 1: Creative Head requests changes on one row without rejecting the plan', async () => {
+  describe('Journey B: Marketing Head Review, Row Changes Requested, Resubmission & Approval', () => {
+    it('Step 1: Marketing Head requests changes on one row without rejecting the plan', async () => {
       const rows = approvedPlan.rows;
       const targetRow = rows[0];
 
@@ -420,7 +420,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
         .set('Authorization', `Bearer ${smManagerToken}`)
         .send({
           brief: 'Show Robotics Lab, AI Design Studio and students Alex and Maya working on projects.',
-          remarks: 'Updated brief per Creative Head review notes.',
+          remarks: 'Updated brief per Marketing Head review notes.',
         });
       expect(updateRowRes.status).toBe(200);
       expect(updateRowRes.body.data.brief).toContain('Robotics Lab');
@@ -433,8 +433,8 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
       expect(resubmitRes.body.data.status).toBe('Submitted');
     });
 
-    it('Step 3: Creative Head approves plan; stages exist with chosen owners and dates; Stage 1 unlocked', async () => {
-      // Creative Head approves all rows
+    it('Step 3: Marketing Head approves plan; stages exist with chosen owners and dates; Stage 1 unlocked', async () => {
+      // Marketing Head approves all rows
       const approveRes = await request(app)
         .post(`/api/calendar-plans/${approvedPlan._id}/review`)
         .set('Authorization', `Bearer ${creativeHeadToken}`)
@@ -487,7 +487,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
 
   // =========================================================================
   // JOURNEY C: Worker stages: content, design, script, shoot (Done and forward),
-  // edit; Creative Head approves each review stage; one revision loop; posting
+  // edit; Marketing Head approves each review stage; one revision loop; posting
   // owner publishes; the Tracker shows holder, late by days and the timeline.
   // =========================================================================
   describe('Journey C: Stage Execution, Revision Loop, Shoot Review, Publication & Live Tracker', () => {
@@ -531,7 +531,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
         });
       expect(submitRes.status).toBe(200);
 
-      // Creative Head triggers Revision Loop through the review flow
+      // Marketing Head triggers Revision Loop through the review flow
       const firstVersion = await latestVersion(contentStage._id);
       const revisionRes = await request(app)
         .post(`/api/submissions/${firstVersion._id}/request-revision`)
@@ -562,7 +562,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
           deliverableUrl: 'https://docs.google.com/document/d/revised-draft-copy',
         });
 
-      // Creative Head approves Content stage
+      // Marketing Head approves Content stage
       const approveContentRes = await reviewApprove(contentStage._id, { score: 5, feedback: 'Excellent copy. Approved.' });
       expect(approveContentRes.status).toBe(200);
 
@@ -575,7 +575,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
       expect(designStage.unlockedAt).toBeDefined();
     });
 
-    it('Step 2: Designer completes visual assets and Creative Head approves', async () => {
+    it('Step 2: Designer completes visual assets and Marketing Head approves', async () => {
       const designStage = await WorkItem.findOne({
         contentPieceId: approvedRowPostablePoster._id,
         stageKey: 'Design',
@@ -597,7 +597,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
           deliverableUrl: 'https://drive.google.com/file/d/admissions-poster-design',
         });
 
-      // Creative Head approves Design stage
+      // Marketing Head approves Design stage
       const approveDesignRes = await reviewApprove(designStage._id);
       expect(approveDesignRes.status).toBe(200);
 
@@ -725,7 +725,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
   describe('Journey D: Whole Plan Rejection with Strategic Concern & Resubmission', () => {
     let rejectablePlan;
 
-    it('Step 1: SM Manager submits plan; Creative Head rejects entire plan with concern', async () => {
+    it('Step 1: SM Manager submits plan; Marketing Head rejects entire plan with concern', async () => {
       const planRes = await request(app)
         .post('/api/calendar-plans')
         .set('Authorization', `Bearer ${smManagerToken}`)
@@ -758,7 +758,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
         .post(`/api/calendar-plans/${rejectablePlan._id}/submit`)
         .set('Authorization', `Bearer ${smManagerToken}`);
 
-      // Creative Head rejects whole plan with concern
+      // Marketing Head rejects whole plan with concern
       const rejectRes = await request(app)
         .post(`/api/calendar-plans/${rejectablePlan._id}/review`)
         .set('Authorization', `Bearer ${creativeHeadToken}`)
@@ -883,7 +883,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
       expect(submitRes.status).toBe(200);
       expect(submitRes.body.data.status).toBe('Submitted');
 
-      // Creative Head approves
+      // Marketing Head approves
       const approveRes = await request(app)
         .post(`/api/calendar-plans/${validPlanId}/review`)
         .set('Authorization', `Bearer ${creativeHeadToken}`)
@@ -1053,7 +1053,7 @@ describe('Workflow V2 Role Journeys Verification Suite (Journeys A through G)', 
         .set('Authorization', `Bearer ${adminToken}`);
       expect(adminUsersRes.status).toBe(200);
 
-      // 2. Creative Head: allowed feedback review, denied admin-only access requests
+      // 2. Marketing Head: allowed feedback review, denied admin-only access requests
       const chReviewRes = await request(app)
         .get('/api/feedback/threads')
         .set('Authorization', `Bearer ${creativeHeadToken}`);

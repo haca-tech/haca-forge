@@ -458,6 +458,7 @@ button.glass-card:hover,
 .role-growth-lead     { --role-bg: #f3e6cf; --role-fg: #6a4710; }
 .role-sm-manager      { --role-bg: #dce6f6; --role-fg: #23457c; }
 .role-executive       { --role-bg: #dbeee2; --role-fg: #1e5a3c; }
+.role-viewer          { --role-bg: #e8e8e4; --role-fg: #45453d; }
 
 /* Avatar: subtle white ring. Inside the header it keeps its old 1px ring.
    In the components layer so a caller's own ring utility (e.g. ring-4) still wins. */

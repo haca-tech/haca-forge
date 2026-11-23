@@ -1,4 +1,4 @@
-import { normalizeRole, isReadOnlyViewer, isWorker } from '@mmp/shared';
+// Who sees what on a work item (workers' privacy; review text).
 import { WorkItem } from './model.js';
 import {
   approvedOutputOf,
@@ -8,7 +8,7 @@ import {
   isTeamMember,
   userIdOf,
 } from './access.js';
-import { isOwnScope } from '../../lib/roleAccess.js';
+import { hasPermission } from '../../lib/roleAccess.js';
 
 /** What every participant may see of a step they do not own: pipeline status. */
 const PIPELINE_FIELDS = [
@@ -59,11 +59,26 @@ async function scrubEarlierOutputs(result, participation) {
   }
 }
 
+/**
+ * Review text on a step: the reviewer's note when it was sent back, and the rating's message,
+ * tags and edit log (the score stays). Kept from roles that see all work but hold no
+ * review.read_all (the Viewer).
+ */
+function withoutReviewText(item) {
+  const result = { ...plainOf(item) };
+  delete result.latestFeedback;
+  if (result.rating) {
+    const { feedback, tags, editedLog, ...rest } = result.rating;
+    result.rating = rest;
+  }
+  if (result.latestSubmission?.comments) result.latestSubmission = omit(result.latestSubmission, ['comments']);
+  return result;
+}
+
 /** Applies who-sees-what to a work item before it is sent. Leadership sees it unchanged. */
 export async function applyWorkItemViewerRules(item, user) {
-  const role = normalizeRole(user?.role);
-  // Everyone but a worker sees the item unchanged, review text included (Phase 12b).
-  if (!isTeamMember(user)) return item;
+  // Everyone but a worker sees the item unchanged; review text needs review.read_all (Phase 12b).
+  if (!isTeamMember(user)) return canSeePrivateReview(user, item) ? item : withoutReviewText(item);
 
   const participation = await getParticipation(item, user);
   const stages = scrubStages(item.pieceStages, participation);
@@ -92,7 +107,7 @@ const PRIVATE_ACTIVITY_KEYS = ['text', 'comment', 'note', 'notes', 'feedback', '
 
 /** Activity keeps who did what and when; review text and outputs stay private. */
 export function sanitizeActivities(activities, user, workItem) {
-  if (workItem ? canSeePrivateReview(user, workItem) : !isOwnScope(user)) return activities;
+  if (workItem ? canSeePrivateReview(user, workItem) : hasPermission(user, 'review.read_all')) return activities;
   return (activities || []).map((event) => {
     const plain = event?.toObject ? event.toObject() : event;
     return { ...plain, metadata: plain.metadata ? omit(plain.metadata, PRIVATE_ACTIVITY_KEYS) : plain.metadata };

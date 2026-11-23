@@ -50,7 +50,7 @@ describe('Review Studio & Workspaces API Tests (WS3)', () => {
     });
 
     creativeHeadUser = await Person.create({
-      name: 'Creative Head',
+      name: 'Marketing Head',
       email: 'ch@ws3-test.com',
       role: 'creative_lead',
       department: 'Creative',

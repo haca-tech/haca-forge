@@ -211,7 +211,7 @@ describe('Profile and Settings Comprehensive Suite', () => {
       expect(res.body.data.rolePanelData.adminMetrics.usersByRole).toBeDefined();
     });
 
-    it('Creative Head profile returns stagesWaitingApproval and plansWaiting', async () => {
+    it('Marketing Head profile returns stagesWaitingApproval and plansWaiting', async () => {
       const res = await request(app)
         .get('/api/me/profile')
         .set('Authorization', `Bearer ${headToken}`);
@@ -684,7 +684,7 @@ describe('Profile and Settings Comprehensive Suite', () => {
       expect(res.body.data.phone).toBe('+15552345678');
     });
 
-    it('Creative Head sees full contact details', async () => {
+    it('Marketing Head sees full contact details', async () => {
       const res = await request(app)
         .get(`/api/people/${workerA._id}/profile`)
         .set('Authorization', `Bearer ${headToken}`);

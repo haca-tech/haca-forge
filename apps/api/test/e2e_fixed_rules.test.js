@@ -259,7 +259,7 @@ describe('Phase E3: fixed rules', () => {
   });
 
   describe('8. Read-only roles can still edit their own account', () => {
-    it('a Creative Head changes their own profile and settings, and nothing else', async () => {
+    it('a Marketing Head changes their own profile and settings, and nothing else', async () => {
       const prof = await request(app).patch('/api/me/profile').set(as('head')).send({ preferredName: 'Hugo' });
       expect(prof.status).toBe(200);
       expect((await Person.findById(P.head._id).lean()).preferredName).toBe('Hugo');

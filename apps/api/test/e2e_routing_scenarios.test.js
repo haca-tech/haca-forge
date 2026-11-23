@@ -138,15 +138,15 @@ describe('Phase E2: routing scenarios', () => {
     const rowId = saved.body.data.results[0].rowId;
     expect((await request(app).post(`/api/calendar-plans/${planId}/submit`).set(as('sm'))).status).toBe(200);
     const review = (key) => request(app).post(`/api/calendar-plans/${planId}/review`).set(as(key)).send({ action: 'request_changes', changes: [{ rowId, comment: 'Check the date' }] });
-    // On Ads: only the named Creative Lead decides; the Growth Lead and the other Creative Lead are refused.
+    // On Ads: only the named Creative Manager decides; the Marketing Growth Manager and the other Creative Manager are refused.
     expect((await request(app).patch(`/api/calendar-plans/${planId}/calendar`).set(as('sm')).send({ calendar: 'ads' })).status).toBe(200);
     expect((await review('gl')).body.error?.code).toBe('WRONG_CALENDAR');
     expect((await review('cl')).body.error?.code).toBe('WRONG_CALENDAR');
-    // Back on SM: the Creative Lead role decides again; the Growth Lead is refused.
+    // Back on SM: the Creative Manager role decides again; the Marketing Growth Manager is refused.
     expect((await request(app).patch(`/api/calendar-plans/${planId}/calendar`).set(as('sm')).send({ calendar: 'sm' })).status).toBe(200);
     expect((await review('gl')).body.error?.code).toBe('WRONG_CALENDAR');
     expect((await request(app).post(`/api/calendar-plans/${planId}/review`).set(as('cl')).send({ action: 'approve_selected', approvedRowIds: [rowId] })).status).toBe(200);
-    // Moving to Ads first, the named Creative Lead could decide there.
+    // Moving to Ads first, the named Creative Manager could decide there.
     const again = await request(app).post('/api/calendar-plans/grid/rows').set(as('sm')).send({ calendar: 'ads', month: '2036-02', rows: [{ clientKey: 'r', cells: { postingDate: '2036-02-20', topic: `${TAG} ads plan`, type: 'Static Post', brief: 'Routing test.' } }] });
     const adsPlan = again.body.data.plan._id;
     await request(app).post(`/api/calendar-plans/${adsPlan}/submit`).set(as('sm'));

@@ -424,7 +424,7 @@ export async function sharesContentPiece(personAId, personBId) {
 /**
  * Get person profile for read-only drawer / inspect views
  * Enforces strict visibility rules:
- * - Admin, Creative Lead, SM Manager: Full profile with contact details
+ * - Admin, Creative Manager, SM Manager: Full profile with contact details
  * - Executive: Full profile with contact details masked
  * - Team Member: Allowed ONLY if sharing a ContentPiece with the person; contact details masked
  */
@@ -446,7 +446,7 @@ export async function getPersonProfile(targetId, actor) {
 
   // Fixed rule 5: another person's profile does not exist for a worker, teammates on the same
   // piece included (404, not 403, so the answer does not confirm the person exists).
-  if (isOwnScope(actorRole) && !isSelf) {
+  if (!isSelf && !hasPermission(actorRole, 'team.profile.view')) {
     const error = new Error('Person not found');
     error.statusCode = 404;
     error.code = 'PERSON_NOT_FOUND';
@@ -570,7 +570,7 @@ export async function getPersonWorkHistory(targetPersonId, user) {
   const actorId = (user?._id || user?.id || user?.userId)?.toString();
 
   const isSelf = actorId === targetPersonId?.toString();
-  const isElevated = seesAll(actorRole);
+  const isElevated = hasPermission(actorRole, 'team.profile.view');
 
   // Fixed rule 5: another person's work history does not exist for a worker (404).
   if (!isSelf && !isElevated) {

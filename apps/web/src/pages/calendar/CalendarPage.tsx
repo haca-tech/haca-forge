@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
-import { WORK_ITEM_STATUSES, CALENDAR_LIST, getCalendarDefinition, getStepStatusLabel, type CalendarKey, type WorkType, type Priority, type WorkItemStatus } from '@mmp/shared';
+import { ROLE_LABELS, WORK_ITEM_STATUSES, CALENDAR_LIST, getCalendarDefinition, getStepStatusLabel, type CalendarKey, type WorkType, type Priority, type WorkItemStatus } from '@mmp/shared';
 import { statusClass, statusTone, withDisplayStatus } from '../../lib/statusTone';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import {
@@ -335,7 +335,7 @@ export const CalendarPage: React.FC = () => {
   const previewCloseRef = useRef<HTMLButtonElement>(null);
   useDialogFocus(previewRef, Boolean(selectedItem), () => setSelectedItem(null), { initialFocusRef: previewCloseRef });
 
-  // Plan creation is SM Manager / Admin only (the API refuses the Creative Lead), so only they see Add individual work.
+  // Plan creation is SM Manager / Admin only (the API refuses the Creative Manager), so only they see Add individual work.
   const canCreatePlans = access.can('calendar.plan');
 
   // Shared text styles for this screen
@@ -550,7 +550,7 @@ export const CalendarPage: React.FC = () => {
                   <option value="all">All Team Members</option>
                   {users.map((u) => (
                     <option key={u._id} value={u._id}>
-                      {u.name} ({u.role.replace('_', ' ')})
+                      {u.name} ({(ROLE_LABELS as Record<string, string>)[u.role] || u.role})
                     </option>
                   ))}
                 </select>

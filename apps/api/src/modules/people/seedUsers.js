@@ -4,15 +4,15 @@
  * scripts/reset-and-seed.js; the app never creates or rewrites these users at startup.
  *
  * The keys are unchanged from Phase 9 so the existing .env entries keep working; the roles
- * follow the Phase 12b model (CREATIVEHEAD is now the Creative Lead, EXECUTIVE the read-only
- * Creative Head, and the workers are role "executive"). PRODUCTIONHEAD and GROWTHLEAD are
+ * follow the Phase 12b model (CREATIVEHEAD is now the Creative Manager, EXECUTIVE the read-only
+ * Marketing Head, and the workers are role "executive"). PRODUCTIONHEAD and GROWTHLEAD are
  * optional: they are seeded only when their passwords are set.
  */
 export const SEED_USERS = [
-  // The Creative Lead reads SEED_PASSWORD_CREATIVELEAD when it is set (its role's name), else the older SEED_PASSWORD_CREATIVEHEAD.
-  { key: 'CREATIVEHEAD', passwordKeys: ['CREATIVELEAD', 'CREATIVEHEAD'], name: 'Test Creative Lead', email: 'creativelead@demo.haca.local', phone: '9000000001', role: 'creative_lead', jobRole: 'Creative Manager (TL)', departmentCode: 'design', workPreferences: [], capacity: 40 },
+  // The Creative Manager reads SEED_PASSWORD_CREATIVELEAD when it is set (its role's name), else the older SEED_PASSWORD_CREATIVEHEAD.
+  { key: 'CREATIVEHEAD', passwordKeys: ['CREATIVELEAD', 'CREATIVEHEAD'], name: 'Test Creative Manager', email: 'creativelead@demo.haca.local', phone: '9000000001', role: 'creative_lead', jobRole: 'Creative Manager (TL)', departmentCode: 'design', workPreferences: [], capacity: 40 },
   { key: 'SMMANAGER', name: 'Test SM Manager', email: 'smmanager@demo.haca.local', phone: '9000000002', role: 'sm_manager', jobRole: 'Social Media Manager', departmentCode: 'social_media', workPreferences: [], capacity: 40 },
-  { key: 'EXECUTIVE', name: 'Test Creative Head', email: 'creativehead@demo.haca.local', phone: '9000000003', role: 'creative_head', jobRole: '', departmentCode: null, workPreferences: [], capacity: 0 },
+  { key: 'EXECUTIVE', name: 'Test Marketing Head', email: 'creativehead@demo.haca.local', phone: '9000000003', role: 'creative_head', jobRole: '', departmentCode: null, workPreferences: [], capacity: 0 },
   { key: 'WRITER1', name: 'Test Writer One', email: 'writer1@demo.haca.local', phone: '9000000011', role: 'executive', jobRole: 'Writer', departmentCode: 'seo_content', workPreferences: ['Content', 'Script'], capacity: 40 },
   { key: 'WRITER2', name: 'Test Writer Two', email: 'writer2@demo.haca.local', phone: '9000000012', role: 'executive', jobRole: 'Writer', departmentCode: 'seo_content', workPreferences: ['Content', 'Script'], capacity: 40 },
   { key: 'DESIGNER1', name: 'Test Designer One', email: 'designer1@demo.haca.local', phone: '9000000013', role: 'executive', jobRole: 'Graphic Designer', departmentCode: 'design', workPreferences: ['Design'], capacity: 40 },
@@ -24,7 +24,7 @@ export const SEED_USERS = [
   { key: 'POSTER', name: 'Test Poster', email: 'poster@demo.haca.local', phone: '9000000018', role: 'executive', jobRole: '', departmentCode: 'social_media', workPreferences: [], capacity: 40 },
   { key: 'ALLROUNDER', name: 'Test All Rounder', email: 'allrounder@demo.haca.local', phone: '9000000019', role: 'executive', jobRole: 'All Rounder', departmentCode: 'social_media', workPreferences: ['Script', 'Content', 'Shoot', 'Design', 'Edit'], capacity: 40 },
   { key: 'PRODUCTIONHEAD', name: 'Test Production Head', email: 'productionhead@demo.haca.local', phone: '9000000004', role: 'production_head', jobRole: '', departmentCode: null, workPreferences: [], capacity: 0, optional: true },
-  { key: 'GROWTHLEAD', name: 'Test Growth Lead', email: 'growthlead@demo.haca.local', phone: '9000000005', role: 'growth_lead', jobRole: '', departmentCode: 'performance_marketing', workPreferences: [], capacity: 40, optional: true },
+  { key: 'GROWTHLEAD', name: 'Test Marketing Growth Manager', email: 'growthlead@demo.haca.local', phone: '9000000005', role: 'growth_lead', jobRole: '', departmentCode: 'performance_marketing', workPreferences: [], capacity: 40, optional: true },
 ];
 
 const isSet = (source, name) => Boolean(source?.[name]) && String(source[name]).length >= 8;

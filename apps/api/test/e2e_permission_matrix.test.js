@@ -47,7 +47,7 @@ const USERS = [
   ['named_growth', 'growth_lead', {}],
   ['suspended', 'creative_lead', { status: 'suspended' }],
 ];
-const label = (key) => ({ limited_lead: 'Creative Lead limited to SM', named_growth: 'Growth Lead named on SM reviewers', suspended: 'Suspended Creative Lead' })[key] || ROLE_LABELS[key];
+const label = (key) => ({ limited_lead: 'Creative Manager limited to SM', named_growth: 'Marketing Growth Manager named on SM reviewers', suspended: 'Suspended Creative Manager' })[key] || ROLE_LABELS[key];
 
 /** Every guarded API route from the real routers (any quote style, nested routers included). */
 async function routeList() {
@@ -77,7 +77,7 @@ describe('Phase E1: end-to-end permission matrix', () => {
     for (const [key, role, extra] of USERS) {
       U[key] = await Person.create({ name: `Matrix ${key}`, email: `${key}@matrix.invalid`, role, status: 'active', jobRole: role === 'executive' ? 'Video Editor' : '', ...extra });
     }
-    // A named person: the second Growth Lead also reviews the SM calendar (beside the Creative Lead role).
+    // A named person: the second Marketing Growth Manager also reviews the SM calendar (beside the Creative Manager role).
     await WorkflowConfig.create({ calendar: 'sm', reviewers: { roles: ['creative_lead'], userIds: [String(U.named_growth._id)] }, planApprovers: { roles: ['creative_lead'], userIds: [] }, posters: { roles: ['sm_manager'], userIds: [] }, fallbackApprovers: { roles: ['admin'], userIds: [] } });
     resolver.clearAccessCache();
     const piece = await ContentPiece.create({ planId: oid(), topic: 'Matrix piece', contentType: 'Reel', pipeline: 'reel_a', postingDate: new Date(Date.now() + 5 * 864e5), status: 'In Progress', calendar: 'sm' });
@@ -159,9 +159,10 @@ describe('Phase E1: end-to-end permission matrix', () => {
         const res = await request(app)[r.method](url).set('Authorization', `Bearer ${token(user)}`).send(r.method === 'get' ? undefined : {});
         const code = res.body?.error?.code;
         // Denied: the guard (FORBIDDEN), the read-only check before it (READ_ONLY_ROLE), a suspended
-        // account, or (workers only) a route that answers 404 to hide itself. A 404 for a role the
+        // account, or a route that answers 404 to hide itself: workers anywhere, and anyone without
+        // team.profile.view on the team routes (notFoundForWorkers; the Viewer). A 404 for a role the
         // guard admits is a missing test record, not a denial.
-        const hidden = res.status === 404 && !expected && can(fresh, 'work.update.own') && !can(fresh, 'work.view_all');
+        const hidden = res.status === 404 && !expected && (r.hidesFromWorkers || (can(fresh, 'work.update.own') && !can(fresh, 'work.view_all')));
         const deniedByGuard = (res.status === 403 && DENY_CODES.includes(code)) || hidden;
         const row = { route: `${r.method.toUpperCase()} ${r.path}`, keys: r.guards.map((g) => g.join('|')).join(' & '), user: key, expected: expected ? 'allow' : 'deny', got: deniedByGuard ? 'deny' : 'allow', status: res.status, code };
         results.guard.push(row);
@@ -172,7 +173,7 @@ describe('Phase E1: end-to-end permission matrix', () => {
   }, 900000);
 
   // ------------------------------------------------------------ B. calendar-routed decisions
-  const deciders = ['admin', 'creative_head', 'production_head', 'creative_lead', 'growth_lead', 'sm_manager', 'executive', 'limited_lead', 'named_growth'];
+  const deciders = ['admin', 'creative_head', 'production_head', 'creative_lead', 'growth_lead', 'sm_manager', 'executive', 'viewer', 'limited_lead', 'named_growth'];
   const as = (key) => ({ Authorization: `Bearer ${token(U[key])}` });
   const config = async (cal) => resolver.getWorkflowConfig(cal);
 

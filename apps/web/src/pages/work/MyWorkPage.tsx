@@ -603,7 +603,7 @@ export const MyWorkPage: React.FC = () => {
             <div className="mt-3 p-3 rounded-xl text-xs status-tint status-changes">
               <div className="font-semibold flex items-center gap-1.5 mb-1">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
-                <span>Changes requested by {item.latestFeedback?.reviewer || 'Creative Lead'}</span>
+                <span>Changes requested by {item.latestFeedback?.reviewer || 'Creative Manager'}</span>
               </div>
               <p className="text-xs font-medium pl-3 ml-1 border-l-2 border-ui-coral">
                 "{item.latestFeedback?.text || 'Review comments on file. Please refine and submit next revision.'}"

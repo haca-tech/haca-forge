@@ -98,9 +98,9 @@ describe('Phase E4/E5: cache and rollback', () => {
   });
 
   describe('E5: rollback', () => {
-    it('restoring an older Ads version sends the waiting review back to the Growth Lead', async () => {
+    it('restoring an older Ads version sends the waiting review back to the Marketing Growth Manager', async () => {
       const w = await waiting('ads');
-      const save = await request(app).put('/api/access-admin/calendars/ads').set(as('admin')).send({ reason: 'Growth Lead away', changes: { reviewers: { roles: [], userIds: [String(P.cl._id)] } } });
+      const save = await request(app).put('/api/access-admin/calendars/ads').set(as('admin')).send({ reason: 'Marketing Growth Manager away', changes: { reviewers: { roles: [], userIds: [String(P.cl._id)] } } });
       expect(save.status).toBe(200);
       expect(await decides('cl', 'ads')).toBe(true);
       expect(await decides('gl', 'ads')).toBe(false);
@@ -119,7 +119,7 @@ describe('Phase E4/E5: cache and rollback', () => {
       await WorkflowConfig.deleteMany({});
       resolver.clearAccessCache();
       expect(await WorkflowConfig.countDocuments()).toBe(0);
-      // Decisions: Ads → Growth Lead, the others → Creative Lead; posters → SM Manager.
+      // Decisions: Ads → Marketing Growth Manager, the others → Creative Manager; posters → SM Manager.
       for (const cal of ['sm', 'sales', 'academics_management', 'other']) {
         expect(await decides('cl', cal)).toBe(true);
         expect(await decides('gl', cal)).toBe(false);

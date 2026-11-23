@@ -195,7 +195,7 @@ describe('Final fix M1–M10: routing and races', () => {
     const adsStep = await step('ads', 'worker');
     const r = await Rating.create({ workItemId: adsStep._id, workerId: P.worker._id, raterId: P.gl._id, score: 3, feedback: 'ok', stageKey: 'Edit', submissionId: oid() });
     await expect(editRating(r._id, { score: 4, reason: 'Second look' }, await fresh('gl'))).resolves.toBeTruthy();
-    // Ads reviews move to the Creative Lead: the Growth Lead can no longer change the rating.
+    // Ads reviews move to the Creative Manager: the Marketing Growth Manager can no longer change the rating.
     await setConfig('ads', { reviewers: { roles: ['creative_lead'], userIds: [] } });
     await expect(editRating(r._id, { score: 5, reason: 'Again' }, await fresh('gl'))).rejects.toMatchObject({ statusCode: 403, code: 'WRONG_CALENDAR' });
   });

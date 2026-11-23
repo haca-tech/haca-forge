@@ -12,11 +12,11 @@ describe('Shoot review heading', () => {
   it('a participant\'s read-only view says "Approved footage"', () => {
     render(<ShootReviewView stageItemId="s1" workItemTitle="Shoot" readOnly />);
     expect(screen.getByText('Approved footage')).toBeInTheDocument();
-    expect(screen.queryByText('Creative Lead Review')).not.toBeInTheDocument();
+    expect(screen.queryByText('Creative Manager Review')).not.toBeInTheDocument();
   });
 
-  it('the reviewer\'s view still says "Creative Lead Review"', () => {
+  it('the reviewer\'s view still says "Creative Manager Review"', () => {
     render(<ShootReviewView stageItemId="s1" workItemTitle="Shoot" />);
-    expect(screen.getByText('Creative Lead Review')).toBeInTheDocument();
+    expect(screen.getByText('Creative Manager Review')).toBeInTheDocument();
   });
 });

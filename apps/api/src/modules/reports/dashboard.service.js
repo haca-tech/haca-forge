@@ -372,11 +372,16 @@ export async function getDashboardOverview(filters = {}, user) {
   // ----------------------------------------------------
   // SECTION 8: Recent Activity Feed
   // ----------------------------------------------------
-  const recentActivities = await ActivityEvent.find({})
-    .populate('actorId', 'name email role')
-    .sort({ timestamp: -1 })
-    .limit(10)
-    .lean();
+  // Who did what and when; review text in the metadata only for roles with review.read_all.
+  const { sanitizeActivities } = await import('../workItems/viewerRules.js');
+  const recentActivities = sanitizeActivities(
+    await ActivityEvent.find({})
+      .populate('actorId', 'name email role')
+      .sort({ timestamp: -1 })
+      .limit(10)
+      .lean(),
+    user
+  );
 
   return {
     scope: {

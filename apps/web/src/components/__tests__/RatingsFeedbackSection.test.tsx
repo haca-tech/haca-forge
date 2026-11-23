@@ -50,7 +50,7 @@ describe('WS4: RatingsFeedbackSection Component Tests', () => {
         workItemId: 'w-1',
         date: '2026-10-25T10:00:00Z',
         seenAt: null,
-        raterName: 'Creative Head Maya',
+        raterName: 'Marketing Head Maya',
       },
       {
         ratingId: 'r-2',
@@ -62,10 +62,10 @@ describe('WS4: RatingsFeedbackSection Component Tests', () => {
         workItemId: 'w-2',
         date: '2026-10-20T14:00:00Z',
         seenAt: '2026-10-21T09:00:00Z',
-        raterName: 'Creative Head Maya',
+        raterName: 'Marketing Head Maya',
         editedLog: [
           {
-            editedBy: { name: 'Creative Head Maya', role: 'creative_lead' },
+            editedBy: { name: 'Marketing Head Maya', role: 'creative_lead' },
             editedAt: '2026-10-21T08:00:00Z',
             oldScore: 3,
             newScore: 4,
@@ -228,7 +228,7 @@ describe('WS4: RatingsFeedbackSection Component Tests', () => {
     });
   });
 
-  it('opens edit modal and requires reason when Creative Head edits rating', async () => {
+  it('opens edit modal and requires reason when Marketing Head edits rating', async () => {
     const apiFetchSpy = vi.spyOn(apiModule, 'apiFetch').mockImplementation(async (_url: string, opts?: any) => {
       if (opts?.method === 'PATCH') {
         return {

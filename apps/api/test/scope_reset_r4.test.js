@@ -92,7 +92,7 @@ describe('SCOPE RESET R4: Dashboard, Reports, Automation, Journey & Route-Table 
     adminToken = makeToken(adminUser);
 
     headUser = await Person.create({
-      name: 'R4 Creative Head',
+      name: 'R4 Marketing Head',
       email: 'head@r4-test.com',
       role: 'creative_lead',
       status: 'active',
@@ -236,7 +236,7 @@ describe('SCOPE RESET R4: Dashboard, Reports, Automation, Journey & Route-Table 
       approvedPieceId = piece._id;
       testPiece = piece;
 
-      // SM Manager submits plan for Creative Head review
+      // SM Manager submits plan for Marketing Head review
       const submitRes = await request(app)
         .post(`/api/calendar-plans/${createdPlanId}/submit`)
         .set('Authorization', `Bearer ${smToken}`);
@@ -247,7 +247,7 @@ describe('SCOPE RESET R4: Dashboard, Reports, Automation, Journey & Route-Table 
 
     // Approving a whole plan creates every step; it took 9 to 11 seconds alone on this machine
     // before the link-submission change, close to the 15 s default, so it has its own limit.
-    it('Step 3: Creative Head reviews and approves plan; stages are created', { timeout: 30000 }, async () => {
+    it('Step 3: Marketing Head reviews and approves plan; stages are created', { timeout: 30000 }, async () => {
       const reviewRes = await request(app)
         .post(`/api/calendar-plans/${createdPlanId}/review`)
         .set('Authorization', `Bearer ${headToken}`)
@@ -333,7 +333,7 @@ describe('SCOPE RESET R4: Dashboard, Reports, Automation, Journey & Route-Table 
       expect(submitRes.body.data.status).toBe('Pending');
     });
 
-    it('Step 6: Creative Head reviews deliverable and approves it; unlocks next stage', async () => {
+    it('Step 6: Marketing Head reviews deliverable and approves it; unlocks next stage', async () => {
       const latest = await Submission.findOne({ workItemId: stageScriptId, version: { $gt: 0 } }).sort({ version: -1 });
       const approveRes = await request(app)
         .post(`/api/submissions/${latest._id}/approve`)
@@ -606,7 +606,7 @@ describe('SCOPE RESET R4: Dashboard, Reports, Automation, Journey & Route-Table 
       expect(dashRes.status).toBe(200);
     });
 
-    it('Creative Head route walk: creative approvals, plans, reports; denied admin console', async () => {
+    it('Marketing Head route walk: creative approvals, plans, reports; denied admin console', async () => {
       const adminDenied = await request(app).get('/api/admin/access-requests').set('Authorization', `Bearer ${headToken}`);
       expect(adminDenied.status).toBe(403);
 

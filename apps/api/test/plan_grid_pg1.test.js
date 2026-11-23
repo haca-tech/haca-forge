@@ -60,7 +60,7 @@ describe('PG-1 plan grid', () => {
       });
     await mk('sm', 'PG1 SM Manager', 'sm_manager');
     await mk('admin', 'PG1 Admin', 'admin');
-    await mk('head', 'PG1 Creative Head', 'creative_lead');
+    await mk('head', 'PG1 Marketing Head', 'creative_lead');
     await mk('exec', 'PG1 Executive', 'creative_head');
     await mk('member', 'PG1 Member', 'executive', ['Content']);
     await mk('writer', 'PG1 Writer', 'executive', ['Script', 'Content']);
@@ -339,13 +339,13 @@ describe('PG-1 plan grid', () => {
       expect(await CalendarPlan.countDocuments({ code: /^PG1-DUP-/ })).toBe(2);
     });
 
-    it('role permissions: SM and admin edit; Creative Head reviews; executive read-only and redacted; team member blocked', async () => {
+    it('role permissions: SM and admin edit; Marketing Head reviews; executive read-only and redacted; team member blocked', async () => {
       const q = { calendar: 'ads', month: '2031-11' };
       const sm = await get('sm', q);
       expect(sm.body.data.people.length).toBeGreaterThan(0);
       expect(JSON.stringify(sm.body.data.people)).not.toMatch(/@/);
 
-      // Phase 13: the Creative Lead reviews every calendar except Ads (the Growth Lead's).
+      // Phase 13: the Creative Manager reviews every calendar except Ads (the Marketing Growth Manager's).
       const head = await get('head', q);
       expect(head.status).toBe(200);
       expect(head.body.data.permissions).toEqual({ canEdit: false, canReview: false, readOnly: true });

@@ -17,7 +17,7 @@ import { Person } from '../people/model.js';
 import { logActivity } from '../activity/service.js';
 import { createNotification } from '../notifications/service.js';
 import * as access from '../../lib/accessResolver.js';
-import { isOwnScope, isReadOnly, isSuperuser } from '../../lib/roleAccess.js';
+import { hasPermission, isOwnScope, isReadOnly, isSuperuser } from '../../lib/roleAccess.js';
 
 /**
  * Help requests on a step. The step owner asks one person (the deciding lead by default,
@@ -140,6 +140,11 @@ const populated = (q) => q.populate('askerId', 'name').populate('helperId', 'nam
 export async function listHelpRequests(id, user) {
   const step = await loadStep(id);
   const access = await accessOf(step, user);
+  // Sees all work but no review text (the Viewer): how many are open, never what they say.
+  if (access.kind === 'view' && !hasPermission(user, 'review.read_all')) {
+    const openCount = await HelpRequest.countDocuments({ workItemId: step._id, status: 'open' });
+    return { open: [], resolved: [], openCount, canAsk: false, options: [], defaultHelperId: null };
+  }
   const all = await populated(HelpRequest.find({ workItemId: step._id }).sort({ createdAt: -1 })).lean();
   const mine = all.filter((r) => visibleTo(r, access));
   // A worker with no share in the step's help requests gets the same 404 as anyone else.

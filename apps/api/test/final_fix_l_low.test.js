@@ -65,7 +65,7 @@ describe('Final fix L1–L2', () => {
 
     it('only people who decide or post on the step\'s calendar (and admins) manage; leads elsewhere only read', async () => {
       const r = await ask('gl');
-      // A Creative Lead outside Ads routing reads the request but cannot reply or resolve it.
+      // A Creative Manager outside Ads routing reads the request but cannot reply or resolve it.
       const list = await request(app).get(`/api/work/${adsStep._id}/help-requests`).set(as('cl2'));
       expect(list.status).toBe(200);
       expect(JSON.stringify(list.body)).toContain(String(r._id));

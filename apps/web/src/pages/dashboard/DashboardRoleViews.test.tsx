@@ -212,7 +212,7 @@ describe('TeamDashboardPage Role Views & Scope Reset R4 Specifications', () => {
   });
 
   it('lists revision flags by project and step; the owner shows on the row only', async () => {
-    mockUser = { _id: 'u-head', name: 'Creative Head User', role: 'creative_lead' };
+    mockUser = { _id: 'u-head', name: 'Marketing Head User', role: 'creative_lead' };
     const flagged = {
       ...mockDashboardData,
       issues: {
@@ -255,7 +255,7 @@ describe('TeamDashboardPage Role Views & Scope Reset R4 Specifications', () => {
   });
 
   it('creative_head renders all 8 operational sections including Waiting for Approval', async () => {
-    mockUser = { _id: 'u-head', name: 'Creative Head User', role: 'creative_lead' };
+    mockUser = { _id: 'u-head', name: 'Marketing Head User', role: 'creative_lead' };
     render(
       <MemoryRouter>
         <TeamDashboardPage />
@@ -282,15 +282,15 @@ describe('TeamDashboardPage Role Views & Scope Reset R4 Specifications', () => {
     // 6. Issues & Blockers
     expect(screen.getByText(/Issues & Blockers/i)).toBeInTheDocument();
 
-    // 7. Waiting for Approval (Creative Head primary operational block)
-    expect(screen.getByText(/Waiting for Creative Lead Approval/i)).toBeInTheDocument();
+    // 7. Waiting for Approval (Marketing Head primary operational block)
+    expect(screen.getByText(/Waiting for Creative Manager Approval/i)).toBeInTheDocument();
 
     // 8. Recent Activity
     expect(screen.getByText(/Recent Activity Feed/i)).toBeInTheDocument();
   });
 
   it('Team Workload shows the band summary chips (step counts), linking to the Workload page, with no hours or %', async () => {
-    mockUser = { _id: 'u-head', name: 'Creative Head User', role: 'creative_lead' };
+    mockUser = { _id: 'u-head', name: 'Marketing Head User', role: 'creative_lead' };
     render(
       <MemoryRouter>
         <TeamDashboardPage />
@@ -309,7 +309,7 @@ describe('TeamDashboardPage Role Views & Scope Reset R4 Specifications', () => {
   });
 
   it('strictly verifies zero Target, Funnel, or Campaign sections exist in DOM', async () => {
-    mockUser = { _id: 'u-head', name: 'Creative Head User', role: 'creative_lead' };
+    mockUser = { _id: 'u-head', name: 'Marketing Head User', role: 'creative_lead' };
     const { container } = render(
       <MemoryRouter>
         <TeamDashboardPage />

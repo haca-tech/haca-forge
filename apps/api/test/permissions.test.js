@@ -3,19 +3,20 @@ import { ROLE_PERMISSIONS, ROLE_KEYS, PERMISSION_KEYS, ROLE_LABELS } from '@mmp/
 import { defineAbilityForUser } from '../src/lib/permissions.js';
 
 describe('Marketing OS Permissions & CASL Ability Tests (R2 Canonical 5 Roles)', () => {
-  it('should have exactly the 7 Phase 12b role keys', () => {
-    expect(ROLE_KEYS).toEqual(['admin', 'creative_head', 'production_head', 'creative_lead', 'growth_lead', 'sm_manager', 'executive']);
+  it('should have exactly the 8 role keys (with the Viewer)', () => {
+    expect(ROLE_KEYS).toEqual(['admin', 'creative_head', 'production_head', 'creative_lead', 'growth_lead', 'sm_manager', 'executive', 'viewer']);
   });
 
   it('should export ROLE_LABELS for every role', () => {
     expect(ROLE_LABELS).toEqual({
       admin: 'Admin',
-      creative_head: 'Creative Head',
+      creative_head: 'Marketing Head',
       production_head: 'Production Head',
-      creative_lead: 'Creative Lead',
-      growth_lead: 'Growth Lead',
+      creative_lead: 'Creative Manager',
+      growth_lead: 'Marketing Growth Manager',
       sm_manager: 'SM Manager',
       executive: 'Executive',
+      viewer: 'Viewer',
     });
   });
 

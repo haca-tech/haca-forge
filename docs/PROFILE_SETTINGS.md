@@ -13,7 +13,7 @@ This specification replaces all legacy My Account, profile, and onboarding imple
 
 ### Core Architectural Principles
 1. **One Unified Layout Shell:** Every role views the identical layout grid, glassmorphism tokens, and responsive structure.
-2. **Strict RBAC & Privacy Scoping:** Contact details (phone, email, WhatsApp) are strictly restricted by role. Workers can only view profiles of teammates collaborating on the same content piece, and contact details are masked. Creative Heads have all contact details masked.
+2. **Strict RBAC & Privacy Scoping:** Contact details (phone, email, WhatsApp) are strictly restricted by role. Workers can only view profiles of teammates collaborating on the same content piece, and contact details are masked. Marketing Heads have all contact details masked.
 3. **Zero Deprecated Dependencies:** Image cropping is implemented using standard HTML5 Canvas with circular masking and a zoom slider, requiring **zero new third-party npm dependencies**.
 4. **Strict Schema Validation:** All endpoints live under `/me/...` (or scoped `/people/...`), enforcing strict Zod validation with `.strict()` to reject unknown keys. Role, email, department, job role, weekly capacity, and stage work preferences can never be updated by users through `/me/...`.
 5. **Session-Level Device Revocation:** Replace the single-token hash on `Person` with a dedicated `Session` model tracking device labels (parsed from the User-Agent), hashed IP addresses, last used timestamps, and refresh token families.
@@ -534,13 +534,13 @@ Layout: Left vertical tab navigation on desktop (>768px), stacked sections on mo
 |  PROFILE                                                                                           |
 |  +-----------------------------------------------------------------------------------------------+ |
 |  | [ Avatar XL ]  Jane Doe (Preferred: Jane)                        [ Active ]                   | |
-|  | (Change Photo) Creative Lead • Creative Department               Member since: 15/01/2026     | |
+|  | (Change Photo) Creative Manager • Creative Department               Member since: 15/01/2026     | |
 |  | (Remove Photo)                                                   Last sign-in: 29/10/2026     | |
 |  +-----------------------------------------------------------------------------------------------+ |
 |                                                                                                    |
 |  +--------------------------------------------------+ +------------------------------------------+ |
 |  | ABOUT ME                                         | | WORK DETAILS (Read-only)                 | |
-|  | Preferred Name: [ Jane                         ] | | Role: Creative Lead                      | |
+|  | Preferred Name: [ Jane                         ] | | Role: Creative Manager                      | |
 |  | Phone:          [ +91 98765 43210              ] | | Job Role: Creative Director              | |
 |  | WhatsApp:       [ +91 98765 43210 ] [x] Same     | | Department: Creative                     | |
 |  | Languages:      [ English x ] [ Hindi x ]        | | Capacity: 40 hrs / week                  | |
@@ -552,7 +552,7 @@ Layout: Left vertical tab navigation on desktop (>768px), stacked sections on mo
 |  +--------------------------------------------------+                                              |
 |                                                                                                    |
 |  +-----------------------------------------------------------------------------------------------+ |
-|  | ROLE PANEL (Creative Lead Content)                                                            | |
+|  | ROLE PANEL (Creative Manager Content)                                                            | |
 |  |  +------------------------------------+  +--------------------------------------------------+ | |
 |  |  | Deliverables Waiting Approval: 6   |  | Calendar Plans Waiting Review: 2                 | | |
 |  |  | [ View Review Studio Queue -> ]    |  | [ View Plans Tab -> ]                            | | |
@@ -578,7 +578,7 @@ Layout: Left vertical tab navigation on desktop (>768px), stacked sections on mo
 | |                               | |
 | | Jane Doe                      | |
 | | (Preferred: Jane)             | |
-| | Creative Lead • Creative      | |
+| | Creative Manager • Creative      | |
 | | [ Active Badge ]              | |
 | | Member: 15/01/2026            | |
 | | Last sign-in: 29/10/2026      | |
@@ -607,7 +607,7 @@ Layout: Left vertical tab navigation on desktop (>768px), stacked sections on mo
 |                                   |
 | +-------------------------------+ |
 | | WORK DETAILS (Read-only)      | |
-| | Role: Creative Lead           | |
+| | Role: Creative Manager           | |
 | | Dept: Creative                | |
 | | Capacity: 40 hrs/wk           | |
 | | Stages:                       | |

@@ -8,7 +8,7 @@ import { connectDB } from '../src/config/db.js';
 import { Person } from '../src/modules/people/model.js';
 import { WorkItem } from '../src/modules/workItems/model.js';
 
-describe('Security Probe: Creative Head executing worker actions on tasks owned by others', () => {
+describe('Security Probe: Marketing Head executing worker actions on tasks owned by others', () => {
   let headUser, writerUser, workItem;
   let headToken;
 
@@ -16,7 +16,7 @@ describe('Security Probe: Creative Head executing worker actions on tasks owned 
     await connectDB();
 
     headUser = await Person.create({
-      name: 'Probe Creative Head',
+      name: 'Probe Marketing Head',
       email: 'probe.head@test.com',
       role: 'creative_lead',
       status: 'active',
@@ -57,32 +57,32 @@ describe('Security Probe: Creative Head executing worker actions on tasks owned 
     if (writerUser?._id) await Person.findByIdAndDelete(writerUser._id);
   });
 
-  it('probes whether Creative Head can submit a task owned by someone else', async () => {
+  it('probes whether Marketing Head can submit a task owned by someone else', async () => {
     const res = await request(app)
       .post(`/api/work/${workItem._id}/transition`)
       .set('Authorization', `Bearer ${headToken}`)
       .send({ toStatus: 'Pending', deliverableUrl: 'https://evil.com/doc' });
 
-    console.log('[PROBE RESULT] Creative Head Submit Status:', res.status, res.body);
+    console.log('[PROBE RESULT] Marketing Head Submit Status:', res.status, res.body);
   });
 
-  it('probes whether Creative Head can mark blocked a task owned by someone else', async () => {
+  it('probes whether Marketing Head can mark blocked a task owned by someone else', async () => {
     await WorkItem.findByIdAndUpdate(workItem._id, { status: 'In Progress' });
     const res = await request(app)
       .post(`/api/work/${workItem._id}/transition`)
       .set('Authorization', `Bearer ${headToken}`)
       .send({ toStatus: 'Blocked', blockerReason: 'Waiting for feedback', blockerNote: 'Probe block' });
 
-    console.log('[PROBE RESULT] Creative Head Block Status:', res.status, res.body);
+    console.log('[PROBE RESULT] Marketing Head Block Status:', res.status, res.body);
   });
 
-  it('probes whether Creative Head can publish a task owned by someone else', async () => {
+  it('probes whether Marketing Head can publish a task owned by someone else', async () => {
     await WorkItem.findByIdAndUpdate(workItem._id, { status: 'Approved' });
     const res = await request(app)
       .post(`/api/work/${workItem._id}/transition`)
       .set('Authorization', `Bearer ${headToken}`)
       .send({ toStatus: 'Published', publishedUrl: 'https://instagram.com/p/evil' });
 
-    console.log('[PROBE RESULT] Creative Head Publish Status:', res.status, res.body);
+    console.log('[PROBE RESULT] Marketing Head Publish Status:', res.status, res.body);
   });
 });

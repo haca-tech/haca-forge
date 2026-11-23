@@ -235,7 +235,10 @@ export async function recipientsFor(event, item = {}) {
     case 'step.needs_owner': {
       const posters = await peopleFor(config.posters, calendar, { slot: 'posters' });
       if (posters.length) return posters;
-      const roles = [...new Set([...(config.posters.roles || []), ...postingRoles(), ...lockedRoles()])];
+      // Never a read-only role (the heads, the Viewer): they cannot assign anyone.
+      const roles = [...new Set([...(config.posters.roles || []), ...postingRoles(), ...lockedRoles()])].filter(
+        (role) => !systemRoleOf({ role })?.readOnly
+      );
       return Person.find({ role: { $in: roles }, status: 'active' });
     }
     case 'step.overdue_manager': {

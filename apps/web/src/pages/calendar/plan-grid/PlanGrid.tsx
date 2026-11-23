@@ -181,7 +181,6 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
   const [month, setMonth] = useState(initialMonth || nextMonthKey(monthKeyInAppTz(new Date())));
   const [planId, setPlanId] = useState<string | undefined>(initialPlanId);
   // Owner options show each person's load (band dot, "N due this week"); over-limit is marked, still selectable.
-  const teamWorkload = useTeamWorkload();
   const [data, setData] = useState<GridData | null>(null);
   const [lines, setLines] = useState<GridLine[]>([newLine()]);
   const [loading, setLoading] = useState(true);
@@ -217,9 +216,11 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
   };
 
   const canEdit = Boolean(data?.permissions.canEdit) && !data?.selectionRequired;
-  // Creative Lead reviews rows; never edits planning fields (the API refuses those writes too).
+  // Creative Manager reviews rows; never edits planning fields (the API refuses those writes too).
   const canReview = Boolean(data?.permissions.canReview) && !data?.selectionRequired;
   const readOnly = Boolean(data?.permissions.readOnly); // executive
+  // Load figures for the owner pickers only when this person can pick owners (not read-only viewers).
+  const teamWorkload = useTeamWorkload(canEdit);
   const people = data?.people || [];
   const isPhone = useMediaQuery('(max-width: 639px)');
   const isCompact = useMediaQuery('(max-width: 1023px)');
@@ -494,7 +495,7 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
     setSubmitting(true);
     try {
       await apiFetch(`/api/calendar-plans/${plan._id}/submit`, { method: 'POST' });
-      setNotice({ tone: 'ok', text: 'Sent to the Creative Lead for review.' });
+      setNotice({ tone: 'ok', text: 'Sent to the Creative Manager for review.' });
       await load(keepUnsaved());
       onChanged?.();
     } catch (err) {

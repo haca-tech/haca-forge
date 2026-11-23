@@ -191,7 +191,7 @@ describe('The SM Manager sees the request and applies the suggestion', () => {
 });
 
 describe('The other lead sees the grid read-only', () => {
-  it('Growth Lead on an SM plan: no review controls, and the note says who reviews it', async () => {
+  it('Marketing Growth Manager on an SM plan: no review controls, and the note says who reviews it', async () => {
     role = 'growth_lead';
     // The note names the calendar's configured plan approvers (from the API), not a role.
     await show({ permissions: { canEdit: false, canReview: false, readOnly: true }, planApprovers: ['Check Lead'] });
@@ -211,14 +211,14 @@ describe('Plans waiting for approval are listed per calendar lead', () => {
     render(<MemoryRouter><PlansApprovalTab /></MemoryRouter>);
   };
 
-  it('Growth Lead sees Ads plans only; Creative Lead sees the rest; admin sees all', async () => {
+  it('Marketing Growth Manager sees Ads plans only; Creative Manager sees the rest; admin sees all', async () => {
     role = 'growth_lead';
     await showList();
     expect(await screen.findByText('ads plan')).toBeInTheDocument();
     expect(screen.queryByText('sm plan')).not.toBeInTheDocument();
   });
 
-  it('Creative Lead', async () => {
+  it('Creative Manager', async () => {
     role = 'creative_lead';
     await showList();
     expect(await screen.findByText('sm plan')).toBeInTheDocument();

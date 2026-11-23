@@ -33,7 +33,7 @@ import * as migration from '../scripts/migrate-roles.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tokenFor = (u) => jwt.sign({ userId: String(u._id), role: u.role }, env.JWT_SECRET, { expiresIn: '1h' });
 
-describe('Phase 12b: the 7-role model', () => {
+describe('Phase 12b: the role model (8 roles with the Viewer)', () => {
   const salt = `p12b-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
   const P = {};
   const sockets = [];
@@ -110,15 +110,15 @@ describe('Phase 12b: the 7-role model', () => {
   });
 
   describe('The shared model', () => {
-    it('has exactly the 7 roles, with the decided permissions', () => {
-      expect([...ROLE_KEYS].sort()).toEqual(['admin', 'creative_head', 'creative_lead', 'executive', 'growth_lead', 'production_head', 'sm_manager']);
+    it('has exactly the 8 roles, with the decided permissions', () => {
+      expect([...ROLE_KEYS].sort()).toEqual(['admin', 'creative_head', 'creative_lead', 'executive', 'growth_lead', 'production_head', 'sm_manager', 'viewer']);
       expect(ROLE_PERMISSIONS.creative_lead).toEqual(ROLE_PERMISSIONS.growth_lead);
       expect(ROLE_PERMISSIONS.creative_head).toEqual(ROLE_PERMISSIONS.production_head);
       for (const key of ['report.configure', 'automation.manage', 'user.manage', 'user.approve']) {
         expect(ROLE_KEYS.filter((r) => ROLE_PERMISSIONS[r].includes(key))).toEqual(['admin']);
       }
       for (const write of ['work.update.own', 'work.create', 'calendar.plan', 'calendar.approve', 'feedback.give', 'chat.use', 'assignment.override']) {
-        for (const viewer of READ_ONLY_VIEWER_ROLES) expect(ROLE_PERMISSIONS[viewer]).not.toContain(write);
+        for (const viewer of [...READ_ONLY_VIEWER_ROLES, 'viewer']) expect(ROLE_PERMISSIONS[viewer]).not.toContain(write);
       }
       for (const key of ['calendar.approve', 'feedback.give', 'revision.classify']) {
         expect(ROLE_KEYS.filter((r) => ROLE_PERMISSIONS[r].includes(key)).sort()).toEqual(['admin', 'creative_lead', 'growth_lead']);
@@ -247,7 +247,7 @@ describe('Phase 12b: the 7-role model', () => {
   describe('Reviewing: both leads and admin, never on their own work', () => {
     for (const lead of ['creativeLead', 'growthLead']) {
       it(`${lead} approves others' work and cannot approve or send back their own`, async () => {
-        // Phase 13: each lead decides on their own calendars (Growth Lead: Ads).
+        // Phase 13: each lead decides on their own calendars (Marketing Growth Manager: Ads).
         const cal = lead === 'growthLead' ? { calendar: 'ads' } : {};
         const own = await step(lead, cal);
         const ownV = await version(own);
@@ -365,7 +365,7 @@ describe('Phase 12b: the 7-role model', () => {
     });
 
     it('live review comments go to the step calendar\'s reviewers and admin, not the other lead or the read-only heads', async () => {
-      // Phase C4: recipients chosen by the access resolver (an SM-calendar step: the Creative Lead).
+      // Phase C4: recipients chosen by the access resolver (an SM-calendar step: the Creative Manager).
       const lead = await connect(P.creativeLead);
       const otherLead = await connect(P.growthLead);
       const head = await connect(P.creativeHead);

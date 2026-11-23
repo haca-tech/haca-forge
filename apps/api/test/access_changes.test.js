@@ -133,7 +133,7 @@ describe('Access changes reach people live', () => {
       const hist = await AccessChange.find({ entityType: 'workflow_config', entityId: 'sales' }).lean();
       expect(hist.map((h) => [h.field, h.before.roles, h.after.userIds])).toEqual([['reviewers', ['creative_lead'], [String(P.growth._id)]]]);
       const rooms = io.emits.filter((e) => e.event === 'access:changed').flatMap((e) => e.rooms);
-      // The Creative Lead (old list, by role) and the Growth Lead (new list) are told.
+      // The Creative Manager (old list, by role) and the Marketing Growth Manager (new list) are told.
       expect(rooms).toEqual(expect.arrayContaining([`user:${P.lead._id}`, `user:${P.growth._id}`]));
       expect(rooms).not.toContain(`user:${P.sm._id}`);
       expect(io.disconnected).toEqual([]);
@@ -164,7 +164,7 @@ describe('Access changes reach people live', () => {
       const expected = [P.worker, ...(await resolver.recipientsFor('comment.posted', w))].map((p) => `user:${p._id}`);
       expect([...new Set(sent[0].rooms)].sort()).toEqual([...new Set(expected)].sort());
       expect(sent[0].rooms.every((r) => r.startsWith('user:'))).toBe(true);
-      // Ads: the Growth Lead reviews; the Creative Lead does not get it.
+      // Ads: the Marketing Growth Manager reviews; the Creative Manager does not get it.
       expect(sent[0].rooms).toContain(`user:${P.growth._id}`);
       expect(sent[0].rooms).not.toContain(`user:${P.lead._id}`);
       expect(sent[0].rooms).toContain(`user:${P.admin._id}`);

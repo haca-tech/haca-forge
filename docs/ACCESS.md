@@ -4,21 +4,22 @@ Who can do what in HACA Marketing OS, who approves and reviews on each calendar,
 
 ---
 
-## 1. The seven roles
+## 1. The eight roles
 
 Everyone has exactly one role. The roles are fixed: their permissions come from the permission catalog in `packages/shared` and cannot be edited on the page. What you change is **who has which role**, an optional **calendar limit**, and **who approves on each calendar**. The **Role Guide** tab lists every permission of every role.
 
 | Role | In plain words |
 |---|---|
 | **Admin** | Runs the system: people, roles, access requests, calendar settings, reports and automation. Can step in on any calendar as the fallback approver. Locked: always has every permission. |
-| **Creative Head** | Sees everything, changes nothing (read-only), except their own account. |
-| **Production Head** | Same as Creative Head: sees all calendars and work, read-only. |
-| **Creative Lead** | Reviews work and approves plans on the calendars where they are named (by default every calendar except Ads). Rates approved work (1–5), requests changes, classifies revision causes, manages workers' operational details. |
-| **Growth Lead** | The same powers as the Creative Lead; by default on the Ads calendar. |
+| **Marketing Head** | Sees everything, changes nothing (read-only), except their own account. |
+| **Production Head** | Same as Marketing Head: sees all calendars and work, read-only. |
+| **Creative Manager** | Reviews work and approves plans on the calendars where they are named (by default every calendar except Ads). Rates approved work (1–5), requests changes, classifies revision causes, manages workers' operational details. |
+| **Marketing Growth Manager** | The same powers as the Creative Manager; by default on the Ads calendar. |
 | **SM Manager** | Plans the calendars, assigns owners and dates, handles blockers, and posts (owns the Post steps and marks them posted with the live link). Does not approve. |
 | **Executive** | A production worker (writer, designer, videographer, editor, all-rounder). Works on their own steps and sees only their own work. |
+| **Viewer** | A read-only observer. Sees the dashboard, the calendars and plans, the Tracker, Work Items, Work Detail, Published, the reports and the Project KPI page: every step's status. Does not see contact details (email, phone, WhatsApp), private review text (revision notes, review comments, rating messages, clip threads, help-request conversations), chat, Team Workload, Issues and Blockers, the Review Hub, the Team Directory, profiles or profile reports, or any admin page. Writes nothing except their own account (profile, settings, password). Never owns, reviews, approves or posts anything, so it never appears in owner lists, autofill, calendar settings or the fallback. Only an admin gives this role (it cannot be requested). |
 
-**Calendar limit.** A Creative Lead, Growth Lead or SM Manager can be limited to some calendars. They then review, approve and post only there, and their queues show only those calendars, even if a calendar setting names them elsewhere: **the limit wins**. Roles without calendar-based work (Admin, the heads, Executive) never have a limit.
+**Calendar limit.** A Creative Manager, Marketing Growth Manager or SM Manager can be limited to some calendars. They then review, approve and post only there, and their queues show only those calendars, even if a calendar setting names them elsewhere: **the limit wins**. Roles without calendar-based work (Admin, the heads, Executive, Viewer) never have a limit.
 
 ---
 
@@ -33,7 +34,9 @@ Each of the five calendars (SM, Sales, Ads, Academics & Management, Other) has f
 | **Posted by** | Who posts finished work. A new row's Post step goes to the first active poster (inside their calendar limit). Posters own Post steps, so only roles that take steps count: the admin can mark a piece posted but is never a poster. | Roles and people who can own Post steps (SM Manager) |
 | **Fallback** | Who decides (reviews, plan approvals, pauses, classify) when nobody in *Plans approved by* or *Work reviewed by* is active and able to act, for example the only named reviewer is suspended or their role changed. The fallback people then see the work in their queues and can decide; their open tabs update at once, and each is told once about the reviews, pause requests and plan rows already waiting there (new work notifies them as it arrives). If the fallback has nobody active either, every active admin is the final fallback, told the same way, and always able to decide. | Roles and people who can review |
 
-Defaults (also used when no settings are stored at all): Ads → Growth Lead; the other calendars → Creative Lead; posters → SM Manager; fallback → Admin.
+The settings refuse a role that can never fill the setting (for example the Viewer, anywhere) with *"This role cannot be named in …"*; a named person whose role cannot fill it is skipped.
+
+Defaults (also used when no settings are stored at all): Ads → Marketing Growth Manager; the other calendars → Creative Manager; posters → SM Manager; fallback → Admin.
 
 **What a save does.** Waiting reviews, waiting plan rows and pause requests follow the new settings at once (nothing is copied; queues are read live). Each person who newly receives work is told once, with a count. Steps already in progress keep their owners. A Post step that has **not started** moves to the first poster only when its owner is no longer a poster for that calendar. Every save makes a new version and a History entry with the reason.
 
@@ -56,7 +59,7 @@ Defaults (also used when no settings are stored at all): Ads → Growth Lead; th
 5. **Workers see only their own work.** Another person's step, profile, ratings or work history answers "not found" to a worker, teammates on the same piece included.
 6. **Workers never see other people's contact details** (email, phone, WhatsApp).
 7. **There is always at least one active admin.** The last active admin cannot be demoted, suspended or deleted by any route.
-8. **Read-only roles can still manage their own account** (profile, settings, password, sign-out).
+8. **Read-only roles can still manage their own account** (profile, settings, password, sign-out). This includes the Viewer.
 9. **Suspension is immediate.** The suspended person's next request is refused, their open tabs sign out, and their live connections are closed and cannot reconnect.
 
 These are checked by `apps/api/test/e2e_fixed_rules.test.js`.
@@ -111,7 +114,7 @@ It refuses to run against anything but a local database (`localhost`, `127.0.0.1
 
 ## 7. For developers
 
-- **One source of truth.** `packages/shared`: the permission catalog (40 keys), the 7 system roles, the pure `can(user, permission, { calendar, ownerId }, config)`, `SELF_FORBIDDEN_PERMISSIONS` (`review.decide`, `revision.classify`, `calendar.approve`).
+- **One source of truth.** `packages/shared`: the permission catalog (40 keys), the 8 system roles (the Viewer: `calendar.view`, `work.view_all`, `analytics.team`, `report.view`; `dataScope: "all"`, read-only, takes no steps, `contactDetails: false`), the pure `can(user, permission, { calendar, ownerId }, config)`, `SELF_FORBIDDEN_PERMISSIONS` (`review.decide`, `revision.classify`, `calendar.approve`).
 - **API.** Route guards: `requirePermission` / `requireAnyPermission` (each guard carries its keys). Calendar decisions: `workItems/deciders.js` (`assertDecidesOn`, `decidersFor`) over `lib/accessResolver.js` (`reviewersFor`, `planApproversFor`, `postersFor`, `recipientsFor`). Role, status and calendar limit are written only by `changePersonAccess`; calendar settings only by `updateWorkflowConfig`.
 - **Web.** `useAccess().can(permission, { calendar, ownerId })`; no role names in app code (guard test `NoRoleLiterals`).
 - **Live updates.** A person change or a calendar save compares who decides / approves / posts where, and who is responsible for each calendar's work, before and after (`accessConfig/responsibility.js`); everyone whose part changed, fallback people and admins included, gets `access:changed`, and newly responsible people get one `access_rerouted` notice about the waiting work. The tabs reload `/auth/me` (also on reconnect and when the tab regains focus). A role, status or limit change then closes their sockets so they reconnect with the new access.
@@ -122,4 +125,5 @@ It refuses to run against anything but a local database (`localhost`, `127.0.0.1
 - **Signing out.** An open tab signs out when `/auth/me` answers 401, or 403 for a suspended account (fixed rule 9). A network or server error keeps the user; the next focus, reconnect or `access:changed` tries again.
 - **Tests.** `e2e_permission_matrix` (every guarded route × every role; decisions × 5 calendars × owner / non-owner; T1: no route without a guard unless it is in `test/fixtures/unguarded_routes.js` with a reason), `access_parity` (T2: `test/fixtures/route_guard_snapshot.json`, one entry per method + path with its guards and roles; regenerate on purpose with `node apps/api/scripts/snapshot-route-guards.js` and review the diff), `service_only_permissions` (the 12 permissions no route guard checks: every role tries the real action), `e2e_routing_scenarios`, `e2e_fixed_rules`, `e2e_cache_and_rollback`, `access_admin_page`, `final_fix_h_nobody_can_act`, `final_fix_m_routing_and_races`, `final_fix_l_low`.
 - **Test database hygiene.** Tests remove the users they create. `node apps/api/scripts/purge-test-users.js` (dry run; `--confirm` to delete) clears leftovers from `marketing_portal_test` and refuses any other database.
+- **What the Viewer is refused, and where.** Private review text follows `review.read_all` (Work Detail drops `latestFeedback` and the rating's message, tags and edit log; activity metadata, help-request text, submission comments and clip threads). Contacts follow `seesContactDetails` (`contactDetails: false`). Route guards: Team Workload `people.view` or `work.update.own` (setting a limit: `people.manage_operational`); Review Hub `feedback.respond`, `feedback.view_all` or `review.read_all`; feedback threads and revision flags `feedback.view_all` or `review.read_all`; someone else's profile, work history, ratings and performance `team.profile.view` / `people.view` (404 otherwise). Chat: only people with `chat.use` or `chat.read` are Team Chat members, and a socket without them joins no channel. Tests: `viewer_role.test.js`, `ViewerRoleAndLabels.test.tsx`.
 - **Not used yet.** `report.configure` and `automation.manage` are in the catalog (admin only), but no route or screen checks them today.

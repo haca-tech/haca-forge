@@ -39,7 +39,7 @@ export const ProfileReportPage: React.FC = () => {
   }, [state, params]);
 
   if (state === 'missing') return <NotFoundState />;
-  if (state === 'forbidden') return <div className="glass-card max-w-xl mx-auto my-16 p-8 text-sm" role="alert">Only admin, creative head and executive can download this report.</div>;
+  if (state === 'forbidden') return <div className="glass-card max-w-xl mx-auto my-16 p-8 text-sm" role="alert">Only an Admin, the Marketing Head, the Production Head, a Creative Manager or a Marketing Growth Manager can download this report.</div>;
   if (state === 'error') return <div className="glass-card max-w-xl mx-auto my-16 p-8 text-sm" role="alert">Could not load the report.</div>;
   if (!data) return <div className="p-8 text-sm text-ui-muted">Loading…</div>;
 

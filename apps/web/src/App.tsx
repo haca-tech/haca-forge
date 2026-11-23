@@ -306,7 +306,9 @@ export const App: React.FC = () => {
                   path="/work/:id/review"
                   element={
                     <ProtectedRoute>
-                      <ReviewStudioPage />
+                      <RoleBoundary anyOf={['feedback.respond', 'feedback.view_all', 'review.read_all']}>
+                        <ReviewStudioPage />
+                      </RoleBoundary>
                     </ProtectedRoute>
                   }
                 />
@@ -316,7 +318,9 @@ export const App: React.FC = () => {
                   path="/feedback/review-studio"
                   element={
                     <ProtectedRoute>
-                      <ReviewStudioPage />
+                      <RoleBoundary anyOf={['feedback.respond', 'feedback.view_all', 'review.read_all']}>
+                        <ReviewStudioPage />
+                      </RoleBoundary>
                     </ProtectedRoute>
                   }
                 />
@@ -324,7 +328,9 @@ export const App: React.FC = () => {
                   path="/feedback/review"
                   element={
                     <ProtectedRoute>
-                      <ReviewStudioPage />
+                      <RoleBoundary anyOf={['feedback.respond', 'feedback.view_all', 'review.read_all']}>
+                        <ReviewStudioPage />
+                      </RoleBoundary>
                     </ProtectedRoute>
                   }
                 />
@@ -335,7 +341,9 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Layout>
-                        <FeedbackPage />
+                        <RoleBoundary anyOf={['feedback.respond', 'feedback.view_all', 'review.read_all']}>
+                          <FeedbackPage />
+                        </RoleBoundary>
                       </Layout>
                     </ProtectedRoute>
                   }
@@ -347,7 +355,7 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Layout>
-                        <RoleBoundary seesAll>
+                        <RoleBoundary permission="people.view">
                           <TeamWorkloadPage />
                         </RoleBoundary>
                       </Layout>
@@ -361,7 +369,9 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Layout>
-                        <TeamDirectoryPage />
+                        <RoleBoundary permission="people.view">
+                          <TeamDirectoryPage />
+                        </RoleBoundary>
                       </Layout>
                     </ProtectedRoute>
                   }
@@ -371,7 +381,9 @@ export const App: React.FC = () => {
                   path="/team/:id/report"
                   element={
                     <ProtectedRoute>
-                      <ProfileReportPage />
+                      <RoleBoundary permission="team.profile.view">
+                        <ProfileReportPage />
+                      </RoleBoundary>
                     </ProtectedRoute>
                   }
                 />
@@ -412,7 +424,7 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Layout>
-                        <RoleBoundary seesAll>
+                        <RoleBoundary permission="people.view">
                           <IssuesBlockersPage />
                         </RoleBoundary>
                       </Layout>
@@ -540,7 +552,9 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Layout>
-                        <ChatPage />
+                        <RoleBoundary anyOf={['chat.use', 'chat.read']}>
+                          <ChatPage />
+                        </RoleBoundary>
                       </Layout>
                     </ProtectedRoute>
                   }
@@ -550,7 +564,9 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Layout>
-                        <ChatPage />
+                        <RoleBoundary anyOf={['chat.use', 'chat.read']}>
+                          <ChatPage />
+                        </RoleBoundary>
                       </Layout>
                     </ProtectedRoute>
                   }

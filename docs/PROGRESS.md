@@ -1,6 +1,62 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after the review follow-ups):** 2308 passing, 0 failing, 0 skipped: API 1784 (103 files), web 524 (66 files). Typecheck 0 errors; web build clean.
+**Current test count (after the Viewer role and fresh-database setup):** 2341 passing, 0 failing, 0 skipped: API 1810 (107 files), web 531 (67 files). Typecheck 0 errors; web build clean.
+
+## Role labels, Viewer role, fresh-database setup (Status: COMPLETE; committed locally, not pushed)
+
+**Part 1, labels (display only; keys, permissions and routing unchanged).** `creative_head` → **Marketing Head**, `growth_lead` → **Marketing Growth Manager**, `creative_lead` → **Creative Manager** in `ROLE_LABELS`, every screen, message and doc. Four screens printed raw role keys ("creative lead"): the calendar's people list, the phone menu, work history and Writing Studio comments. They now use `ROLE_LABELS`, and a guard test fails on old label text or a raw key printed on a screen.
+
+**Part 2, the Viewer (`viewer`).** A system role: `calendar.view`, `work.view_all`, `analytics.team`, `report.view`; data scope all; read-only; takes no steps; `contactDetails: false`. Assignable by admins only (not requestable). It sees the dashboard, calendars and plans, Tracker, Work Items, Work Detail, Published, reports and Project KPIs.
+- **No contacts.** `seesContactDetails` is false for it, so the existing redaction strips others' email, phone and WhatsApp.
+- **No private review text.** It does not hold `review.read_all`. Work Detail drops the reviewer's note and the rating's message, tags and edit log; activity metadata (also on the dashboard feed), help-request text, submission comments and clip threads are withheld.
+- **Refused (API 403; others' people pages 404).**
+  - Chat: Team Chat membership is now limited to roles with chat permissions, and sockets join no channel without them.
+  - Team Workload: new guard `people.view` or `work.update.own`; setting a limit needs `people.manage_operational`.
+  - Review Hub: new guard `feedback.respond`, `feedback.view_all` or `review.read_all`.
+  - Feedback threads and revision flags: `feedback.view_all` or `review.read_all` (was `analytics.team`).
+  - Other people's profile, work history and ratings: `team.profile.view`. Per-person performance: `people.view`.
+  - Team Directory, profile reports, Settings (Access & Approvals) and the admin pages.
+- **The web.** The menu and header hide Review Hub, Team Workload, Issues, Team Directory and Team Chat by permission. Those routes, Review Studio, chat and profile reports show Not Found by URL. The plan grid, its row panel and profiles load Team Workload figures only for people who can edit or see the team. Its own Settings page (password, sessions, notifications) stays: it is its own account.
+- **Never routed.** Not slot-eligible, so never a reviewer, approver, poster or fallback, even when named by id. The calendar settings now refuse a role that can never fill a slot ("This role cannot be named in …"), checked before the health check. The `step.needs_owner` fallback skips read-only roles. Not an owner, autofill pick or assignment candidate.
+- **Tests.** Parity and matrix cover 8 roles; the Viewer is added to the matrix's decision list; the route snapshot is regenerated. Workload and Review Hub left the unguarded allow-list (now guarded). The matrix treats a 404 from `notFoundForWorkers` as a denial for any role without `team.profile.view`. New: `viewer_role.test.js` (11) and `ViewerRoleAndLabels.test.tsx` (7).
+
+**Part 3, `scripts/setup-fresh-database.js`** (guide: `docs/ATLAS.md`).
+- **Creates:** the collections and indexes of every model, the admin (`ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD`), 7 departments, 5 automation rules, the 5 calendars' default approval settings, and Team Chat with the admin as its only member. No other users or data.
+- **Runs:** dry run by default (read-only, no auto-created collections or indexes); `--confirm` writes.
+- **Refuses:**
+  - a database that is not empty (any user, plan or work item), except one it already set up, where every step only adds what is missing, so a second run changes nothing;
+  - a remote host without `--allow-remote` and a matching `--db-name`, even for a dry run;
+  - a URI without a database name, and `marketing_portal_test`.
+- Prints the host and database first. The other scripts' local-only guards are unchanged.
+- There is no separate "settings" collection in the code; the app's settings are the calendar approval settings and the automation rules.
+- **Tests:** `setup_fresh_database.test.js` (6) runs the real script against disposable local databases: dry run writes nothing, refuses non-empty, refuses remote without flags, creates exactly the listed records, and a second run changes nothing.
+
+**Dry run on an empty local database** (`marketing_portal_setupcheck`, not created by the dry run):
+```
+DRY RUN (nothing is written; add --confirm --db-name=marketing_portal_setupcheck)
+  Host:     127.0.0.1 (local)
+  Database: marketing_portal_setupcheck
+  Admin:    CREATE setup-admin@example.invalid
+  Collections: 32 to create, 0 already there; indexes for all 32
+  Departments: 7 to create (Design, Video Production, Social Media, SEO & Content, WhatsApp, Performance Marketing, Tech)
+  Automation rules: 5 to create (overdue_escalation, todo_escalation, blocker_dependency_alert, revision_pattern_flag, pause_reminders)
+  Calendar approval settings:
+    sm                     CREATE reviewers=role:creative_lead; planApprovers=role:creative_lead; posters=role:sm_manager; fallback=role:admin
+    sales                  CREATE reviewers=role:creative_lead; planApprovers=role:creative_lead; posters=role:sm_manager; fallback=role:admin
+    ads                    CREATE reviewers=role:growth_lead; planApprovers=role:growth_lead; posters=role:sm_manager; fallback=role:admin
+    academics_management   CREATE reviewers=role:creative_lead; planApprovers=role:creative_lead; posters=role:sm_manager; fallback=role:admin
+    other                  CREATE reviewers=role:creative_lead; planApprovers=role:creative_lead; posters=role:sm_manager; fallback=role:admin
+  Team Chat: CREATE (the admin is its only member)
+```
+
+**Browser check** (disposable `marketing_portal_uicheck`, API :8095, web :5199 with the project's Vite config, :8080 blocked; dropped after): 108/108 at 1440 px, 109/109 at 390 px.
+- The Viewer lands on the dashboard. The menu offers only the allowed pages, with no chat button.
+- Ten allowed pages open with no review text, no one else's contacts, no old labels and no sideways scroll.
+- Ten forbidden pages show Not Found.
+- The admin's Role Guide and role pickers show the new labels and Viewer.
+- The Marketing Head keeps Review Hub, workload, team and chat.
+
+Not touched: the local `marketing_portal` database; Atlas (not connected).
 
 ## Review follow-ups (Status: COMPLETE; committed locally, not pushed)
 

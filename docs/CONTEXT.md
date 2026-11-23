@@ -14,7 +14,7 @@
 
 - **Owner & Developer:** Mubashir (Mubashir PP), MERN developer at HACA, founder of Orvynlabs. Prefers direct, actionable output, exact prompts, and code blocks over long conversational explanations.
 - **Product:** HACA Marketing OS (formerly FORGE / Media Manager). Internal creative and marketing operations portal for HACA's in-house team to plan, assign, produce, review, publish, and track creative deliverables (Reels and 14 design types) across 5 creative calendars.
-- **Stakeholders:** Abu Nabhan (Marketing Head), Social Media Manager, Creative Lead, and the internal creative/production team.
+- **Stakeholders:** Abu Nabhan (Marketing Head), Social Media Manager, Creative Manager, and the internal creative/production team.
 - **Operating Model:** Antigravity (AI IDE agent in Planning mode) writes and executes code. Claude / Assistant drafts specifications, diagnostics, and exact pasteable prompts following `PROMPT_STYLE_GUIDE.md`. One phase per session, verified with tests before advancing.
 
 ---
@@ -28,7 +28,7 @@
    - **Zero ranking / leaderboards:** No comparing workers, no speed rankings, no incentive-linked performance metrics.
    - **No hour-based automated escalations:** All timers and measurements are display-only.
    - **Worker individual timing:** Timing counts from each worker's own `startedAt` (no shared clocks, no countdowns).
-   - **Privacy isolation:** `executive` cannot harvest data or view other workers' profiles (`HTTP 404`). Creative Heads have read-only access with contact information redacted.
+   - **Privacy isolation:** `executive` cannot harvest data or view other workers' profiles (`HTTP 404`). Marketing Heads have read-only access with contact information redacted.
 5. **Zero New Dependencies:** Strictly no unapproved npm packages.
 6. **Data Safety:** Destructive scripts must have `--confirm` flags, dry-run by default, run only locally, and back up data outside the repository first.
 
@@ -56,20 +56,21 @@
 
 ## 4. Current Product Definition
 
-### 4.1 Roles & Permissions (7 roles; Access Phases B–E)
-**Full reference: [ACCESS.md](ACCESS.md)** (roles in plain words, calendar settings, fixed rules, safe changes, recovery). Access comes from one resolver: the permission catalog and the 7 fixed system roles in `@mmp/shared`, plus per-calendar settings (who approves plans, reviews, posts, and the fallback) that admins edit on **Access & Approvals** (`/settings/access`). Code asks for permissions (`can(permission, { calendar, ownerId })`), never role names; guard tests enforce it. Two keys were reused in Phase 12b: `creative_head` is read-only leadership and `executive` is a production worker; `team_member` no longer exists.
+### 4.1 Roles & Permissions (8 roles; Access Phases B–E, the Viewer)
+**Full reference: [ACCESS.md](ACCESS.md)** (roles in plain words, calendar settings, fixed rules, safe changes, recovery). Access comes from one resolver: the permission catalog and the 8 fixed system roles in `@mmp/shared`, plus per-calendar settings (who approves plans, reviews, posts, and the fallback) that admins edit on **Access & Approvals** (`/settings/access`). Code asks for permissions (`can(permission, { calendar, ownerId })`), never role names; guard tests enforce it. Two keys were reused in Phase 12b: `creative_head` is read-only leadership and `executive` is a production worker; `team_member` no longer exists.
 
 | Role Key | Title | Core Powers & Screen Permissions |
 |---|---|---|
 | `admin` | Admin | Full platform control: users, invites, access approvals, role grants, suspensions, password resets, forced logouts. Also approves and reviews any calendar as a backup. Only role with `report.configure` and `automation.manage`. |
-| `creative_head` | Creative Head | Views everything, read-only: every write is refused (`HTTP 403 READ_ONLY_ROLE`) except their own account (sign-out, password, own profile and settings, notification and chat read markers). Sees contact details and review text (revision notes, rating feedback, clip threads). Cannot comment, rate or decide. |
-| `production_head` | Production Head | Same access as Creative Head: views all calendars and works, read-only. |
-| `creative_lead` | Creative Lead | Approves plan rows, reviews steps (mandatory 1–5 rating on approval), requests changes, reopens, classifies root causes. Manages workers' operational fields (job role, preferences, capacity, department). Views and downloads profile reports. Decides on the calendars where the calendar settings name them (default: every calendar except Ads). |
-| `growth_lead` | Growth Lead | Same powers as Creative Lead, on the calendars where named (default: Ads); other calendars stay view-only. |
+| `creative_head` | Marketing Head | Views everything, read-only: every write is refused (`HTTP 403 READ_ONLY_ROLE`) except their own account (sign-out, password, own profile and settings, notification and chat read markers). Sees contact details and review text (revision notes, rating feedback, clip threads). Cannot comment, rate or decide. |
+| `production_head` | Production Head | Same access as Marketing Head: views all calendars and works, read-only. |
+| `creative_lead` | Creative Manager | Approves plan rows, reviews steps (mandatory 1–5 rating on approval), requests changes, reopens, classifies root causes. Manages workers' operational fields (job role, preferences, capacity, department). Views and downloads profile reports. Decides on the calendars where the calendar settings name them (default: every calendar except Ads). |
+| `growth_lead` | Marketing Growth Manager | Same powers as Creative Manager, on the calendars where named (default: Ads); other calendars stay view-only. |
 | `sm_manager` | SM Manager | Main planner: plans, owners, deadlines, reschedules, blockers. Owns every Post step and marks it posted with its live link. Cannot approve. |
 | `executive` | Executive | Production worker (was `team_member`, unchanged access, including the 404s): works their own steps, sees their own work, profile and the pipeline of projects they belong to. Sees no one else's contact details. |
+| `viewer` | Viewer | Read-only observer: dashboard, calendars and plans, Tracker, Work Items, Work Detail (without private review text), Published, reports, Project KPIs. No contact details, review text, chat, Team Workload, Issues, Review Hub, Team Directory, profiles or admin pages; writes only their own account; never an owner, reviewer, approver, poster or fallback. |
 
-Fixed rules (no setting changes them; see ACCESS.md §3): nobody decides on their own work (reviews, plans, pauses, revision flags), DMs are private (admin included), no ranking or comparison, the 3-rating minimum, workers' 404s and contact privacy, at least one active admin, read-only roles manage their own account, suspension is immediate. A Creative Lead, Growth Lead or SM Manager can be limited to some calendars; the limit wins over any calendar setting. Public access requests can ask for `executive` or `sm_manager` only; only an Admin grants `admin`, `creative_head`, `production_head`, `creative_lead` or `growth_lead`.
+Fixed rules (no setting changes them; see ACCESS.md §3): nobody decides on their own work (reviews, plans, pauses, revision flags), DMs are private (admin included), no ranking or comparison, the 3-rating minimum, workers' 404s and contact privacy, at least one active admin, read-only roles manage their own account, suspension is immediate. A Creative Manager, Marketing Growth Manager or SM Manager can be limited to some calendars; the limit wins over any calendar setting. Public access requests can ask for `executive` or `sm_manager` only; only an Admin grants `admin`, `creative_head`, `production_head`, `creative_lead`, `growth_lead` or `viewer`. Display labels (keys unchanged): `creative_head` Marketing Head, `growth_lead` Marketing Growth Manager, `creative_lead` Creative Manager.
 
 **Worker job roles and step eligibility.** Job role sets eligibility; preferences can only narrow it (eligible steps are the ones in both, so a worker with no preferences is not suggested, as before; a preference outside it is refused with `400 PREFERENCE_NOT_ELIGIBLE`, and a job role change drops preferences the new job role does not allow). Writer: Script, Content. Cinematographer: Shoot. Graphic Designer: Design. Video Editor: Edit. All Rounder: Script, Content, Shoot, Design, Edit. Post: SM Managers only. Autofill, owner suggestions, plan validation and Excel import all use this one rule (`effectiveStepsFor`). Job titles kept: the 5 worker titles plus "Creative Manager (TL)" and "Social Media Manager"; Videographer, Designer, Social Specialist and the unused titles were removed.
 
@@ -95,7 +96,7 @@ Display names (Phase 10): SM Calendar, Sales Calendar, Ads Calendar, Academics &
   - Reel (Edit only): Edit $F-2$, Post $F$.
   - Postable Design: Content $F-5$, Design $F-2$, Post $F$.
   - Non-Postable Design: Content $F-5$, Design $F-2$ (handover on $F$).
-- **Review Steps:** Content, Script, Design, Edit, and Shoot go to the Creative Lead. Post is direct by the posting owner.
+- **Review Steps:** Content, Script, Design, Edit, and Shoot go to the Creative Manager. Post is direct by the posting owner.
 - **Autofill Suggestions:** Suggests workers by matching step preference, workload under 85%, fewest revisions in 90 days, earliest availability.
 
 ### 4.4 Individual Timing & Tracking
@@ -112,20 +113,20 @@ Display names (Phase 10): SM Calendar, Sales Calendar, Ads Calendar, Academics &
 
 ### 4.5 Role Workspaces
 - **Writing Studio (Content / Script):** Word-style rich editor (Tiptap), two-column Visual/Audio table, duration estimator, teleprompter, shot list generator, .docx export/import.
-- **Review Studio (Creative Lead):** Centralized review queue. Media viewers with second-pinned video comments, coordinate-pinned image comments, 1–5 star mandatory approval rating, and 7-category revision root causes.
+- **Review Studio (Creative Manager):** Centralized review queue. Media viewers with second-pinned video comments, coordinate-pinned image comments, 1–5 star mandatory approval rating, and 7-category revision root causes.
 - **Shoot Workspace (Videographer):** Clip-by-clip upload with pause/resume, individual clip review ("Approve Clip" / "Reshoot Needed"), and WhatsApp-style per-clip discussion thread.
 - **Edit / Design Workspaces:** Media upload with size guides, aspect ratio checks, approved copy side-by-side view, and revision checklist.
 - **Post Workspace:** Caption (required to post) and hashtags written on the Post step, with copy buttons; download of the approved final assets; platform checklist, live link and post timestamp recording.
 
 ### 4.6 Team Directory & Profile
 - **Team Directory (`/team`):** Operating status, workload percentage and band, 'Right Now' deliverable, and active counts (in progress, waiting for approval, late). Whitelist sorting: `name`, `department`, `jobRole`, `load`.
-- **Worker Profile (`/team/:id` and `/profile`):** 6 tabs: Overview, Work (timeline traces), Performance (individual craftsmanship metrics), Ratings (feedback summary, $\ge 3$ threshold), Activity, and Changes (operational audit log for Admin & Creative Lead).
+- **Worker Profile (`/team/:id` and `/profile`):** 6 tabs: Overview, Work (timeline traces), Performance (individual craftsmanship metrics), Ratings (feedback summary, $\ge 3$ threshold), Activity, and Changes (operational audit log for Admin & Creative Manager).
 - **Edit Profile:** Name, preferred name, avatar upload with circular crop, locked registered email (Admin managed), phone number with 6-digit OTP verification, WhatsApp sync checkbox, bio, languages, and skills.
 
 ### 4.7 Team Chat
 - Real-time messaging via Socket.io.
-- Group channels created by Admin, Creative Lead, and SM Manager.
-- Private DMs between non-executives (Admin cannot read DMs; Creative Head is read-only).
+- Group channels created by Admin, Creative Manager, and SM Manager.
+- Private DMs between non-executives (Admin cannot read DMs; Marketing Head is read-only).
 - **Share to Chat:** Approved creative assets from workspaces can be shared directly into channels with media preview cards.
 
 ---
@@ -180,7 +181,7 @@ Seeded only by `apps/api/scripts/reset-and-seed.js` (Phase 9: dry run by default
 | 20 | Phase 5: asset handoff, Drive links, caption on Post | **Done** | Phase 5 tests; 30/30 browser checks |
 | 21 | Phase 6: blockers, reopening, plan delete, small fixes | **Done** | Phase 6 tests; see docs/PROGRESS.md |
 | 22 | Phase 7: live reports, overdue and lateness labels, project KPIs | **Done** | Phase 7 tests; 49/49 browser checks; see docs/PROGRESS.md |
-| 23 | Phase 8: worker and Creative Lead profile KPIs, profile report (PDF, CSV) | **Done** | Phase 8 tests; 41/41 browser checks; see docs/PROGRESS.md |
+| 23 | Phase 8: worker and Creative Manager profile KPIs, profile report (PDF, CSV) | **Done** | Phase 8 tests; 41/41 browser checks; see docs/PROGRESS.md |
 | 24 | Access Phases B–E: resolver, calendar settings, Access & Approvals page, verification | **Done** | `e2e_permission_matrix`, `e2e_routing_scenarios`, `e2e_fixed_rules`, `e2e_cache_and_rollback`; see docs/ACCESS.md and docs/PROGRESS.md |
 
 ---
@@ -202,5 +203,9 @@ npm test --workspace=@mmp/web
 
 # Database Reset & Seed (test users)
 node apps/api/scripts/reset-and-seed.js --confirm --db-name=marketing_portal
+
+# Set up an EMPTY database (e.g. Atlas): admin, departments, rules, calendar settings, Team Chat
+node apps/api/scripts/setup-fresh-database.js                          # dry run
+node apps/api/scripts/setup-fresh-database.js --allow-remote --confirm --db-name=<db>   # see docs/ATLAS.md
 ```
 

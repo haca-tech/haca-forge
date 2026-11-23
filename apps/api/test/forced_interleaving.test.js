@@ -129,10 +129,10 @@ describe('Forced interleaving: the request that read first and wrote last loses'
     resolver.clearAccessCache();
     const p = pauseOnce(({ calendar }) => calendar === 'ads');
     resolver.accessResolverHooks.afterRead = p.hook;
-    // Request A reads Ads (still: the Growth Lead reviews it) and is held before filling the cache.
+    // Request A reads Ads (still: the Marketing Growth Manager reviews it) and is held before filling the cache.
     const first = request(app).get('/api/auth/me').set(as('cl')).then((r) => r);
     await p.paused;
-    // Request B saves Ads: the Creative Lead reviews it now.
+    // Request B saves Ads: the Creative Manager reviews it now.
     const save = await request(app).put('/api/access-admin/calendars/ads').set(as('admin')).send({ version: 0, reason: 'Ads to the lead', changes: { reviewers: { roles: ['creative_lead'], userIds: [] } } });
     expect(save.status).toBe(200);
     p.release();

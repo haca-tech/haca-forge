@@ -8,7 +8,7 @@ import * as authContext from '../context/AuthContext';
 /** One-click sign in on the login page, and Switch account in the profile menu (dev server). */
 const ACCOUNTS: QuickLoginAccount[] = vi.hoisted(() => [
   { label: 'Test Admin', email: 'admin@demo.haca.local', password: 'pw-admin-1', role: 'admin', jobRole: '' },
-  { label: 'Test Creative Lead', email: 'creativelead@demo.haca.local', password: 'pw-lead-1', role: 'creative_lead', jobRole: 'Creative Manager (TL)' },
+  { label: 'Test Creative Manager', email: 'creativelead@demo.haca.local', password: 'pw-lead-1', role: 'creative_lead', jobRole: 'Creative Manager (TL)' },
   { label: 'Test Writer One', email: 'writer1@demo.haca.local', password: 'pw-writer-1', role: 'executive', jobRole: 'Writer' },
 ]);
 vi.mock('../components/DevQuickLogin', async (orig) => ({
@@ -37,10 +37,10 @@ beforeEach(() => {
 describe('Login page: Quick sign in (dev only)', () => {
   beforeEach(() => useAuth.mockReturnValue({ user: null, login, logout, isAuthenticated: false, isLoading: false }));
 
-  it('shows the section under the form, grouped by the 7 roles', () => {
+  it('shows the section under the form, grouped by the 8 roles', () => {
     render(<MemoryRouter><LoginPage /></MemoryRouter>);
     const section = screen.getByRole('region', { name: 'Quick sign in (dev only)' });
-    expect(within(section).getAllByTestId('quick-login-group')).toHaveLength(7);
+    expect(within(section).getAllByTestId('quick-login-group')).toHaveLength(8);
     expect(within(section).getByRole('button', { name: 'Test Writer One · Writer' })).toBeInTheDocument();
   });
 
@@ -50,7 +50,7 @@ describe('Login page: Quick sign in (dev only)', () => {
     await waitFor(() => expect(login).toHaveBeenCalledWith({ email: 'writer1@demo.haca.local', password: 'pw-writer-1' }));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/my-work'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Test Creative Lead · Creative Manager (TL)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Test Creative Manager · Creative Manager (TL)' }));
     await waitFor(() => expect(login).toHaveBeenLastCalledWith({ email: 'creativelead@demo.haca.local', password: 'pw-lead-1' }));
     await waitFor(() => expect(mockNavigate).toHaveBeenLastCalledWith('/dashboard'));
   });
@@ -70,7 +70,7 @@ describe('Profile menu: Switch account (dev)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'User navigation menu' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Switch account (dev)' }));
     const dialog = screen.getByRole('dialog', { name: /Switch account/ });
-    expect(within(dialog).getAllByTestId('quick-login-group')).toHaveLength(7);
+    expect(within(dialog).getAllByTestId('quick-login-group')).toHaveLength(8);
     expect(within(dialog).getByRole('button', { name: 'Test Admin' })).toBeDisabled(); // signed in now
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Test Writer One · Writer' }));
@@ -85,8 +85,8 @@ describe('Profile menu: Switch account (dev)', () => {
     render(<MemoryRouter><UserMenuDropdown /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: 'User navigation menu' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Switch account (dev)' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Test Creative Lead · Creative Manager (TL)' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign in as Test Creative Lead: Invalid email or password');
+    fireEvent.click(screen.getByRole('button', { name: 'Test Creative Manager · Creative Manager (TL)' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign in as Test Creative Manager: Invalid email or password');
     expect(assign).not.toHaveBeenCalled();
   });
 });

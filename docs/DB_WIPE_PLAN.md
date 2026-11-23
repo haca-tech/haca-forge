@@ -84,7 +84,7 @@ All 13 accounts in the `users` collection represent legitimate workspace actors 
 | Name | Email | Role | Status | Job Role | Work Preferences | Password / Invite State |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **System Administrator** | `admin@hacaforge.com` | `admin` | active | — | — | Password set (from git-ignored .env) |
-| **Test Creative Lead** | `creativehead@demo.haca.local` | `creative_lead` | active | Creative Manager (TL) | Script, Content, Design, Edit | Password set (from git-ignored .env) |
+| **Test Creative Manager** | `creativehead@demo.haca.local` | `creative_lead` | active | Creative Manager (TL) | Script, Content, Design, Edit | Password set (from git-ignored .env) |
 | **Test SM Manager** | `smmanager@demo.haca.local` | `sm_manager` | active | Social Media Manager | Post | Password set (from git-ignored .env) |
 | **Test Writer One** | `writer1@demo.haca.local` | `executive` | active | Writer | Content, Script | Password set (from git-ignored .env) |
 | **Test Writer Two** | `writer2@demo.haca.local` | `executive` | active | Writer | Content, Script | Password set (from git-ignored .env) |
@@ -95,7 +95,7 @@ All 13 accounts in the `users` collection represent legitimate workspace actors 
 | **Test Editor Two** | `editor2@demo.haca.local` | `executive` | active | Video Editor | Edit | Password set (from git-ignored .env) |
 | **Test Poster** | `poster@demo.haca.local` | `executive` | active | Social Specialist | Post | Password set (from git-ignored .env) |
 | **Test All Rounder** | `allrounder@demo.haca.local` | `executive` | active | SEO Specialist | — | **Pending Invite / Set-Password** |
-| **Demo Creative Head Director** | `creative_head@demo.haca.local` | `creative_head` | active | — | — | Password set (from git-ignored .env) |
+| **Demo Marketing Head Director** | `creative_head@demo.haca.local` | `creative_head` | active | — | — | Password set (from git-ignored .env) |
 
 #### Actions on Users:
 1. **Preserve ALL user attributes:** `_id`, `name`, `email`, `role`, `status`, `jobRole`, `departmentId`, `profileAccess`, `workPreferences`, `weeklyCapacityHours`, `reportsToIds`, `skills`, `notificationPreferences`, `passwordHash`, `mustSetPassword`, `resetPasswordTokenHash`, `resetPasswordExpiresAt`.

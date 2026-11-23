@@ -183,7 +183,7 @@ describe('Delete a plan row', () => {
     });
   }
 
-  it('role access: SM Manager and Admin delete; Creative Head, Executive and team member get 403', async () => {
+  it('role access: SM Manager and Admin delete; Marketing Head, Executive and team member get 403', async () => {
     const plan = await makePlan();
     for (const who of ['head', 'exec', 'worker']) {
       const piece = await makeRow(plan, 'draft');

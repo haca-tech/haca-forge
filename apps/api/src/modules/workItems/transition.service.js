@@ -121,7 +121,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
     }
     await assertDecidesOn(user, calendarOf(workItem), {
       roleCode: 'FORBIDDEN_APPROVAL',
-      roleMessage: 'Review stages can be approved only by Creative Lead and Admin. SM Manager and the owner cannot approve.',
+      roleMessage: 'Review stages can be approved only by Creative Manager and Admin. SM Manager and the owner cannot approve.',
     });
   }
 
@@ -131,7 +131,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
 
   // Reopening a finished step: creative_lead/growth_lead and admin only, and never your own work.
   if (isReopen && (!hasPermission(user, 'review.decide') || ownerIdStr === userId)) {
-    const error = new Error('Only a Creative Lead or Admin who does not own this step can reopen it');
+    const error = new Error('Only a Creative Manager or Admin who does not own this step can reopen it');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_REOPEN';
     throw error;
@@ -148,7 +148,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
   if (isReviewerRevision && !options.reviewDecision) {
     await assertDecidesOn(user, calendarOf(workItem), {
       roleCode: 'FORBIDDEN_ACTION',
-      roleMessage: 'Only Creative Lead or Admin can request revisions',
+      roleMessage: 'Only Creative Manager or Admin can request revisions',
     });
     if (ownerIdStr === userId) {
       const error = new Error('You cannot review your own work');
@@ -422,7 +422,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
         recipient: workItem.ownerId?._id || workItem.ownerId,
         type: 'revision_requested',
         title: 'Revision Requested on Stage Deliverable',
-        message: `Creative Lead requested a revision on ${workItem.title}. Note: ${comment || 'Please update and resubmit.'}`,
+        message: `Creative Manager requested a revision on ${workItem.title}. Note: ${comment || 'Please update and resubmit.'}`,
         link: `/my-work?id=${workItem._id}`,
         metadata: { workItemId: workItem._id, comment },
       });
@@ -600,7 +600,7 @@ export async function transitionWorkItem(id, transitionData, user, options = {})
       }
     }
 
-    // If review requested (moved to Feedback or Pending), notify Creative Leads
+    // If review requested (moved to Feedback or Pending), notify Creative Managers
     if (isNewSubmission) {
       // Phase 13: the lead of the step's calendar.
       const creativeHeads = await decidersFor(calendarOf(workItem));

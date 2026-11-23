@@ -388,14 +388,14 @@ export const TeamDashboardPage: React.FC = () => {
 
       {!isLoading && data && (
         <div className="space-y-8">
-          {/* Waiting for approval (Creative Lead / Admin sign-off queue) */}
+          {/* Waiting for approval (Creative Manager / Admin sign-off queue) */}
           {access.can('review.decide') && (
             <section className="glass-panel rounded-ui-panel p-5 sm:p-8 space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <FileCheck className="w-5 h-5 text-ui-ink shrink-0" />
                   <div>
-                    <h2 className={sectionTitle}>Waiting for Creative Lead approval</h2>
+                    <h2 className={sectionTitle}>Waiting for Creative Manager approval</h2>
                     <span className="text-[13px] text-ui-muted">
                       {data.waitingApproval.totalPending} pending items requiring your sign-off
                     </span>

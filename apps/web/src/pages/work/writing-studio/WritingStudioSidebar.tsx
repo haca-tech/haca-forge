@@ -26,6 +26,7 @@ import {
   type ShotListItem,
 } from '../../../lib/scriptTools';
 import { Avatar } from '../../../components/Avatar';
+import { ROLE_LABELS } from '@mmp/shared';
 
 export type SidebarTab = 'brief' | 'tools' | 'comments';
 
@@ -686,8 +687,8 @@ export const WritingStudioSidebar: React.FC<WritingStudioSidebarProps> = ({
                           {comment.authorId?.name || 'Reviewer'}
                         </span>
                         {comment.authorId?.role && (
-                          <span className="text-[11px] font-medium text-ui-muted capitalize">
-                            ({comment.authorId.role})
+                          <span className="text-[11px] font-medium text-ui-muted">
+                            ({(ROLE_LABELS as Record<string, string>)[comment.authorId.role] || comment.authorId.role})
                           </span>
                         )}
                       </div>

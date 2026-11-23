@@ -50,7 +50,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
     });
 
     creativeHeadUser = await Person.create({
-      name: 'Creative Head Maya WS4J',
+      name: 'Marketing Head Maya WS4J',
       email: 'ch@ws4-journey.com',
       role: 'creative_lead',
       department: 'Creative',
@@ -269,7 +269,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
       scriptSubmissionV1Id = submitRes.body.data._id;
     });
 
-    it('Creative Head inspects Review Queue and requests revision with anchored comment', async () => {
+    it('Marketing Head inspects Review Queue and requests revision with anchored comment', async () => {
       // 1. Queue check
       const qRes = await request(app)
         .get('/api/submissions/review-queue')
@@ -354,7 +354,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
       scriptSubmissionV2Id = resubmitRes.body.data._id;
     });
 
-    it('Creative Head approves v2 with 5★ rating and Great hook tag', async () => {
+    it('Marketing Head approves v2 with 5★ rating and Great hook tag', async () => {
       const approveRes = await request(app)
         .post(`/api/submissions/${scriptSubmissionV2Id}/approve`)
         .set('Authorization', `Bearer ${headToken}`)
@@ -383,7 +383,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
   describe('Journey B: Shoot Workspace Approval & Edit Workspace Timecode Revision Loop', () => {
     let shootSubId, editSubV1Id, editSubV2Id;
 
-    it('Shooter submits footage in Shoot Workspace and Creative Head approves with 5★ rating', async () => {
+    it('Shooter submits footage in Shoot Workspace and Marketing Head approves with 5★ rating', async () => {
       // 1. Shoot submit
       const shootRes = await request(app)
         .post(`/api/work-items/${shootWorkItem._id}/submit`)
@@ -404,7 +404,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
       expect([200, 201]).toContain(shootRes.status);
       shootSubId = shootRes.body.data._id;
 
-      // 2. Creative Head approves the clips, then the Shoot step
+      // 2. Marketing Head approves the clips, then the Shoot step
       await MediaItem.create({ stageItemId: shootRes.body.data.workItemId, url: 'https://drive.google.com/file/d/footage/scene1_take1.mp4', title: 'WS4 Journey clip', status: 'approved' });
       const approveRes = await request(app)
         .post(`/api/submissions/${shootSubId}/approve`)
@@ -419,7 +419,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
       expect(approveRes.body.data.rating.score).toBe(5);
     });
 
-    it('Editor submits cut v1, Creative Head adds time-pinned comment at second 4 and requests revision', async () => {
+    it('Editor submits cut v1, Marketing Head adds time-pinned comment at second 4 and requests revision', async () => {
       // 1. Editor submits cut v1
       const cutRes = await request(app)
         .post(`/api/work-items/${editWorkItem._id}/submit`)
@@ -440,7 +440,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
       expect([200, 201]).toContain(cutRes.status);
       editSubV1Id = cutRes.body.data._id;
 
-      // 2. Creative Head adds time-pinned comment at 4 seconds
+      // 2. Marketing Head adds time-pinned comment at 4 seconds
       const commentRes = await request(app)
         .post(`/api/submissions/${editSubV1Id}/comments`)
         .set('Authorization', `Bearer ${headToken}`)
@@ -466,7 +466,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
       expect(revRes.status).toBe(200);
     });
 
-    it('Editor resubmits cut v2 and Creative Head approves with 4★ rating', async () => {
+    it('Editor resubmits cut v2 and Marketing Head approves with 4★ rating', async () => {
       // 0. Editor clicks Start rework
       const reworkRes = await request(app)
         .post(`/api/work-items/${editWorkItem._id}/transition`)
@@ -494,7 +494,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
       expect([200, 201]).toContain(cutV2Res.status);
       editSubV2Id = cutV2Res.body.data._id;
 
-      // 2. Creative Head approves with 4★ rating
+      // 2. Marketing Head approves with 4★ rating
       const approveRes = await request(app)
         .post(`/api/submissions/${editSubV2Id}/approve`)
         .set('Authorization', `Bearer ${headToken}`)
@@ -515,7 +515,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
   describe('Journey C: Designer Workspace Image Submission & Approval', () => {
     let designSubId;
 
-    it('Designer submits carousel images and Creative Head approves with 5★ rating', async () => {
+    it('Designer submits carousel images and Marketing Head approves with 5★ rating', async () => {
       // 1. Designer submits image assets
       const designRes = await request(app)
         .post(`/api/work-items/${designWorkItem._id}/submit`)
@@ -542,7 +542,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
       expect([200, 201]).toContain(designRes.status);
       designSubId = designRes.body.data._id;
 
-      // 2. Creative Head approves Design stage
+      // 2. Marketing Head approves Design stage
       const approveRes = await request(app)
         .post(`/api/submissions/${designSubId}/approve`)
         .set('Authorization', `Bearer ${headToken}`)
@@ -576,9 +576,9 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
   });
 
   // ---------------------------------------------------------------------------
-  // JOURNEY E: Worker Profile Ratings Visibility & Creative Head All-Worker Access
+  // JOURNEY E: Worker Profile Ratings Visibility & Marketing Head All-Worker Access
   // ---------------------------------------------------------------------------
-  describe('Journey E: Worker Sees Own Ratings & Creative Head Inspects All', () => {
+  describe('Journey E: Worker Sees Own Ratings & Marketing Head Inspects All', () => {
     it('Each worker sees their own ratings in their profile', async () => {
       // Writer checks own ratings
       const writerRatings = await request(app)
@@ -597,7 +597,7 @@ describe('Workspaces WS4: End-to-End Journeys Suite (Journeys A through G)', () 
       expect(shooterRatings.body.data.count).toBeGreaterThanOrEqual(1);
     });
 
-    it('Creative Head can open and inspect ratings of any worker', async () => {
+    it('Marketing Head can open and inspect ratings of any worker', async () => {
       const workers = [writerUser, shooterUser, editorUser, designerUser];
 
       for (const worker of workers) {

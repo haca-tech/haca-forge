@@ -67,7 +67,7 @@ describe('STEP DEADLINES IN THE PLAN ROW FORM SUITE', () => {
     });
 
     headUser = await Person.create({
-      name: 'Step Creative Head',
+      name: 'Step Marketing Head',
       email: 'head@step-test.com',
       passwordHash: 'dummy',
       role: 'creative_lead',
@@ -465,7 +465,7 @@ describe('STEP DEADLINES IN THE PLAN ROW FORM SUITE', () => {
     });
   });
 
-  describe('3. Creative Head Review and Stage Work Item Generation', () => {
+  describe('3. Marketing Head Review and Stage Work Item Generation', () => {
     let reviewPlan, contentPieceId;
 
     beforeAll(async () => {

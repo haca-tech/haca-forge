@@ -485,7 +485,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
             )}
           </div>
           <p className="text-xs text-ui-muted mt-0.5">
-            Review your master cut, discuss live notes with Creative Lead, and submit revised cuts.
+            Review your master cut, discuss live notes with Creative Manager, and submit revised cuts.
           </p>
         </div>
 
@@ -617,14 +617,14 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-amber-800">
-                        Revision Requested by Creative Lead (Round #{workItem.revisions || 1})
+                        Revision Requested by Creative Manager (Round #{workItem.revisions || 1})
                       </span>
                       <span className="status-tint status-waiting text-[11px] px-2 py-0.5 rounded-full border font-semibold">
                         Action Required
                       </span>
                     </div>
                     <p className="text-xs text-ui-text mt-1 leading-relaxed">
-                      Creative Lead requested changes on this cut. Review the feedback and timestamped notes in the Live Discussion panel on the right, make your adjustments, and upload the revised cut below.
+                      Creative Manager requested changes on this cut. Review the feedback and timestamped notes in the Live Discussion panel on the right, make your adjustments, and upload the revised cut below.
                     </p>
                   </div>
                 </div>
@@ -749,7 +749,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                         <MessageSquare className="w-8 h-8 text-ui-muted mb-2 stroke-1" />
                         <p className="text-xs font-medium text-ui-text">No review comments yet</p>
                         <p className="text-[11px] text-ui-muted mt-1 max-w-xs">
-                          Start the conversation with Creative Lead below or tag specific moments in the video cut.
+                          Start the conversation with Creative Manager below or tag specific moments in the video cut.
                         </p>
                       </div>
                     ) : (
@@ -782,7 +782,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                             <div className="flex items-center justify-between text-[11px]">
                               <div className="flex items-center gap-1.5">
                                 <span className="font-bold text-ui-ink">
-                                  {comment.authorName || (isReviewer ? 'Creative Lead' : 'Video Editor')}
+                                  {comment.authorName || (isReviewer ? 'Creative Manager' : 'Video Editor')}
                                 </span>
                                 <span
                                   className={`text-[11px] px-1.5 py-0.2 rounded-full font-semibold ${
@@ -791,7 +791,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                                       : 'bg-white text-ui-ink border border-ui-ink'
                                   }`}
                                 >
-                                  {isReviewer ? 'Creative Lead' : 'Video Editor'}
+                                  {isReviewer ? 'Creative Manager' : 'Video Editor'}
                                 </span>
                               </div>
 
@@ -880,7 +880,7 @@ export const EditWorkspace: React.FC<EditWorkspaceProps> = ({
                         placeholder={
                           access.can('review.decide')
                             ? 'Type review feedback or a message for the editor...'
-                            : 'Type a message or response to Creative Lead...'
+                            : 'Type a message or response to Creative Manager...'
                         }
                         aria-label="Message"
                         className="ui-input flex-1 min-w-0"

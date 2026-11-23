@@ -354,7 +354,7 @@ describe('Shoot Workspace & Per-Clip Tools Test Suite', () => {
     });
   });
 
-  describe('4. Creative Head ShootReviewView Component', () => {
+  describe('4. Marketing Head ShootReviewView Component', () => {
     const clipsList: MediaItemType[] = [
       { ...baseClip, _id: 'c1', title: 'Clip 1 Hero', status: 'approved' },
       { ...baseClip, _id: 'c2', title: 'Clip 2 Action', status: 'waiting_review' },

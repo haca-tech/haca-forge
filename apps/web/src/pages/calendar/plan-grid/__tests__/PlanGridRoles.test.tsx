@@ -99,7 +99,7 @@ afterEach(() => {
   delete window.matchMedia;
 });
 
-describe('Creative Head review in the grid', () => {
+describe('Marketing Head review in the grid', () => {
   it('shows only submitted rows by default, with no editing controls', async () => {
     await show();
     expect(screen.getByLabelText(/Only rows waiting for review \(1\)/)).toBeChecked();
@@ -307,7 +307,7 @@ describe('Accessible names and cell errors', () => {
 
 describe('Plans waiting for approval (Feedback page)', () => {
 
-  it('monthly plans: admin (backup reviewer) and the Creative Lead get the review link, and no review buttons here', async () => {
+  it('monthly plans: admin (backup reviewer) and the Creative Manager get the review link, and no review buttons here', async () => {
     approvalPlans = monthlyApprovalPlans;
     for (const r of ['admin', 'creative_lead']) {
       role = r;
@@ -354,7 +354,7 @@ describe('Plans waiting for approval (Feedback page)', () => {
       </MemoryRouter>
     );
     await screen.findByRole('button', { name: /PLAN-2031-11-002/ });
-    expect(await screen.findByText('Only a Creative Lead, a Growth Lead or an Admin can approve or return plan rows.')).toBeInTheDocument();
+    expect(await screen.findByText('Only a Creative Manager, a Marketing Growth Manager or an Admin can approve or return plan rows.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Approve All Rows' })).not.toBeInTheDocument();
   });
 });

@@ -999,7 +999,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </div>
             )}
 
-            {/* 2. Creative Lead Role Panel */}
+            {/* 2. Creative Manager Role Panel */}
             {roleAccess(profile.role).can('review.decide') && !roleAccess(profile.role).isSuperuser && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Link

@@ -8,7 +8,7 @@ const PUBLIC = 'Public: health checks and the signed-out sign-in flow (rate-limi
 const SESSION = 'Signed-in user only (authenticate); acts on the caller\'s own session.';
 const OWN_ACCOUNT = 'Own account only: /me routes act on the signed-in person (fixed rule 8: read-only roles keep these).';
 const PROFILE_ACCESS = 'requireProfileAccess: team.profile.view, or the person themselves; workers get 404 for anyone else.';
-const PEOPLE_SELF_OR_SEES_ALL = 'Service check: the person themselves or a role that sees everyone; workers get 404 (fixed rule 5).';
+const PEOPLE_SELF_OR_SEES_ALL = 'Service check: the person themselves or team.profile.view; anyone else (workers, the Viewer) gets 404 (fixed rule 5).';
 const REFERENCE = 'Read-only reference data (departments, labels) every signed-in user needs to render forms.';
 const OWN_NOTIFICATIONS = 'Own notifications only: every query is filtered by the signed-in recipient.';
 const CONTENT_PIECE = 'Service check: leadership sees every piece; workers only pieces where they own a step, else 404.';
@@ -18,12 +18,10 @@ const CLIP_LOCKED = 'clipParam + refuseWhenWorkspacesLocked + service check: onl
 const PAUSE = 'Service checks: the step owner asks/cancels/resumes; decide uses assertDecidesOn (calendar routing, never your own).';
 const HELP = 'Service checks: asker, person asked, deciders or posters of the step\'s calendar, admins (L1); others 404.';
 const SUBMISSION = 'Service checks: requireParticipant (owner or a role that sees all; workers 404 elsewhere); decisions via assertReviewer (calendar + owner).';
-const RATINGS = 'Service checks: own ratings for workers (404 otherwise); edits need the rater/admin, never on own work, review.decide on the calendar.';
+const RATINGS = 'Service checks: own ratings without team.profile.view (404 otherwise); edits need the rater/admin, never on own work, review.decide on the calendar.';
 const QUEUE = 'Service check: decisionCalendarFilter limits the queue to the calendars the user reviews; workers see their own submissions.';
-const WORKLOAD = 'Service checks: workers see only themselves (404 otherwise); editing a limit needs people.manage_operational.';
 const PUBLISHED = 'Service checks: workers see only pieces they worked on; editing a live link needs publish.edit_live_link.';
 const WORK_STEP = 'Work item router: router.param(id/stageItemId) runs workItemParam (owner, or a role that sees all; workers 404 elsewhere), then the service checks the step owner.';
-const REVIEW_HUB = 'Service checks: decisionCalendarFilter and canDecideOn per step; workers see only their own steps.';
 
 export const ALLOW_UNGUARDED = {
   'GET /api/status': { check: 'public', reason: PUBLIC },
@@ -105,9 +103,6 @@ export const ALLOW_UNGUARDED = {
   'GET /api/submissions/:id/comments': { check: 'modules/workItems/access.js#requireSubmissionAccess', reason: SUBMISSION },
   'POST /api/submissions/:id/approve': { check: 'modules/workItems/access.js#requireSubmissionAccess', reason: SUBMISSION },
   'POST /api/submissions/:id/request-revision': { check: 'modules/workItems/access.js#requireSubmissionAccess', reason: SUBMISSION },
-  'GET /api/workload': { check: 'modules/workload/service.js#listWorkload', reason: WORKLOAD },
-  'GET /api/workload/:personId/steps': { check: 'modules/workload/service.js#openStepsOf', reason: WORKLOAD },
-  'PUT /api/workload/:personId/limit': { check: 'modules/workload/service.js#setActiveStepLimit', reason: WORKLOAD },
   'GET /api/published': { check: 'modules/published/service.js#listPublished', reason: PUBLISHED },
   'PUT /api/published/:pieceId/live-link': { check: 'modules/published/service.js#editLiveLink', reason: PUBLISHED },
   'GET /api/work/:id/draft': { check: 'modules/workItems/access.js#workItemParam', reason: WORK_STEP },
@@ -127,6 +122,4 @@ export const ALLOW_UNGUARDED = {
   'PUT /api/work/:stageItemId/clips/reorder': { check: 'modules/workItems/access.js#workItemParam', reason: WORK_STEP },
   'POST /api/work/:stageItemId/submit-clips': { check: 'modules/workItems/access.js#workItemParam', reason: WORK_STEP },
   'POST /api/work/:stageItemId/shoot-review': { check: 'modules/workItems/access.js#workItemParam', reason: `${WORK_STEP} Finishing a shoot review is a decision: assertReviewer (calendar routing + never your own step).` },
-  'GET /api/review-hub': { check: 'modules/reviewHub/service.js#reviewInbox', reason: REVIEW_HUB },
-  'GET /api/review-hub/steps/:workItemId/timeline': { check: 'modules/reviewHub/service.js#stepTimeline', reason: REVIEW_HUB },
 };

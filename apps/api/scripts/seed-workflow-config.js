@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Phase B seed: one WorkflowConfig per calendar from today's rules (Ads → Growth Lead, other
- * calendars → Creative Lead; posters → SM Manager; fallback → admin). Changes nothing else.
+ * Phase B seed: one WorkflowConfig per calendar from today's rules (Ads → Marketing Growth Manager, other
+ * calendars → Creative Manager; posters → SM Manager; fallback → admin). Changes nothing else.
  *
  *   node apps/api/scripts/seed-workflow-config.js                      # dry run (writes nothing)
  *   node apps/api/scripts/seed-workflow-config.js --confirm            # backs up, then writes

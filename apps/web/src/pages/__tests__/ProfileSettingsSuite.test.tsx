@@ -192,7 +192,7 @@ describe('Profile & Settings Frontend Suite', () => {
       expect(screen.getByText(/Team Distribution by Role/i)).toBeInTheDocument();
     });
 
-    it('Creative Head profile renders creative metrics: stages waiting approval & plans waiting', () => {
+    it('Marketing Head profile renders creative metrics: stages waiting approval & plans waiting', () => {
       const profile = makeMockProfile('creative_lead', {
         rolePanelData: {
           creativeMetrics: {

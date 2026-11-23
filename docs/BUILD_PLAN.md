@@ -49,7 +49,7 @@ graph TD
   1. **CalendarPlan Schema Updates (`modules/calendarPlans/`):**
      * Restrict `kind` to exactly: `'monthly'` and `'individual'` (remove legacy `'project'`).
      * Plan title carries the school name and planning period (e.g., `'Tech School November 2026'`).
-     * Add `rejectionConcern` field for overall plan rejection by Creative Lead.
+     * Add `rejectionConcern` field for overall plan rejection by Creative Manager.
      * Plan statuses: `Draft`, `Submitted`, `Changes requested`, `Approved`, `Approved with pending rows`.
   2. **Row Schema & Validation Engine:**
      * Fields: `postingDate F`, `postingTime`, `topic`, `type` (15 types), `forTeam` (`Sales`, `Marketing`, `Academics`, `Other`), `programOrEvent`, `brief` (max 1,000 chars), `referenceLink` (input URL only; never reuse output fields), `priority` (`Normal`, `Urgent`, default `Normal`), `remarks`, `postingOwner`, `contentOwner`, `contentDeadline`, `scriptOwner`, `scriptDeadline`, `needsScript`, `needsShoot`, `shootOwner`, `shootDeadline`, `editOwner`, `editDeadline`, `designOwner`, `designDeadline`, `sourceVideoLink`.
@@ -65,7 +65,7 @@ graph TD
        * Reel Variant B: Shoot $F-5$, Edit $F-2$, Post $F$.
        * Reel Variant C: Edit $F-2$, Post $F$.
      * Manual edits marked `'set by SM Manager'`. If $F$ moves, only non-set values recalculate.
-  4. **Creative Lead Plan Actions:**
+  4. **Creative Manager Plan Actions:**
      * `POST /api/calendar-plans/:id/approve-all`: Approves all submitted rows.
      * `POST /api/calendar-plans/:id/approve-selected`: Approves selected rows.
      * `POST /api/calendar-plans/:id/request-changes`: Attaches mandatory row comment.
@@ -73,7 +73,7 @@ graph TD
   5. **Post-Approval ContentPiece & Stage Generation:**
      * Approved rows generate `ContentPiece` and sequential `WorkItem` stages with row owners and deadlines.
      * Stage 1 is unlocked immediately (`unlockedAt: new Date()`); downstream stages are locked (`unlockedAt: null`).
-     * Post-approval mutation service: SM Manager and Admin can change owner, deadline, reschedule $F$, or skip unstarted stage (logged in `ActivityEvent`: `who`, `when`, `old`, `new`; worker and Creative Lead notified). Topic and type cannot change after approval.
+     * Post-approval mutation service: SM Manager and Admin can change owner, deadline, reschedule $F$, or skip unstarted stage (logged in `ActivityEvent`: `who`, `when`, `old`, `new`; worker and Creative Manager notified). Topic and type cannot change after approval.
   6. **Removal of Hour-Based Rules:**
      * Overdue checked once daily at end-of-day in `REPORT_TIMEZONE`.
      * Instant blocker notification with `'blocked since <date>'`. No 4-hour alert.
@@ -95,10 +95,10 @@ graph TD
      * 24-column upload preview modal with syntax validation and auto-fill tags.
      * Interactive grid editor: instant stage expansion upon type selection, inline reason chips, manual override badges ('set by SM Manager'), warning vs error indicators.
   2. **Plan Verification & Review UX:**
-     * Creative Lead review drawer in `/feedback`: approve all, select rows, row comment drawer, reject entire plan with strategic concern modal.
+     * Creative Manager review drawer in `/feedback`: approve all, select rows, row comment drawer, reject entire plan with strategic concern modal.
   3. **Content Tracker UX:**
      * Social View and Design View tables on `/calendar?tab=tracker`:
-       * 'Who holds it now' chip (worker, Creative Lead, SM Manager for needs owner, Blocked since date, Locked).
+       * 'Who holds it now' chip (worker, Creative Manager, SM Manager for needs owner, Blocked since date, Locked).
        * 'At Risk' badge (active stage due within 2 calendar days not in review).
        * Derived days: Late by days, owner lag days, approval wait days.
   4. **Worker & Execution UX:**
@@ -118,7 +118,7 @@ graph TD
      * Interactive grid table with instant stage suggestion generation on type/toggle selection.
      * Manual override tagging ('set by SM Manager') and recalculation behavior on $F$ change.
   2. **Plan Approvals Queue (`/feedback?tab=plans`):**
-     * Line-item approval interface for Creative Lead: Approve All, Approve Selected, Request Changes with row comments, Reject Whole Plan with concern.
+     * Line-item approval interface for Creative Manager: Approve All, Approve Selected, Request Changes with row comments, Reject Whole Plan with concern.
      * Plan status display (`Draft`, `Submitted`, `Changes requested`, `Approved`, `Approved with pending rows`).
   3. **Content Tracker Tab (`/calendar?tab=tracker`):**
      * Social view and Design view tabs.
@@ -141,11 +141,11 @@ graph TD
      * Plan authoring, 24-column import, minimal 5-column upload.
      * Auto-fill suggestion engine and workload calculation (including draft plan stage hours).
      * Deadline offsets ($F-5, F-2$, etc.) and recalculation logic preserving manual overrides.
-     * Creative Lead plan review actions (`approve_all`, `approve_selected`, `request_changes`, `reject`).
+     * Creative Manager plan review actions (`approve_all`, `approve_selected`, `request_changes`, `reject`).
      * Sequential stage generation and unlocking upon row approval.
      * Day-based notifications (daily overdue check, instant blocker alert, 3-day inactivity).
   2. **End-to-End Role Journeys:**
-     * Admin, Creative Lead, SM Manager, Executive, Creative Head complete all respective paths.
+     * Admin, Creative Manager, SM Manager, Executive, Marketing Head complete all respective paths.
   3. **Zero Regression:**
      * Monorepo tests passing 100% green.
 * **Acceptance Criteria:** Full test suite passes; production build succeeds without errors.
@@ -162,7 +162,7 @@ graph TD
      * Submission endpoints: `POST /api/work-items/:id/submissions` (creates immutable `vN`), `GET /api/work-items/:id/submissions` (lists versions), `GET /api/work-items/:id/submissions/:version`.
   2. **Elevate Shoot to a Review Step:**
      * Update `apps/api/src/modules/workItems/transition.service.js` so that `Shoot` transitions from `In Progress` &rarr; `Feedback` (Submitted for review).
-     * Downstream `Edit` stage unlocks **only after Creative Lead approves the Shoot submission**.
+     * Downstream `Edit` stage unlocks **only after Creative Manager approves the Shoot submission**.
   3. **Job Role 'Videographer':**
      * Add `Videographer` to canonical job roles in `packages/shared/src/index.ts`.
      * Assign default work preference `['Shoot']` and department `Video Production`.
@@ -217,7 +217,7 @@ graph TD
 
 ---
 
-### Phase WS3: Review Studio (Creative Lead & Admin Workspace)
+### Phase WS3: Review Studio (Creative Manager & Admin Workspace)
 
 * **Scope:** High-throughput approval queue and multi-media review studio at `/feedback`.
 * **Deliverables:**
@@ -235,11 +235,11 @@ graph TD
      * Link Opener: Isolated tab opener for fallback external links.
   4. **Decision Bar:**
      * Approve: Requires 1–5 quality rating, optional feedback, optional tags (`Great hook`, `Clear message`, `Needs polish`, `Off brief`).
-     * Request Revision: Requires comment or note; Creative Lead selects from 7 canonical root causes.
+     * Request Revision: Requires comment or note; Creative Manager selects from 7 canonical root causes.
      * Prefills previous submission for worker in `In Progress`.
   5. **Keyboard Shortcuts:**
      * `Space` (Play/Pause), `J`/`L` (Seek 5s), `C` (Comment), `A` (Approve), `R` (Request Revision), `[`/`]` (Prev/Next).
-* **Acceptance Criteria:** Creative Lead reviews documents, videos, and images with anchored/timestamped comments, gives 1–5 ratings on approval, and auto-advances through the queue.
+* **Acceptance Criteria:** Creative Manager reviews documents, videos, and images with anchored/timestamped comments, gives 1–5 ratings on approval, and auto-advances through the queue.
 
 ---
 
@@ -251,7 +251,7 @@ graph TD
      * Read-only script and extracted shot list.
      * Chunked/resumable multi-video upload ($\le 500\text{ MB}$, pause, retry, phone support).
      * Shoot notes text area.
-     * Submit for Creative Lead review.
+     * Submit for Creative Manager review.
   2. **Editor Workspace (`Edit`):**
      * Read-only raw footage and script.
      * Video cut upload with non-blocking 9:16 vertical and $\le 90\text{s}$ duration warnings.
@@ -287,7 +287,7 @@ graph TD
   * 6 Background Automation Rules (day-based, no hour rules).
 * **Frontend Changes:**
   * Dashboard layout with real-time counters and operational sections.
-  * Reports viewer with on-demand generation for Creative Lead and Admin.
+  * Reports viewer with on-demand generation for Creative Manager and Admin.
 * **Acceptance Criteria:** Dashboard live, reports accurate, all jobs running cleanly.
 
 ---
@@ -311,13 +311,13 @@ graph TD
      * "Share to chat" modal triggered on approved outputs in Review Studio, Workspaces, and clip cards.
      * Posts structured media card with thumbnail, approved badge, owner info, note, and view/download buttons.
      * `ShareGrant` verifies caller channel membership for asset access while keeping upstream pipeline and review comments isolated.
-     * Optional `[ ] Also share to Team chat` checkbox upon Creative Lead stage approval.
+     * Optional `[ ] Also share to Team chat` checkbox upon Creative Manager stage approval.
   4. **Frontend Chat UI (`apps/web/src/pages/chat/`):**
      * Top-bar chat button with real-time unread badge across all roles in `Layout.tsx`.
      * Route `/chat` with desktop 3-pane layout (Channels, Message Stream, Channel Details) and mobile 360px 2-screen flow.
      * Built-in Unicode emoji picker (zero dependencies), @mentions autocomplete, quoted replies, 24h edit window, deletion placeholders.
      * Channel & cross-channel search drawer, deep links `/chat/<channelId>?m=<messageId>`.
-     * Role boundaries: Creative Head read-only viewer in Team chat/groups, cannot post/react/DM/share; Executive full chat and DM with peers, cannot create groups or use `@everyone`; Admin moderate permissions. Zero surveillance leaderboards or message counts.
+     * Role boundaries: Marketing Head read-only viewer in Team chat/groups, cannot post/react/DM/share; Executive full chat and DM with peers, cannot create groups or use `@everyone`; Admin moderate permissions. Zero surveillance leaderboards or message counts.
 * **Acceptance Criteria:** Monorepo lint, typecheck, unit, integration, and e2e test suites 100% green; all 5 roles verified under strict permission and privacy rules.
 
 ---

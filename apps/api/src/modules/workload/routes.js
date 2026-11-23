@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../../middleware/auth.js';
+import { requireAnyPermission, requirePermission } from '../../middleware/requirePermission.js';
 import { listWorkload, openStepsOf, setActiveStepLimit } from './service.js';
 
 /**
@@ -8,8 +9,10 @@ import { listWorkload, openStepsOf, setActiveStepLimit } from './service.js';
  */
 const router = Router();
 router.use(authenticate);
+// Not the Viewer: it sees the plan, not people's load.
+const seesWorkload = requireAnyPermission('people.view', 'work.update.own');
 
-router.get('/', async (req, res, next) => {
+router.get('/', seesWorkload, async (req, res, next) => {
   try {
     res.json({ success: true, data: await listWorkload(req.user, { jobRole: req.query.jobRole, band: req.query.band, q: req.query.q }) });
   } catch (err) {
@@ -17,7 +20,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.get('/:personId/steps', async (req, res, next) => {
+router.get('/:personId/steps', seesWorkload, async (req, res, next) => {
   try {
     res.json({ success: true, data: await openStepsOf(req.params.personId, req.user) });
   } catch (err) {
@@ -25,7 +28,7 @@ router.get('/:personId/steps', async (req, res, next) => {
   }
 });
 
-router.put('/:personId/limit', async (req, res, next) => {
+router.put('/:personId/limit', requirePermission('people.manage_operational'), async (req, res, next) => {
   try {
     res.json({ success: true, data: await setActiveStepLimit(req.params.personId, req.body?.limit, req.user) });
   } catch (err) {

@@ -21,14 +21,17 @@ export const NotFoundState: React.FC = () => {
 };
 
 /** Frontend boundary only: the page (and its data requests) never mounts unless the user
- *  holds `permission`, or (`seesAll`) sees everyone's work. The API keeps its own checks. */
-export const RoleBoundary: React.FC<{ permission?: string; seesAll?: boolean; children: React.ReactNode }> = ({
+ *  holds `permission` (or one of `anyOf`), or (`seesAll`) sees everyone's work. The API keeps its own checks. */
+export const RoleBoundary: React.FC<{ permission?: string; anyOf?: string[]; seesAll?: boolean; children: React.ReactNode }> = ({
   permission,
+  anyOf,
   seesAll,
   children,
 }) => {
   const { user } = useAuth();
   const access = useAccess();
-  if (user && ((permission && !access.can(permission)) || (seesAll && !access.seesAll))) return <NotFoundState />;
+  const refused =
+    (permission && !access.can(permission)) || (anyOf && !anyOf.some((p) => access.can(p))) || (seesAll && !access.seesAll);
+  if (user && refused) return <NotFoundState />;
   return <>{children}</>;
 };

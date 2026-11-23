@@ -136,7 +136,7 @@ export async function listContentPieces(filters = {}, user) {
       if (s.status === 'Blocked') {
         stageHolder = `Blocked since ${s.updatedAt ? new Date(s.updatedAt).toISOString().slice(0, 10) : 'recent'}`;
       } else if (s.awaitingReview) {
-        stageHolder = 'Creative Lead';
+        stageHolder = 'Creative Manager';
       } else if (!s.ownerId) {
         stageHolder = 'SM Manager';
       } else if (s.isLocked) {
@@ -161,7 +161,7 @@ export async function listContentPieces(filters = {}, user) {
       if (activeStage.status === 'Blocked') {
         holder = `Blocked since ${activeStage.updatedAt ? new Date(activeStage.updatedAt).toISOString().slice(0, 10) : 'recent'}`;
       } else if (activeStage.awaitingReview) {
-        holder = 'Creative Lead';
+        holder = 'Creative Manager';
       } else if (!activeStage.ownerId) {
         holder = 'SM Manager';
       } else if (activeStage.isLocked) {
@@ -194,7 +194,7 @@ export async function listContentPieces(filters = {}, user) {
     // unstarted step because it read an `assigneeConfirmed` field that is never set.)
     const stepOpen = (s) => !s.isSkipped && s.status !== 'Approved' && s.status !== 'Published';
     const hasNeedsOwner = enrichedStages.some((s) => stepOpen(s) && !s.ownerId);
-    // Waiting for approval: a step submitted and waiting for the Creative Lead, by its latest
+    // Waiting for approval: a step submitted and waiting for the Creative Manager, by its latest
     // version. A step that was sent back (changes requested) is not waiting.
     const hasWaitingApproval = enrichedStages.some((s) => s.awaitingReview);
     const hasBlocked = enrichedStages.some((s) => s.status === 'Blocked');

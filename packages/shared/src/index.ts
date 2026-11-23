@@ -18,18 +18,20 @@ export const ROLE_KEYS = [
   "growth_lead",
   "sm_manager",
   "executive",
+  "viewer",
 ] as const;
 
 export type UserRole = (typeof ROLE_KEYS)[number];
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Admin",
-  creative_head: "Creative Head",
+  creative_head: "Marketing Head",
   production_head: "Production Head",
-  creative_lead: "Creative Lead",
-  growth_lead: "Growth Lead",
+  creative_lead: "Creative Manager",
+  growth_lead: "Marketing Growth Manager",
   sm_manager: "SM Manager",
   executive: "Executive",
+  viewer: "Viewer",
 };
 
 /** Approve plan rows, review, rate, reopen and classify root causes (both leads, every calendar in Phase 12b). */
@@ -59,9 +61,9 @@ export const isWorker = (role: RoleInput): boolean => roleOf(role) === WORKER_RO
 /** May approve, review, rate and reopen: both leads and admin (never on their own work). */
 export const canReview = (role: RoleInput): boolean => roleOf(role) === "admin" || isApprover(role);
 /** Sees everyone's email and phone. Workers see only their own. */
-export const canSeeContactDetails = (role: RoleInput): boolean => isKnownRole(role) && !isWorker(role);
+export const canSeeContactDetails = (role: RoleInput): boolean => isKnownRole(role) && seesContactDetails({ role: roleOf(role) });
 /** Revision notes, rating feedback and clip threads on any step (workers: their own steps only). */
-export const canSeeAllReviewText = (role: RoleInput): boolean => isKnownRole(role) && !isWorker(role);
+export const canSeeAllReviewText = (role: RoleInput): boolean => isKnownRole(role) && can({ role: roleOf(role), status: 'active' }, 'review.read_all');
 /** Manage workers' operational fields: job role, preferences, capacity, department. */
 export const canManageOperationalFields = (role: RoleInput): boolean => roleOf(role) === "admin" || isApprover(role);
 /** View and download a person's profile report. */
@@ -70,7 +72,7 @@ export const canViewProfileReport = (role: RoleInput): boolean =>
 // ==========================================
 // Phase 13: approval routing by calendar
 // ==========================================
-/** The calendar Ads work belongs to; the Growth Lead decides it. */
+/** The calendar Ads work belongs to; the Marketing Growth Manager decides it. */
 export const ADS_CALENDAR = "ads";
 const ALL_CALENDARS = ["sm", "sales", "ads", "academics_management", "other"] as const;
 
@@ -112,7 +114,7 @@ export function canDecide(
 }
 
 /** Only admin grants these roles. */
-export const ADMIN_GRANTED_ROLES = ["admin", ...READ_ONLY_VIEWER_ROLES, ...APPROVER_ROLES] as const;
+export const ADMIN_GRANTED_ROLES = ["admin", ...READ_ONLY_VIEWER_ROLES, ...APPROVER_ROLES, "viewer"] as const;
 
 // Canonical Permission Keys (Marketing OS Model)
 export const PERMISSION_KEYS = [
@@ -194,6 +196,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
     "team.profile.view",
   ],
   executive: ["work.update.own", "work.request", "feedback.respond", "chat.use"],
+  // Read-only observer (catalog v1 kept for older readers; the app uses SYSTEM_ROLES).
+  viewer: ["analytics.team", "report.view"],
 };
 
 // ==========================================
@@ -2207,7 +2211,7 @@ export function getAvailableActions(
     }
   }
 
-  // 2. Creative Lead Actions (Approve & Request revision ONLY on Pending tasks they do NOT own)
+  // 2. Creative Manager Actions (Approve & Request revision ONLY on Pending tasks they do NOT own)
   if (canReview(role) && !isOwner) {
     if (status === "Pending") {
       actions.push("approve");
@@ -2291,9 +2295,9 @@ export function getActionDisabledReason(
 
   if (status === "Pending") {
     if (isOwner) {
-      return "Waiting for the Creative Lead";
+      return "Waiting for the Creative Manager";
     }
-    return "Waiting for the Creative Lead";
+    return "Waiting for the Creative Manager";
   }
 
   if (status === "Blocked") {
@@ -3600,7 +3604,7 @@ export interface PlanGridColumn {
 }
 
 export const TURNAROUND_HELP =
-  "Days from row approval to publishing. Counted once, when the post is published: from the time the Creative Lead approved the row (its first step was created) to the publish time.";
+  "Days from row approval to publishing. Counted once, when the post is published: from the time the Creative Manager approved the row (its first step was created) to the publish time.";
 
 /** The 18 Excel columns, in Excel order. */
 export const PLAN_GRID_COLUMNS: PlanGridColumn[] = [
@@ -4687,6 +4691,8 @@ export interface SystemRoleDef {
   /** Can own steps (workload, autofill, assignment candidates). */
   takesSteps: boolean;
   locked: boolean;
+  /** false: others' email, phone and WhatsApp are hidden even with dataScope "all" (the Viewer). */
+  contactDetails?: boolean;
 }
 
 const V2_VIEWER: PermissionKeyV2[] = [
@@ -4724,6 +4730,22 @@ export const SYSTEM_ROLES: Record<UserRole, SystemRoleDef> = {
     locked: false,
   },
   executive: { key: "executive", permissions: ["work.update.own", "work.request", "feedback.respond", "chat.use"], dataScope: "own", readOnly: false, takesSteps: true, locked: false },
+  /**
+   * Read-only observer: sees the whole plan and every step's status (calendars, Tracker, Work Items,
+   * Work Detail without private review text, Published, dashboard, reports, Project KPIs). No
+   * contact details, no review text, no chat, no Team Workload, no profiles or profile reports, no
+   * Settings or admin pages. Every write refused except their own account. Never owns, reviews,
+   * approves or posts anything, so it never appears in pickers or routing lists.
+   */
+  viewer: {
+    key: "viewer",
+    permissions: ["calendar.view", "work.view_all", "analytics.team", "report.view"],
+    dataScope: "all",
+    readOnly: true,
+    takesSteps: false,
+    locked: false,
+    contactDetails: false,
+  },
 };
 
 /** People for a workflow slot: by role and/or by named user ids. */
@@ -4752,7 +4774,7 @@ export interface WorkflowConfigShape {
 export const WORKFLOW_SLOTS = ["reviewers", "planApprovers", "posters", "fallbackApprovers"] as const;
 export type WorkflowSlot = (typeof WORKFLOW_SLOTS)[number];
 
-/** Today's rules as config: Ads → Growth Lead, others → Creative Lead; posters SM Manager; fallback admin. */
+/** Today's rules as config: Ads → Marketing Growth Manager, others → Creative Manager; posters SM Manager; fallback admin. */
 export function defaultWorkflowConfig(calendar: string | null | undefined): WorkflowConfigShape {
   const cal = calendar || "sm";
   const lead = deciderRoleFor(cal);
@@ -4840,7 +4862,8 @@ export const dataScopeOf = (user: AccessUser | null | undefined): DataScope | nu
 export const isReadOnlyRole = (user: AccessUser | null | undefined): boolean => Boolean(systemRoleOf(user)?.readOnly);
 export const takesSteps = (user: AccessUser | null | undefined): boolean => Boolean(systemRoleOf(user)?.takesSteps);
 /** Fixed rule: "own"-scope roles never see others' contact details. */
-export const seesContactDetails = (user: AccessUser | null | undefined): boolean => dataScopeOf(user) === "all";
+export const seesContactDetails = (user: AccessUser | null | undefined): boolean =>
+  dataScopeOf(user) === "all" && systemRoleOf(user)?.contactDetails !== false;
 
 /**
  * Can this person own this step? Post: a poster for the step's calendar. Other steps: an own-scope

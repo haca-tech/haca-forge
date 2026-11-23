@@ -46,7 +46,7 @@ describe('ShootReviewView clip gallery', () => {
 describe('DesignWorkspace revision feedback', () => {
   const workItem = { id: 'w1', title: 'Carousel', stageKey: 'Design', status: 'In Progress' };
 
-  it('shows the Creative Head revision feedback passed from the page', () => {
+  it('shows the Marketing Head revision feedback passed from the page', () => {
     render(
       <DesignWorkspace
         workItem={workItem}

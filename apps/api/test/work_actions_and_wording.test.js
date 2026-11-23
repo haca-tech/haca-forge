@@ -111,7 +111,7 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
       });
     });
 
-    describe('Creative Head and Admin review actions', () => {
+    describe('Marketing Head and Admin review actions', () => {
       it('allows creative_head to approve and request revision ONLY when step is Pending and user is not owner', () => {
         const item = { ownerId: writerId, status: 'Pending', stageKey: 'Content' };
         const res = getAvailableActions(headUser, item);
@@ -180,7 +180,7 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
         expect(getActionDisabledReason(headUser, { ownerId: { name: 'Ravi' }, status: 'In Progress', stageKey: 'Content' }))
           .toBe('Waiting for Ravi');
         expect(getActionDisabledReason(writerUser, { ownerId: { name: 'Ravi' }, status: 'Pending', stageKey: 'Content' }))
-          .toBe('Waiting for the Creative Lead');
+          .toBe('Waiting for the Creative Manager');
         expect(
           getActionDisabledReason(writerUser, {
             ownerId: { name: 'Ravi' },
@@ -280,7 +280,7 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
       await Person.deleteMany({ _id: execUser._id }); // clean-up: deleteMany is not last-admin guarded
     });
 
-    it('Creative Head CANNOT submit a task owned by Writer -> 403 FORBIDDEN_ACTION', async () => {
+    it('Marketing Head CANNOT submit a task owned by Writer -> 403 FORBIDDEN_ACTION', async () => {
       const item = await WorkItem.create({
         title: 'Writer Work For Security Check',
         workType: 'Copy',
@@ -303,7 +303,7 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
       expect(res.body.error.code).toBe('FORBIDDEN_ACTION');
     });
 
-    it('Creative Head CANNOT mark a task blocked if owned by Writer -> 403 FORBIDDEN_ACTION', async () => {
+    it('Marketing Head CANNOT mark a task blocked if owned by Writer -> 403 FORBIDDEN_ACTION', async () => {
       const item = await WorkItem.create({
         title: 'Writer Work Block Check',
         workType: 'Copy',
@@ -349,7 +349,7 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
       expect(res.body.data.status).toBe('Pending');
     });
 
-    it('Creative Head CAN approve a Pending task -> 200 OK', async () => {
+    it('Marketing Head CAN approve a Pending task -> 200 OK', async () => {
       const item = await WorkItem.create({
         title: 'Pending Work For Approval',
         workType: 'Copy',
@@ -442,7 +442,7 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
         profileAccess: [profileDoc._id],
       });
       headUser = await Person.create({
-        name: 'Del Creative Head',
+        name: 'Del Marketing Head',
         email: 'del.head@example.com',
         role: 'creative_lead',
         status: 'active',
@@ -532,9 +532,9 @@ describe('Work Actions, Authorization, and Wording Suite', () => {
       expect(inDb).toBeNull();
     });
 
-    it('refuses Creative Head from deleting a work item -> 403 FORBIDDEN_ACTION', async () => {
+    it('refuses Marketing Head from deleting a work item -> 403 FORBIDDEN_ACTION', async () => {
       const item = await WorkItem.create({
-        title: 'Creative Head Delete Attempt',
+        title: 'Marketing Head Delete Attempt',
         workType: 'Copy',
         ownerId: writerUser._id,
         status: 'Not Started',

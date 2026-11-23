@@ -65,7 +65,7 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
     });
 
     headUser = await Person.create({
-      name: 'Exec Creative Head',
+      name: 'Exec Marketing Head',
       email: 'head@exec-test.com',
       role: 'creative_lead',
       status: 'active',
@@ -154,8 +154,8 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
   // Part 1: Schema & Permission Contract
   // -------------------------------------------------------------
   describe('Part 1: Contract & Permissions Snapshot', () => {
-    it('defines the 7 Phase 12b roles, including the read-only creative_head and production_head', () => {
-      expect(ROLE_KEYS).toEqual(['admin', 'creative_head', 'production_head', 'creative_lead', 'growth_lead', 'sm_manager', 'executive']);
+    it('defines the 8 roles, including the read-only creative_head, production_head and viewer', () => {
+      expect(ROLE_KEYS).toEqual(['admin', 'creative_head', 'production_head', 'creative_lead', 'growth_lead', 'sm_manager', 'executive', 'viewer']);
     });
 
     it('contains portal.view and people.view in PERMISSION_KEYS', () => {
@@ -575,7 +575,7 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
       expect(res.status).toBe(400);
     });
 
-    it('Creative Head CANNOT modify executive accounts', async () => {
+    it('Marketing Head CANNOT modify executive accounts', async () => {
       await expect(
         peopleService.updatePerson(
           execUser._id,
@@ -585,7 +585,7 @@ describe('Phase Executive: Fifth Role (Company Management)', () => {
       ).rejects.toThrow(/a lead cannot modify/);
     });
 
-    it('Creative Head CANNOT approve access requests with executive role', async () => {
+    it('Marketing Head CANNOT approve access requests with executive role', async () => {
       const req = await AccessRequest.create({
         name: 'Pending Exec Applicant',
         email: 'applicant.pending@exec-test.com',

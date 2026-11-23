@@ -41,7 +41,7 @@ describe('Phase 1b: Access Request Backend Service & Authorization', () => {
     });
 
     headUser = await Person.create({
-      name: 'Test Creative Head',
+      name: 'Test Marketing Head',
       email: 'head@access-test.com',
       role: 'creative_lead',
       status: 'active',
@@ -168,7 +168,7 @@ describe('Phase 1b: Access Request Backend Service & Authorization', () => {
     const candidateReq = await AccessRequest.findOne({ email: 'candidate1@access-test.com' });
     expect(candidateReq).toBeDefined();
 
-    // Creative Head attempts approval -> 403 Forbidden
+    // Marketing Head attempts approval -> 403 Forbidden
     await expect(
       accessService.approveAccessRequest(
         candidateReq._id,
@@ -295,7 +295,7 @@ describe('Phase 1b: Access Request Backend Service & Authorization', () => {
       reason: 'Applying for SM Manager position',
     });
 
-    // Creative Head cannot request info
+    // Marketing Head cannot request info
     await expect(
       accessService.requestInfoForAccess(infoCandidate._id, 'Please clarify your experience', headUser)
     ).rejects.toMatchObject({ statusCode: 403 });

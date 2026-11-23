@@ -824,7 +824,7 @@ export async function getPersonActivity(targetPersonId, actor, query = {}) {
 export async function getPersonChanges(targetPersonId, actor) {
   const actorRole = normalizeRole(actor?.role);
   if (!hasPermission(actor, 'people.manage_operational')) {
-    const error = new Error('Forbidden: Only Admin and Creative Lead can view the operational changes audit log');
+    const error = new Error('Forbidden: Only Admin and Creative Manager can view the operational changes audit log');
     error.code = 'FORBIDDEN';
     error.statusCode = 403;
     throw error;

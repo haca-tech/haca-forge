@@ -33,7 +33,7 @@ describe('LoginPage credentials', () => {
   it('has no demo quick-fill accounts panel', () => {
     renderPage();
     expect(screen.queryByText(/demo quick-fill/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /shooter \(worker\)|editor \(worker\)|creative head|admin/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /shooter \(worker\)|editor \(worker\)|marketing head|admin/i })).not.toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/@demo\.haca\.local/);
   });
 

@@ -1,7 +1,7 @@
 # Unified Work Submission & Centralized Approval Specification
 
 **Authoritative Architecture & Fixed Implementation Prompts for HACA Marketing OS**  
-*Resolves fragmented submission buttons, prevents premature submissions, eliminates confusing post-submission states, introduces per-stage rework counters, and centralizes all Creative Lead approval actions onto the Work Details page (`/work/:id`).*
+*Resolves fragmented submission buttons, prevents premature submissions, eliminates confusing post-submission states, introduces per-stage rework counters, and centralizes all Creative Manager approval actions onto the Work Details page (`/work/:id`).*
 
 ---
 
@@ -10,7 +10,7 @@
 ### 1.1 The Current Flaws (As Identified in UI Audits)
 1. **Premature Submissions:** A worker could see and click "Submit for approval" on an untouched, empty stage before starting work or uploading any deliverables.
 2. **Confusing Post-Submit State:** After submitting, the button remained visible in a disabled state with an amber badge *"Make a change first"*, making workers wonder if their submission went through or if it was blocked.
-3. **Fragmented Approval Pages:** Creative Leads and Admins had approval actions scattered across `/feedback`, `/feedback/review-studio`, `/work/:id/review`, and `/work/:id`, causing disjointed decision-making.
+3. **Fragmented Approval Pages:** Creative Managers and Admins had approval actions scattered across `/feedback`, `/feedback/review-studio`, `/work/:id/review`, and `/work/:id`, causing disjointed decision-making.
 4. **Missing Stage-Level Rework Counters:** While total piece revisions were tracked globally, individual stages lacked a clear, visible badge showing how many rework cycles that specific stage had undergone.
 
 ---
@@ -32,14 +32,14 @@ stateDiagram-v2
     
     state UnderReview {
         [*] --> Waiting: "Submit" button HIDDEN
-        Waiting --> Waiting: Shows "Under Review by Creative Lead" banner
+        Waiting --> Waiting: Shows "Under Review by Creative Manager" banner
     }
     
-    UnderReview --> Approved: Creative Lead approves (Rating 1-5)
-    UnderReview --> ReworkRequested: Creative Lead requests changes (Feedback notes)
+    UnderReview --> Approved: Creative Manager approves (Rating 1-5)
+    UnderReview --> ReworkRequested: Creative Manager requests changes (Feedback notes)
     
     state ReworkRequested {
-        [*] --> NeedsEdit: Displays Creative Lead feedback & root cause
+        [*] --> NeedsEdit: Displays Creative Manager feedback & root cause
         NeedsEdit --> ReworkReady: Worker modifies draft / uploads new revision
     }
     
@@ -54,19 +54,19 @@ stateDiagram-v2
 | **`Not Started`** | No | Action Card: *"Start your stage deliverable"* | **`Start Work`** | "Submit" button is **HIDDEN**. |
 | **`In Progress`** | No | Action Card: *"Draft or upload assets to submit"* | **`Open [Studio / Workspace]`** | "Submit" button is **HIDDEN** until output exists. |
 | **`In Progress`** | Yes | Action Card: Deliverable draft ready | **`Submit for Approval`** | Active purple/indigo button. |
-| **`Pending`** *(Under Review)* | Yes | Read-Only Submission Preview | **NONE** *(Submit button is **REMOVED**)* | Status Card: **`🕒 Under Review`** — *"Submitted v{version} on {date}. Waiting for Creative Lead verification."* |
-| **`Feedback`** *(Changes Requested)* | Previous draft exists | Rework Notice Card with Creative Lead comments | **`Open Workspace to Revise`** &rarr; **`Resubmit for Approval (v{next})`** | Shows: **`⚠️ Rework Requested (Round {reworkCount})`** with reviewer feedback notes. |
+| **`Pending`** *(Under Review)* | Yes | Read-Only Submission Preview | **NONE** *(Submit button is **REMOVED**)* | Status Card: **`🕒 Under Review`** — *"Submitted v{version} on {date}. Waiting for Creative Manager verification."* |
+| **`Feedback`** *(Changes Requested)* | Previous draft exists | Rework Notice Card with Creative Manager comments | **`Open Workspace to Revise`** &rarr; **`Resubmit for Approval (v{next})`** | Shows: **`⚠️ Rework Requested (Round {reworkCount})`** with reviewer feedback notes. |
 | **`Approved`** | Yes | Final Approved Asset Summary | **NONE** | Green badge: **`✓ Stage Approved`** (Star rating displayed). |
 
 ---
 
-## 3. Centralized Creative Lead Approval Cockpit (On `/work/:id`)
+## 3. Centralized Creative Manager Approval Cockpit (On `/work/:id`)
 
 All review and approval actions are **centralized directly onto the Work Details page (`/work/:id`)**:
 
 ```mermaid
 graph TD
-    A[Creative Lead visits /work/:id] --> B{Is Active Stage in 'Pending' / Under Review?}
+    A[Creative Manager visits /work/:id] --> B{Is Active Stage in 'Pending' / Under Review?}
     B -->|Yes| C[Embedded Review & Approval Cockpit]
     B -->|No: In Progress or Approved| D[Display Standard Stage Stepper & Read-Only Status]
     
@@ -103,7 +103,7 @@ graph TD
 
 Each `WorkItem` maintains its own explicit revision history:
 * `workItem.revisions`: Total number of rework requests received on this stage (defaults to `0`).
-* When Creative Lead clicks **`Request Rework`**:
+* When Creative Manager clicks **`Request Rework`**:
   $$\text{reworkCount} \leftarrow \text{reworkCount} + 1$$
 * **UI Badge Formatting:**
   - `reworkCount == 0`: No badge (clean first attempt).
@@ -136,7 +136,7 @@ Requirements:
 2. Submission Validation Guard:
    - In `submitForApproval()`:
      - Ensure the deliverable is strictly non-empty (has text, files, or linkUrl). If empty, reject with 400 EMPTY_SUBMISSION.
-     - Transition workItem.status to 'Pending' (meaning "Awaiting Creative Lead Approval").
+     - Transition workItem.status to 'Pending' (meaning "Awaiting Creative Manager Approval").
      - Compute next version: `nextVersion = (latestSubmission?.version || 0) + 1`.
 
 3. Shared getAvailableActions Update:
@@ -147,7 +147,7 @@ Requirements:
        - If hasOutput === true: Worker gets ['submit_for_approval', 'mark_blocked', 'request_help'].
      - If status === 'Pending' (Under Review):
        - Worker gets NO submit actions (submit button is hidden).
-       - Creative Lead & Admin get ['approve', 'request_revision'].
+       - Creative Manager & Admin get ['approve', 'request_revision'].
      - If status === 'Feedback' (Rework Requested):
        - Worker gets ['resubmit_for_approval', 'mark_blocked', 'request_help'].
 ```
@@ -171,14 +171,14 @@ Requirements:
    - When `item.status === 'Pending'` (or currently submitted):
      - COMPLETELY REMOVE the "Submit for approval" button.
      - Display a reassuring status banner:
-       "🕒 Under Review by Creative Lead"
-       "Deliverable v{item.currentSubmission?.version || 1} submitted on {formatDate(item.submittedAt)}. Creative Lead review in progress."
+       "🕒 Under Review by Creative Manager"
+       "Deliverable v{item.currentSubmission?.version || 1} submitted on {formatDate(item.submittedAt)}. Creative Manager review in progress."
 
 3. Rework Requested State:
    - When `item.status === 'Feedback'`:
      - Display a prominent Rework Banner:
        "⚠️ Rework Requested (Round {item.revisions || 1})"
-       Include Creative Lead feedback comment, root cause tag, and timestamp.
+       Include Creative Manager feedback comment, root cause tag, and timestamp.
      - Once the worker updates their draft or files, display an active button:
        "Resubmit for Approval (v{(item.currentSubmission?.version || 1) + 1})"
 
@@ -189,7 +189,7 @@ Requirements:
 
 ---
 
-### Prompt 3: Centralized Creative Lead Approval Cockpit on Work Details Page
+### Prompt 3: Centralized Creative Manager Approval Cockpit on Work Details Page
 
 ```text
 PROMPT 3: CENTRALIZED CREATIVE HEAD & ADMIN APPROVAL COCKPIT ON /work/:id
@@ -235,7 +235,7 @@ Requirements:
 1. WritingStudioPage:
    - In header control bar, when `item.status === 'Pending'`:
      - Hide the "Submit for Approval" button.
-     - Show badge: "Under Review by Creative Lead".
+     - Show badge: "Under Review by Creative Manager".
    - If `item.status === 'Feedback'`:
      - Change button text to: "Resubmit for Approval (v{nextVersion})".
      - Require document modifications or comments before enabling submit.

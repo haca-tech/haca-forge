@@ -111,7 +111,7 @@ export const DesignWorkspace: React.FC<DesignWorkspaceProps> = ({
 
   const deliverableType = workItem.workType || 'Static Post';
 
-  // Creative Lead / Admin revision feedback (read-only here; comments without a role are kept).
+  // Creative Manager / Admin revision feedback (read-only here; comments without a role are kept).
   const reviewerFeedback = revisionComments.filter(
     (c) => !c.authorRole || roleAccess(c.authorRole).can('review.decide')
   );
@@ -268,7 +268,7 @@ export const DesignWorkspace: React.FC<DesignWorkspaceProps> = ({
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* LEFT PANEL: Approved Copy beside canvas */}
         <div className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-ui-line bg-white/60 p-4 overflow-y-auto space-y-4 flex-shrink-0">
-          {/* Revision feedback from the Creative Lead (same comment data as the Edit workspace) */}
+          {/* Revision feedback from the Creative Manager (same comment data as the Edit workspace) */}
           {reviewerFeedback.length > 0 && (
             <section aria-labelledby="design-revision-feedback" className="status-tint status-waiting p-4 rounded-2xl border space-y-2.5">
               <h3 id="design-revision-feedback" className="text-xs font-bold flex items-center gap-1.5">
@@ -279,7 +279,7 @@ export const DesignWorkspace: React.FC<DesignWorkspaceProps> = ({
                 {reviewerFeedback.map((c) => (
                   <li key={c.id} className="p-2.5 rounded-xl bg-white/70 border border-ui-line text-xs text-ui-ink space-y-1">
                     <div className="flex items-center justify-between gap-2 text-[11px] text-ui-muted">
-                      <span className="font-semibold text-ui-text">{c.authorName || 'Creative Lead'}</span>
+                      <span className="font-semibold text-ui-text">{c.authorName || 'Creative Manager'}</span>
                       {c.createdAt && <span>{new Date(c.createdAt).toLocaleDateString()}</span>}
                     </div>
                     <p className="whitespace-pre-wrap break-words">{c.content}</p>

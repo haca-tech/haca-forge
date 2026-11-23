@@ -2,7 +2,7 @@ import { CALENDAR_KEYS, defaultWorkflowConfig } from '@mmp/shared';
 import { WorkflowConfig } from './workflowConfig.model.js';
 
 /**
- * Seeding WorkflowConfig from today's rules: Ads → Growth Lead, every other calendar → Creative
+ * Seeding WorkflowConfig from today's rules: Ads → Marketing Growth Manager, every other calendar → Creative
  * Lead (reviewers and plan approvers), posters → SM Manager, fallback → admin. Only calendars
  * without a config are created; an existing config is never changed (running twice changes nothing).
  */

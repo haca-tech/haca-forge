@@ -47,7 +47,7 @@
 - **Member Row / Card Data:**
   - Avatar with status badge
   - Name (preferred name first, e.g., "Alex (Alexander Smith)")
-  - Role badge (e.g. `Executive`, `Creative Lead`, `SM Manager`, `Creative Head`, `Admin`)
+  - Role badge (e.g. `Executive`, `Creative Manager`, `SM Manager`, `Marketing Head`, `Admin`)
   - Job Role (e.g. `Writer`, `Graphic Designer`, `Video Editor`)
   - Department (e.g. `SEO & Content`, `Design`, `Video Production`)
   - Status indicator (`Active` / `Suspended`)
@@ -134,7 +134,7 @@
 
 ### 3.2 Transparency Notice (Self-View)
 When viewed by a worker at `/profile` (or when `isSelf === true` for a team member), a prominent glassmorphic transparency banner is displayed immediately under the header:
-> *"Your work history, timings and ratings are visible to the Admin, Creative Lead, SM Manager and Creative Head."*
+> *"Your work history, timings and ratings are visible to the Admin, Creative Manager, SM Manager and Marketing Head."*
 
 ### 3.3 Profile Header
 - **Avatar:** Large circular avatar with initials fallback and active status badge. (When viewing own profile, includes photo upload / crop button).
@@ -153,7 +153,7 @@ When viewed by a worker at `/profile` (or when `isSelf === true` for a team memb
 Mounted beneath the header across all tabs:
 1. **Load & Capacity Band:** e.g. `65% [High]` (or `Healthy` / `Overloaded`).
 2. **In Progress:** Count of currently active steps (`status === 'In Progress'`).
-3. **Waiting for Approval:** Count of steps submitted to Creative Lead (`status === 'Feedback'`).
+3. **Waiting for Approval:** Count of steps submitted to Creative Manager (`status === 'Feedback'`).
 4. **Late:** Count of active deliverables past due date.
 5. **On-Time Rate:** Percentage of completed steps delivered on or before due date (`92%`).
 6. **Average Rating:** Star rating and numerical average (e.g. `★ 4.8 / 5.0`).
@@ -228,7 +228,7 @@ Applies dynamically across the **Work**, **Performance**, **Ratings**, and **Act
 - **Rating Distribution:**
   - Star distribution bars (5★, 4★, 3★, 2★, 1★).
 - **Recent Feedback Cards:**
-  - Star score, content piece title, step type, reviewer name (Creative Lead), review date, and constructive feedback note.
+  - Star score, content piece title, step type, reviewer name (Creative Manager), review date, and constructive feedback note.
 
 ### Tab 5: Activity
 - Audit feed of the member's operational events over time:
@@ -249,7 +249,7 @@ Applies dynamically across the **Work**, **Performance**, **Ratings**, and **Act
   - `Weekly Capacity Hours`
 - **Table Columns:**
   - Timestamp (Date and Time)
-  - Changed By (Admin / Creative Lead name)
+  - Changed By (Admin / Creative Manager name)
   - Attribute Modified (e.g. `Weekly Capacity`)
   - Old Value (e.g. `30h / week`)
   - New Value (e.g. `40h / week`)
@@ -263,7 +263,7 @@ Applies dynamically across the **Work**, **Performance**, **Ratings**, and **Act
 When viewing profiles of users who are not individual creative workers (`sm_manager`, `creative_lead`, `admin`, `creative_head`):
 - **`sm_manager` & `creative_lead` Profile:**
   - **Tabs Shown:** `Overview`, `Activity`, and **Role-Specific Operational Summary**.
-  - Operational Summary for Creative Lead: Pending review queue count, review turnaround time, approval counts.
+  - Operational Summary for Creative Manager: Pending review queue count, review turnaround time, approval counts.
   - Operational Summary for SM Manager: Active plans managed, upcoming publications, calendar assignments.
   - `Work`, `Performance`, and `Ratings` tabs are omitted.
 - **`admin` & `creative_head` Profile:**
@@ -272,7 +272,7 @@ When viewing profiles of users who are not individual creative workers (`sm_mana
 
 ### 5.2 Role Actions Matrix
 
-| Action | Admin | Creative Lead | SM Manager | Creative Head | Executive (Self) |
+| Action | Admin | Creative Manager | SM Manager | Marketing Head | Executive (Self) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **View Profile & Directory** | Yes | Yes | Yes | Yes (No Contact) | Self Only |
 | **Reassign Active Steps** | Yes | Yes | Yes | No | No |
@@ -463,7 +463,7 @@ $$\text{FirstPassApprovalRate} = \frac{\text{CompletedSteps with } \text{Rounds}
 
 #### 2. `GET /api/team/:id`
 - **Description:** Returns base profile header, identity, skills, preferences, and KPI strip.
-- **Creative Head Privacy Rule:** If `req.user.role === 'creative_head'`, `email`, `phone`, and `whatsappNumber` fields are returned as `null`.
+- **Marketing Head Privacy Rule:** If `req.user.role === 'creative_head'`, `email`, `phone`, and `whatsappNumber` fields are returned as `null`.
 - **Worker Isolation Rule:** If `req.user.role === 'executive'` and `req.user._id.toString() !== req.params.id`, returns **HTTP 404**.
 
 #### 3. `GET /api/team/:id/overview`
@@ -488,7 +488,7 @@ $$\text{FirstPassApprovalRate} = \frac{\text{CompletedSteps with } \text{Rounds}
 - **Access Rule:** Accessible **ONLY** to `admin` and `creative_lead`. Others receive HTTP 403.
 
 #### 9. Mutation Endpoints
-- `PATCH /api/team/:id`: Admin (all fields) / Creative Lead (operational fields only: jobRole, departmentId, workPreferences, weeklyCapacityHours). Logs to changes audit.
+- `PATCH /api/team/:id`: Admin (all fields) / Creative Manager (operational fields only: jobRole, departmentId, workPreferences, weeklyCapacityHours). Logs to changes audit.
 - `POST /api/team/:id/reassign`: Reassign active steps (`admin`, `creative_lead`, `sm_manager`).
 - `POST /api/team/:id/status`: Suspend or reactivate user (`admin` only).
 - `POST /api/team/:id/reset-password`: Send password reset link (`admin` only).
@@ -504,7 +504,7 @@ $$\text{FirstPassApprovalRate} = \frac{\text{CompletedSteps with } \text{Rounds}
    - Verify `executive` calling `GET /api/team` is rejected with 403.
    - Verify `executive` calling `GET /api/team/:otherId` receives **404 Not Found** (anti-harvesting).
    - Verify `executive` calling `GET /api/team/:ownId` succeeds (200 OK).
-2. **Creative Head Redaction:**
+2. **Marketing Head Redaction:**
    - Verify `creative_head` receiving `GET /api/team/:id` has `email: null`, `phone: null`, `whatsappNumber: null`.
    - Verify `admin`, `creative_lead`, and `sm_manager` receive full contact details.
 3. **Sorting Whitelist & Anti-Ranking:**
@@ -527,7 +527,7 @@ $$\text{FirstPassApprovalRate} = \frac{\text{CompletedSteps with } \text{Rounds}
    - Renders Header, KPI strip, and tabs (Overview, Work, Performance, Ratings, Activity, Changes).
    - Verifies transparency notice displays for `executive` viewing `/profile`.
    - Verifies Changes tab is hidden for `sm_manager`, `creative_head`, and `executive`.
-   - Verifies Creative Head sees no contact details and no mutation action buttons.
+   - Verifies Marketing Head sees no contact details and no mutation action buttons.
 
 ---
 

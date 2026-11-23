@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../../lib/api';
 import { useAuth } from '../../../context/AuthContext';
 import { ArrowLeft, AlertCircle, ShieldAlert, Lock } from 'lucide-react';
-import { getWorkspaceModeInfo, type WorkspaceMode, getStepStatusLabel, canSeeAllReviewText } from '@mmp/shared';
+import { getWorkspaceModeInfo, type WorkspaceMode, getStepStatusLabel } from '@mmp/shared';
 
 import { ShootWorkspace } from './ShootWorkspace';
 import { ShootReviewView } from './ShootReviewView';
@@ -409,7 +409,7 @@ export const MediaWorkspacePage: React.FC = () => {
             stageItemId={workItem._id || workItem.id}
             workItemTitle={workItem.title}
             readOnly={true}
-            canSeeThreads={modeInfo.isOwner || canSeeAllReviewText(user?.role)}
+            canSeeThreads={modeInfo.isOwner || roleAccess(String(user?.role || '')).can('review.read_all')}
             onClose={() => navigate(-1)}
           />
         </div>

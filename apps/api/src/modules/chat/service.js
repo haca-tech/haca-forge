@@ -5,6 +5,7 @@ import { ChannelMember } from './channelMember.model.js';
 import { ChatMessage } from './chatMessage.model.js';
 import { ShareGrant } from './shareGrant.model.js';
 import { Person } from '../people/model.js';
+import { rolesWith } from '../../lib/roleAccess.js';
 import { ContentPiece } from '../calendar/contentPiece.model.js';
 import { MediaItem } from '../media/model.js';
 import { WorkItem } from '../workItems/model.js';
@@ -49,8 +50,9 @@ export async function ensureTeamChatChannel(profileId = null) {
     logger.info({ channelId: teamChannel._id }, 'Created system Team Chat channel');
   }
 
-  // Find all active users
-  const activeUsers = await Person.find({ status: 'active' }).select('_id');
+  // Every active user who can chat (chat.use or chat.read; not the Viewer).
+  const chatRoles = [...new Set([...rolesWith('chat.use'), ...rolesWith('chat.read')])];
+  const activeUsers = await Person.find({ status: 'active', role: { $in: chatRoles } }).select('_id');
   const activeUserIds = activeUsers.map((u) => u._id);
 
   // Upsert membership for active users
@@ -73,8 +75,8 @@ export async function ensureTeamChatChannel(profileId = null) {
     logger.info({ addedCount: newMembers.length }, 'Added active users to Team Chat');
   }
 
-  // Remove suspended users from Team Chat
-  const suspendedUsers = await Person.find({ status: 'suspended' }).select('_id');
+  // Remove suspended users, and anyone whose role cannot chat, from Team Chat
+  const suspendedUsers = await Person.find({ $or: [{ status: 'suspended' }, { role: { $nin: chatRoles } }] }).select('_id');
   if (suspendedUsers.length > 0) {
     const suspendedIds = suspendedUsers.map((u) => u._id);
     await ChannelMember.deleteMany({
@@ -95,7 +97,10 @@ export async function syncUserTeamChatMembership(userId) {
 
   const teamChannel = await ensureTeamChatChannel(user.profileId);
 
-  if (user.status === 'active') {
+  const canChat = hasPermission(user, 'chat.use') || hasPermission(user, 'chat.read');
+  if (user.status === 'active' && !canChat) {
+    await ChannelMember.deleteMany({ channelId: teamChannel._id, userId: user._id });
+  } else if (user.status === 'active') {
     await ChannelMember.updateOne(
       { channelId: teamChannel._id, userId: user._id },
       { $setOnInsert: { channelId: teamChannel._id, userId: user._id, role: 'member', joinedAt: new Date() } },
@@ -665,7 +670,7 @@ export async function sendMessage(channelId, user, { content = '', replyToId = n
   if (hasEveryoneMention) {
     const canMentionEveryone = hasPermission(user, 'chat.mention_all');
     if (!canMentionEveryone) {
-      const error = new Error('Only the Creative Lead, SM Manager, or Administrator can mention @everyone.');
+      const error = new Error('Only the Creative Manager, SM Manager, or Administrator can mention @everyone.');
       error.statusCode = 403;
       error.code = 'UNAUTHORIZED_EVERYONE_MENTION';
       throw error;
@@ -1060,7 +1065,7 @@ export async function shareAssetToChat(user, { channelId, assetId, mediaItemId, 
   // Permission check: only output owner, creative_lead/growth_lead, sm_manager, and admin can share
   const isPrivilegedRole = hasPermission(user, 'chat.share_asset');
   if (!isPrivilegedRole && !isOwner) {
-    const error = new Error('Only the asset owner, Creative Lead, SM Manager, or Admin can share this asset.');
+    const error = new Error('Only the asset owner, Creative Manager, SM Manager, or Admin can share this asset.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_CANNOT_SHARE';
     throw error;
@@ -1155,7 +1160,7 @@ export async function revokeShareGrant(grantId, user) {
   const isLeader = hasPermission(user, 'chat.revoke_share');
 
   if (!isSharer && !isLeader) {
-    const error = new Error('Only the sharer, Creative Lead, or an Administrator can revoke this share.');
+    const error = new Error('Only the sharer, Creative Manager, or an Administrator can revoke this share.');
     error.statusCode = 403;
     error.code = 'FORBIDDEN_REVOKE';
     throw error;

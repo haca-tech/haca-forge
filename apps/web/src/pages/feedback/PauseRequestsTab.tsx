@@ -21,7 +21,7 @@ const calendarName = (key: string) => CALENDAR_LIST.find((c) => c.id === key)?.n
 
 /**
  * Pause requests waiting for a decision: each lead sees the calendars they decide (Growth
- * Lead: Ads; Creative Lead: the rest), admin and the read-only heads see all (heads without
+ * Lead: Ads; Creative Manager: the rest), admin and the read-only heads see all (heads without
  * actions). Approve, or reject with an optional message.
  */
 export const PauseRequestsTab: React.FC<{ onCount?: (n: number) => void }> = ({ onCount }) => {

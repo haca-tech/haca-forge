@@ -17,7 +17,7 @@ vi.mock('../../../../lib/api', () => ({
 
 vi.mock('../../../../context/AuthContext', () => ({
   useAuth: () => ({
-    user: { id: 'u-ch-1', name: 'Creative Lead', role: 'creative_lead' },
+    user: { id: 'u-ch-1', name: 'Creative Manager', role: 'creative_lead' },
   }),
 }));
 

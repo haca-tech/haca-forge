@@ -354,7 +354,7 @@ describe('Locked workspaces: link submission, direct Shoot approval, Post link, 
       expect(detail.body.data.latestFeedback.rootCause).toBe('Brief unclear');
     });
 
-    it('only Creative Head and admin review; the owner, SM manager and executive cannot', async () => {
+    it('only Marketing Head and admin review; the owner, SM manager and executive cannot', async () => {
       const shoot = await one('Reel', 'Shoot', 'shooter');
       await submitLink(shoot, 'shooter', [DRIVE('footage')]);
       for (const who of ['shooter', 'sm', 'exec', 'editor']) {
@@ -727,7 +727,7 @@ describe('Locked workspaces: link submission, direct Shoot approval, Post link, 
       expect(row.hasWaitingApproval).toBe(true);
       const stage = (key) => row.stages.find((s) => s.stageKey === key);
       expect(stage('Script').awaitingReview).toBe(true);
-      expect(stage('Script').holder).toBe('Creative Lead');
+      expect(stage('Script').holder).toBe('Creative Manager');
       expect(stage('Edit').awaitingReview).toBeUndefined();
       expect(stage('Edit').holder).toBe(people.editor.name);
 

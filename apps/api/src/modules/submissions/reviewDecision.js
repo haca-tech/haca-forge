@@ -92,13 +92,13 @@ export function assertReworkStarted(workItem, latestSubmission) {
 }
 
 /**
- * The lead of the step's calendar (Growth Lead for Ads, Creative Lead otherwise) and admin
+ * The lead of the step's calendar (Marketing Growth Manager for Ads, Creative Manager otherwise) and admin
  * decide (Phase 13); the other lead gets 403 WRONG_CALENDAR; nobody decides on their own work.
  */
 export async function assertReviewer(user, workItem, decision = 'approve') {
   await assertDecidesOn(user, calendarOf(workItem), {
     roleCode: decision === 'approve' ? 'FORBIDDEN_APPROVAL' : 'FORBIDDEN_ACTION',
-    roleMessage: decision === 'approve' ? 'Only Creative Lead or Admin can approve deliverables' : 'Only Creative Lead or Admin can request revisions',
+    roleMessage: decision === 'approve' ? 'Only Creative Manager or Admin can approve deliverables' : 'Only Creative Manager or Admin can request revisions',
   });
   const userId = (user._id || user.id || user.userId)?.toString();
   if (userId && idOf(workItem.ownerId) === userId) {

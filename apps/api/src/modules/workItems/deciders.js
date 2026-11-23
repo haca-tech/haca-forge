@@ -5,7 +5,7 @@ import * as access from '../../lib/accessResolver.js';
 /**
  * Decisions routed by calendar (Phase C: through the access resolver). The work's current
  * calendar decides who may approve, review, rate, reopen, request changes and classify:
- * that calendar's reviewers in WorkflowConfig (default: the Growth Lead for Ads, the Creative
+ * that calendar's reviewers in WorkflowConfig (default: the Marketing Growth Manager for Ads, the Creative
  * Lead for every other calendar), admin for all (locked). Plans: the calendar's plan approvers.
  * Nobody decides on their own work. A plan move updates the calendar, so pending items follow it.
  */
@@ -36,7 +36,7 @@ export async function assertDecidesOn(
   calendar,
   {
     roleCode = 'FORBIDDEN_APPROVAL',
-    roleMessage = 'Only a Creative Lead, a Growth Lead or an Admin can decide this.',
+    roleMessage = 'Only a Creative Manager, a Marketing Growth Manager or an Admin can decide this.',
     permission = 'review.decide',
     ownerId,
   } = {}

@@ -28,6 +28,7 @@ import { NotificationToastContainer } from './NotificationToast';
 import { UserMenuDropdown } from './UserMenuDropdown';
 import { Avatar } from './Avatar';
 import { useAccess } from '../lib/access';
+import { ROLE_LABELS } from '@mmp/shared';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -65,6 +66,7 @@ interface SidebarItem {
 export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) => {
   const { user, logout } = useAuth();
   const access = useAccess();
+  const usesChat = access.can('chat.use') || access.can('chat.read');
   const navigate = useNavigate();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,7 +94,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !usesChat) return;
     type ChatUser = { _id: string; name?: string; preferredName?: string; avatarUrl?: string | null; status?: string };
     apiFetch<{
       channels: Array<{ unreadCount?: number; type?: string; isArchived?: boolean; membersCount?: number; otherUser?: ChatUser | null; createdById?: ChatUser | string | null }>;
@@ -137,7 +139,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
           .catch(() => finish(people));
       })
       .catch(() => {});
-  }, [user, location.pathname]);
+  }, [user, usesChat, location.pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -173,6 +175,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
   const isCreativeHead = access.can('review.decide') && !access.isSuperuser;
   const isAdmin = access.can('user.approve');
   const managesAccess = access.can('settings.access.manage');
+  // Review Hub, Team Workload, Issues, Team Directory and chat follow permissions (the Viewer has none of them).
+  const seesReviewHub = isTeamMember || access.can('feedback.view_all') || access.can('review.read_all');
+  const seesPeople = access.can('people.view');
 
   // Pending Access Requests Count Badge for Admin
   const [pendingAccessCount, setPendingAccessCount] = useState<number>(0);
@@ -385,7 +390,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
             path: '/feedback',
             description: 'Review threads & revision history',
             icon: FileText,
-            show: true,
+            show: seesReviewHub,
             activeMatcher: (p: string) => p.startsWith('/feedback'),
           },
         ],
@@ -400,7 +405,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
             path: '/workload',
             description: 'Capacity rollups & workload bands',
             icon: Users,
-            show: true,
+            show: seesPeople,
             activeMatcher: (p: string) => p.startsWith('/workload'),
           },
           {
@@ -409,7 +414,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
             path: '/issues',
             description: 'Active blockers & revision flags',
             icon: AlertCircle,
-            show: true,
+            show: seesPeople,
             activeMatcher: (p: string) => p.startsWith('/issues'),
           },
           {
@@ -433,7 +438,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
             path: '/team',
             description: 'Team directory, capacity & worker performance profiles',
             icon: Users,
-            show: true,
+            show: seesPeople,
             activeMatcher: (p: string) => p.startsWith('/team') || p.startsWith('/people') || p.startsWith('/admin/users'),
           },
           ...(isAdmin
@@ -467,7 +472,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
       },
     ];
     return cats;
-  }, [user?.role, isAdmin, managesAccess, isSmManager, isCreativeHead, isTeamMember, pendingAccessCount]);
+  }, [user?.role, isAdmin, managesAccess, isSmManager, isCreativeHead, isTeamMember, seesReviewHub, seesPeople, pendingAccessCount]);
 
   // Flatten accessible items for quick search jump
   const allSearchableItems = [
@@ -534,7 +539,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
       ];
     }
 
-    // creative_lead/growth_lead, creative_head/production_head, admin
+    // Marketing Head, Production Head, Creative Manager, Marketing Growth Manager, Viewer, admin
     const items: SidebarItem[] = [
       { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', active: isLandingActive },
       { id: 'calendar', icon: Calendar, label: 'Creative Calendar', path: '/calendar', active: location.pathname.startsWith('/calendar') },
@@ -545,7 +550,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
       { id: 'issues', icon: AlertCircle, label: 'Issues and Blockers', path: '/issues', active: location.pathname.startsWith('/issues') },
       { id: 'reports', icon: BarChart3, label: 'Reports', path: '/reports', active: location.pathname.startsWith('/reports') },
       { id: 'team', icon: Users, label: 'Team Directory', path: '/team', active: location.pathname.startsWith('/team') || location.pathname.startsWith('/people') || location.pathname.startsWith('/admin/users') },
-    ];
+    ].filter((it) => (it.id === 'feedback' ? seesReviewHub : ['workload', 'issues', 'team'].includes(it.id) ? seesPeople : true));
 
     if (isAdmin) {
       items.push({
@@ -651,6 +656,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
               <span className="mx-3 h-6 w-px bg-slate-300/70 shrink-0" aria-hidden="true" />
 
               {/* Team Chat: one line (icon, label, unread badge) with the people faces */}
+              {usesChat && (
               <Link
                 to="/chat"
                 title="Team Chat"
@@ -674,6 +680,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
                 )}
                 <HeaderChatAvatars people={chatPeople} moreCount={chatTeamMore} active={location.pathname.startsWith('/chat')} />
               </Link>
+              )}
             </div>
           </div>
 
@@ -687,6 +694,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
             >
               <Search className="w-4 h-4" />
             </button>
+            {usesChat && (
             <Link
               to="/chat"
               title="Team Chat"
@@ -702,6 +710,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
                 <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500" />
               )}
             </Link>
+            )}
 
             {/* Notification Center */}
             <NotificationCenter />
@@ -735,11 +744,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
                     {user?.preferredName || user?.name || 'User'}
                   </div>
                   <div className="text-[10px] text-slate-500 capitalize">
-                    {user?.role?.replace('_', ' ') || 'member'} • Profile
+                    {(ROLE_LABELS as Record<string, string>)[user?.role || ''] || 'Member'} • Profile
                   </div>
                 </div>
               </Link>
               <div className="flex items-center gap-1">
+                {usesChat && (
                 <Link
                   to="/chat"
                   onClick={() => setShowMobileMenu(false)}
@@ -751,6 +761,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
                     <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" />
                   )}
                 </Link>
+                )}
                 <Link
                   to="/settings"
                   onClick={() => setShowMobileMenu(false)}

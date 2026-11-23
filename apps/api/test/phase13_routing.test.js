@@ -1,4 +1,4 @@
-// Phase 13: approvals routed by calendar (Growth Lead: Ads; Creative Lead: every other calendar;
+// Phase 13: approvals routed by calendar (Marketing Growth Manager: Ads; Creative Manager: every other calendar;
 // admin: all; nobody on their own work) and plan-row Request changes with suggested values.
 // Disposable test DB, synthetic people, steps and plans.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -112,7 +112,7 @@ describe('Phase 13: approval routing by calendar and plan row Request changes', 
   const notes = (who, filter = {}) => Notification.countDocuments({ recipient: P[who]._id, ...filter });
 
   describe('The shared rule', () => {
-    it('Growth Lead decides Ads only; Creative Lead every other calendar; admin all; nobody their own work', () => {
+    it('Marketing Growth Manager decides Ads only; Creative Manager every other calendar; admin all; nobody their own work', () => {
       expect(decisionCalendarsFor('growth_lead')).toEqual(['ads']);
       expect(decisionCalendarsFor('creative_lead').sort()).toEqual(['academics_management', 'other', 'sales', 'sm']);
       expect(decisionCalendarsFor('admin')).toHaveLength(5);
@@ -439,7 +439,7 @@ describe('Phase 13: approval routing by calendar and plan row Request changes', 
       expect((await ContentPiece.findById(second).lean()).rowStatus).toBe('submitted');
     });
 
-    it('the Growth Lead sends the plan back: submitted rows get the message, the approved row is untouched', async () => {
+    it('the Marketing Growth Manager sends the plan back: submitted rows get the message, the approved row is untouched', async () => {
       const res = await review('growthLead', planId, { action: 'request_changes_all', message: 'Use the new offer price everywhere.' });
       expect(res.status).toBe(200);
       const rows = await grid('sm', 'ads');
@@ -450,7 +450,7 @@ describe('Phase 13: approval routing by calendar and plan row Request changes', 
       expect((await as('sm').post(`/api/calendar-plans/${planId}/rows/${second}/apply-suggestion`)).status).toBe(400);
     });
 
-    it('Submit plan resubmits the row in bulk: history per row, one combined notification to the Growth Lead', async () => {
+    it('Submit plan resubmits the row in bulk: history per row, one combined notification to the Marketing Growth Manager', async () => {
       const edit = await saveRows('sm', 'ads', [{ rowId: second, cells: { brief: 'Scholarships, new offer price.' } }]);
       expect(edit.body.data.results[0].status).toBe('saved');
       const before = { gl: await notes('growthLead', { type: 'plan_submitted' }), cl: await notes('creativeLead', { type: 'plan_submitted' }) };
@@ -466,7 +466,7 @@ describe('Phase 13: approval routing by calendar and plan row Request changes', 
       expect(h[1].withPlan).toBe(true);
     });
 
-    it('the Growth Lead approves the resubmitted row', async () => {
+    it('the Marketing Growth Manager approves the resubmitted row', async () => {
       expect((await review('creativeLead', planId, { action: 'approve_selected', approvedRowIds: [second] })).status).toBe(403);
       expect((await review('growthLead', planId, { action: 'approve_selected', approvedRowIds: [second] })).status).toBe(200);
       expect((await ContentPiece.findById(second).lean()).rowStatus).toBe('approved');

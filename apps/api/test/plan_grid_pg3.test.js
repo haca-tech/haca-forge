@@ -42,13 +42,13 @@ describe('PG-3 plan grid review and roles', () => {
       });
     await mk('sm', 'PG3 SM Manager', 'sm_manager');
     await mk('admin', 'PG3 Admin', 'admin');
-    await mk('head', 'PG3 Creative Head', 'creative_lead');
+    await mk('head', 'PG3 Marketing Head', 'creative_lead');
     await mk('exec', 'PG3 Executive', 'creative_head');
     await mk('member', 'PG3 Member', 'executive', ['Content', 'Design', 'Post']);
   });
   afterAll(cleanup);
 
-  it('full flow: SM pastes rows and submits; Creative Head approves one row and returns the other; the approved row is locked', async () => {
+  it('full flow: SM pastes rows and submits; Marketing Head approves one row and returns the other; the approved row is locked', async () => {
     // 1. Paste two rows (November Excel structure, synthetic data).
     const tsv = ['Posting Date\tTopic\tType\tRemarks', '10 Dec, 2031\tPG3 Approved post\tPoster\tfirst', '12/12/2031\tPG3 Returned post\tCarousal\tsecond'].join('\r\n');
     const pasted = await request(app).post('/api/calendar-plans/grid/rows').set(as('sm')).send({ calendar: CAL, month: MONTH, tsv });
@@ -61,7 +61,7 @@ describe('PG-3 plan grid review and roles', () => {
     const submitted = await request(app).post(`/api/calendar-plans/${planId}/submit`).set(as('sm'));
     expect(submitted.status).toBe(200);
 
-    // 3. The Creative Head sees the submitted rows in the grid, as a reviewer.
+    // 3. The Marketing Head sees the submitted rows in the grid, as a reviewer.
     const headGrid = await request(app).get('/api/calendar-plans/grid').query({ calendar: CAL, month: MONTH }).set(as('head'));
     expect(headGrid.body.data.permissions).toEqual({ canEdit: false, canReview: true, readOnly: false });
     expect(headGrid.body.data.rows.map((r) => r.rowStatus)).toEqual(['submitted', 'submitted']);
@@ -118,7 +118,7 @@ describe('PG-3 plan grid review and roles', () => {
     expect(submit.status).toBe(200);
   });
 
-  it('the Creative Head cannot edit planning fields', async () => {
+  it('the Marketing Head cannot edit planning fields', async () => {
     const res = await request(app).post('/api/calendar-plans/grid/rows').set(as('head')).send({ calendar: CAL, month: MONTH, planId, rows: [{ rowId: rowB, cells: { topic: 'changed' } }] });
     expect(res.status).toBe(403);
   });

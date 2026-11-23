@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { authenticate } from '../../middleware/auth.js';
+import { requireAnyPermission } from '../../middleware/requirePermission.js';
 import { reviewInbox, stepTimeline } from './service.js';
 
 /** Review Hub (read-only): the inbox with tab counts, and one step's review timeline. */
 const router = Router();
 router.use(authenticate);
+// Review text throughout: workers (feedback.respond, their own steps) and roles that read it.
+router.use(requireAnyPermission('feedback.respond', 'feedback.view_all', 'review.read_all'));
 
 router.get('/', async (req, res, next) => {
   try {

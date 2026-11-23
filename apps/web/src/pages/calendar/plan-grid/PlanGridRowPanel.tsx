@@ -102,7 +102,7 @@ function stepsFromRow(line: GridLine, people: GridPerson[]): StepLineState[] {
 
 /**
  * Row editor: every planning field (same fields as the Add Row form), Steps & Deadlines for
- * every step the row has (Content and Design included), review feedback, and the Creative Lead's review.
+ * every step the row has (Content and Design included), review feedback, and the Creative Manager's review.
  */
 export const PlanGridRowPanel: React.FC<Props> = ({
   line,
@@ -121,7 +121,7 @@ export const PlanGridRowPanel: React.FC<Props> = ({
   onApplySuggestion,
   onClose,
 }) => {
-  const teamWorkload = useTeamWorkload();
+  const teamWorkload = useTeamWorkload(canEdit);
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true, onClose);
   const row = line.saved;

@@ -176,7 +176,7 @@ export function toGridRow(piece, workItems = []) {
   const postingOwnerName =
     (piece.postingOwnerId && typeof piece.postingOwnerId === 'object' && piece.postingOwnerId.name) || ownerName('Post');
 
-  // Approval = Creative Lead decision on the last creation step (Edit for reels, Design otherwise). VERIFY.
+  // Approval = Creative Manager decision on the last creation step (Edit for reels, Design otherwise). VERIFY.
   const finalStage = [...stages].reverse().find((s) => s !== 'Post');
   const finalWi = finalStage ? wiByStage.get(finalStage) : null;
   // Same wording as the rest of the app (getStepStatusLabel): Pending = waiting, Feedback = changes requested.
@@ -292,7 +292,7 @@ async function loadGridRows(planId) {
 async function gridPermissions(user, calendar = 'sm') {
   const role = normalizeRole(user.role);
   const canEdit = hasPermission(user, 'calendar.plan');
-  // Phase 13: this calendar's plan approvers (default: its lead; Growth Lead for Ads) review rows; admin always.
+  // Phase 13: this calendar's plan approvers (default: its lead; Marketing Growth Manager for Ads) review rows; admin always.
   const canReview = await access.can(user, 'calendar.approve', { calendar });
   return { role, canEdit, canReview, readOnly: !canEdit && !canReview };
 }

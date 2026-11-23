@@ -240,7 +240,7 @@ describe('Access & Approvals admin API (Phase D)', () => {
       expect(await WorkflowConfig.countDocuments({ calendar: 'ads' })).toBe(0);
     });
 
-    it('moving Ads reviews to a named Creative Lead re-routes waiting work, notifies once, and Growth Lead loses it', async () => {
+    it('moving Ads reviews to a named Creative Manager re-routes waiting work, notifies once, and Marketing Growth Manager loses it', async () => {
       const piece = await ContentPiece.create({ planId: new mongoose.Types.ObjectId(), topic: `${TAG} ads piece`, contentType: 'Reel', pipeline: 'reel_a', postingDate: new Date(), status: 'In Progress', calendar: 'ads' });
       const row = await ContentPiece.create({ planId: new mongoose.Types.ObjectId(), topic: `${TAG} ads row`, contentType: 'Reel', pipeline: 'reel_a', postingDate: new Date(), status: 'Not Started', calendar: 'ads', rowStatus: 'submitted' });
       const step = await WorkItem.create({ title: `${TAG} ads Edit`, workType: 'Reel', stageKey: 'Edit', stageOrder: 3, status: 'Pending', calendar: 'ads', ownerId: P.worker._id, departmentId: new mongoose.Types.ObjectId(), contentPieceId: piece._id, deadline: new Date(Date.now() + 864e5), reviewRequired: true });
@@ -254,7 +254,7 @@ describe('Access & Approvals admin API (Phase D)', () => {
       expect(preview.body.data.counts).toMatchObject({ waitingReviews: 1, pauseRequests: 1 });
       expect(preview.body.data.sentences[0]).toBe(`Changing Ads Calendar reviewers will re-route 1 waiting review and 1 pause request to ${TAG} lead.`);
 
-      const save = await request(app).put(`${BASE}/calendars/ads`).set(as('admin')).send({ changes, reason: 'Growth Lead on leave' });
+      const save = await request(app).put(`${BASE}/calendars/ads`).set(as('admin')).send({ changes, reason: 'Marketing Growth Manager on leave' });
       expect(save.status).toBe(200);
       expect(save.body.data.calendar.version).toBe(1);
       // The work follows the resolver at once.
@@ -270,7 +270,7 @@ describe('Access & Approvals admin API (Phase D)', () => {
       expect(await Notification.countDocuments({ recipient: P.growth._id, type: 'access_rerouted' })).toBe(0);
       // History has the whole config for restore.
       const hist = await request(app).get(`${BASE}/history`).query({ calendar: 'ads' }).set(as('admin'));
-      expect(hist.body.data[0]).toMatchObject({ type: 'workflow_config', subject: 'Ads Calendar', field: 'reviewers', reason: 'Growth Lead on leave', version: 1, canRestore: true });
+      expect(hist.body.data[0]).toMatchObject({ type: 'workflow_config', subject: 'Ads Calendar', field: 'reviewers', reason: 'Marketing Growth Manager on leave', version: 1, canRestore: true });
 
       // Plan approvers: the submitted row re-routes too.
       const rows = await request(app).post(`${BASE}/calendars/ads/preview`).set(as('admin')).send({ changes: { planApprovers: { roles: [], userIds: [String(P.lead._id)] } } });
@@ -280,7 +280,7 @@ describe('Access & Approvals admin API (Phase D)', () => {
       // Restore the previous Ads settings (preview, then save with the same checks).
       const restorePreview = await request(app).post(`${BASE}/history/${hist.body.data[0]._id}/restore`).set(as('admin')).send({ preview: true });
       expect(restorePreview.body.data.health.ok).toBe(true);
-      const restored = await request(app).post(`${BASE}/history/${hist.body.data[0]._id}/restore`).set(as('admin')).send({ reason: 'Growth Lead is back' });
+      const restored = await request(app).post(`${BASE}/history/${hist.body.data[0]._id}/restore`).set(as('admin')).send({ reason: 'Marketing Growth Manager is back' });
       expect(restored.status).toBe(200);
       expect(restored.body.data.calendar.version).toBe(2);
       expect(restored.body.data.calendar.config.reviewers).toEqual({ roles: ['growth_lead'], userIds: [] });
@@ -309,9 +309,10 @@ describe('Access & Approvals admin API (Phase D)', () => {
   });
 
   describe('Role guide', () => {
-    it('lists the seven roles with what they can do, by area', async () => {
+    it('lists the eight roles with what they can do, by area', async () => {
       const res = await request(app).get(`${BASE}/role-guide`).set(as('admin'));
-      expect(res.body.data).toHaveLength(7);
+      expect(res.body.data).toHaveLength(8);
+      expect(res.body.data.find((r) => r.role === 'viewer')?.label).toBe('Viewer');
       const admin = res.body.data.find((r) => r.role === 'admin');
       expect(admin.locked).toBe(true);
       expect(admin.areas.flatMap((a) => a.items)).toContain('Roles & access');

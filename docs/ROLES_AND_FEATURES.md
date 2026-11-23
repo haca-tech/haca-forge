@@ -4,27 +4,28 @@
 **Scope:** Covers all 7 system roles (`admin`, `creative_head`, `production_head`, `creative_lead`, `growth_lead`, `sm_manager`, `executive`) and the 5 worker job roles.  
 **Current as of:** 21 November 2026 (Access Phase E).
 
-> **Access Phases B–E.** Who decides on which calendar is now a setting, not code: each calendar names who approves plans, reviews work, posts, and the fallback (roles and/or people), edited by admins on **Access & Approvals** (`/settings/access`). The defaults match the routing below (Ads → Growth Lead, other calendars → Creative Lead, posters → SM Manager, fallback → Admin). A lead or SM Manager can be limited to some calendars. Read [ACCESS.md](ACCESS.md) for the roles in plain words, the calendar settings, the fixed rules and recovery; where this document differs, ACCESS.md wins.
+> **Access Phases B–E.** Who decides on which calendar is now a setting, not code: each calendar names who approves plans, reviews work, posts, and the fallback (roles and/or people), edited by admins on **Access & Approvals** (`/settings/access`). The defaults match the routing below (Ads → Marketing Growth Manager, other calendars → Creative Manager, posters → SM Manager, fallback → Admin). A lead or SM Manager can be limited to some calendars. Read [ACCESS.md](ACCESS.md) for the roles in plain words, the calendar settings, the fixed rules and recovery; where this document differs, ACCESS.md wins.
 
-> **Phase 12b.** Two keys were reused with a new meaning: `creative_head` is now read-only leadership (it was the approver) and `executive` is now a production worker (it was read-only leadership). `team_member` no longer exists. The older wording in sections 2–4 below was renamed to match; where it conflicts with this section and the matrix in section 5, these win. Approval routing by calendar (Creative Lead for every calendar except Ads, Growth Lead for Ads) is Phase 13; in Phase 12b both leads approve on every calendar.
+> **Phase 12b.** Two keys were reused with a new meaning: `creative_head` is now read-only leadership (it was the approver) and `executive` is now a production worker (it was read-only leadership). `team_member` no longer exists. The older wording in sections 2–4 below was renamed to match; where it conflicts with this section and the matrix in section 5, these win. Approval routing by calendar (Creative Manager for every calendar except Ads, Marketing Growth Manager for Ads) is Phase 13; in Phase 12b both leads approve on every calendar.
 
 ---
 
 ## 1. System Roles Architecture
 
-HACA Marketing OS enforces strict Role-Based Access Control (RBAC) across seven system roles. Each user account is assigned exactly one system role. The role list, labels, the permission catalog (40 keys), the 7 fixed system roles and the resolver (`can(user, permission, { calendar, ownerId }, config)`, `effectiveStepsFor`) live in `@mmp/shared` and are used by the API and the web app. The Role Guide tab on Access & Approvals lists each role's permissions.
+HACA Marketing OS enforces strict Role-Based Access Control (RBAC) across eight system roles. Each user account is assigned exactly one system role. The role list, labels, the permission catalog (40 keys), the 8 fixed system roles and the resolver (`can(user, permission, { calendar, ownerId }, config)`, `effectiveStepsFor`) live in `@mmp/shared` and are used by the API and the web app. The Role Guide tab on Access & Approvals lists each role's permissions.
 
 | Role Key | Display Title | Primary Scope | Write Powers |
 |---|---|---|---|
 | `admin` | Admin | Full system; backup approver on every calendar | Complete |
-| `creative_head` | Creative Head | Views everything | None (403 on every write, own account excepted) |
+| `creative_head` | Marketing Head | Views everything | None (403 on every write, own account excepted) |
 | `production_head` | Production Head | Views all calendars and works | None (403 on every write, own account excepted) |
-| `creative_lead` | Creative Lead | Plan rows, reviews, ratings, reopen, root causes (every calendar except Ads from Phase 13) | Review / approve; workers' operational fields |
-| `growth_lead` | Growth Lead | Same powers, Ads calendar only from Phase 13 | Review / approve; workers' operational fields |
+| `creative_lead` | Creative Manager | Plan rows, reviews, ratings, reopen, root causes (every calendar except Ads from Phase 13) | Review / approve; workers' operational fields |
+| `growth_lead` | Marketing Growth Manager | Same powers, Ads calendar only from Phase 13 | Review / approve; workers' operational fields |
 | `sm_manager` | SM Manager | Plans, schedules, owners; owns every Post step | Plan / assign / post |
 | `executive` | Executive (worker) | Their own steps | Own work only |
+| `viewer` | Viewer | The plan and every step's status (dashboard, calendars, Tracker, Work Items, Work Detail, Published, reports, Project KPIs) | None (403 on every write, own account excepted) |
 
-Contact details: every role except `executive` sees them (workers see only their own). Review text (revision notes, rating feedback, clip threads): every role except `executive`, who sees it on their own steps. Nobody decides on their own work: reviews, plans, pause requests or revision flags (the admin included).
+Contact details: every role except `executive` and `viewer` sees them (workers see only their own). Review text (revision notes, review comments, rating feedback, clip threads, help-request conversations): every role except `executive`, who sees it on their own steps, and `viewer`, who never does. Nobody decides on their own work: reviews, plans, pause requests or revision flags (the admin included).
 
 ---
 
@@ -46,8 +47,8 @@ The system administrator manages platform security, user lifecycles, and high-le
 
 ---
 
-### 2.2 Role: Creative Lead (`creative_lead`)
-The Creative Lead is the sole gatekeeper of creative quality and craftsmanship.
+### 2.2 Role: Creative Manager (`creative_lead`)
+The Creative Manager is the sole gatekeeper of creative quality and craftsmanship.
 
 - **Primary Menu Items (Max 8):** `Home`, `Review Queue`, `Plans & Approvals`, `Tracker`, `Team Directory`, `Problems`, `Reports`.
 - **Core Powers & Responsibilities:**
@@ -70,16 +71,16 @@ The Social Media Manager is the master planner, scheduler, and traffic controlle
 - **Core Powers & Responsibilities:**
   - **Calendar Plan Creation:** Creates monthly and individual plans across the 5 creative calendars (`sm`, `sales`, `ads`, `academics_management`, `other`).
   - **Step-by-Step Assignment & Deadlines:** Chooses owners and deadlines for each step using autofill recommendations and offset presets.
-  - **Plan Submission:** Submits drafted plans to the Creative Lead for formal verification.
+  - **Plan Submission:** Submits drafted plans to the Creative Manager for formal verification.
   - **Operational Interventions:** Can reassign steps, shift dates, skip unstarted steps, and resolve marked blockers.
   - **Team Workload Monitoring:** Analyzes real-time team capacity heatmaps (`<65% Healthy`, `65-85% High`, `>85% Overloaded`).
 - **Strict Guardrails & Exclusions:**
-  - Cannot approve deliverable steps (quality approval belongs strictly to Creative Lead).
+  - Cannot approve deliverable steps (quality approval belongs strictly to Creative Manager).
   - Cannot invite or suspend users.
 
 ---
 
-### 2.4 Role: Creative Head (`creative_head`)
+### 2.4 Role: Marketing Head (`creative_head`)
 The creative_head viewer provides high-level transparency for organizational leadership.
 
 - **Primary Menu Items (Max 8):** `Home`, `Plans`, `Tracker`, `Team Directory`, `Team Workload`, `Reports`.
@@ -91,6 +92,15 @@ The creative_head viewer provides high-level transparency for organizational lea
   - **Zero Mutations:** Any POST/PATCH/DELETE request is rejected with `HTTP 403 Forbidden`. No action buttons exist in the UI.
   - **Contact Details Redacted:** Worker personal emails, mobile numbers, and WhatsApp links are stripped from the payload and replaced with privacy notices.
   - Cannot initiate chat messages or modify tasks.
+
+### 2.5 Role: Viewer (`viewer`)
+A read-only observer for people who need to follow the work without taking part in it. Given only by an Admin (on Access & Approvals); it cannot be requested.
+
+- **Menu:** Dashboard, Creative Calendar (plans and Tracker), Published, Work, Reports (with the Project KPI page).
+- **Sees:** every calendar, plan and step status; Work Detail without private review text.
+- **Does not see:** contact details (email, phone, WhatsApp); revision notes, review comments, rating messages, clip threads and help-request conversations; Team Chat; Team Workload; Issues and Blockers; the Review Hub; the Team Directory, profiles and profile reports; Access & Approvals and every admin page. Those routes answer 403 (404 for other people's profiles), and the pages show "Page Not Found" by URL.
+- **Writes:** none except their own account (profile, settings, password, sign-out).
+- **Routing:** takes no steps and holds no decision permission, so it is never an owner, autofill pick, reviewer, plan approver, poster or fallback; the calendar settings refuse the role, and a Viewer named by id is skipped.
 
 ---
 
@@ -131,7 +141,7 @@ Writers create copy for static graphics, carousel slides, brochures, and full au
     - **Document Import/Export:** Import `.docx` files directly; export to `.docx`, `.pdf`, or `.txt`.
 - **Worker Actions:**
   - `Start Work`: Records `startedAt` and begins individual work timer.
-  - `Submit for Review`: Hands off copy to the Creative Lead in the Review Studio.
+  - `Submit for Review`: Hands off copy to the Creative Manager in the Review Studio.
 
 ---
 
@@ -149,7 +159,7 @@ Graphic Designers produce visual creatives across digital and print formats.
   - **Format Support:** High-resolution PNG, JPG, and multi-page PDF previews.
 - **Worker Actions:**
   - `Start Work`: Commences timer.
-  - `Submit for Review`: Uploads final graphic files to the Creative Lead.
+  - `Submit for Review`: Uploads final graphic files to the Creative Manager.
 
 ---
 
@@ -167,11 +177,11 @@ Videographers execute raw footage capture, b-roll recording, and studio shoots b
     - Metadata per clip: Scene/Shot number, Take number, Resolution (4K/1080p), FPS (24/60/120), and cameraman notes.
   - **Clip-by-Clip Review & Feedback Thread:**
     - WhatsApp-style discussion thread for each clip.
-    - Creative Lead reviews each clip individually (`Approve Clip` or `Reshoot Needed`).
+    - Creative Manager reviews each clip individually (`Approve Clip` or `Reshoot Needed`).
     - The step completes only when all required shots are marked approved.
 - **Worker Actions:**
   - `Start Shoot`: Commences production timer.
-  - `Submit Footage`: Sends uploaded raw clips to Creative Lead for footage review.
+  - `Submit Footage`: Sends uploaded raw clips to Creative Manager for footage review.
 
 ---
 
@@ -187,10 +197,10 @@ Video Editors take approved raw footage, sync audio, add visual effects, color g
   - **Video Quality Checks:**
     - Aspect ratio enforcement (flags non-9:16 vertical videos).
     - Duration warnings (flags reels exceeding 90 seconds).
-  - **Interactive Revision Checklist:** When revisions are requested, the Creative Lead's second-by-second timestamps appear as an interactive checklist.
+  - **Interactive Revision Checklist:** When revisions are requested, the Creative Manager's second-by-second timestamps appear as an interactive checklist.
 - **Worker Actions:**
   - `Start Editing`: Commences edit timer.
-  - `Submit Final Cut`: Uploads MP4/MOV master video to the Creative Lead.
+  - `Submit Final Cut`: Uploads MP4/MOV master video to the Creative Manager.
 
 ---
 
@@ -255,26 +265,26 @@ The home screen for every creative worker:
 
 ## 5. Summary Matrix: Roles, Permissions & Workspaces
 
-| Capability / Screen | `admin` | `creative_head` | `production_head` | `creative_lead` | `growth_lead` | `sm_manager` | `executive` |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Access Requests & Invites, role grants** | Full | No | No | No | No | No | No |
-| **Access & Approvals (roles, calendar limits, calendar settings, History)** | Full | No | No | No | No | No | No |
-| **User Role / Email Editing** | Full | No | No | No | No | No | No |
-| **Report configuration, automation** | Full | No | No | No | No | No | No |
-| **Create Calendar Plans** | Full | View | View | View | View | Full | No |
-| **Approve Plan Rows** (on calendars where named) | Fallback (never own plan) | No | No | Full | Full | No | No |
-| **Autofill Step Assignment** | Full | No | No | No | No | Full | No |
-| **Reassign / Shift Dates** | Full | No | No | Full | Full | Full | No |
-| **Review Studio** | Full | View | View | Full | Full | View | No |
-| **Give 1-5 Star Ratings, request changes, reopen** (on calendars where named) | Fallback | No | No | Full | Full | No | No |
-| **Classify Root Causes** | Full | No | No | Full | Full | No | No |
-| **Read review text and clip threads** | Full | View | View | Full | Full | View | Own steps |
-| **Submit own steps / Start rework** | If owner | No | No | If owner | If owner | If owner | If owner |
-| **Mark a Post step posted** | Full | No | No | No | No | Full | No |
-| **View Team Directory (`/team`)** | Full | View | View | Full | Full | Full | No (404) |
-| **See contact details** | Yes | Yes | Yes | Yes | Yes | Yes | Own only |
-| **Edit Operational Details (workers)** | Full | No | No | Full | Full | No | No |
-| **Profile report (view and download)** | Yes | Yes | Yes | Yes | Yes | No | No |
-| **Team Chat** | Full | Read-only | Read-only | Full | Full | Full | Full |
-| **Share Approved Asset to Chat** | Full | No | No | Full | Full | Full | If owner |
+| Capability / Screen | `admin` | `creative_head` | `production_head` | `creative_lead` | `growth_lead` | `sm_manager` | `executive` | `viewer` |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Access Requests & Invites, role grants** | Full | No | No | No | No | No | No | No |
+| **Access & Approvals (roles, calendar limits, calendar settings, History)** | Full | No | No | No | No | No | No | No |
+| **User Role / Email Editing** | Full | No | No | No | No | No | No | No |
+| **Report configuration, automation** | Full | No | No | No | No | No | No | No |
+| **Create Calendar Plans** | Full | View | View | View | View | Full | No | View |
+| **Approve Plan Rows** (on calendars where named) | Fallback (never own plan) | No | No | Full | Full | No | No | No |
+| **Autofill Step Assignment** | Full | No | No | No | No | Full | No | No |
+| **Reassign / Shift Dates** | Full | No | No | Full | Full | Full | No | No |
+| **Review Studio** | Full | View | View | Full | Full | View | No | No |
+| **Give 1-5 Star Ratings, request changes, reopen** (on calendars where named) | Fallback | No | No | Full | Full | No | No | No |
+| **Classify Root Causes** | Full | No | No | Full | Full | No | No | No |
+| **Read review text and clip threads** | Full | View | View | Full | Full | View | Own steps | No |
+| **Submit own steps / Start rework** | If owner | No | No | If owner | If owner | If owner | If owner | No |
+| **Mark a Post step posted** | Full | No | No | No | No | Full | No | No |
+| **View Team Directory (`/team`)** | Full | View | View | Full | Full | Full | No (404) | No (404) |
+| **See contact details** | Yes | Yes | Yes | Yes | Yes | Yes | Own only | Own only |
+| **Edit Operational Details (workers)** | Full | No | No | Full | Full | No | No | No |
+| **Profile report (view and download)** | Yes | Yes | Yes | Yes | Yes | No | No | No |
+| **Team Chat** | Full | Read-only | Read-only | Full | Full | Full | Full | No |
+| **Share Approved Asset to Chat** | Full | No | No | Full | Full | Full | If owner | No |
 
