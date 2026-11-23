@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Notification } from './model.js';
 import { User } from '../people/model.js';
 import { logger } from '../../lib/logger.js';
@@ -126,6 +127,15 @@ export async function markAsRead(notificationId, userId) {
     { read: true },
     { new: true }
   );
+}
+
+/**
+ * Delete one of the user's own notifications. Returns the deleted notification, or null when it
+ * does not exist or belongs to someone else (the route answers 404 for both).
+ */
+export async function deleteNotification(notificationId, userId) {
+  if (!mongoose.isValidObjectId(String(notificationId))) return null;
+  return Notification.findOneAndDelete({ _id: notificationId, recipient: userId });
 }
 
 /**

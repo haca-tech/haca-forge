@@ -467,12 +467,13 @@ describe('Phase 4: Auto-Assignment Engine & Team Workload', () => {
 
       expect(rec.recommendedPerson).toBeDefined();
       expect(rec.stageKey).toBe('Edit');
-      expect(rec.recommendedPerson.name).toBe('Editor Emma');
-      expect(rec.rationale).toContain('matched work preference "Edit"');
+      // The owner rule's eligibility: the job role sets it, preferences only narrow it (Emma
+      // prefers Edit; Charlie set no preferences, so he is not narrowed out). Workload picks one.
+      expect(['Editor Emma', 'Editor Charlie']).toContain(rec.recommendedPerson.name);
 
-      // The candidate pool must contain Emma (has Edit preference) and NOT Alice (only Design/Content)
+      // The pool holds both Video Editors and NOT Alice (a Graphic Designer cannot own Edit).
       const candidateNames = rec.candidatePool.map((c) => c.person.name);
-      expect(candidateNames).toContain('Editor Emma');
+      expect(candidateNames).toEqual(expect.arrayContaining(['Editor Emma', 'Editor Charlie']));
       expect(candidateNames).not.toContain('Designer Alice');
     });
 

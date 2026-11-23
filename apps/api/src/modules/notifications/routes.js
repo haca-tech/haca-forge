@@ -22,15 +22,8 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// Get user notification preferences
-router.get('/preferences', async (req, res, next) => {
-  try {
-    const preferences = await notificationService.getUserPreferences(req.user._id);
-    return res.status(200).json({ preferences });
-  } catch (err) {
-    next(err);
-  }
-});
+// (GET /preferences was removed: nothing used it, and it called a function that never existed.
+// Notification settings are read with the user's settings, GET /api/me/settings.)
 
 // Update user notification preferences
 router.put('/preferences', async (req, res, next) => {

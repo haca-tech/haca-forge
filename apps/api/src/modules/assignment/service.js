@@ -44,19 +44,23 @@ export async function recommendAssignee(criteria = {}, user) {
   let targetDepartment = null;
 
   if (effectiveStageKey) {
-    // Stage Work Items: candidates are the people eligible for the step (job role sets it,
-    // preferences narrow it; Post is SM Managers only). No fallback to ineligible people.
-    candidates = (
-      await Person.find({ status: 'active', role: { $in: stepTakingRoles() } })
-    ).filter((person) => effectiveStepsFor(person).includes(effectiveStageKey));
-    // The one owner rule: a Post step only for a poster on the step's calendar.
-    if (effectiveStageKey === 'Post') {
-      const item = workItemId && mongoose.Types.ObjectId.isValid(workItemId) ? await WorkItem.findById(workItemId).select('calendar').lean() : null;
-      const step = { stageKey: 'Post', calendar: item?.calendar || criteria.calendar || 'sm' };
-      const kept = [];
-      for (const person of candidates) if (!(await ownerProblem(person, step))) kept.push(person);
-      candidates = kept;
+    // Stage Work Items: the same people the owner dropdown offers (the one owner rule: active, the
+    // job role sets eligibility, a poster on the step's calendar for Post). Work preferences only
+    // narrow that: people who set preferences without this step are passed over, unless that
+    // would leave nobody. So the suggestion is always someone the dropdown offers, and there is a
+    // suggestion whenever the dropdown has anyone.
+    const item = workItemId && mongoose.Types.ObjectId.isValid(workItemId) ? await WorkItem.findById(workItemId).select('calendar').lean() : null;
+    const step = { stageKey: effectiveStageKey, calendar: item?.calendar || criteria.calendar || 'sm' };
+    const eligible = [];
+    for (const person of await Person.find({ status: 'active', role: { $in: stepTakingRoles() } })) {
+      if (!(await ownerProblem(person, step))) eligible.push(person);
     }
+    const prefersIt = (person) => {
+      const prefs = Array.isArray(person.workPreferences) ? person.workPreferences : [];
+      return !prefs.length || prefs.includes(effectiveStageKey) || effectiveStepsFor(person).includes(effectiveStageKey);
+    };
+    const preferred = eligible.filter(prefersIt);
+    candidates = preferred.length ? preferred : eligible;
   } else {
     // Standalone Work Items: Candidates come from target department responsible for workType
     if (departmentId && mongoose.Types.ObjectId.isValid(departmentId)) {
@@ -91,7 +95,7 @@ export async function recommendAssignee(criteria = {}, user) {
     return {
       recommendedPerson: null,
       rationale: effectiveStageKey
-        ? `No active team members available with "${effectiveStageKey}" work preference.`
+        ? `Nobody active can own ${effectiveStageKey} steps${effectiveStageKey === 'Post' ? ' on this calendar (posters only)' : ' (by job role)'}.`
         : 'No active team members available for assignment.',
       stageKey: effectiveStageKey,
       department: targetDepartment,
