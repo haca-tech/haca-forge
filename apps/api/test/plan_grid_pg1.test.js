@@ -303,7 +303,8 @@ describe('PG-1 plan grid', () => {
       });
       const by = Object.fromEntries(res.body.data.results.map((r) => [r.clientKey, r]));
       expect(by.late.cellErrors['deadline.Edit'].join(' ')).toMatch(/after posting date/);
-      expect(by['shooter-as-editor'].cellErrors.editOwner.join(' ')).toMatch(/work preferences/);
+      // The one owner rule's reason (job role), the same as the owner dropdown.
+    expect(by['shooter-as-editor'].cellErrors.editOwner.join(' ')).toMatch(/cannot own Edit steps/);
       expect(by['no-topic'].cellErrors.topic[0]).toMatch(/Topic is required/);
       expect(by.outside.status).toBe('valid');
       expect(by.outside.warnings.map((w) => w.code)).toContain('MONTH_MISMATCH');

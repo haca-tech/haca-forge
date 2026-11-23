@@ -676,7 +676,7 @@ export async function saveGridRows(body = {}, user) {
       return !(c && !c.clear) && !(!c && old?.ownerSource === 'manual' && old.ownerId);
     });
     // Workload is read once per request; earlier rows of this batch still count, in row order.
-    if (needsSuggestion && !autofillContext) autofillContext = await buildAutofillContext();
+    if (needsSuggestion && !autofillContext) autofillContext = await buildAutofillContext({ calendar: plan?.calendar || calendar });
     const suggestion = needsSuggestion
       ? await autofillRowPlan({
           type: draft.type,

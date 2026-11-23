@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import * as planService from './plan.service.js';
 import * as rowChanges from './rowChanges.js';
 import * as planGridService from './planGrid.service.js';
@@ -225,7 +226,7 @@ export async function previewImport(req, res, next) {
       });
     }
 
-    const validationResult = await importService.validateImportRows(rawRows);
+    const validationResult = await importService.validateImportRows(rawRows, { calendar: req.body?.calendar || req.query?.calendar || 'sm' });
     res.json({ data: validationResult });
   } catch (err) {
     next(err);
@@ -272,7 +273,9 @@ export async function autofillRow(req, res, next) {
     if (planId && (!existingRows || existingRows.length === 0)) {
       existingRows = await ContentPiece.find({ planId }).lean();
     }
+    const planDoc = planId && mongoose.isValidObjectId(planId) ? await CalendarPlan.findById(planId).select('calendar').lean() : null;
     const autofillData = await autofillRowPlan({
+      calendar: planDoc?.calendar || req.body.calendar || 'sm',
       type,
       postingDate,
       needsScript,

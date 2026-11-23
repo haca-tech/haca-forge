@@ -9,7 +9,7 @@ import { WORK_TYPE_DEPARTMENT_MAP, READ_ONLY_VIEWER_ROLES, isWorker, effectiveSt
 import { resolveProfileObjectId } from '../referenceData/service.js';
 import { ownerCandidates, pickOwner } from '../workload/service.js';
 import { isOwnScope, stepTakingRoles } from '../../lib/roleAccess.js';
-import { assertCanOwnStep, ownerProblem } from '../workItems/ownerRule.js';
+import { assertCanOwnStep, narrowByPreferences, ownerProblem } from '../workItems/ownerRule.js';
 
 /**
  * Auto-Assignment Recommendation Engine
@@ -55,12 +55,7 @@ export async function recommendAssignee(criteria = {}, user) {
     for (const person of await Person.find({ status: 'active', role: { $in: stepTakingRoles() } })) {
       if (!(await ownerProblem(person, step))) eligible.push(person);
     }
-    const prefersIt = (person) => {
-      const prefs = Array.isArray(person.workPreferences) ? person.workPreferences : [];
-      return !prefs.length || prefs.includes(effectiveStageKey) || effectiveStepsFor(person).includes(effectiveStageKey);
-    };
-    const preferred = eligible.filter(prefersIt);
-    candidates = preferred.length ? preferred : eligible;
+    candidates = narrowByPreferences(eligible, effectiveStageKey);
   } else {
     // Standalone Work Items: Candidates come from target department responsible for workType
     if (departmentId && mongoose.Types.ObjectId.isValid(departmentId)) {

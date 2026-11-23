@@ -11,19 +11,25 @@ import {
 import { Person } from '../people/model.js';
 import { ownerCandidates } from '../workload/service.js';
 import { stepTakingRoles } from '../../lib/roleAccess.js';
+import { ownableStepsFor, ownerPool } from '../workItems/ownerRule.js';
 
 /**
  * Load everything autofill reads from the database, once, however many rows are filled:
  * active workers and SM Managers with their open steps (step counts, no hours).
  *
- * Suggestions use the shared owner rule (pickOwner): eligible (the person's steps; Post is
- * SM Managers only), fewest due in the step's 7-day window, fewest in progress, name, id.
- * Revision history, ratings and speed are never factors.
+ * Who can be suggested: the same people the owner dropdown offers for the step (the one owner
+ * rule: active, job role for production steps, a poster on this calendar for Post), narrowed by
+ * work preferences but never down to nobody. pickOwner then chooses among them: fewest due in the
+ * step's 7-day window, fewest in progress, name, id. Revision history, ratings and speed are never
+ * factors.
  */
-export async function buildAutofillContext() {
+export async function buildAutofillContext({ calendar = 'sm' } = {}) {
   const members = await Person.find({ role: { $in: stepTakingRoles() }, status: 'active' }).lean();
   const owners = await ownerCandidates(members);
   return {
+    calendar,
+    ownable: await ownableStepsFor(members, calendar),
+    // workPreferences: the steps each person prefers (shown with the suggestion); eligibility is `ownable`.
     candidates: owners.map((c) => ({ ...c, member: c.person, workPreferences: effectiveStepsFor(c.person) })),
   };
 }
@@ -63,8 +69,11 @@ export async function autofillRowPlan({
   needsContent = true,
   currentPlanRows = [],
   context = null,
+  calendar = 'sm',
 }) {
-  const ctx = context || (await buildAutofillContext());
+  const ctx = context || (await buildAutofillContext({ calendar }));
+  // A context built elsewhere without the owner lists: work them out from its candidates.
+  const ownable = ctx.ownable || (await ownableStepsFor(ctx.candidates.map((c) => c.member || c.person || c), ctx.calendar || calendar));
   const normType = normalizeWorkType(type || 'Static Post');
   const finalDate = postingDate ? new Date(postingDate) : new Date();
   const now = new Date();
@@ -83,7 +92,8 @@ export async function autofillRowPlan({
     candidates = candidates.map((c) => (c.id === ps.ownerId ? withPlannedStep(c, ps.dueDate) : c));
   }
   const pickFor = (stageKey, dueDate) => {
-    const pick = pickOwner(candidates, { targetDue: dueDate, now, eligible: (c) => c.workPreferences.includes(stageKey) });
+    const pool = new Set(ownerPool(candidates, stageKey, ownable).map((c) => c.id));
+    const pick = pickOwner(candidates, { targetDue: dueDate, now, eligible: (c) => pool.has(c.id) });
     if (pick) candidates = candidates.map((c) => (c.id === pick.candidate.id ? withPlannedStep(c, dueDate) : c));
     return pick;
   };

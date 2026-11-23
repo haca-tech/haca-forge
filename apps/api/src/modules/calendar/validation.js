@@ -313,9 +313,10 @@ export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting =
         } else {
           // Eligibility (Phase 12b): job role sets it, preferences narrow it; Post is SM Managers only.
           {
-            const prefs = effectiveStepsFor(member);
-            // The one owner rule: a Post step only for a poster on this row's calendar.
-            const ownerIssue = st.stageKey === 'Post' ? await ownerProblem(member, { stageKey: 'Post', calendar: row.calendar || plan.calendar || 'sm' }) : null;
+            // The one owner rule (the same as the owner dropdown and autofill): the job role sets
+            // eligibility, Post only for a poster on this row's calendar. Work preferences only
+            // narrow suggestions; they never make a chosen owner invalid.
+            const ownerIssue = await ownerProblem(member, { stageKey: st.stageKey, calendar: row.calendar || plan.calendar || 'sm' });
             if (ownerIssue) {
               errors.push({
                 rowNumber: rowNum,
@@ -323,14 +324,6 @@ export async function validatePlanAndRows({ plan = {}, rows = [], isSubmitting =
                 field: `stages.${st.stageKey}.ownerId`,
                 code: VALIDATION_ERROR_CODES.INVALID_STAGE_OWNER,
                 message: ownerIssue,
-              });
-            } else if (!prefs.includes(st.stageKey)) {
-              errors.push({
-                rowNumber: rowNum,
-                topic,
-                field: `stages.${st.stageKey}.ownerId`,
-                code: VALIDATION_ERROR_CODES.INVALID_STAGE_OWNER,
-                message: `${member.name} does not hold "${st.stageKey}" in work preferences.`,
               });
             }
           }

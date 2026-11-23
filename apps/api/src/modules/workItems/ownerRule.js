@@ -1,4 +1,4 @@
-import { CALENDARS } from '@mmp/shared';
+import { CALENDARS, STAGE_KEYS, effectiveStepsFor, stepEligibility as stepEligibilityPure } from '@mmp/shared';
 import * as access from '../../lib/accessResolver.js';
 
 /**
@@ -41,4 +41,47 @@ export async function eligibleOwners(people, step) {
   const out = [];
   for (const p of people || []) if (!(await ownerProblem(p, step))) out.push(p);
   return out;
+}
+
+// ---------------------------------------------------------------- suggestions (many picks at once)
+
+/**
+ * Has this person, by their work preferences, chosen this step? Preferences only narrow: no
+ * preferences set means every step their job role allows (SM Managers post whatever they set).
+ */
+export function prefersStep(person, stageKey) {
+  const prefs = Array.isArray(person?.workPreferences) ? person.workPreferences : [];
+  return !prefs.length || prefs.includes(stageKey) || effectiveStepsFor(person).includes(stageKey);
+}
+
+/** The people who prefer the step, or all of them when that would leave nobody. */
+export function narrowByPreferences(people, stageKey, personOf = (x) => x) {
+  const preferred = (people || []).filter((x) => prefersStep(personOf(x), stageKey));
+  return preferred.length ? preferred : people || [];
+}
+
+/**
+ * For suggestions on one calendar (autofill, import, Recommended Owner): per person id, the steps
+ * they may own under the owner rule (active; production steps by job role; Post only for a poster
+ * on this calendar). Read once, then used for every pick.
+ */
+export async function ownableStepsFor(people, calendar = 'sm') {
+  const posterIds = new Set((await access.postersFor({ calendar: calendar || 'sm' })).people.map((p) => String(p._id)));
+  return new Map(
+    (people || []).map((p) => [
+      String(p._id),
+      p.status !== 'active'
+        ? []
+        : STAGE_KEYS.filter((stageKey) => (stageKey === 'Post' ? posterIds.has(String(p._id)) : stepEligibilityPure(p, { stageKey }))),
+    ])
+  );
+}
+
+/**
+ * The candidates a suggestion chooses from for a step: the same people the owner dropdown
+ * offers (`ownable` from ownableStepsFor), narrowed by preferences but never down to nobody.
+ */
+export function ownerPool(candidates, stageKey, ownable, personOf = (c) => c.member || c.person || c) {
+  const eligible = (candidates || []).filter((c) => (ownable.get(String(personOf(c)?._id)) || []).includes(stageKey));
+  return narrowByPreferences(eligible, stageKey, personOf);
 }

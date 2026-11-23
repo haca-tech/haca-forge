@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { parsePriorityInput, WORKER_ROLE, effectiveStepsFor, pickOwner, withPlannedStep } from '@mmp/shared';
+import { ownableStepsFor, ownerPool } from '../workItems/ownerRule.js';
 import {
   WORK_TYPES,
   normalizeWorkType,
@@ -419,7 +420,7 @@ export async function parseBufferToRows(buffer, mimetype = '') {
  * - Flags on non-reels
  * - Step owners and deadlines (suggests blanks)
  */
-export async function validateImportRows(rawRows) {
+export async function validateImportRows(rawRows, { calendar = 'sm' } = {}) {
   const validatedRows = [];
   const seenCombinations = new Set();
   const startOfToday = new Date();
@@ -449,9 +450,14 @@ export async function validateImportRows(rawRows) {
   // Workload (step counts) per member, read once; each suggestion in this import is added
   // as a planned step so later rows spread across people. The shared owner rule (pickOwner),
   // the same as autofill and Recommended Owner.
-  let importCandidates = (await ownerCandidates(activeMembers.filter((m) => !isSuperuser(m)))).map((c) => ({ ...c, member: c.person }));
+  // Who can be suggested: the owner dropdown's people for the step on this calendar (the one owner
+  // rule), narrowed by work preferences but never down to nobody.
+  const stepTakers = activeMembers.filter((m) => !isSuperuser(m));
+  const ownable = await ownableStepsFor(stepTakers, calendar);
+  let importCandidates = (await ownerCandidates(stepTakers)).map((c) => ({ ...c, member: c.person }));
   const pickBestMemberForStage = (stageKey, dueDate) => {
-    const pick = pickOwner(importCandidates, { targetDue: dueDate, eligible: (c) => effectiveStepsFor(c.member).includes(stageKey) });
+    const pool = new Set(ownerPool(importCandidates, stageKey, ownable).map((c) => c.id));
+    const pick = pickOwner(importCandidates, { targetDue: dueDate, eligible: (c) => pool.has(c.id) });
     if (!pick) return null;
     importCandidates = importCandidates.map((c) => (c.id === pick.candidate.id ? withPlannedStep(c, dueDate) : c));
     return { member: pick.candidate.member, reason: pick.reason, warning: pick.warning };
@@ -576,8 +582,9 @@ export async function validateImportRows(rawRows) {
           if (found.error) {
             errors.push(`${stageKey} owner: ${found.error}`);
           } else if (member) {
-            // Eligibility (Phase 12b): job role sets it, preferences narrow it; Post is SM Managers only.
-            if (!effectiveStepsFor(member).includes(stageKey)) {
+            // The one owner rule (job role; Post only for a poster on this calendar). Preferences
+            // only narrow suggestions; they never make a chosen owner invalid.
+            if (!(ownable.get(String(member._id)) || []).includes(stageKey)) {
               errors.push(`${member.name} (${email}) is not eligible for the ${stageKey} step`);
             }
             ownerId = member._id.toString();
