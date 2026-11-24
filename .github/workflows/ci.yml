@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, portal-v1]
+    branches: [main, develop]
   pull_request:
-    branches: [main, portal-v1]
+    branches: [main, develop]
 
 jobs:
   validate:
@@ -24,11 +24,14 @@ jobs:
       - name: Build shared package
         run: npm run build -w packages/shared
 
-      - name: Run lint
-        run: npm run lint --if-present
-
-      - name: Run typecheck
+      - name: Run TypeScript typecheck
         run: npm run typecheck
 
-      - name: Run tests
+      - name: Run JavaScript syntax check
+        run: npm run check:syntax
+
+      - name: Build frontend production bundle
+        run: npm run build -w apps/web
+
+      - name: Run unit tests
         run: npm run test

@@ -19,6 +19,34 @@ export class ApiError extends Error {
 
 let refreshPromise: Promise<boolean> | null = null;
 
+/**
+ * Resolves the full URL for an API endpoint using VITE_API_BASE_URL when defined,
+ * or falling back to relative /api paths. Avoids duplicate /api prefixes.
+ */
+export function buildApiUrl(endpoint: string): string {
+  if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
+    return endpoint;
+  }
+
+  const rawBase = (import.meta.env?.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+
+  if (!rawBase) {
+    return cleanEndpoint.startsWith("/api") ? cleanEndpoint : `/api${cleanEndpoint}`;
+  }
+
+  if (rawBase.endsWith("/api")) {
+    if (cleanEndpoint === "/api") return rawBase;
+    if (cleanEndpoint.startsWith("/api/")) return `${rawBase}${cleanEndpoint.slice(4)}`;
+    return `${rawBase}${cleanEndpoint}`;
+  }
+
+  if (cleanEndpoint.startsWith("/api")) {
+    return `${rawBase}${cleanEndpoint}`;
+  }
+  return `${rawBase}/api${cleanEndpoint}`;
+}
+
 function isAuthEndpoint(url: string): boolean {
   return (
     url.includes("/auth/login") ||
@@ -49,7 +77,7 @@ export function clearLegacyTokens(): void {
 async function executeTokenRefresh(): Promise<boolean> {
   try {
     // The refresh cookie is sent automatically; the API answers with new cookies.
-    const res = await fetch("/api/auth/refresh", {
+    const res = await fetch(buildApiUrl("/auth/refresh"), {
       method: "POST",
       credentials: "include",
     });
@@ -76,11 +104,7 @@ export async function apiFetch<T = any>(
   endpoint: string,
   options: RequestInit & { _isRetry?: boolean } = {},
 ): Promise<T> {
-  const url = endpoint.startsWith("http")
-    ? endpoint
-    : endpoint.startsWith("/api")
-      ? endpoint
-      : `/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  const url = buildApiUrl(endpoint);
 
   const headers = new Headers(options.headers || {});
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {

@@ -54,8 +54,13 @@ export function useSocket() {
 
     // Connect socket if not already connected
     if (!socketInstance) {
+      const socketUrl =
+        (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SOCKET_URL
+          ? String(import.meta.env.VITE_SOCKET_URL).trim().replace(/\/+$/, '')
+          : '') || (typeof window !== 'undefined' ? window.location.origin : '');
+
       // The handshake carries the httpOnly login cookie; no token is passed by script.
-      const socket = io(window.location.origin, {
+      const socket = io(socketUrl, {
         withCredentials: true,
         transports: ['websocket', 'polling'],
         reconnectionAttempts: 5,

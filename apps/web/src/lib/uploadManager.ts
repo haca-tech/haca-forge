@@ -1,4 +1,4 @@
-import { apiFetch, refreshSession } from './api';
+import { apiFetch, buildApiUrl, refreshSession } from './api';
 
 export type UploadKind = 'video' | 'image' | 'pdf';
 
@@ -201,7 +201,7 @@ export class ResumableUploadTask {
       let retriedAfterRefresh = false;
       const send = () => {
         this.xhr = new XMLHttpRequest();
-        this.xhr.open('POST', '/api/uploads/file');
+        this.xhr.open('POST', buildApiUrl('/uploads/file'));
         this.xhr.withCredentials = true;
 
         this.xhr.upload.onprogress = (e) => {

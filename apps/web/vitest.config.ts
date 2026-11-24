@@ -6,5 +6,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    env: {
+      VITE_API_BASE_URL: '',
+      VITE_SOCKET_URL: '',
+    },
   },
 });

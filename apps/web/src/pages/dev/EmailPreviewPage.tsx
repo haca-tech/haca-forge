@@ -3,6 +3,7 @@
 // The rendering happens on the API (GET /api/dev/emails), from the same templates the app sends.
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { buildApiUrl } from '../../lib/api';
 
 interface EmailPreview {
   name: string;
@@ -26,7 +27,7 @@ const EmailPreviewPage: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/dev/emails')
+    fetch(buildApiUrl('/dev/emails'))
       .then((res) => {
         if (!res.ok) throw new Error(`The API answered ${res.status}. Is it running in development?`);
         return res.json();
