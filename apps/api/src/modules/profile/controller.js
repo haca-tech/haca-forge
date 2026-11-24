@@ -1,4 +1,5 @@
 import * as profileService from './service.js';
+import { getClearCookieOptions } from '../../lib/authCookies.js';
 
 export async function getProfileHandler(req, res, next) {
   try {
@@ -116,8 +117,9 @@ export async function revokeSessionHandler(req, res, next) {
     const result = await profileService.revokeSession(req.user._id, req.params.id, token);
 
     if (result.isCurrent) {
-      res.clearCookie('accessToken');
-      res.clearCookie('refreshToken');
+      const clearOptions = getClearCookieOptions();
+      res.clearCookie('accessToken', clearOptions);
+      res.clearCookie('refreshToken', clearOptions);
     }
 
     return res.status(200).json(result);

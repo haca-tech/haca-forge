@@ -5,24 +5,13 @@ import { ROLE_PERMISSIONS, normalizeRole } from "@mmp/shared";
 import { disconnectUserSockets } from "../../lib/socketHub.js";
 import { buildAccessInfo } from "../../lib/accessInfo.js";
 import { Person } from "../people/model.js";
+import { getCookieOptions, getClearCookieOptions } from "../../lib/authCookies.js";
 
 /** The access block for a just-signed-in user (reads their calendar limit). */
 async function accessFor(publicUser) {
   const id = publicUser?._id || publicUser?.id;
   const person = id ? await Person.findById(id).select("role status calendarScope").lean() : null;
   return buildAccessInfo(person || publicUser);
-}
-
-function getCookieOptions(maxAgeMs) {
-  const isProd = env.NODE_ENV === "production";
-  return {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: "lax",
-    domain: env.COOKIE_DOMAIN || undefined,
-    maxAge: maxAgeMs,
-    path: "/",
-  };
 }
 
 export async function login(req, res, next) {
@@ -91,13 +80,7 @@ export async function logout(req, res, next) {
       disconnectUserSockets(req.user._id);
     }
 
-    const clearOptions = {
-      httpOnly: true,
-      secure: env.NODE_ENV === "production",
-      sameSite: "lax",
-      domain: env.COOKIE_DOMAIN || undefined,
-      path: "/",
-    };
+    const clearOptions = getClearCookieOptions();
 
     res.clearCookie("accessToken", clearOptions);
     res.clearCookie("refreshToken", clearOptions);

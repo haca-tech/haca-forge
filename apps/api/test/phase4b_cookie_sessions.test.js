@@ -7,6 +7,7 @@ import { io as ioClient } from 'socket.io-client';
 import { app, server } from '../src/server.js';
 import { env } from '../src/config/env.js';
 import { Person } from '../src/modules/people/model.js';
+import { getCookieOptions, getClearCookieOptions } from '../src/lib/authCookies.js';
 
 const PASSWORD = 'CookieOnly123!';
 
@@ -135,5 +136,88 @@ describe('Phase 4b: login tokens only in httpOnly cookies', () => {
   it('a socket with no cookie is refused', async () => {
     const result = await connect(null);
     expect(result.ok).toBe(false);
+  });
+
+  describe('cookie configuration & clearing consistency', () => {
+    const originalEnv = env.NODE_ENV;
+    const originalCookieDomain = env.COOKIE_DOMAIN;
+
+    afterAll(() => {
+      env.NODE_ENV = originalEnv;
+      env.COOKIE_DOMAIN = originalCookieDomain;
+    });
+
+    it('production cookie options enforce sameSite=none, secure=true, httpOnly=true', () => {
+      env.NODE_ENV = 'production';
+      env.COOKIE_DOMAIN = '';
+      const opts = getCookieOptions(15 * 60 * 1000);
+      expect(opts).toMatchObject({
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        domain: undefined,
+        path: '/',
+        maxAge: 15 * 60 * 1000,
+      });
+
+      const clearOpts = getClearCookieOptions();
+      expect(clearOpts).toMatchObject({
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        domain: undefined,
+        path: '/',
+      });
+    });
+
+    it('development cookie options enforce sameSite=lax, secure=false, httpOnly=true', () => {
+      env.NODE_ENV = 'development';
+      env.COOKIE_DOMAIN = '';
+      const opts = getCookieOptions(7 * 24 * 60 * 60 * 1000);
+      expect(opts).toMatchObject({
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        domain: undefined,
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      const clearOpts = getClearCookieOptions();
+      expect(clearOpts).toMatchObject({
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        domain: undefined,
+        path: '/',
+      });
+    });
+
+    it('preserves custom COOKIE_DOMAIN if set and trims whitespace', () => {
+      env.COOKIE_DOMAIN = ' .haca.tech ';
+      const opts = getCookieOptions(1000);
+      expect(opts.domain).toBe('.haca.tech');
+
+      env.COOKIE_DOMAIN = '   ';
+      const emptyOpts = getCookieOptions(1000);
+      expect(emptyOpts.domain).toBeUndefined();
+    });
+
+    it('logout clears both cookies with consistent path and attributes', async () => {
+      env.NODE_ENV = 'development';
+      const { accessToken } = readCookies(await login());
+      const res = await request(app)
+        .post('/api/auth/logout')
+        .set('Cookie', cookieHeader(accessToken.value));
+      expect(res.status).toBe(200);
+
+      const cookies = readCookies(res);
+      expect(cookies.accessToken).toBeDefined();
+      expect(cookies.refreshToken).toBeDefined();
+      expect(cookies.accessToken.attrs).toContain('httponly');
+      expect(cookies.accessToken.attrs).toContain('path=/');
+      expect(cookies.refreshToken.attrs).toContain('httponly');
+      expect(cookies.refreshToken.attrs).toContain('path=/');
+    });
   });
 });
