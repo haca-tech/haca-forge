@@ -1603,6 +1603,7 @@ export const AUTOMATION_RULE_KEYS = [
   "todo_escalation",
   "blocker_dependency_alert",
   "revision_pattern_flag",
+  "pause_reminders",
   "weekly_report",
 ] as const;
 export type AutomationRuleKey = (typeof AUTOMATION_RULE_KEYS)[number];

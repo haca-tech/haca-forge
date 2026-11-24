@@ -57,7 +57,6 @@ const workItemSchema = new mongoose.Schema(
       type: String,
       enum: WORK_ITEM_STATUSES,
       default: 'Not Started',
-      index: true,
     },
     priority: {
       type: String,

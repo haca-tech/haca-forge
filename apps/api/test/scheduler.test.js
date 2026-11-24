@@ -10,6 +10,7 @@ import {
 } from '../src/lib/scheduler.js';
 import { enqueueEmail } from '../src/lib/queue.js';
 import * as emailModule from '../src/lib/email/index.js';
+import { AUTOMATION_RULE_KEYS } from '@mmp/shared';
 
 describe('Scheduled Automation: node-cron Scheduler Suite', () => {
   beforeEach(() => {
@@ -159,6 +160,10 @@ describe('Direct Email Processing (enqueueEmail without Redis/BullMQ)', () => {
       error: 'SMTP connection timeout',
       mode: 'direct',
     });
+  });
+
+  it('validates pause_reminders as a valid enum in AutomationRule schema', () => {
+    expect(AUTOMATION_RULE_KEYS).toContain('pause_reminders');
   });
 
   it('returns failure when template name is invalid without throwing', async () => {
