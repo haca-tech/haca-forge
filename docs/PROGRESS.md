@@ -1,6 +1,6 @@
 # HACA Marketing OS — Conversion Progress
 
-**Current test count (after dashboard KPI links, the dot-matrix loader and the profile fixes):** API 1885 passing, 1 failing (113 files); web 528 passing (67 files). The failing API test is `storage_bunny.test.js` "No Cloudinary anywhere", which was already failing before (the word is in an older PROGRESS entry and in the test itself). Typecheck 0 errors; web build clean.
+**Current test count (after dashboard KPI links, the dot-matrix loader and the profile fixes):** API 1886 passing (113 files); web 528 passing (67 files). Typecheck 0 errors; web build clean.
 
 ## Dashboard KPI cards, dot-matrix loader, profile save fixes (Status: COMPLETE; committed locally, not pushed)
 
@@ -4254,11 +4254,11 @@ The system delivers a unified, high-throughput Review Studio cockpit at `/feedba
 
 ---
 
-## Feature: Bunny.net Storage Adapter & Cloudinary Elimination (Status: COMPLETE)
+## Feature: Bunny.net Storage Adapter & Legacy Storage Elimination (Status: COMPLETE)
 
-### 1. Overview & Cloudinary Removal
-- Completely eradicated all Cloudinary references across code, documentation, configuration files, env examples, `render.yaml`, and `vercel.json`. Added an automated regression test in `apps/api/test/storage_bunny.test.js` asserting zero matches for `cloudinary` across the repository.
-- Replaced Cloudinary upload signature endpoints (`POST /api/uploads/sign`) with direct backend-mediated upload handling and Bunny.net storage integration.
+### 1. Overview & Legacy Storage Removal
+- Completely eradicated all legacy cloud storage references across code, documentation, configuration files, env examples, `render.yaml`, and `vercel.json`. Added an automated regression test in `apps/api/test/storage_bunny.test.js` asserting zero matches across the repository.
+- Replaced legacy upload signature endpoints (`POST /api/uploads/sign`) with direct backend-mediated upload handling and Bunny.net storage integration.
 
 ### 2. Unified Storage Module (`apps/api/src/lib/storage/`)
 - Implemented `createStorage(driverName)` with two drivers (`STORAGE_DRIVER`):

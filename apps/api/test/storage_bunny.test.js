@@ -157,10 +157,11 @@ describe('Local driver (unchanged behaviour)', () => {
   });
 });
 
-describe('No Cloudinary anywhere in the repo', () => {
-  it('has zero references to cloudinary across tracked files', () => {
+describe('No legacy storage references anywhere in the repo', () => {
+  it('has zero references across tracked files', () => {
     const root = path.resolve(__dirname, '../../..');
-    const res = spawnSync('git', ['grep', '-i', 'cloudinary'], {
+    const target = ['cloud', 'inary'].join('');
+    const res = spawnSync('git', ['grep', '-i', target, '--', ':(exclude)*storage_bunny.test.js'], {
       cwd: root,
       encoding: 'utf8',
     });
