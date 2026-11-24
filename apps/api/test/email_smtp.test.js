@@ -13,13 +13,13 @@ import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 import { app } from '../src/server.js';
-import { env, emailSettingsProblems, SMTP_SETTINGS } from '../src/config/env.js';
+import { env, emailSettingsProblems, SMTP_SETTINGS, RESEND_SETTINGS } from '../src/config/env.js';
 import { connectDB } from '../src/config/db.js';
 import { logger } from '../src/lib/logger.js';
 import { Person } from '../src/modules/people/model.js';
 import { AccessRequest } from '../src/modules/access/model.js';
 import { PhoneVerification } from '../src/modules/profile/phoneVerification.model.js';
-import { createConsoleDriver, createSmtpDriver, createDriver } from '../src/lib/email/drivers.js';
+import { createConsoleDriver, createSmtpDriver, createResendDriver, createDriver } from '../src/lib/email/drivers.js';
 import {
   deliver,
   sendEmail,
@@ -137,6 +137,35 @@ describe('Drivers', () => {
     createSmtpDriver({ host: 'h', port: 587, secure: 'false', user: 'u', pass: 'p' }, { createTransport });
     expect(createTransport.mock.calls[0][0]).toMatchObject({ port: 587, secure: false });
   });
+
+  it('the Resend driver sends from, to, subject, html and text through the Resend client', async () => {
+    const send = vi.fn(async () => ({ data: { id: 'resend-msg-123' }, error: null }));
+    const mockClient = { emails: { send } };
+    const resendDriver = createResendDriver(
+      { apiKey: 're_test_key_123', from: 'HACA Forge <onboarding@resend.dev>' },
+      { client: mockClient }
+    );
+
+    setEmailDriver(resendDriver);
+    const result = await sendEmail({ to: 'team@example.com', template: 'test', data: { driver: 'resend', sentAt: 'now' } });
+    expect(result).toEqual({ ok: true, messageId: 'resend-msg-123' });
+    expect(send).toHaveBeenCalledTimes(1);
+    const payload = send.mock.calls[0][0];
+    expect(payload.to).toEqual(['team@example.com']);
+    expect(payload.subject).toBe('HACA Forge test email');
+    expect(payload.html).toContain('HACA FORGE');
+  });
+
+  it('the Resend driver throws error when client returns an error', async () => {
+    const send = vi.fn(async () => ({ data: null, error: { message: 'Domain not verified' } }));
+    const mockClient = { emails: { send } };
+    const resendDriver = createResendDriver(
+      { apiKey: 're_test_key_123', from: 'HACA Forge <onboarding@resend.dev>' },
+      { client: mockClient }
+    );
+
+    await expect(resendDriver.send({ to: 'x@y.com', subject: 's', html: 'h', text: 't' })).rejects.toThrow('Domain not verified');
+  });
 });
 
 describe('Retry once, then a friendly error; never a crash', () => {
@@ -204,6 +233,7 @@ describe('Retry once, then a friendly error; never a crash', () => {
 describe('Startup settings', () => {
   it('EMAIL_DRIVER=smtp needs every SMTP setting and EMAIL_FROM; console needs none', () => {
     expect(SMTP_SETTINGS).toEqual(['SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'EMAIL_FROM']);
+    expect(RESEND_SETTINGS).toEqual(['RESEND_API_KEY', 'EMAIL_FROM']);
     expect(emailSettingsProblems({ EMAIL_DRIVER: 'console' })).toEqual([]);
     expect(emailSettingsProblems({})).toEqual([]);
     expect(emailSettingsProblems({ EMAIL_DRIVER: 'smtp', SMTP_HOST: 'smtp.gmail.com', SMTP_PORT: '465', SMTP_SECURE: 'true', SMTP_USER: 'u', SMTP_PASS: ' ' })).toEqual([
@@ -212,8 +242,15 @@ describe('Startup settings', () => {
     ]);
   });
 
-  it('resend (not built), PHONE_OTP_CHANNEL=sms (no provider) and an SVG logo are refused', () => {
-    expect(emailSettingsProblems({ EMAIL_DRIVER: 'resend' })[0]).toMatch(/resend is not built/);
+  it('EMAIL_DRIVER=resend requires RESEND_API_KEY and EMAIL_FROM', () => {
+    expect(emailSettingsProblems({ EMAIL_DRIVER: 'resend' })).toEqual([
+      'RESEND_API_KEY is missing or empty',
+      'EMAIL_FROM is missing or empty',
+    ]);
+    expect(emailSettingsProblems({ EMAIL_DRIVER: 'resend', RESEND_API_KEY: 're_123', EMAIL_FROM: 'HACA <onboarding@resend.dev>' })).toEqual([]);
+  });
+
+  it('PHONE_OTP_CHANNEL=sms (no provider) and an SVG logo are refused', () => {
     expect(emailSettingsProblems({ PHONE_OTP_CHANNEL: 'sms' })[0]).toMatch(/no SMS provider/);
     expect(emailSettingsProblems({ EMAIL_LOGO_URL: 'https://cdn.example.com/logo.svg' })[0]).toMatch(/PNG/);
     expect(emailSettingsProblems({ EMAIL_LOGO_URL: 'https://cdn.example.com/logo.png' })).toEqual([]);

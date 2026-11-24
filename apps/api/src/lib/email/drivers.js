@@ -5,6 +5,7 @@
 // EMAIL_DRIVER picks one. Nothing outside lib/email talks to a driver directly.
 
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 const PREVIEW_CHARS = 280;
 
@@ -48,13 +49,37 @@ export function createSmtpDriver({ host, port, secure, user, pass }, { createTra
 }
 
 /**
- * "resend": not built yet. To add it later: install the `resend` package, read RESEND_API_KEY in
- * config/env.js (and require it in emailSettingsProblems), and return
- *   { name: 'resend', send: (m) => resend.emails.send(m).then((r) => ({ messageId: r.data?.id })), verify: async () => {} }
- * here. Startup refuses EMAIL_DRIVER=resend until then, so this is never reached.
+ * "resend": Resend API email driver using the official Resend SDK.
+ * `client` is injectable so tests can pass a mock client and avoid network calls.
  */
-export function createResendDriver() {
-  throw new Error('The resend email driver is not built yet (see docs/EMAIL.md).');
+export function createResendDriver({ apiKey, from: defaultFrom }, { client = null } = {}) {
+  const resend = client || (apiKey ? new Resend(apiKey) : null);
+  return {
+    name: 'resend',
+    async send({ from, to, subject, html, text }) {
+      if (!resend) throw new Error('Resend is not initialized: RESEND_API_KEY is missing');
+      const recipient = Array.isArray(to) ? to : [to];
+      const { data, error } = await resend.emails.send({
+        from: from || defaultFrom,
+        to: recipient,
+        subject,
+        html,
+        text,
+      });
+      if (error) {
+        throw new Error(error.message || 'Resend failed to send email');
+      }
+      return { messageId: data?.id };
+    },
+    async verify() {
+      if (!apiKey) throw new Error('RESEND_API_KEY is missing');
+      if (!resend) throw new Error('Resend client could not be created');
+      const { error } = await resend.domains.list();
+      if (error && error.statusCode === 401) {
+        throw new Error(`Resend verification failed: ${error.message}`);
+      }
+    },
+  };
 }
 
 export function createDriver(name, settings, deps) {
@@ -65,7 +90,10 @@ export function createDriver(name, settings, deps) {
         deps
       );
     case 'resend':
-      return createResendDriver(settings, deps);
+      return createResendDriver(
+        { apiKey: settings.RESEND_API_KEY, from: settings.EMAIL_FROM },
+        deps
+      );
     case 'console':
     default:
       return createConsoleDriver(deps);

@@ -22,8 +22,9 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   COOKIE_DOMAIN: z.string().optional(),
   // Email (docs/EMAIL.md). "console" logs each email and sends nothing (dev and tests);
-  // "smtp" sends through Nodemailer (Gmail app password for now). "resend" is reserved for later.
+  // "smtp" sends through Nodemailer; "resend" sends through the Resend API.
   EMAIL_DRIVER: z.enum(['console', 'smtp', 'resend']).default('console'),
+  RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
   EMAIL_LOGO_URL: z.string().optional(),
   SMTP_HOST: z.string().optional(),
@@ -56,6 +57,9 @@ export function missingStorageSettings(values) {
 /** With EMAIL_DRIVER=smtp every one of these is required. Names only; values are never printed. */
 export const SMTP_SETTINGS = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'EMAIL_FROM'];
 
+/** With EMAIL_DRIVER=resend every one of these is required. Names only; values are never printed. */
+export const RESEND_SETTINGS = ['RESEND_API_KEY', 'EMAIL_FROM'];
+
 /**
  * Email and phone-OTP configuration problems, as readable lines (never values). Empty when fine.
  * Takes the raw environment so a missing SMTP_PORT is caught even though it is optional in the schema.
@@ -69,7 +73,9 @@ export function emailSettingsProblems(values) {
     }
   }
   if (driver === 'resend') {
-    problems.push('EMAIL_DRIVER=resend is not built yet; use smtp or console (see docs/EMAIL.md)');
+    for (const name of RESEND_SETTINGS) {
+      if (!String(values[name] ?? '').trim()) problems.push(`${name} is missing or empty`);
+    }
   }
   if ((values.PHONE_OTP_CHANNEL || 'email') === 'sms') {
     problems.push('PHONE_OTP_CHANNEL=sms has no SMS provider yet; use email');

@@ -1,13 +1,13 @@
 # Email
 
-Every email HACA Forge sends goes through one module, `apps/api/src/lib/email/`, and uses one branded layout. For now the emails go out through Gmail SMTP with an app password. Later, Resend can replace Gmail by changing env vars only.
+Every email HACA Forge sends goes through one module, `apps/api/src/lib/email/`, and uses one branded layout. Emails can be sent via **Resend** HTTPS API (recommended for production to prevent SMTP port blocks) or **Gmail SMTP** (Nodemailer).
 
 ## How it works
 
 | File | What it does |
 | --- | --- |
 | `lib/email/index.js` | `sendEmail({ to, template, data })` renders a template and delivers it. If a send fails, it waits about 1.5s and retries once. It never throws, so check `ok` on the result. `sendEmailOrFail` is the same but throws `EMAIL_SEND_FAILED` (503, "We couldn't send the email. Try again.") when both tries fail. It also holds the throttle and the startup check. |
-| `lib/email/drivers.js` | The drivers: `console`, `smtp`, and a marked place for `resend` (not built yet). |
+| `lib/email/drivers.js` | The drivers: `console`, `resend` (via official Resend SDK over HTTPS), and `smtp` (Nodemailer). |
 | `lib/email/layout.js` | The one layout. Builds the HTML and plain-text versions from the same content blocks, and escapes all text. |
 | `lib/email/templates.js` | Every template, each with sample data. |
 | `lib/queue.js` `enqueueEmail` | Notification emails are delivered directly via the configured email driver (Gmail SMTP / console) with automatic retry. |
@@ -24,9 +24,10 @@ Failures are logged with the error message and code, never the SMTP password, an
 
 | Var | Value |
 | --- | --- |
-| `EMAIL_DRIVER` | `console` (default): logs recipient, subject and a short preview, and sends nothing. `smtp`: sends with Nodemailer. `resend`: refused at startup until it is built. |
-| `EMAIL_FROM` | Sender, e.g. `HACA Forge <hacaforge@gmail.com>`. With Gmail it must be the Gmail address (or a verified "Send mail as" alias). |
-| `SMTP_HOST` | `smtp.gmail.com` |
+| `EMAIL_DRIVER` | `console` (default): logs recipient, subject and a short preview, and sends nothing. `resend`: sends with the official Resend SDK over HTTPS (recommended for production). `smtp`: sends with Nodemailer. |
+| `RESEND_API_KEY` | Resend API key (e.g. `re_...`). Required when `EMAIL_DRIVER=resend`. |
+| `EMAIL_FROM` | Sender address. For Resend unverified test accounts, use `HACA Forge <onboarding@resend.dev>`. For verified custom domains, use `HACA Forge <no-reply@yourdomain.com>`. With Gmail SMTP, it must match the Gmail address. |
+| `SMTP_HOST` | `smtp.gmail.com` (when using `EMAIL_DRIVER=smtp`) |
 | `SMTP_PORT` | `465` (SSL) or `587` (STARTTLS) |
 | `SMTP_SECURE` | `true` for 465, `false` for 587 |
 | `SMTP_USER` | The Gmail address |
@@ -36,8 +37,8 @@ Failures are logged with the error message and code, never the SMTP password, an
 | `FRONTEND_URL` | Used for the links in emails and the app URL in the footer. |
 
 **Startup checks:**
-- With `EMAIL_DRIVER=smtp` and any `SMTP_*` setting or `EMAIL_FROM` missing, the API and the worker exit and list the missing names (never values).
-- Once started, they check the SMTP connection and log "SMTP connection verified" or "SMTP connection check failed", with host and port only. A failed check is logged but does not stop the server.
+- With `EMAIL_DRIVER=resend`, `RESEND_API_KEY` and `EMAIL_FROM` are required. Startup validates driver connectivity via Resend API and logs "Resend connection verified".
+- With `EMAIL_DRIVER=smtp` and any `SMTP_*` setting or `EMAIL_FROM` missing, the API exits and lists the missing names (never values). Once started, it checks the SMTP connection and logs "SMTP connection verified" or "SMTP connection check failed".
 
 Tests always use the console driver (set in `apps/api/vitest.config.js`), whatever `apps/api/.env` says, so tests never send real email.
 
@@ -114,11 +115,15 @@ If the email can't be sent, the code is discarded, the user sees "We couldn't se
 
 The SMS path (`sendPhoneOtpBySms` in `modules/profile/service.js`) is kept but unused. To bring SMS back: add a provider, send from that function, and allow `PHONE_OTP_CHANNEL=sms` in `emailSettingsProblems` (`config/env.js`).
 
-## Switching to Resend later
+## Resend setup
 
-1. Install `resend` in `apps/api`.
-2. In `lib/email/drivers.js`, replace `createResendDriver` with a driver whose `send(message)` calls `resend.emails.send(message)` and returns `{ messageId }` (the comment there shows the shape).
-3. In `config/env.js`, add `RESEND_API_KEY` to the schema, require it for `EMAIL_DRIVER=resend` in `emailSettingsProblems`, and remove the "not built yet" refusal.
-4. In Render, set `EMAIL_DRIVER=resend`, `RESEND_API_KEY` and an `EMAIL_FROM` on a domain verified in Resend. Remove the `SMTP_*` values.
-
-Templates, retry, throttle and callers don't change.
+1. Create an API key at [resend.com/api-keys](https://resend.com/api-keys).
+2. For initial testing without a custom domain:
+   - Set `EMAIL_DRIVER=resend`
+   - Set `RESEND_API_KEY=your_key`
+   - Set `EMAIL_FROM="HACA Forge <onboarding@resend.dev>"`
+   - Note: Resend's testing sandbox only allows sending to the email registered on your Resend account.
+3. For production domain verification:
+   - Add your domain at [resend.com/domains](https://resend.com/domains) and configure DNS (DKIM, SPF, MX).
+   - Once verified, update `EMAIL_FROM` to e.g. `"HACA Forge <no-reply@yourdomain.com>"`.
+   - Now emails can be sent to any recipient address without restriction.

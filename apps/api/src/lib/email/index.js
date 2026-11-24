@@ -130,7 +130,7 @@ export function resetEmailThrottle() {
 
 // ---- Startup ---------------------------------------------------------------------------------------
 
-/** Check the SMTP connection once at start and log the result (host and port only, no secrets). */
+/** Check the email connection once at start and log the result (host/provider only, no secrets). */
 export async function verifyEmailOnStartup() {
   if (env.EMAIL_DRIVER === 'console') {
     if (env.NODE_ENV === 'production') {
@@ -139,6 +139,16 @@ export async function verifyEmailOnStartup() {
       logger.info('Email: console driver (emails are logged, not sent)');
     }
     return { ok: true, driver: 'console' };
+  }
+  if (env.EMAIL_DRIVER === 'resend') {
+    try {
+      await getDriver().verify();
+      logger.info('Email: Resend connection verified');
+      return { ok: true, driver: 'resend' };
+    } catch (err) {
+      logger.error({ err: describeError(err) }, 'Email: Resend connection check failed');
+      return { ok: false, driver: 'resend', error: err?.message };
+    }
   }
   try {
     await getDriver().verify();
