@@ -1,214 +1,37 @@
-import { Worker } from 'bullmq';
 import { connectDB } from './config/db.js';
 import { logger } from './lib/logger.js';
-import { deliver, verifyEmailOnStartup } from './lib/email/index.js';
-import {
-  getRedisConnection,
-  initQueues,
-  isRedisReady,
-  QUEUE_NAMES,
-  scheduledJobsQueue,
-} from './lib/queue.js';
-import {
-  runOverdueEscalationJob,
-  runTodoEscalationJob,
-  runBlockerAlertsJob,
-  runRevisionPatternFlagJob,
-  runWeeklyReportJob,
-  runMonthEndReportJob,
-  runPauseRemindersJob,
-} from './modules/jobs/processors.js';
-import { removeRetiredSchedules } from './modules/jobs/retired.js';
+import { verifyEmailOnStartup } from './lib/email/index.js';
+import { startScheduler, stopScheduler } from './lib/scheduler.js';
+import { ensureAutomationRules } from './modules/automation/runner.js';
 import { fileURLToPath } from 'url';
 
-let emailWorker = null;
-let scheduledWorker = null;
-let inMemoryIntervals = [];
-
+/**
+ * Standalone background scheduler entrypoint.
+ * NOTE: In unified production deployments, the scheduler runs inside the API server (server.js).
+ * This standalone runner is provided for backwards compatibility or dedicated scheduler processes.
+ */
 export async function startWorker() {
-  logger.info('🚀 Starting Marketing Portal Background Worker...');
+  logger.info('🚀 Starting Marketing Portal Standalone Scheduler...');
 
   // 1. Connect to MongoDB
   await connectDB();
 
-  // 2. Check the email connection once (logs success or failure, never secrets)
+  // 2. Check the email connection once
   await verifyEmailOnStartup();
 
-  // 3. Attempt Redis connection for BullMQ
-  const queuesReady = await initQueues();
+  // 3. Ensure default automation rules exist
+  await ensureAutomationRules();
 
-  if (queuesReady && isRedisReady()) {
-    const connection = getRedisConnection();
+  // 4. Start node-cron scheduler
+  await startScheduler();
 
-    // Worker 1: Email Queue Worker
-    emailWorker = new Worker(
-      QUEUE_NAMES.EMAIL,
-      async (job) => {
-        logger.info({ jobId: job.id, to: job.data.to, subject: job.data.subject }, 'Processing email job');
-        // One try per attempt; BullMQ retries the job once (attempts: 2) when this throws.
-        const result = await deliver(job.data, { retries: 0 });
-        if (!result.ok) throw new Error(result.error);
-        return result;
-      },
-      { connection, concurrency: 5 }
-    );
-
-    emailWorker.on('completed', (job) => {
-      logger.debug({ jobId: job.id }, 'Email job completed successfully');
-    });
-
-    emailWorker.on('failed', (job, err) => {
-      logger.error({ jobId: job?.id, err: err.message }, 'Email job failed');
-    });
-
-    // Worker 2: Scheduled Jobs Worker
-    scheduledWorker = new Worker(
-      QUEUE_NAMES.SCHEDULED,
-      async (job) => {
-        logger.info({ jobName: job.name }, 'Executing scheduled background job');
-        switch (job.name) {
-          case 'overdue_escalation':
-          case 'overdue-escalation':
-          case 'deadline-reminders':
-            return runOverdueEscalationJob(job);
-          case 'todo_escalation':
-          case 'todo-escalation':
-          case 'daily-digest':
-            return runTodoEscalationJob(job);
-          case 'blocker_dependency_alert':
-          case 'blocker-dependency-alert':
-            return runBlockerAlertsJob(job);
-          case 'revision_pattern_flag':
-          case 'revision-pattern-flag':
-            return runRevisionPatternFlagJob(job);
-          case 'pause_reminders':
-            return runPauseRemindersJob(job);
-          case 'weekly_report':
-          case 'weekly-report':
-            return runWeeklyReportJob(job);
-          case 'month_end_report':
-          case 'month-end-report':
-            return runMonthEndReportJob(job);
-          default:
-            logger.warn({ jobName: job.name }, 'Unknown scheduled job name');
-        }
-      },
-      { connection, concurrency: 2 }
-    );
-
-    // Register repeatable jobs in BullMQ for the 4 reminder rules. The retired report
-    // schedules (weekly_report, month_end_report) are removed from the queue first.
-    if (scheduledJobsQueue) {
-      try {
-        await removeRetiredSchedules(scheduledJobsQueue);
-      } catch (err) {
-        logger.warn({ err: err.message }, 'Could not remove retired report schedules');
-      }
-
-      // 1. Overdue escalation: every 15 minutes
-      await scheduledJobsQueue.add(
-        'overdue_escalation',
-        {},
-        {
-          repeat: { pattern: '*/15 * * * *' },
-          removeOnComplete: true,
-        }
-      );
-
-      // 2. Stale todo escalation: every morning at 09:00
-      await scheduledJobsQueue.add(
-        'todo_escalation',
-        {},
-        {
-          repeat: { pattern: '0 9 * * *' },
-          removeOnComplete: true,
-        }
-      );
-
-      // 3. Blocker dependency alerts: every morning at 10:00
-      await scheduledJobsQueue.add(
-        'blocker_dependency_alert',
-        {},
-        {
-          repeat: { pattern: '0 10 * * *' },
-          removeOnComplete: true,
-        }
-      );
-
-      // 4. Revision pattern flag & audit: hourly
-      await scheduledJobsQueue.add(
-        'revision_pattern_flag',
-        {},
-        {
-          repeat: { pattern: '0 * * * *' },
-          removeOnComplete: true,
-        }
-      );
-
-      // 5. Pause request reminders: hourly (sends only on working days from 09:00 IST, once each)
-      await scheduledJobsQueue.add(
-        'pause_reminders',
-        {},
-        {
-          repeat: { pattern: '0 * * * *' },
-          removeOnComplete: true,
-        }
-      );
-
-      logger.info('BullMQ repeatable jobs registered for 5 reminder rules');
-    }
-  } else {
-    logger.info('Running in lightweight standalone worker mode (in-memory interval scheduler)');
-
-    // In-memory intervals for local development without Redis
-    // Run initial scan once at startup
-    runOverdueEscalationJob().catch((err) => logger.warn({ err: err.message }, 'Initial overdue check warning'));
-    runTodoEscalationJob().catch((err) => logger.warn({ err: err.message }, 'Initial todo check warning'));
-    runBlockerAlertsJob().catch((err) => logger.warn({ err: err.message }, 'Initial blocker check warning'));
-    runRevisionPatternFlagJob().catch((err) => logger.warn({ err: err.message }, 'Initial revision pattern check warning'));
-    runPauseRemindersJob().catch((err) => logger.warn({ err: err.message }, 'Initial pause reminder check warning'));
-
-    // Check overdue deliverables every 15 minutes
-    const overdueInterval = setInterval(() => {
-      runOverdueEscalationJob().catch((err) => logger.error({ err: err.message }, 'Overdue escalation error'));
-    }, 15 * 60 * 1000);
-
-    // Stale todo escalation check every 60 minutes
-    const todoInterval = setInterval(() => {
-      runTodoEscalationJob().catch((err) => logger.error({ err: err.message }, 'Todo escalation error'));
-    }, 60 * 60 * 1000);
-
-    // Blocker SLA check every 60 minutes
-    const blockerInterval = setInterval(() => {
-      runBlockerAlertsJob().catch((err) => logger.error({ err: err.message }, 'Blocker alert error'));
-    }, 60 * 60 * 1000);
-
-    // Revision pattern check every 60 minutes
-    const revisionInterval = setInterval(() => {
-      runRevisionPatternFlagJob().catch((err) => logger.error({ err: err.message }, 'Revision pattern error'));
-    }, 60 * 60 * 1000);
-
-    // Pause request reminders every 60 minutes (Redis down: same scan, in memory)
-    const pauseInterval = setInterval(() => {
-      runPauseRemindersJob().catch((err) => logger.error({ err: err.message }, 'Pause reminder error'));
-    }, 60 * 60 * 1000);
-
-    inMemoryIntervals.push(overdueInterval, todoInterval, blockerInterval, revisionInterval, pauseInterval);
-  }
-
-  logger.info('✅ Marketing Portal Background Worker running and ready');
+  logger.info('✅ Marketing Portal Scheduler running and ready');
 }
 
 export async function stopWorker() {
-  logger.info('Stopping background worker...');
-  for (const interval of inMemoryIntervals) {
-    clearInterval(interval);
-  }
-  inMemoryIntervals = [];
-
-  if (emailWorker) await emailWorker.close();
-  if (scheduledWorker) await scheduledWorker.close();
-  logger.info('Background worker stopped cleanly');
+  logger.info('Stopping standalone scheduler...');
+  stopScheduler();
+  logger.info('Standalone scheduler stopped cleanly');
 }
 
 // Auto-run if executed directly as entrypoint

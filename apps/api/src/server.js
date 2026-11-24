@@ -62,7 +62,7 @@ import { ensureBaselineUsers } from "./modules/people/baselineUsers.js";
 import { authenticate } from "./middleware/auth.js";
 import { setSocketServer } from "./lib/socketHub.js";
 import { User } from "./modules/people/model.js";
-import { initQueues } from "./lib/queue.js";
+import { startScheduler, stopScheduler } from "./lib/scheduler.js";
 import { verifyEmailOnStartup } from "./lib/email/index.js";
 import { mountDevRoutes } from "./modules/dev/routes.js";
 import { initDomainEventListeners } from "./modules/notifications/service.js";
@@ -264,7 +264,7 @@ app.use(errorHandler);
 export async function startServer() {
   await connectDB();
   await ensureBaselineUsers();
-  await initQueues();
+  await startScheduler();
   // Not awaited: a slow or failing SMTP check is logged and never delays or blocks startup.
   verifyEmailOnStartup();
   await ensureAutomationRules();
@@ -322,7 +322,8 @@ let shuttingDown = false;
 const shutdown = (signal) => {
   if (shuttingDown) return;
   shuttingDown = true;
-  logger.info(`Received ${signal}. Closing HTTP server...`);
+  logger.info(`Received ${signal}. Closing HTTP server and stopping scheduler...`);
+  stopScheduler();
   // Release the port right away so a restarted process can bind immediately:
   // disconnect Socket.IO clients and drop idle/keep-alive HTTP connections.
   io.close();

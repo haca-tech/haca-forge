@@ -67,7 +67,7 @@
 # 2. Current Architecture & Technology Stack
 
 The platform is structured as an npm monorepo with strict module boundaries:
-* **`apps/api` (Backend):** Node 22 LTS, Express 5 (ESM), MongoDB with Mongoose, Zod `.strict()` validation, CASL attribute-based authorization, JWT in `httpOnly` secure cookies, BullMQ with Redis, Socket.IO 4.x real-time gateway, Pino structured logging, nodemailer-style mailer adapter.
+* **`apps/api` (Backend):** Node 22 LTS, Express 5 (ESM), MongoDB with Mongoose, Zod `.strict()` validation, CASL attribute-based authorization, JWT in `httpOnly` secure cookies, node-cron scheduled automations, Socket.IO 4.x real-time gateway, Pino structured logging, nodemailer-style mailer adapter.
 * **`apps/web` (Frontend):** React 18, Vite 6, TypeScript, Tailwind CSS with Soft-Glass Glassmorphism design tokens, TanStack React Query, FullCalendar, Recharts, Lucide React icons.
 * **`packages/shared` (`@mmp/shared`):** Universal types, enums, backward offset formulas, duration helpers, Zod validation schemas compiled cleanly via `tsup`.
 

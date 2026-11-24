@@ -1,120 +1,63 @@
-import { Queue, Worker } from 'bullmq';
-import Redis from 'ioredis';
-import { env } from '../config/env.js';
 import { logger } from './logger.js';
 import { deliver, renderEmail } from './email/index.js';
 
-let redisClient = null;
-let isRedisAvailable = false;
-let emailQueue = null;
-let scheduledJobsQueue = null;
+export const QUEUE_NAMES = Object.freeze({
+  EMAIL: 'email-direct',
+  SCHEDULED: 'scheduled-cron',
+});
 
-const QUEUE_NAMES = {
-  EMAIL: 'email-queue',
-  SCHEDULED: 'scheduled-jobs-queue',
-};
+export const emailQueue = null;
+export const scheduledJobsQueue = null;
 
-// Initialize Redis connection safely
 export function getRedisConnection() {
-  if (redisClient) return redisClient;
-
-  try {
-    const url = env.REDIS_URL || 'redis://127.0.0.1:6379';
-    redisClient = new Redis(url, {
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-      connectTimeout: 2000,
-      lazyConnect: true,
-      retryStrategy(times) {
-        if (times > 2) {
-          // Stop retrying quickly in local dev without Redis
-          return null;
-        }
-        return Math.min(times * 500, 2000);
-      },
-    });
-
-    redisClient.on('connect', () => {
-      isRedisAvailable = true;
-      logger.info('Connected to Redis successfully');
-    });
-
-    redisClient.on('error', (err) => {
-      isRedisAvailable = false;
-      logger.warn({ err: err.message }, 'Redis connection warning - background queue falling back to in-memory/direct mode');
-    });
-  } catch (err) {
-    isRedisAvailable = false;
-    logger.warn({ err: err.message }, 'Could not initialize Redis client');
-  }
-
-  return redisClient;
+  return null;
 }
 
 export async function initQueues() {
-  const connection = getRedisConnection();
-  if (!connection) return false;
-
-  try {
-    await connection.connect();
-    isRedisAvailable = true;
-
-    emailQueue = new Queue(QUEUE_NAMES.EMAIL, { connection });
-    scheduledJobsQueue = new Queue(QUEUE_NAMES.SCHEDULED, { connection });
-
-    logger.info('BullMQ Queues initialized with Redis backend');
-    return true;
-  } catch (err) {
-    isRedisAvailable = false;
-    logger.info({ message: err.message }, 'Redis offline or unreachable; using in-memory direct processing for background jobs');
-    return false;
-  }
+  return true;
 }
 
 export function isRedisReady() {
-  return isRedisAvailable;
+  return false;
 }
 
 /**
- * Queue an email for the background worker, or deliver it now when Redis is not available.
+ * Deliver an email directly via the configured email driver (SMTP / console).
  * Pass a rendered message ({ to, subject, html, text }) or a template ({ to, template, context }).
- * The worker tries a job twice (once, then one retry); a direct send retries once too. Never throws.
+ * Employs direct delivery with retry. Never throws, ensuring an email error does not crash callers.
+ *
+ * @param {object} options
+ * @param {string} options.to
+ * @param {string} [options.subject]
+ * @param {string} [options.html]
+ * @param {string} [options.text]
+ * @param {string} [options.template]
+ * @param {object} [options.context]
+ * @returns {Promise<{ success: boolean, messageId?: string, error?: string, mode: 'direct' }>}
  */
-export async function enqueueEmail({ to, subject, html, text, template, context }) {
-  if (template) {
-    try {
-      const rendered = renderEmail(template, context || {});
-      subject = subject || rendered.subject;
-      html = rendered.html;
-      text = rendered.text;
-    } catch (err) {
-      logger.error({ err: err.message, template }, 'Email template failed to render');
-      return { success: false, error: err.message, mode: 'none' };
+export async function enqueueEmail({ to, subject, html, text, template, context } = {}) {
+  try {
+    if (template) {
+      try {
+        const rendered = renderEmail(template, context || {});
+        subject = subject || rendered.subject;
+        html = rendered.html;
+        text = rendered.text;
+      } catch (err) {
+        logger.error({ err: err.message, template, to }, 'Email template failed to render');
+        return { success: false, error: err.message, mode: 'direct' };
+      }
     }
-  }
 
-  if (isRedisAvailable && emailQueue) {
-    try {
-      const job = await emailQueue.add(
-        'send-email',
-        { to, subject, html, text, template },
-        {
-          attempts: 2,
-          backoff: { type: 'fixed', delay: 2000 },
-          removeOnComplete: true,
-          removeOnFail: 100,
-        }
-      );
-      return { success: true, jobId: job.id, mode: 'queued' };
-    } catch (err) {
-      logger.warn({ err: err.message }, 'Failed to enqueue email to BullMQ, sending directly');
+    const result = await deliver({ to, subject, html, text, template });
+    if (result.ok) {
+      return { success: true, messageId: result.messageId, mode: 'direct' };
     }
-  }
 
-  const result = await deliver({ to, subject, html, text, template });
-  return result.ok
-    ? { success: true, messageId: result.messageId, mode: 'direct' }
-    : { success: false, error: result.error, mode: 'direct' };
+    logger.error({ err: result.error, to, subject, template }, 'Direct email delivery failed');
+    return { success: false, error: result.error, mode: 'direct' };
+  } catch (err) {
+    logger.error({ err: err.message, to, subject, template }, 'Unexpected error in email dispatch');
+    return { success: false, error: err.message, mode: 'direct' };
+  }
 }
-
-export { QUEUE_NAMES, emailQueue, scheduledJobsQueue };

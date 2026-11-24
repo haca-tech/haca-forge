@@ -1,5 +1,5 @@
 services:
-  # 1. API Web Service
+  # 1. API Web Service (Unified backend: Express API + Socket.IO + node-cron scheduler)
   - type: web
     name: mmp-api
     runtime: node
@@ -15,11 +15,6 @@ services:
         value: 10000
       - key: MONGODB_URI
         sync: false
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: mmp-redis
-          property: connectionString
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -68,49 +63,3 @@ services:
         sync: false
       - key: ADMIN_SEED_PASSWORD
         sync: false
-
-  # 2. Background Queue & Cron Worker
-  - type: worker
-    name: mmp-worker
-    runtime: node
-    plan: starter
-    region: oregon
-    buildCommand: npm install && npm run build -w packages/shared
-    startCommand: npm run worker -w apps/api
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: MONGODB_URI
-        sync: false
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: mmp-redis
-          property: connectionString
-      # Email (docs/EMAIL.md): EMAIL_DRIVER=smtp with a Gmail app password. Values are set in the Render dashboard.
-      - key: EMAIL_DRIVER
-        sync: false
-      - key: EMAIL_FROM
-        sync: false
-      - key: EMAIL_LOGO_URL
-        sync: false
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_SECURE
-        sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
-        sync: false
-      - key: PHONE_OTP_CHANNEL
-        sync: false
-
-  # 3. Redis Instance for BullMQ
-  - type: redis
-    name: mmp-redis
-    plan: starter
-    region: oregon
-    maxmemoryPolicy: noeviction
-    ipAllowList: [] # internal only within Render private network

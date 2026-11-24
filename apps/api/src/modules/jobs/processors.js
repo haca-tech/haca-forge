@@ -3,22 +3,22 @@ import { executeAutomationRule } from '../automation/runner.js';
 import { runRetiredJob } from './retired.js';
 
 /**
- * BullMQ Job Processors for HACA Marketing OS
+ * Automation Job Processors for HACA Marketing OS
  * Executes Phase 7 Automation Rules and Report Generators with idempotency.
  */
 
 export async function runOverdueEscalationJob(job) {
-  logger.info({ jobId: job?.id }, '[BullMQ] Running Overdue Escalation Automation Rule');
+  logger.info({ jobId: job?.id }, '[Scheduler] Running Overdue Escalation Automation Rule');
   return executeAutomationRule('overdue_escalation', null);
 }
 
 export async function runTodoEscalationJob(job) {
-  logger.info({ jobId: job?.id }, '[BullMQ] Running Stale Todo Escalation Automation Rule');
+  logger.info({ jobId: job?.id }, '[Scheduler] Running Stale Todo Escalation Automation Rule');
   return executeAutomationRule('todo_escalation', null);
 }
 
 export async function runBlockerAlertsJob(job) {
-  logger.info({ jobId: job?.id }, '[BullMQ] Running Blocker Dependency Alerts Automation Rule');
+  logger.info({ jobId: job?.id }, '[Scheduler] Running Blocker Dependency Alerts Automation Rule');
   return executeAutomationRule('blocker_dependency_alert', null);
 }
 
@@ -33,7 +33,7 @@ export async function runMonthEndReportJob(job) {
 }
 
 export async function runRevisionPatternFlagJob(job) {
-  logger.info({ jobId: job?.id }, '[BullMQ] Running Revision Pattern Flag Automation Rule');
+  logger.info({ jobId: job?.id }, '[Scheduler] Running Revision Pattern Flag Automation Rule');
   return executeAutomationRule('revision_pattern_flag', null);
 }
 
@@ -55,6 +55,6 @@ export async function runCapacityGapJob(job) {
 }
 
 export async function runPauseRemindersJob(job) {
-  logger.info({ jobId: job?.id }, '[BullMQ] Running Pause Request Reminders');
+  logger.info({ jobId: job?.id }, '[Scheduler] Running Pause Request Reminders');
   return executeAutomationRule('pause_reminders', null);
 }

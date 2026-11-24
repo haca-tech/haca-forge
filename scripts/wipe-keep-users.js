@@ -13,7 +13,7 @@
  * - Preserves ALL users unchanged (invalidates refresh tokens only).
  * - Resets reference and configuration collections to canonical seed state.
  * - Empties transactional collections; resets counters.
- * - Supports --clear-queues (obliterates BullMQ Redis keys).
+ * - Supports --clear-queues (deprecated no-op; Redis removed).
  * - Supports --drop-empty (drops collections without an active Mongoose model).
  * - Idempotent; prints before/after document count audit and restoration instructions.
  */
@@ -207,7 +207,6 @@ export function parseArgs(argv = process.argv.slice(2)) {
     dropEmpty: false,
     backupDir: null,
     mongoUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/marketing_portal',
-    redisUrl: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
   };
 
   for (const arg of argv) {
@@ -217,7 +216,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
     else if (arg.startsWith('--db-name=')) flags.dbName = arg.split('=')[1].trim();
     else if (arg.startsWith('--backup-dir=')) flags.backupDir = arg.split('=')[1].trim();
     else if (arg.startsWith('--uri=')) flags.mongoUri = arg.split('=')[1].trim();
-    else if (arg.startsWith('--redis-url=')) flags.redisUrl = arg.split('=')[1].trim();
+    else if (arg.startsWith('--redis-url=')) { /* no-op: redis removed */ }
   }
 
   return flags;
@@ -586,33 +585,9 @@ export async function runWipeKeepUsers(rawArgv = process.argv.slice(2), injected
     console.log('  ✓ Synced canonical 4 report definitions and cleared runtime fields & orphan recipients.');
   }
 
-  // Step 7: Clear Redis Queues if requested
+  // Step 7: Clear Queues (deprecated: Redis removed from architecture)
   if (flags.clearQueues) {
-    console.log('\n📬 Clearing BullMQ Redis queues (--clear-queues enabled)...');
-    try {
-      const { default: Redis } = await import('ioredis');
-      const redis = new Redis(flags.redisUrl || 'redis://127.0.0.1:6379', {
-        connectTimeout: 2000,
-        maxRetriesPerRequest: 1,
-        retryStrategy: () => null,
-      });
-
-      await new Promise((resolve, reject) => {
-        redis.once('ready', resolve);
-        redis.once('error', reject);
-      });
-
-      const keys = await redis.keys('bull:*');
-      if (keys.length > 0) {
-        await redis.del(...keys);
-        console.log(`  ✓ Flushed ${keys.length} BullMQ queue key(s) from Redis (queues & repeatable jobs obliterated).`);
-      } else {
-        console.log('  ✓ Redis BullMQ queues already empty (0 keys).');
-      }
-      redis.disconnect();
-    } catch (err) {
-      console.warn(`  ⚠️ Queue clearing skipped or Redis unreachable: ${err.message}`);
-    }
+    console.log('\n📬 Queue clearing (--clear-queues): Redis is removed from architecture, nothing to clear.');
   }
 
   // Step 8: Document Count Audit (Before vs After)

@@ -10,7 +10,7 @@ Every email HACA Forge sends goes through one module, `apps/api/src/lib/email/`,
 | `lib/email/drivers.js` | The drivers: `console`, `smtp`, and a marked place for `resend` (not built yet). |
 | `lib/email/layout.js` | The one layout. Builds the HTML and plain-text versions from the same content blocks, and escapes all text. |
 | `lib/email/templates.js` | Every template, each with sample data. |
-| `lib/queue.js` `enqueueEmail` | Notification emails go through BullMQ when Redis is up. A job gets two tries (once, then one retry). Without Redis they are sent directly, also with one retry. |
+| `lib/queue.js` `enqueueEmail` | Notification emails are delivered directly via the configured email driver (Gmail SMTP / console) with automatic retry. |
 | `modules/notifications/email.js` | `sendNotificationEmail` is used for overdue, blocked and reminder emails. It skips anyone who turned off email for that category in Settings → Notifications. |
 
 Failures are logged with the error message and code, never the SMTP password, and a failure never crashes a request. Verification codes, phone codes and password resets show the user "We couldn't send the email. Try again." when both tries fail. Every other email fails quietly, and the failure is logged.

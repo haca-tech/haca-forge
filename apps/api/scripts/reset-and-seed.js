@@ -6,7 +6,7 @@
  *
  *   node scripts/reset-and-seed.js                                   dry run (default): reports only
  *   node scripts/reset-and-seed.js --confirm --db-name=marketing_portal   performs the reset
- *   Options: --uploads-dir=<path> (default apps/api/uploads), --skip-queues (leave BullMQ alone)
+ *   Options: --uploads-dir=<path> (default apps/api/uploads), --skip-queues
  *
  * Safety: refuses NODE_ENV=production, any host other than localhost/127.0.0.1/::1, and test or
  * disposable databases (names containing "test" or "uicheck"). --confirm also needs --db-name
@@ -14,7 +14,7 @@
  *
  * Keeps: configuration collections (departments, automationrules, settings, counters), the
  * admin account (ADMIN_SEED_EMAIL) and its sessions. Empties every other collection, deletes the
- * files in apps/api/uploads, clears stale BullMQ jobs (keeping the reminder schedules), then
+ * files in apps/api/uploads, then resets the database to baseline.
  * recreates the Team Chat channel and the 12 users (passwords from SEED_PASSWORD_* in .env).
  */
 import fs from 'fs';
@@ -75,56 +75,16 @@ function listFiles(dir) {
   });
 }
 
-async function connectQueues(redisUrl) {
-  try {
-    const { default: Redis } = await import('ioredis');
-    const probe = new Redis(redisUrl, { lazyConnect: true, maxRetriesPerRequest: 1, connectTimeout: 2000, retryStrategy: () => null });
-    probe.on('error', () => {});
-    await probe.connect();
-    await probe.quit();
-    const { Queue } = await import('bullmq');
-    const { QUEUE_NAMES } = await import('../src/lib/queue.js');
-    const connection = new Redis(redisUrl, { maxRetriesPerRequest: null });
-    return Object.values(QUEUE_NAMES).map((name) => new Queue(name, { connection }));
-  } catch {
-    return null;
-  }
+async function connectQueues() {
+  return null;
 }
 
-async function queuePlan(queues) {
-  if (!queues) return { reachable: false, queues: [] };
-  const out = [];
-  for (const q of queues) {
-    const counts = await q.getJobCounts('wait', 'active', 'delayed', 'completed', 'failed', 'paused');
-    const repeat = await q.getRepeatableJobs();
-    out.push({ name: q.name, counts, repeat: repeat.map((r) => r.name) });
-  }
-  return { reachable: true, queues: out };
+async function queuePlan() {
+  return { reachable: false, queues: [] };
 }
 
-async function clearQueues(queues) {
-  const result = [];
-  for (const q of queues || []) {
-    let removedSchedules = 0;
-    for (const r of await q.getRepeatableJobs()) {
-      if (!KEEP_SCHEDULES.includes(r.name)) {
-        await q.removeRepeatableByKey(r.key);
-        removedSchedules += 1;
-      }
-    }
-    let removedJobs = 0;
-    for (const state of ['wait', 'completed', 'failed', 'paused']) removedJobs += (await q.clean(0, 100000, state)).length;
-    // Delayed jobs: keep the next run of each kept reminder schedule, drop the rest.
-    for (const job of await q.getDelayed(0, -1)) {
-      const isKeptRepeat = job?.opts?.repeat && KEEP_SCHEDULES.includes(job.name);
-      if (!isKeptRepeat) {
-        await job.remove();
-        removedJobs += 1;
-      }
-    }
-    result.push({ name: q.name, removedJobs, removedSchedules });
-  }
-  return result;
+async function clearQueues() {
+  return [];
 }
 
 export async function run({ argv = process.argv.slice(2), log = console.log } = {}) {
@@ -156,7 +116,7 @@ export async function run({ argv = process.argv.slice(2), log = console.log } = 
       plan.push({ name, total, keep, remove: total - keep });
     }
     const files = listFiles(flags.uploadsDir);
-    const queues = flags.skipQueues ? null : await connectQueues(env.REDIS_URL || 'redis://127.0.0.1:6379');
+    const queues = flags.skipQueues ? null : await connectQueues();
     const qPlan = await queuePlan(queues);
 
     log(`\n${flags.confirm ? 'RESET' : 'DRY RUN (nothing is changed; add --confirm --db-name=' + dbName + ')'}: ${dbName}`);

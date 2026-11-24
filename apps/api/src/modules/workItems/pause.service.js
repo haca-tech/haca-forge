@@ -459,7 +459,7 @@ export async function afterCalendarMove(workItemIds) {
 // ---------------------------------------------------------------- reminders
 
 /**
- * Hourly scan (worker; BullMQ or its in-memory fallback). On a working day (IST, Mon–Sat)
+ * Hourly scan (scheduled automation via node-cron). On a working day (IST, Mon–Sat)
  * from 09:00: one reminder to the lead(s) for a request still undecided since an earlier
  * working day, and one reminder to the worker on the morning of their "pause until" date.
  */

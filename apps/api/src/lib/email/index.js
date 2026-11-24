@@ -54,8 +54,7 @@ export function describeError(err) {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Deliver a rendered message. Tries once, and again after a short pause when that fails
- * (`retries: 0` for the BullMQ worker, which retries the job itself). Never throws.
+ * Deliver a rendered message. Tries once, and again after a short pause when that fails. Never throws.
  * @returns {Promise<{ok:true, messageId:string}|{ok:false, error:string}>}
  */
 export async function deliver({ to, subject, html, text, template }, { retries = 1 } = {}) {

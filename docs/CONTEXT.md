@@ -2,7 +2,7 @@
 
 **Current as of:** 10 November 2026 (after Phase 11)  
 **Repository:** HACA Marketing OS (`haca-forge`)  
-**Technology Stack:** Node 22 LTS, Express 5 (ESM), React 18, Vite 6, TypeScript, Tailwind CSS, MongoDB (Mongoose), Socket.io, BullMQ (Redis).  
+**Technology Stack:** Node 22 LTS, Express 5 (ESM), React 18, Vite 6, TypeScript, Tailwind CSS, MongoDB (Mongoose), Socket.io, node-cron.  
 **Test Suite Status:** **1765 tests passing across 118 test files (0 failures)**  
 - `@mmp/api`: 1427 tests passed across 71 test files  
 - `@mmp/web`: 338 tests passed across 47 test files  

@@ -15,7 +15,7 @@ export async function runRetiredJob(name) {
 }
 
 /**
- * Removes the retired jobs' repeat schedules from the BullMQ queue (queue state, not
+ * Removes the retired jobs' repeat schedules from any legacy queue (queue state, not
  * business data). Other schedules are left alone. Returns how many were removed.
  */
 export async function removeRetiredSchedules(queue) {

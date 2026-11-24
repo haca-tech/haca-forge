@@ -26,7 +26,7 @@ const runScript = (args, extraEnv = {}) =>
   spawnSync(process.execPath, [SCRIPT, ...args], {
     cwd: API,
     encoding: 'utf8',
-    env: { ...process.env, NODE_ENV: 'development', MONGODB_URI: SCRATCH_URI, ADMIN_SEED_EMAIL: ADMIN_EMAIL, ADMIN_SEED_PASSWORD: 'Scratch-admin-pass', REDIS_URL: 'redis://127.0.0.1:1', ...extraEnv },
+    env: { ...process.env, NODE_ENV: 'development', MONGODB_URI: SCRATCH_URI, ADMIN_SEED_EMAIL: ADMIN_EMAIL, ADMIN_SEED_PASSWORD: 'Scratch-admin-pass', ...extraEnv },
     timeout: 120000,
   });
 
