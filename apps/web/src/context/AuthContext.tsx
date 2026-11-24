@@ -37,6 +37,7 @@ export interface User {
   profileCompletedAt?: string | null;
   lastLoginAt?: string | null;
   createdAt?: string;
+  mustChangePassword?: boolean;
 }
 
 interface AuthContextType {

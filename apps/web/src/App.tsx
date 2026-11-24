@@ -131,6 +131,10 @@ const RootRedirect: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
+  if (user.mustChangePassword) {
+    return <Navigate to="/settings?tab=security" replace />;
+  }
+
   // Preference-based start page
   const startPage = user.preferences?.startPage;
   if (startPage === 'My Work') {

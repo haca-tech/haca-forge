@@ -134,6 +134,7 @@ export async function me(req, res, next) {
         profileCompletedAt: req.user.profileCompletedAt || null,
         lastLoginAt: req.user.lastLoginAt || req.user.lastLogin || null,
         createdAt: req.user.createdAt,
+        mustChangePassword: Boolean(req.user.mustChangePassword),
       },
       role: normalizeRole(req.user.role),
       permissions: ROLE_PERMISSIONS[normalizeRole(req.user.role)] || [],

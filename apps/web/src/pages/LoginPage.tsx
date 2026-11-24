@@ -101,6 +101,10 @@ export const LoginPage: React.FC = () => {
 
     try {
       const loggedUser = await login({ email: cleanEmail, password: signInPassword });
+      if (loggedUser.mustChangePassword) {
+        navigate('/settings?tab=security', { replace: true });
+        return;
+      }
       navigate(homePathFor(loggedUser));
     } catch (err: any) {
       if (err instanceof ApiError) {

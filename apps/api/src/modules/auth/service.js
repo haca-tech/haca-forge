@@ -191,6 +191,7 @@ export async function loginUser({ email, password, userAgent = '', ip = '' }) {
       phone: user.phone || '',
       profileCompletedAt: user.profileCompletedAt || null,
       lastLoginAt: user.lastLoginAt,
+      mustChangePassword: Boolean(user.mustChangePassword),
     },
     permissions: ROLE_PERMISSIONS[normalizeRole(user.role)] || [],
     accessToken,
@@ -302,6 +303,7 @@ export async function refreshTokens(refreshToken) {
       weeklyCapacityHours: user.weeklyCapacityHours || user.capacity || 40,
       status: user.status,
       workPreferences: user.workPreferences || [],
+      mustChangePassword: Boolean(user.mustChangePassword),
     },
     permissions: ROLE_PERMISSIONS[normalizeRole(user.role)] || [],
   };
@@ -483,6 +485,7 @@ export async function changeUserPassword(
 
   const salt = await bcrypt.genSalt(10);
   user.passwordHash = await bcrypt.hash(newPassword, salt);
+  user.mustChangePassword = false;
   await user.save();
 
   return { success: true, message: "Password changed successfully" };

@@ -8,7 +8,7 @@ import os from 'os';
 import path from 'path';
 import { spawn } from 'child_process';
 import mongoose from 'mongoose';
-import { checkTarget, parseArgs } from '../scripts/migrate-uploads-to-bunny.js';
+import { checkTarget, parseArgs } from '../scripts/migrate-uploads-to-bunny-core.js';
 import { startMockBunny } from './helpers/mockBunny.js';
 
 const SCRIPT = path.resolve(__dirname, '../scripts/migrate-uploads-to-bunny.js');

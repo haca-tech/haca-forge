@@ -724,6 +724,7 @@ export async function changePassword(userId, { currentPassword, newPassword, con
 
   const salt = await bcrypt.genSalt(10);
   user.passwordHash = await bcrypt.hash(newPassword, salt);
+  user.mustChangePassword = false;
   await user.save();
 
   // Send mandatory security email notice

@@ -33,6 +33,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  if (user.mustChangePassword && location.pathname !== '/settings') {
+    return <Navigate to="/settings?tab=security" replace />;
+  }
+
   if (readOnlyRedirect && access.isReadOnly) {
     return <Navigate to={readOnlyRedirect} replace />;
   }

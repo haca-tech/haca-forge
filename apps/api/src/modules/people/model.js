@@ -81,6 +81,10 @@ const personSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
+    },
     lastLogin: {
       type: Date,
     },

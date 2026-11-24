@@ -7,7 +7,7 @@ import { spawnSync } from 'child_process';
 import path from 'path';
 import mongoose from 'mongoose';
 import { CALENDAR_KEYS, DEPARTMENTS } from '@mmp/shared';
-import { checkTarget, parseArgs, isLocalUri, dbNameOf } from '../scripts/setup-fresh-database.js';
+import { checkTarget, parseArgs, isLocalUri, dbNameOf } from '../scripts/setup-fresh-database-core.js';
 import { DEFAULT_AUTOMATION_RULES } from '../src/modules/automation/runner.js';
 
 const SCRIPT = path.resolve(__dirname, '../scripts/setup-fresh-database.js');

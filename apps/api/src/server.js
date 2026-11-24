@@ -151,9 +151,10 @@ io.use(async (socket, next) => {
     const token = handshakeToken(socket.handshake);
     if (!token) return next(new Error("Authentication failed: Valid accessToken required"));
     const decoded = jwt.verify(token, env.JWT_SECRET);
-    const user = await User.findById(decoded.userId).select("role status name preferredName").lean();
+    const user = await User.findById(decoded.userId).select("role status name preferredName mustChangePassword").lean();
     if (!user) return next(new Error("Authentication failed: User not found"));
     if (user.status === "suspended") return next(new Error("Authentication failed: Account is suspended"));
+    if (user.mustChangePassword) return next(new Error("Authentication failed: Password change required"));
     socket.user = {
       userId: String(user._id),
       role: normalizeRole(user.role),

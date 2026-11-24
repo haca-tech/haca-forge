@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { WORKER_ROLE } from '@mmp/shared';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { TeamDirectoryPage } from '../TeamDirectoryPage';
@@ -268,6 +269,54 @@ describe('Admin user-management actions', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent('A person with this email already exists');
       expect(onInvited).not.toHaveBeenCalled();
       expect(screen.getByRole('dialog', { name: 'Invite user' })).toBeInTheDocument();
+    });
+
+    it('creates the account with temporary password and confirms match', async () => {
+      const onInvited = vi.fn();
+      apiFetch.mockResolvedValue({ data: { _id: 'new-2' } });
+      render(<InviteUserDialog onClose={vi.fn()} onInvited={onInvited} />);
+      fill('Temp User', 'temp.user@example.com');
+      fireEvent.change(screen.getByLabelText(/Temporary Password \(optional\)/i), { target: { value: 'Secret123!' } });
+      fireEvent.change(screen.getByLabelText(/Confirm Temporary Password/i), { target: { value: 'Secret123!' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+      await waitFor(() => expect(onInvited).toHaveBeenCalledTimes(1));
+      const [url, opts] = apiFetch.mock.calls[0];
+      expect(url).toBe('/api/people');
+      expect(opts.method).toBe('POST');
+      const body = JSON.parse(opts.body);
+      expect(body).toEqual({
+        name: 'Temp User',
+        email: 'temp.user@example.com',
+        role: WORKER_ROLE,
+        temporaryPassword: 'Secret123!',
+        confirmTemporaryPassword: 'Secret123!',
+      });
+    });
+
+    it('generates a compliant temporary password on button click', async () => {
+      render(<InviteUserDialog onClose={vi.fn()} onInvited={vi.fn()} />);
+      const generateBtn = screen.getByRole('button', { name: /generate/i });
+      fireEvent.click(generateBtn);
+
+      const tempInput = screen.getByLabelText(/Temporary Password \(optional\)/i) as HTMLInputElement;
+      const confirmInput = screen.getByLabelText(/Confirm Temporary Password/i) as HTMLInputElement;
+
+      expect(tempInput.value.length).toBeGreaterThanOrEqual(8);
+      expect(/[A-Z]/.test(tempInput.value)).toBe(true);
+      expect(/[0-9]/.test(tempInput.value)).toBe(true);
+      expect(tempInput.value).toBe(confirmInput.value);
+    });
+
+    it('rejects mismatched temporary password without calling API', () => {
+      render(<InviteUserDialog onClose={vi.fn()} onInvited={vi.fn()} />);
+      fill('Temp User', 'temp.user@example.com');
+      fireEvent.change(screen.getByLabelText(/Temporary Password \(optional\)/i), { target: { value: 'Secret123!' } });
+      fireEvent.change(screen.getByLabelText(/Confirm Temporary Password/i), { target: { value: 'DifferentPass99!' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+      expect(screen.getByRole('alert')).toHaveTextContent(/do not match/i);
+      expect(apiFetch).not.toHaveBeenCalled();
     });
 
     it('admin flow on /team: success message appears after the account is created', async () => {

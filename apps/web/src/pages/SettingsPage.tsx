@@ -15,6 +15,7 @@ import { apiFetch } from '../lib/api';
 import { START_PAGE_OPTIONS, DATE_FORMAT_OPTIONS, TIME_FORMAT_OPTIONS, WEEK_START_OPTIONS, StartPageOption, DateFormatOption, TimeFormatOption, WeekStartOption } from '@mmp/shared';
 import { confirmDialog, toast } from '../lib/uiFeedback';
 import { useAccess } from '../lib/access';
+import { useAuth } from '../context/AuthContext';
 
 import { DataLoader } from '../components/DataLoader';
 interface SessionItem {
@@ -28,11 +29,20 @@ interface SessionItem {
 
 export const SettingsPage: React.FC = () => {
   const access = useAccess();
+  const { user, refreshUser } = useAuth();
+  const mustChangePassword = Boolean(user?.mustChangePassword);
+
   // ?tab=notifications (the link in notification emails) opens that tab.
   const [activeTab, setActiveTab] = useState<'security' | 'notifications' | 'preferences'>(() => {
     const tab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
     return tab === 'notifications' || tab === 'preferences' ? tab : 'security';
   });
+
+  useEffect(() => {
+    if (mustChangePassword && activeTab !== 'security') {
+      setActiveTab('security');
+    }
+  }, [mustChangePassword, activeTab]);
 
   // Security - Password Change State
   const [passwordForm, setPasswordForm] = useState({
@@ -111,8 +121,10 @@ export const SettingsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchSettingsAndSessions();
-  }, []);
+    if (!mustChangePassword) {
+      fetchSettingsAndSessions();
+    }
+  }, [mustChangePassword]);
 
   // Password Validation
   const hasMinLength = passwordForm.newPassword.length >= 8;
@@ -150,6 +162,10 @@ export const SettingsPage: React.FC = () => {
 
       setPasswordSuccess('Password updated successfully. A security confirmation email has been dispatched.');
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      await refreshUser();
+      if (mustChangePassword) {
+        fetchSettingsAndSessions();
+      }
     } catch (err: any) {
       setPasswordErrors({ form: err?.message || 'Failed to update password.' });
     } finally {
@@ -314,10 +330,13 @@ export const SettingsPage: React.FC = () => {
 
           <button
             type="button"
+            disabled={mustChangePassword}
             aria-pressed={activeTab === 'notifications'}
-            onClick={() => setActiveTab('notifications')}
+            onClick={() => !mustChangePassword && setActiveTab('notifications')}
             className={`flex items-center gap-2.5 px-4 py-3 rounded-full text-[13px] font-semibold transition-colors text-left whitespace-nowrap min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-ink ${
-              activeTab === 'notifications'
+              mustChangePassword
+                ? 'opacity-40 cursor-not-allowed text-ui-muted'
+                : activeTab === 'notifications'
                 ? 'bg-ui-ink text-white'
                 : 'text-ui-text hover:text-ui-ink hover:bg-white/60'
             }`}
@@ -328,10 +347,13 @@ export const SettingsPage: React.FC = () => {
 
           <button
             type="button"
+            disabled={mustChangePassword}
             aria-pressed={activeTab === 'preferences'}
-            onClick={() => setActiveTab('preferences')}
+            onClick={() => !mustChangePassword && setActiveTab('preferences')}
             className={`flex items-center gap-2.5 px-4 py-3 rounded-full text-[13px] font-semibold transition-colors text-left whitespace-nowrap min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-ink ${
-              activeTab === 'preferences'
+              mustChangePassword
+                ? 'opacity-40 cursor-not-allowed text-ui-muted'
+                : activeTab === 'preferences'
                 ? 'bg-ui-ink text-white'
                 : 'text-ui-text hover:text-ui-ink hover:bg-white/60'
             }`}
@@ -346,6 +368,18 @@ export const SettingsPage: React.FC = () => {
           {/* TAB 1: SECURITY & SESSIONS */}
           {activeTab === 'security' && (
             <div className="space-y-6">
+              {mustChangePassword && (
+                <div role="alert" className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-950 dark:text-amber-100 text-xs sm:text-sm flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Temporary Password Active</p>
+                    <p className="text-xs mt-0.5 opacity-90">
+                      You are signed in with a temporary password. You must set a permanent password before accessing normal application features.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Change Password Card */}
               <div className="glass-card p-6 sm:p-7 space-y-5">
                 <div className="flex items-center gap-2.5 pb-3 border-b border-ui-line">
@@ -475,7 +509,8 @@ export const SettingsPage: React.FC = () => {
               </div>
 
               {/* Active Devices & Sessions Card */}
-              <div className="glass-card p-6 sm:p-7 space-y-5">
+              {!mustChangePassword && (
+                <div className="glass-card p-6 sm:p-7 space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-ui-line">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-white/70 text-ui-ink flex items-center justify-center">
@@ -553,6 +588,7 @@ export const SettingsPage: React.FC = () => {
                   )}
                 </div>
               </div>
+            )}
             </div>
           )}
 

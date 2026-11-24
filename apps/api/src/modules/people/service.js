@@ -146,13 +146,42 @@ export async function createPerson(data, actor) {
     throw error;
   }
 
+  const rawPassword = data.temporaryPassword || data.password;
   let passwordHash = undefined;
   let mustSetPassword = true;
+  let mustChangePassword = false;
 
-  if (data.password) {
+  if (rawPassword) {
+    if (typeof rawPassword !== 'string' || rawPassword.length < 8) {
+      const error = new Error('Temporary password must be at least 8 characters long');
+      error.code = 'INVALID_PASSWORD';
+      error.statusCode = 400;
+      throw error;
+    }
+    if (!/[A-Z]/.test(rawPassword)) {
+      const error = new Error('Temporary password must contain at least one uppercase letter');
+      error.code = 'INVALID_PASSWORD';
+      error.statusCode = 400;
+      throw error;
+    }
+    if (!/[0-9]/.test(rawPassword)) {
+      const error = new Error('Temporary password must contain at least one number');
+      error.code = 'INVALID_PASSWORD';
+      error.statusCode = 400;
+      throw error;
+    }
+    const confirm = data.confirmTemporaryPassword || data.confirmPassword;
+    if (confirm !== undefined && confirm !== rawPassword) {
+      const error = new Error('Temporary password and confirmation do not match');
+      error.code = 'PASSWORD_MISMATCH';
+      error.statusCode = 400;
+      throw error;
+    }
+
     const salt = await bcrypt.genSalt(10);
-    passwordHash = await bcrypt.hash(data.password, salt);
+    passwordHash = await bcrypt.hash(rawPassword, salt);
     mustSetPassword = false;
+    mustChangePassword = true;
   }
 
   const person = await Person.create({
@@ -167,6 +196,7 @@ export async function createPerson(data, actor) {
     workPreferences: data.workPreferences || [],
     status: data.status || 'active',
     mustSetPassword,
+    mustChangePassword,
   });
 
   await logActivity({

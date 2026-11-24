@@ -7,6 +7,23 @@ import { isReadOnly } from '../lib/roleAccess.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+/** Endpoints allowed when a user must change their temporary password. */
+export function isPasswordChangeAllowed(req) {
+  const urlPath = (req.originalUrl || `${req.baseUrl || ''}${req.path || ''}`).split('?')[0];
+  return (
+    urlPath === '/api/me/password' ||
+    urlPath === '/me/password' ||
+    urlPath === '/api/auth/change-password' ||
+    urlPath === '/auth/change-password' ||
+    urlPath === '/api/auth/me' ||
+    urlPath === '/auth/me' ||
+    urlPath === '/api/auth/logout' ||
+    urlPath === '/auth/logout' ||
+    urlPath === '/api/auth/refresh' ||
+    urlPath === '/auth/refresh'
+  );
+}
+
 /** Writes the read-only heads may still make: their own account only. */
 export function isOwnAccountWrite(req) {
   const path = `${req.baseUrl || ''}${req.path || ''}`;
@@ -104,6 +121,15 @@ export async function authenticate(req, res, next) {
         error: {
           code: 'READ_ONLY_ROLE',
           message: 'Your role can view everything but cannot make changes.',
+        },
+      });
+    }
+
+    if (user.mustChangePassword && !isPasswordChangeAllowed(req)) {
+      return res.status(403).json({
+        error: {
+          code: 'MUST_CHANGE_PASSWORD',
+          message: 'You must change your temporary password before accessing the application.',
         },
       });
     }

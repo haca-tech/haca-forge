@@ -1417,6 +1417,8 @@ export const personCreateSchema = z.object({
   reportsToIds: z.array(z.string()).default([]),
   weeklyCapacityHours: z.number().min(0).max(80).default(40),
   password: z.string().min(8).optional(),
+  temporaryPassword: z.string().min(8).optional(),
+  confirmTemporaryPassword: z.string().min(8).optional(),
   workPreferences: z.array(z.enum(WORK_PREFERENCES)).default([]),
 });
 export type PersonCreateInput = z.infer<typeof personCreateSchema>;
