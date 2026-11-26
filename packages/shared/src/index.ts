@@ -215,6 +215,9 @@ export const DEPARTMENTS = [
 ] as const;
 
 export const DEPARTMENT_CODES = DEPARTMENTS.map((d) => d.code);
+/** Departments a person can pick in a department dropdown (request access, approving a request).
+ *  WhatsApp stays a department for work-type routing ("WhatsApp Blast") but is not offered. */
+export const SELECTABLE_DEPARTMENTS = DEPARTMENTS.filter((d) => d.code !== "whatsapp");
 export type DepartmentCode = (typeof DEPARTMENT_CODES)[number];
 // Keep DEPARTMENT_TYPES alias for backward compatibility
 export const DEPARTMENT_TYPES = DEPARTMENT_CODES;

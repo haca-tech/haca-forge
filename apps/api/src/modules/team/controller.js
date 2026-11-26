@@ -109,6 +109,17 @@ export async function resetPasswordHandler(req, res, next) {
   }
 }
 
+export async function regeneratePasswordHandler(req, res, next) {
+  try {
+    const result = await teamService.regeneratePassword(req.params.id, req.user);
+    // The response carries a password: never let a browser or proxy keep a copy.
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function forceLogoutHandler(req, res, next) {
   try {
     const result = await teamService.forceLogout(req.params.id, req.user);

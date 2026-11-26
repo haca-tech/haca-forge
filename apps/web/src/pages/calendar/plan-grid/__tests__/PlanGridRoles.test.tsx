@@ -84,6 +84,9 @@ const reviewCalls = () => calls.filter((c) => c.url === '/api/calendar-plans/pla
 
 let mql: ((q: string) => boolean) | null = null;
 beforeEach(() => {
+  // These tests cover the detailed (one column per step) view; the simple view has its own test.
+  const store: Record<string, string> = { 'planGrid.view': 'detailed', 'planGrid.reviewLayout': 'grid' };
+  vi.stubGlobal('localStorage', { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = v; }, removeItem: (k: string) => { delete store[k]; } });
   calls.length = 0;
   role = 'creative_lead';
   saveHandler = () => ({ calendar: 'sm', month: '2031-11', dryRun: false, planCreated: false, plan: grid().plan, paste: null, counts: { total: 0, saved: 0, valid: 0, invalid: 0, locked: 0 }, results: [], warnings: [] });

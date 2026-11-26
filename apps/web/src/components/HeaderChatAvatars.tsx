@@ -1,4 +1,5 @@
 import React from 'react';
+import { ChevronDown } from 'lucide-react';
 import { Avatar } from './Avatar';
 
 export interface ChatPerson {
@@ -37,11 +38,10 @@ export const HeaderChatAvatars: React.FC<Props> = ({ people, moreCount, active =
             <Avatar url={p.avatarUrl} name={p.name} userId={p._id} size="sm" alt="" />
           </span>
         ))}
-        {extra > 0 && (
-          <span className="chat-stack-item chat-stack-more relative" style={{ zIndex: 0 }}>
-            +{extra > 99 ? '99' : extra}
-          </span>
-        )}
+      </span>
+      <span className="chat-stack-more ml-1.5 flex items-center gap-0.5" aria-hidden="true">
+        {extra > 0 && <span>+{extra > 99 ? '99' : extra}</span>}
+        <ChevronDown className="h-3.5 w-3.5" />
       </span>
     </span>
   );

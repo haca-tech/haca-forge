@@ -159,6 +159,31 @@ describe('Admin user-management actions', () => {
       expect(apiFetch).toHaveBeenCalledWith(endpoint, { method: 'POST' });
     });
 
+    it('Regenerate password: shows the temporary password once and reports only after Done', async () => {
+      const onDone = vi.fn();
+      apiFetch.mockResolvedValue({ success: true, data: { email: 'writer1@x.local', status: 'active', temporaryPassword: 'Ab3$kLmn7Pqr' } });
+      render(<AdminAccountActions person={person} onDone={onDone} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Regenerate password' }));
+      let dialog = screen.getByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+      expect(apiFetch).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Regenerate password' }));
+      dialog = screen.getByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Regenerate password' }));
+      expect(await within(dialog).findByLabelText('Temporary password')).toHaveTextContent('Ab3$kLmn7Pqr');
+      expect(apiFetch).toHaveBeenCalledWith('/api/team/user-1/regenerate-password', { method: 'POST' });
+      expect(within(dialog).getByText('writer1@x.local')).toBeInTheDocument();
+      expect(onDone).not.toHaveBeenCalled();
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(onDone).toHaveBeenCalledTimes(1);
+      expect(onDone.mock.calls[0][0]).not.toContain('Ab3$kLmn7Pqr');
+      expect(onDone.mock.calls[0][1]).toBe('regenerate');
+    });
+
     it('change role: keyboard focus moves into the confirmation step and back to the select', () => {
       render(<AdminAccountActions person={person} onDone={vi.fn()} />);
       fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
@@ -183,7 +208,7 @@ describe('Admin user-management actions', () => {
   describe('3. Failed requests show an error and no success', () => {
     const person = { _id: 'user-1', name: 'Test Writer One', role: 'executive' };
 
-    it.each(['Reset password', 'Force logout'])('%s failure keeps the dialog open with an error', async (label) => {
+    it.each(['Reset password', 'Regenerate password', 'Force logout'])('%s failure keeps the dialog open with an error', async (label) => {
       const onDone = vi.fn();
       apiFetch.mockRejectedValue(new Error('Forbidden: Only Administrator can do this'));
       render(<AdminAccountActions person={person} onDone={onDone} />);

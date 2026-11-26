@@ -6,6 +6,8 @@ import { app } from '../src/server.js';
 import { Person } from '../src/modules/people/model.js';
 import { Session } from '../src/modules/auth/session.model.js';
 import { env } from '../src/config/env.js';
+import bcrypt from 'bcryptjs';
+import { generateTemporaryPassword } from '../src/modules/team/service.js';
 
 // Admin user-management actions used by /team and /team/:id:
 // invite (POST /api/people), change role (PATCH /api/team/:id), reset password and force logout.
@@ -90,6 +92,18 @@ describe('Admin user-management API', () => {
         expect((await Person.findById(target._id)).mustSetPassword).toBe(false);
       });
 
+      it(`${role}: POST /api/team/:id/regenerate-password is rejected and the password is unchanged`, async () => {
+        const res = await request(app)
+          .post(`/api/team/${target._id}/regenerate-password`)
+          .set('Authorization', `Bearer ${tokens[role]}`);
+        expect(res.status).toBe(403);
+        expect(JSON.stringify(res.body)).not.toMatch(/temporaryPassword/);
+        const after = await Person.findById(target._id).select('+passwordHash');
+        expect(after.passwordHash).toBeFalsy();
+        expect(after.mustChangePassword).toBeFalsy();
+        expect(await Session.countDocuments({ userId: target._id })).toBe(1);
+      });
+
       it(`${role}: POST /api/team/:id/force-logout is rejected and sessions remain`, async () => {
         const res = await request(app)
           .post(`/api/team/${target._id}/force-logout`)
@@ -99,11 +113,12 @@ describe('Admin user-management API', () => {
       });
     }
 
-    it('unauthenticated calls to all four endpoints return 401', async () => {
+    it('unauthenticated calls to all five endpoints return 401', async () => {
       const calls = [
         request(app).post('/api/people').send({ name: 'X', email: `illegal${DOMAIN}` }),
         request(app).patch(`/api/team/${target._id}`).send({ role: 'admin' }),
         request(app).post(`/api/team/${target._id}/reset-password`),
+        request(app).post(`/api/team/${target._id}/regenerate-password`),
         request(app).post(`/api/team/${target._id}/force-logout`),
       ];
       for (const res of await Promise.all(calls)) expect(res.status).toBe(401);
@@ -160,6 +175,62 @@ describe('Admin user-management API', () => {
       expect(res.status).toBe(200);
       expect(JSON.stringify(res.body)).not.toMatch(/password"\s*:|token|resetLink/i);
       expect((await Person.findById(target._id)).mustSetPassword).toBe(true);
+    });
+
+    it('regenerate password: returns a one-time password that signs in, forces a change and ends sessions', async () => {
+      await Person.updateOne({ _id: target._id }, { mustSetPassword: true, resetPasswordTokenHash: 'old-token' });
+      const res = await request(app)
+        .post(`/api/team/${target._id}/regenerate-password`)
+        .set('Authorization', `Bearer ${tokens.admin}`);
+      expect(res.status).toBe(200);
+      expect(res.headers['cache-control']).toBe('no-store');
+      const { temporaryPassword, email } = res.body.data;
+      expect(email).toBe(`target${DOMAIN}`);
+      expect(temporaryPassword).toMatch(/^.{12}$/);
+      expect(JSON.stringify(res.body)).not.toMatch(/passwordHash/);
+
+      const after = await Person.findById(target._id).select('+passwordHash +resetPasswordTokenHash');
+      expect(await bcrypt.compare(temporaryPassword, after.passwordHash)).toBe(true);
+      expect(after.mustChangePassword).toBe(true);
+      expect(after.mustSetPassword).toBe(false);
+      expect(after.resetPasswordTokenHash).toBeFalsy();
+      expect(await Session.countDocuments({ userId: target._id })).toBe(0);
+
+      const login = await request(app).post('/api/auth/login').send({ email: `target${DOMAIN}`, password: temporaryPassword });
+      expect(login.status).toBe(200);
+      expect(JSON.stringify(login.body)).toMatch(/"mustChangePassword":true/);
+    });
+
+    it('regenerate password: an admin cannot regenerate their own password here', async () => {
+      const res = await request(app)
+        .post(`/api/team/${people.admin._id}/regenerate-password`)
+        .set('Authorization', `Bearer ${tokens.admin}`);
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('SELF_ACTION_NOT_ALLOWED');
+    });
+
+    it('regenerate password: an unknown or malformed id returns 404', async () => {
+      for (const id of [new mongoose.Types.ObjectId().toString(), 'not-an-id']) {
+        const res = await request(app)
+          .post(`/api/team/${id}/regenerate-password`)
+          .set('Authorization', `Bearer ${tokens.admin}`);
+        expect(res.status).toBe(404);
+      }
+    });
+
+    it('generated passwords meet the password rules and differ each time', () => {
+      const seen = new Set();
+      for (let i = 0; i < 200; i += 1) {
+        const pw = generateTemporaryPassword();
+        expect(pw).toHaveLength(12);
+        expect(pw).toMatch(/[A-Z]/);
+        expect(pw).toMatch(/[a-z]/);
+        expect(pw).toMatch(/[0-9]/);
+        expect(pw).toMatch(/[!@#$%&*?]/);
+        expect(pw).not.toMatch(/[0O1lI]/);
+        seen.add(pw);
+      }
+      expect(seen.size).toBe(200);
     });
 
     it('force logout: removes every session for the person', async () => {

@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ROLE_KEYS, ROLE_LABELS } from '@mmp/shared';
+import { Check, Copy } from 'lucide-react';
 import { apiFetch } from '../../lib/api';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 
-type Action = 'role' | 'reset' | 'logout';
+type Action = 'role' | 'reset' | 'regenerate' | 'logout';
 
 interface AdminAccountActionsProps {
-  person: { _id: string; name: string; role: string };
+  person: { _id: string; name: string; role: string; email?: string; status?: string };
   /** Called after a successful action with a message for the page to announce. */
   onDone: (message: string, action: Action) => void;
 }
@@ -49,7 +50,7 @@ const ErrorNotice: React.FC<{ message: string | null }> = ({ message }) =>
 
 /**
  * Admin-only account controls for another person's profile: change role, reset password,
- * force logout. Each one asks for confirmation before it calls the API. The parent decides
+ * regenerate password (shows a one-time temporary password), force logout. Each one asks for confirmation before it calls the API. The parent decides
  * who sees this (admin, viewing someone else).
  */
 export const AdminAccountActions: React.FC<AdminAccountActionsProps> = ({ person, onDone }) => {
@@ -77,8 +78,36 @@ export const AdminAccountActions: React.FC<AdminAccountActionsProps> = ({ person
 
   // Role changes are recorded in the access History with a reason (the API requires one).
   const [reason, setReason] = useState('');
+  // Regenerate password: the temporary password lives only in this state while the dialog is open.
+  const [regenerated, setRegenerated] = useState<{ email: string; status?: string; temporaryPassword: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const passwordRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (regenerated) passwordRef.current?.focus();
+  }, [regenerated]);
+  const copyPassword = async () => {
+    if (!regenerated) return;
+    try {
+      await navigator.clipboard.writeText(regenerated.temporaryPassword);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError('Copy failed. Select the password and copy it by hand.');
+    }
+  };
+  const finishRegenerate = () => {
+    setRegenerated(null);
+    setCopied(false);
+    setOpen(null);
+    onDone(
+      `New temporary password created for ${person.name}. They must change it after signing in.`,
+      'regenerate'
+    );
+  };
   const openAction = (action: Action) => {
     setError(null);
+    setRegenerated(null);
+    setCopied(false);
     setBusy(false);
     setStep('choose');
     setNewRole(person.role);
@@ -87,6 +116,10 @@ export const AdminAccountActions: React.FC<AdminAccountActionsProps> = ({ person
   };
   const close = () => {
     if (busy) return;
+    if (regenerated) {
+      finishRegenerate();
+      return;
+    }
     setOpen(null);
   };
 
@@ -110,6 +143,13 @@ export const AdminAccountActions: React.FC<AdminAccountActionsProps> = ({ person
           `Password reset for ${person.name}. They must set a new password with "Forgot password?" on the sign-in page before they can sign in.`,
           action
         );
+      } else if (action === 'regenerate') {
+        const res = await apiFetch<any>(`/api/team/${person._id}/regenerate-password`, { method: 'POST' });
+        const data = res?.data ?? res;
+        if (!data?.temporaryPassword) throw new Error('The server did not return a password. Try again.');
+        setRegenerated({ email: data.email, status: data.status, temporaryPassword: data.temporaryPassword });
+        setBusy(false);
+        return; // Keep the dialog open to show the password; onDone runs when the admin closes it.
       } else {
         await apiFetch(`/api/team/${person._id}/force-logout`, { method: 'POST' });
         onDone(`${person.name} has been signed out of all devices.`, action);
@@ -129,6 +169,9 @@ export const AdminAccountActions: React.FC<AdminAccountActionsProps> = ({ person
       </button>
       <button type="button" onClick={() => openAction('reset')} className="ui-btn ui-btn-secondary h-11">
         Reset password
+      </button>
+      <button type="button" onClick={() => openAction('regenerate')} className="ui-btn ui-btn-secondary h-11">
+        Regenerate password
       </button>
       <button type="button" onClick={() => openAction('logout')} className="ui-btn ui-btn-secondary h-11">
         Force logout
@@ -236,6 +279,69 @@ export const AdminAccountActions: React.FC<AdminAccountActionsProps> = ({ person
               {busy ? 'Resetting…' : 'Reset password'}
             </button>
           </div>
+        </ActionDialog>
+      )}
+
+      {open === 'regenerate' && (
+        <ActionDialog
+          titleId="admin-regenerate-title"
+          title={regenerated ? `New password for ${person.name}` : `Regenerate password for ${person.name}?`}
+          onClose={close}
+        >
+          {!regenerated ? (
+            <>
+              <ul className="list-disc pl-5 space-y-1.5 text-[13px] text-ui-text">
+                <li>Their current password stops working straight away.</li>
+                <li>You'll see a new temporary password once. Share it with them directly, for example in person or on a call.</li>
+                <li>They must choose a new password as soon as they sign in with it.</li>
+                <li>They're signed out of every device.</li>
+              </ul>
+              <ErrorNotice message={error} />
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                <button type="button" onClick={close} disabled={busy} className="ui-btn ui-btn-secondary h-11">
+                  Cancel
+                </button>
+                <button type="button" onClick={() => run('regenerate')} aria-disabled={busy} className="ui-btn ui-btn-primary h-11 aria-disabled:opacity-60 aria-disabled:cursor-wait">
+                  {busy ? 'Generating…' : 'Regenerate password'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13px]">
+                <dt className="text-ui-muted">Email</dt>
+                <dd className="font-semibold text-ui-ink break-all">{regenerated.email}</dd>
+                <dt className="text-ui-muted self-center">Temporary password</dt>
+                <dd className="flex items-center gap-2">
+                  <code
+                    ref={passwordRef}
+                    tabIndex={-1}
+                    aria-label="Temporary password"
+                    className="rounded-ui-control bg-ui-canvas px-2.5 py-1.5 font-mono text-[15px] font-semibold tracking-wide text-ui-ink select-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-ink"
+                  >
+                    {regenerated.temporaryPassword}
+                  </code>
+                  <button type="button" onClick={copyPassword} className="ui-btn ui-btn-secondary h-9 px-2.5" aria-label={copied ? 'Password copied' : 'Copy password'}>
+                    {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+                  </button>
+                </dd>
+              </dl>
+              <p className="text-[13px] text-ui-text">
+                This is the only time it's shown. Copy it now. If it's lost, regenerate a new one.
+              </p>
+              {regenerated.status === 'suspended' && (
+                <p className="status-tint status-changes rounded-ui-control px-3 py-2 text-[13px] font-medium">
+                  This account is suspended, so they still can't sign in until you reactivate it.
+                </p>
+              )}
+              <ErrorNotice message={error} />
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                <button type="button" onClick={finishRegenerate} className="ui-btn ui-btn-primary h-11">
+                  Done
+                </button>
+              </div>
+            </>
+          )}
         </ActionDialog>
       )}
 

@@ -477,39 +477,20 @@ button.glass-card:hover,
   flex: none;
 }
 .shell-scope .chat-stack .chat-stack-item + .chat-stack-item {
-  margin-left: -6px;
+  margin-left: -8px;
 }
 .shell-scope .chat-stack .ui-avatar {
   width: 32px;
   height: 32px;
   min-width: 32px;
+  box-shadow: 0 0 0 2px #ffffff; /* white ring, as the chat pill is white */
 }
-.shell-scope .chat-stack .ui-avatar,
+/* "+N ⌄" after the faces: plain text, not a chip. */
 .shell-scope .chat-stack .chat-stack-more {
-  box-shadow: 0 0 0 2px var(--shell-surface);
-}
-.shell-scope .chat-stack .chat-stack-more {
-  align-items: center;
-  justify-content: center;
-  min-width: 32px;
-  height: 32px;
-  /* The face before it covers 8px on the left, so the count is centred in what stays visible. */
-  padding: 0 4px 0 12px;
-  border-radius: 9999px;
-  background: var(--ui-ink);
-  color: #ffffff;
-  font-size: 11px;
+  color: var(--ui-text);
+  font-size: 12px;
   font-weight: 600;
   line-height: 1;
-}
-/* On the active (dark) chat pill the rings and the chip follow the pill colour. */
-.shell-scope .chat-stack.is-active .ui-avatar,
-.shell-scope .chat-stack.is-active .chat-stack-more {
-  box-shadow: 0 0 0 2px #4f46e5;
-}
-.shell-scope .chat-stack.is-active .chat-stack-more {
-  background: #ffffff;
-  color: var(--ui-ink);
 }
 
 @layer components {
@@ -1074,3 +1055,167 @@ input[type='range'].ui-range::-webkit-slider-runnable-track {
   }
 }
 
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Signed-out screens (sign in, request access, reset password): the app's light
+   theme over the light-streak animation. Shared controls keep their look; these
+   rules only add size, focus and motion polish inside .auth-light.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* The shader draws additive light on black. Inverting it (hue turned back by 180°)
+   gives coloured streaks on a light field; the wrapper's background is the inverse
+   of --ui-canvas (#DDE2EB), so after the filter the field is exactly the app canvas. */
+.auth-streaks {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Card edge: a 1px border lit by a glow that follows the pointer (--mx / --my set in AuthShell). */
+.auth-card {
+  --mx: 50%;
+  --my: -20%;
+  position: relative;
+  padding: 1px;
+  border-radius: 32px;
+  background:
+    radial-gradient(520px circle at var(--mx) var(--my), rgba(127, 163, 220, 0.9), transparent 45%),
+    rgba(255, 255, 255, 0.7);
+  box-shadow: var(--ui-shadow-modal);
+}
+.auth-card::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 31px;
+  pointer-events: none;
+  background: radial-gradient(420px circle at var(--mx) var(--my), rgba(127, 163, 220, 0.12), transparent 60%);
+}
+
+/* Fields: a little taller, with a soft blue ring on focus. */
+.auth-light .ui-input,
+.auth-light .ui-select {
+  min-height: 48px;
+  background-color: rgba(255, 255, 255, 0.85);
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+.auth-light .ui-input:hover,
+.auth-light .ui-select:hover {
+  border-color: rgba(39, 50, 71, 0.24);
+}
+.auth-light .ui-input:focus-visible,
+.auth-light .ui-select:focus-visible {
+  outline: none;
+  background-color: #fff;
+  border-color: rgb(var(--ui-ink-rgb));
+  box-shadow: 0 0 0 4px rgb(var(--ui-blue-rgb) / 0.3);
+}
+.auth-light .ui-input[aria-invalid='true'] {
+  border-color: rgb(225 29 72 / 0.6);
+}
+
+/* Request access has seven fields: shorter controls and labels keep the card close to
+   the sign-in card's height. */
+.auth-light .auth-compact .ui-input,
+.auth-light .auth-compact .ui-select {
+  min-height: 46px;
+}
+.auth-light .auth-compact .ui-textarea {
+  min-height: 80px;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+
+/* Primary button: the app's ink pill with a light sweep and lift on hover. */
+.auth-light .ui-btn-primary {
+  position: relative;
+  overflow: hidden;
+  transition: transform 150ms ease, box-shadow 200ms ease, background-color 150ms ease;
+}
+.auth-light .ui-btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(127, 163, 220, 0.45) 50%, transparent 70%);
+  transform: translateX(-100%);
+  transition: transform 600ms ease;
+}
+.auth-light .ui-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 12px 30px -12px rgba(11, 11, 13, 0.55);
+  transform: translateY(-1px);
+}
+.auth-light .ui-btn-primary:hover:not(:disabled)::after {
+  transform: translateX(100%);
+}
+.auth-light .ui-btn-primary:active:not(:disabled) {
+  transform: translateY(0) scale(0.99);
+}
+
+/* Switching between sign in / request access / reset password. */
+@keyframes auth-view-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.auth-view-enter {
+  animation: auth-view-enter 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-view-enter { animation: none; }
+  .auth-light .ui-btn-primary,
+  .auth-light .ui-btn-primary::after { transition: none; }
+  .auth-light .ui-btn-primary:hover:not(:disabled) { transform: none; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Plan grid: spreadsheet-style cells. Fields have no border until you hover or
+   click them, rows are shorter, and the row you are on is highlighted, so the
+   grid reads as a table instead of a wall of pills.
+   ───────────────────────────────────────────────────────────────────────────── */
+.plan-grid table .ui-input,
+.plan-grid table .ui-select {
+  height: 38px;
+  min-height: 38px;
+  padding-left: 0.625rem;
+  border-radius: 10px;
+  border-color: transparent;
+  background-color: transparent;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.plan-grid table .ui-select {
+  padding-right: 2rem;
+  background-position: right 0.5rem center;
+}
+.plan-grid table .ui-input:hover,
+.plan-grid table .ui-select:hover {
+  background-color: #fff;
+  border-color: var(--ui-line);
+}
+.plan-grid table .ui-input:focus-visible,
+.plan-grid table .ui-select:focus-visible {
+  outline: none;
+  background-color: #fff;
+  border-color: rgb(var(--ui-ink-rgb));
+  box-shadow: 0 0 0 3px rgb(var(--ui-blue-rgb) / 0.3);
+}
+.plan-grid table .ui-input[aria-invalid='true'],
+.plan-grid table .ui-select[aria-invalid='true'] {
+  background-color: rgb(var(--ui-coral-soft-rgb) / 0.6);
+}
+.plan-grid table .ui-icon-btn {
+  width: 34px;
+  height: 34px;
+  border-color: transparent;
+}
+.plan-grid table .ui-icon-btn:hover:not(:disabled) {
+  background: #fff;
+  border-color: var(--ui-line);
+}
+.plan-grid tbody tr:hover > td,
+.plan-grid tbody tr:hover > th,
+.plan-grid tbody tr:focus-within > td,
+.plan-grid tbody tr:focus-within > th {
+  background-color: rgb(var(--ui-card-hover-rgb));
+}
+.plan-grid thead th {
+  text-transform: none;
+  letter-spacing: 0;
+}

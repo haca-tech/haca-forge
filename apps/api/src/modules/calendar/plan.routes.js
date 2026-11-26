@@ -74,6 +74,9 @@ router.post(
   planController.uploadGridFile
 );
 
+// Step owner choices for a calendar (same people the grid offers), for the Add row / individual work form.
+router.get('/owner-choices', requirePermission('calendar.plan'), planController.getOwnerChoices);
+
 // Plans CRUD & review
 router.get(
   '/',

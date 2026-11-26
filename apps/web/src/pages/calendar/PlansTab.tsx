@@ -187,11 +187,14 @@ export const PlansTab: React.FC<PlansTabProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  /** The grid opens on the selected monthly plan's month, otherwise on the current calendar filter. */
+  /** The grid opens on the selected plan's calendar and month (individual work is listed there too),
+   *  otherwise on the current calendar filter. */
   const openGridForContext = () =>
     selectedPlan && selectedPlan.kind === 'monthly'
       ? openGrid({ calendar: selectedPlan.calendar || 'sm', month: planMonthKey(selectedPlan.periodStart), planId: selectedPlan._id })
-      : openGrid({ calendar: selectedCalendar && selectedCalendar !== 'all' ? selectedCalendar : 'sm' });
+      : selectedPlan && selectedPlan.kind === 'individual'
+        ? openGrid({ calendar: selectedPlan.calendar || 'sm', month: planMonthKey(selectedPlan.periodStart) })
+        : openGrid({ calendar: selectedCalendar && selectedCalendar !== 'all' ? selectedCalendar : 'sm' });
   const gridLabel = isCreativeHead ? 'Review in plan grid' : isExecutive ? 'View plan grid' : 'Open plan grid';
   const canOpenGrid = isSMManager || isCreativeHead || isExecutive;
   const isMonthlyPlan = selectedPlan?.kind === 'monthly';
@@ -264,6 +267,22 @@ export const PlansTab: React.FC<PlansTabProps> = ({
     fetchMembers();
   }, []);
 
+  // Step owners come from the server's eligibility rule (job role; Post = this calendar's posters),
+  // the same list the plan grid uses. Raw work preferences are not enough: an SM Manager owns Post
+  // without having "Post" ticked. Falls back to the people list if the request fails.
+  const stepCalendar: CalendarKey = isCreateOpen ? selectedCalendarForPlan : ((selectedPlan?.calendar as CalendarKey) || selectedCalendarForPlan);
+  const [ownerChoices, setOwnerChoices] = useState<TeamMemberOption[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch<{ data: TeamMemberOption[] }>(`/api/calendar-plans/owner-choices?calendar=${encodeURIComponent(stepCalendar)}`)
+      .then((res) => !cancelled && setOwnerChoices(res.data || []))
+      .catch(() => !cancelled && setOwnerChoices(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [stepCalendar]);
+  const stepMembers = ownerChoices ?? activeMembers;
+
   const isPostable = isPostableWorkType(rowType);
   const isReel = rowType.toLowerCase().includes('reel');
   const mainDateLabel = isPostable ? 'Publish date' : 'Needed-by date';
@@ -273,7 +292,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
     needsScript: boolean,
     needsShoot: boolean,
     postDateStr: string
-  ): StepLineState[] => buildDefaultSteps(type, needsScript, needsShoot, postDateStr, activeMembers);
+  ): StepLineState[] => buildDefaultSteps(type, needsScript, needsShoot, postDateStr, stepMembers);
 
   const triggerAutofill = async (
     type: string,
@@ -319,9 +338,9 @@ export const PlansTab: React.FC<PlansTabProps> = ({
         type: rowType,
         needsShoot: rowNeedsShoot,
         sourceVideoLink: rowSourceVideoLink,
-        members: activeMembers,
+        members: stepMembers,
       }),
-    [rowSteps, rowPostingDate, rowType, rowNeedsShoot, rowSourceVideoLink, activeMembers]
+    [rowSteps, rowPostingDate, rowType, rowNeedsShoot, rowSourceVideoLink, stepMembers]
   );
 
   const handlePostingDateChange = (newDate: string) => {
@@ -338,7 +357,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
     setRowType(newType);
     setRowNeedsScript(newNeedsScript);
     setRowNeedsShoot(newNeedsShoot);
-    setRowSteps((prev) => applyTypeChange(prev, newType, newNeedsScript, newNeedsShoot, rowPostingDate, activeMembers));
+    setRowSteps((prev) => applyTypeChange(prev, newType, newNeedsScript, newNeedsShoot, rowPostingDate, stepMembers));
     triggerAutofill(newType, rowPostingDate, newNeedsScript, newNeedsShoot);
   };
 
@@ -347,7 +366,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
   };
 
   const handleStepOwnerChange = (stageKey: string, newOwnerId: string) => {
-    setRowSteps((prev) => setStepOwner(prev, stageKey, newOwnerId, activeMembers));
+    setRowSteps((prev) => setStepOwner(prev, stageKey, newOwnerId, stepMembers));
   };
 
   const handleOpenEditModal = (row: PlanRow) => {
@@ -2237,7 +2256,7 @@ export const PlansTab: React.FC<PlansTabProps> = ({
                   {rowSteps.map((step) => {
                     const stepError = stepValidation.errors[step.stageKey];
                     const stepWarning = stepValidation.warnings[step.stageKey];
-                    const qualifyingMembers = activeMembers.filter(
+                    const qualifyingMembers = stepMembers.filter(
                       (m) => m.workPreferences?.includes(step.stageKey)
                     );
                     const isPostStep = step.stageKey === 'Post';

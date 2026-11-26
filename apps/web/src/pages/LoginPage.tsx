@@ -2,30 +2,66 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch, ApiError } from '../lib/api';
-import { DEPARTMENTS, JOB_ROLES, requestAccessSchema, type RequestableRole, WORKER_ROLE, REQUESTABLE_ROLES, ROLE_LABELS } from '@mmp/shared';
-import {
-  Lock,
-  Mail,
-  AlertCircle,
-  CheckCircle2,
-  ArrowRight,
-  ShieldAlert,
-  X,
-  Eye,
-  EyeOff,
-  Sparkles,
-} from 'lucide-react';
+import { SELECTABLE_DEPARTMENTS, JOB_ROLES, requestAccessSchema, type RequestableRole, WORKER_ROLE, REQUESTABLE_ROLES, ROLE_LABELS } from '@mmp/shared';
+import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, ShieldAlert, Sparkles } from 'lucide-react';
 import { homePathFor } from '../lib/access';
+import { AuthShell } from '../components/auth/AuthShell';
+
+type View = 'signin' | 'request' | 'forgot';
+
+/** Small label above a field, tied to it by id. */
+const FieldLabel: React.FC<{ htmlFor: string; children: React.ReactNode; aside?: React.ReactNode }> = ({ htmlFor, children, aside }) => (
+  <div className="mb-1.5 flex items-center justify-between gap-2 px-1">
+    <label htmlFor={htmlFor} className="text-[12px] font-semibold text-ui-text">
+      {children}
+    </label>
+    {aside}
+  </div>
+);
+
+const FieldError: React.FC<{ id: string; message?: string }> = ({ id, message }) =>
+  message ? (
+    <p id={id} className="mt-1 px-1 text-[11px] font-medium text-rose-700">
+      {message}
+    </p>
+  ) : null;
+
+const Notice: React.FC<{ tone: 'error' | 'warn' | 'success'; title?: string; children: React.ReactNode }> = ({ tone, title, children }) => {
+  const styles = {
+    error: 'border-rose-200 bg-rose-50/90 text-rose-800',
+    warn: 'border-amber-200 bg-amber-50/90 text-amber-800',
+    success: 'border-emerald-200 bg-emerald-50/90 text-emerald-800',
+  }[tone];
+  const Icon = tone === 'success' ? CheckCircle2 : tone === 'warn' ? ShieldAlert : AlertCircle;
+  return (
+    <div role={tone === 'success' ? 'status' : 'alert'} className={`flex items-start gap-3 rounded-2xl border p-3.5 text-[12px] leading-relaxed ${styles}`}>
+      <Icon className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+      <div>
+        {title && <span className="mb-0.5 block font-bold">{title}</span>}
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const linkClass =
+  'font-semibold text-ui-ink underline decoration-ui-coral decoration-2 underline-offset-4 hover:decoration-ui-ink';
+const headingClass = 'text-[30px] font-semibold leading-[1.1] tracking-tight text-ui-ink sm:text-[34px]';
+const subheadingClass = 'mt-2 text-[14px] text-ui-muted';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Which panel the card shows: sign in, request access or reset password.
+  const [view, setView] = useState<View>('signin');
+
   // Login form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<{ code?: string; message: string } | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
@@ -37,16 +73,15 @@ export const LoginPage: React.FC = () => {
       setEmail(state.email);
     }
     if (state?.passwordSet) {
-      setSuccessNotice('Password updated successfully! Please sign in with your new password.');
+      setSuccessNotice('Password updated. Sign in with your new password.');
     }
   }, [location.state]);
 
-  // Request Access modal state
-  const [showRequestModal, setShowRequestModal] = useState(false);
+  // Request access state
   const [reqName, setReqName] = useState('');
   const [reqEmail, setReqEmail] = useState('');
   const [reqPhone, setReqPhone] = useState('');
-  const [reqDept, setReqDept] = useState<string>(DEPARTMENTS[0].name);
+  const [reqDept, setReqDept] = useState<string>(SELECTABLE_DEPARTMENTS[0].name);
   const [reqJobRole, setReqJobRole] = useState<string>(JOB_ROLES[0]);
   const [reqRole, setReqRole] = useState<RequestableRole>(WORKER_ROLE);
   const [reqReason, setReqReason] = useState('');
@@ -55,8 +90,7 @@ export const LoginPage: React.FC = () => {
   const [reqSuccess, setReqSuccess] = useState<string | null>(null);
   const [reqError, setReqError] = useState<string | null>(null);
 
-  // Forgot Password modal state
-  const [showForgotModal, setShowForgotModal] = useState(false);
+  // Forgot password state
   const [forgotEmail, setForgotEmail] = useState('');
   const [isSubmittingForgot, setIsSubmittingForgot] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
@@ -179,302 +213,247 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const openRequest = () => {
+    setReqSuccess(null);
+    setReqError(null);
+    setFieldErrors({});
+    setView('request');
+  };
+  const openForgot = () => {
+    setForgotEmail(email);
+    setForgotSuccess(null);
+    setForgotResetLink(null);
+    setForgotError(null);
+    setView('forgot');
+  };
+  const backToSignIn = () => setView('signin');
+
+  const inputClass = (field: string) => `ui-input w-full ${fieldErrors[field] ? '!border-rose-400' : ''}`;
+  const describedBy = (field: string) => (fieldErrors[field] ? `req-${field}-error` : undefined);
+
+  const backLink = (
+    <button
+      type="button"
+      onClick={backToSignIn}
+      className="-ml-2 mb-2 inline-flex min-h-[40px] items-center gap-1.5 self-start rounded-full px-2 text-[12px] font-semibold text-ui-muted hover:text-ui-ink"
+    >
+      <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+      Back to sign in
+    </button>
+  );
+
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden">
-      <div className="w-full max-w-[440px] z-10">
-        {/* Branding header */}
-        <div className="text-center mb-6 flex flex-col items-center">
-          <img
-            src="/haca-forge-logo.png"
-            alt="HACA Marketing OS"
-            className="h-8 sm:h-9 w-auto object-contain drop-shadow-xs transition-transform duration-200 hover:scale-[1.02]"
-          />
-          <p className="mt-2 text-xs text-slate-500 font-medium tracking-wide">
-            Marketing Operations & Content Workflow Engine
-          </p>
-        </div>
+    <AuthShell>
+      <div key={view} className="auth-view-enter flex flex-1 flex-col">
+      {view === 'signin' && (
+        <>
+          <h1 className={headingClass}>Welcome back</h1>
+          <p className={subheadingClass}>Sign in with your work email to open your dashboard.</p>
 
-        {/* Frosted Glass Login Card */}
-        <div className="glass-modal p-8 shadow-modal-glass border border-white">
-          <div className="mb-6">
-            <h2 className="text-base font-bold text-slate-900">
-              Sign in to your account
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Enter your corporate credentials to access your dashboard
-            </p>
-          </div>
-
-          {successNotice && (
-            <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/90 text-emerald-800 text-xs flex items-center gap-3 mb-6">
-              <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-emerald-600" />
-              <span className="font-medium leading-relaxed">{successNotice}</span>
-            </div>
-          )}
-
-          {loginError && (
-            <div
-              className={`p-4 rounded-2xl border mb-6 flex items-start gap-3 ${
-                loginError.code?.startsWith('ACCESS_REQUEST')
-                  ? 'bg-amber-50/80 border-amber-200 text-amber-800'
-                  : 'bg-rose-50/80 border-rose-200 text-rose-800'
-              }`}
-            >
-              <ShieldAlert className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <div className="text-xs leading-relaxed">
-                <span className="font-bold block mb-0.5">
-                  {loginError.code === 'ACCESS_REQUEST_PENDING'
-                    ? 'Pending Approval'
-                    : loginError.code === 'ACCESS_REQUEST_REJECTED'
-                    ? 'Access Rejected'
-                    : loginError.code === 'ACCOUNT_SUSPENDED'
-                    ? 'Account Suspended'
-                    : 'Authentication Alert'}
-                </span>
-                {loginError.message}
-              </div>
-            </div>
-          )}
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Work Email
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  required
-                  autoComplete="username"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
-                  className="w-full pl-11 pr-4 py-3 bg-white/80 border border-slate-200 rounded-full text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-ui-ink transition-all shadow-xs"
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-slate-700">
-                  Password
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForgotModal(true);
-                    setForgotEmail(email);
-                    setForgotSuccess(null);
-                    setForgotError(null);
-                  }}
-                  className="text-[11px] font-semibold text-ui-ink hover:underline"
+          {(successNotice || loginError) && (
+            <div className="mt-6 space-y-3">
+              {successNotice && <Notice tone="success">{successNotice}</Notice>}
+              {loginError && (
+                <Notice
+                  tone={loginError.code?.startsWith('ACCESS_REQUEST') ? 'warn' : 'error'}
+                  title={
+                    loginError.code === 'ACCESS_REQUEST_PENDING'
+                      ? 'Pending approval'
+                      : loginError.code === 'ACCESS_REQUEST_REJECTED'
+                      ? 'Access rejected'
+                      : loginError.code === 'ACCOUNT_SUSPENDED'
+                      ? 'Account suspended'
+                      : "Couldn't sign in"
+                  }
                 >
-                  Forgot password?
-                </button>
-              </div>
+                  {loginError.message}
+                </Notice>
+              )}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="mt-6 space-y-4">
+            <div>
+              <FieldLabel htmlFor="login-email">Email</FieldLabel>
+              <input
+                id="login-email"
+                type="email"
+                required
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@company.com"
+                className="ui-input w-full"
+              />
+            </div>
+
+            <div>
+              <FieldLabel
+                htmlFor="login-password"
+                aside={
+                  <button type="button" onClick={openForgot} className={`text-[12px] ${linkClass}`}>
+                    Forgot password?
+                  </button>
+                }
+              >
+                Password
+              </FieldLabel>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
                 <input
+                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   required
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-11 pr-11 py-3 bg-white/80 border border-slate-200 rounded-full text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-ui-ink transition-all shadow-xs"
+                  aria-describedby={capsLock ? 'login-caps' : undefined}
+                  onKeyUp={(e) => setCapsLock(e.getModifierState('CapsLock'))}
+                  onKeyDown={(e) => setCapsLock(e.getModifierState('CapsLock'))}
+                  onBlur={() => setCapsLock(false)}
+                  className="ui-input w-full pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-                  title={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                  className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-ui-muted hover:text-ui-ink"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
                 </button>
               </div>
+              {capsLock && (
+                <p id="login-caps" className="mt-1.5 px-1 text-[11px] font-medium text-amber-700">
+                  Caps Lock is on.
+                </p>
+              )}
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoggingIn}
-              className="w-full mt-2 py-3 px-4 bg-[#0d0e12] hover:bg-black text-white font-bold text-xs rounded-full shadow-pill flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] disabled:opacity-50"
-            >
+            <button type="submit" disabled={isLoggingIn} className="ui-btn ui-btn-primary mt-2 h-12 w-full text-[13px]">
               {isLoggingIn ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Authenticating...</span>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden="true" />
+                  <span>Signing in…</span>
                 </>
               ) : (
                 <>
-                  <span>Sign In</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <span>Sign in</span>
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </>
               )}
             </button>
           </form>
 
-
-          {/* Request Access Link */}
-          <div className="mt-8 pt-6 border-t border-slate-200/80 text-center">
-            <p className="text-xs text-slate-500 mb-3">
-              Need access to submit requests or view content pipelines?
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setShowRequestModal(true);
-                setReqSuccess(null);
-                setReqError(null);
-              }}
-              className="w-full py-2.5 px-4 bg-white/90 hover:bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded-full shadow-sm transition-all hover:scale-[1.01]"
-            >
-              Request Portal Access
+          <p className="mt-auto pt-10 text-center text-[12px] text-ui-muted">
+            Don't have an account?{' '}
+            <button type="button" onClick={openRequest} className={linkClass}>
+              Request access
             </button>
-          </div>
-        </div>
-      </div>
+          </p>
+        </>
+      )}
 
-      {/* Request Access Modal (Glassmorphic) */}
-      {showRequestModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="glass-modal max-w-lg w-full max-h-[92vh] overflow-y-auto p-5 sm:p-8 shadow-modal-glass border border-white relative rounded-3xl">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 mb-5">
-              <div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Request Access</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Submit your details for Administrator review.
-                </p>
+      {view === 'request' && (
+        <>
+          {backLink}
+          {reqSuccess ? (
+            <div className="my-auto space-y-4 py-8 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600">
+                <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
               </div>
-              <button
-                type="button"
-                onClick={() => setShowRequestModal(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-200/60 text-slate-500 flex items-center justify-center transition-colors"
-              >
-                <X className="w-4 h-4" />
+              <h1 className={headingClass}>Request sent</h1>
+              <p role="status" className="mx-auto max-w-sm text-[13px] leading-relaxed text-ui-muted">
+                You'll get an email when an administrator has reviewed it.
+              </p>
+              <button type="button" onClick={backToSignIn} className="ui-btn ui-btn-primary mt-2 h-11">
+                Back to sign in
               </button>
             </div>
+          ) : (
+            <>
+              <h1 className="text-[28px] font-semibold leading-[1.1] tracking-tight text-ui-ink sm:text-[30px]">Request access</h1>
+              <p className="mt-2 text-[14px] text-ui-muted">
+                Tell us who you are. An administrator reviews your request and confirms your role.
+              </p>
 
-            {reqSuccess ? (
-              <div className="text-center py-8 space-y-4">
-                <div className="w-14 h-14 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
-                  <CheckCircle2 className="w-7 h-7" />
-                </div>
-                <h4 className="text-base font-bold text-slate-900">Request Sent</h4>
-                <p className="text-xs text-slate-600 max-w-sm mx-auto leading-relaxed">
-                  Request sent. You will get an email when it is reviewed.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRequestModal(false);
-                    setReqSuccess(null);
-                  }}
-                  className="mt-4 px-6 py-2.5 bg-[#0d0e12] hover:bg-black text-white text-xs font-bold rounded-full shadow-sm transition-transform active:scale-95"
-                >
-                  Close
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleRequestAccess} className="space-y-4">
-                {reqError && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-700 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    <span>{reqError}</span>
-                  </div>
-                )}
+              <form onSubmit={handleRequestAccess} noValidate className="auth-compact mt-6 space-y-4">
+                {reqError && <Notice tone="error">{reqError}</Notice>}
 
-                {/* Name & Work Email */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Full Name *
-                    </label>
+                    <FieldLabel htmlFor="req-name">Full name</FieldLabel>
                     <input
+                      id="req-name"
                       type="text"
                       required
+                      autoComplete="name"
                       value={reqName}
                       onChange={(e) => setReqName(e.target.value)}
                       placeholder="Jane Doe"
-                      className={`w-full px-4 py-2.5 bg-white/90 border ${
-                        fieldErrors.name ? 'border-rose-400 ring-1 ring-rose-300' : 'border-slate-200'
-                      } rounded-full text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-ui-ink shadow-xs`}
+                      aria-invalid={!!fieldErrors.name}
+                      aria-describedby={describedBy('name')}
+                      className={inputClass('name')}
                     />
-                    {fieldErrors.name && (
-                      <p className="text-[11px] text-rose-600 mt-1 pl-2">{fieldErrors.name}</p>
-                    )}
+                    <FieldError id="req-name-error" message={fieldErrors.name} />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Work Email *
-                    </label>
+                    <FieldLabel htmlFor="req-email">Work email</FieldLabel>
                     <input
+                      id="req-email"
                       type="email"
                       required
+                      autoComplete="email"
                       value={reqEmail}
                       onChange={(e) => setReqEmail(e.target.value)}
                       placeholder="jane@company.com"
-                      className={`w-full px-4 py-2.5 bg-white/90 border ${
-                        fieldErrors.email ? 'border-rose-400 ring-1 ring-rose-300' : 'border-slate-200'
-                      } rounded-full text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-ui-ink shadow-xs`}
+                      aria-invalid={!!fieldErrors.email}
+                      aria-describedby={describedBy('email')}
+                      className={inputClass('email')}
                     />
-                    {fieldErrors.email && (
-                      <p className="text-[11px] text-rose-600 mt-1 pl-2">{fieldErrors.email}</p>
-                    )}
+                    <FieldError id="req-email-error" message={fieldErrors.email} />
                   </div>
-                </div>
-
-                {/* Phone & Department */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Phone Number *
-                    </label>
+                    <FieldLabel htmlFor="req-phone">Phone number</FieldLabel>
                     <input
+                      id="req-phone"
                       type="tel"
                       required
+                      autoComplete="tel"
                       value={reqPhone}
                       onChange={(e) => setReqPhone(e.target.value)}
-                      placeholder="+1 (555) 000-0000"
-                      className={`w-full px-4 py-2.5 bg-white/90 border ${
-                        fieldErrors.phone ? 'border-rose-400 ring-1 ring-rose-300' : 'border-slate-200'
-                      } rounded-full text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-ui-ink shadow-xs`}
+                      placeholder="+91 98765 43210"
+                      aria-invalid={!!fieldErrors.phone}
+                      aria-describedby={describedBy('phone')}
+                      className={inputClass('phone')}
                     />
-                    {fieldErrors.phone && (
-                      <p className="text-[11px] text-rose-600 mt-1 pl-2">{fieldErrors.phone}</p>
-                    )}
+                    <FieldError id="req-phone-error" message={fieldErrors.phone} />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Department *
-                    </label>
+                    <FieldLabel htmlFor="req-dept">Department</FieldLabel>
                     <select
+                      id="req-dept"
                       value={reqDept}
                       onChange={(e) => setReqDept(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white/90 border border-slate-200 rounded-full text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-ui-ink shadow-xs cursor-pointer"
+                      aria-describedby={describedBy('department')}
+                      className="ui-select w-full"
                     >
-                      {DEPARTMENTS.map((dept) => (
+                      {SELECTABLE_DEPARTMENTS.map((dept) => (
                         <option key={dept.code} value={dept.name}>
                           {dept.name}
                         </option>
                       ))}
                     </select>
-                    {fieldErrors.department && (
-                      <p className="text-[11px] text-rose-600 mt-1 pl-2">{fieldErrors.department}</p>
-                    )}
+                    <FieldError id="req-department-error" message={fieldErrors.department} />
                   </div>
-                </div>
-
-                {/* Job Role & Requested Role */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Job Role *
-                    </label>
+                    <FieldLabel htmlFor="req-job">Job role</FieldLabel>
                     <select
+                      id="req-job"
                       value={reqJobRole}
                       onChange={(e) => setReqJobRole(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white/90 border border-slate-200 rounded-full text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-ui-ink shadow-xs cursor-pointer"
+                      aria-describedby={describedBy('jobRole')}
+                      className="ui-select w-full"
                     >
                       {JOB_ROLES.map((role) => (
                         <option key={role} value={role}>
@@ -482,18 +461,16 @@ export const LoginPage: React.FC = () => {
                         </option>
                       ))}
                     </select>
-                    {fieldErrors.jobRole && (
-                      <p className="text-[11px] text-rose-600 mt-1 pl-2">{fieldErrors.jobRole}</p>
-                    )}
+                    <FieldError id="req-jobRole-error" message={fieldErrors.jobRole} />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Requested Role *
-                    </label>
+                    <FieldLabel htmlFor="req-role">Requested role</FieldLabel>
                     <select
+                      id="req-role"
                       value={reqRole}
                       onChange={(e) => setReqRole(e.target.value as RequestableRole)}
-                      className="w-full px-4 py-2.5 bg-white/90 border border-slate-200 rounded-full text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-ui-ink shadow-xs cursor-pointer"
+                      aria-describedby={describedBy('requestedRole')}
+                      className="ui-select w-full"
                     >
                       {REQUESTABLE_ROLES.map((rk) => (
                         <option key={rk} value={rk}>
@@ -501,163 +478,92 @@ export const LoginPage: React.FC = () => {
                         </option>
                       ))}
                     </select>
-                    <p className="text-[10px] text-slate-400 mt-1 pl-2">
-                      Your administrator confirms your final role.
-                    </p>
-                    {fieldErrors.requestedRole && (
-                      <p className="text-[11px] text-rose-600 mt-0.5 pl-2">{fieldErrors.requestedRole}</p>
-                    )}
+                    <FieldError id="req-requestedRole-error" message={fieldErrors.requestedRole} />
                   </div>
                 </div>
 
-                {/* Reason for Access */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Reason for Access *
-                  </label>
+                  <FieldLabel htmlFor="req-reason">Reason for access</FieldLabel>
                   <textarea
+                    id="req-reason"
                     required
-                    rows={3}
+                    rows={2}
                     value={reqReason}
                     onChange={(e) => setReqReason(e.target.value)}
-                    placeholder="Briefly describe your role and the work you will do in the marketing team."
-                    className={`w-full p-3.5 bg-white/90 border ${
-                      fieldErrors.reason ? 'border-rose-400 ring-1 ring-rose-300' : 'border-slate-200'
-                    } rounded-2xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-ui-ink shadow-xs resize-none`}
+                    placeholder="Briefly describe your role and the work you'll do in the marketing team."
+                    aria-invalid={!!fieldErrors.reason}
+                    aria-describedby={describedBy('reason')}
+                    className={`${inputClass('reason')} ui-textarea resize-none`}
                   />
-                  {fieldErrors.reason && (
-                    <p className="text-[11px] text-rose-600 mt-1 pl-2">{fieldErrors.reason}</p>
-                  )}
+                  <FieldError id="req-reason-error" message={fieldErrors.reason} />
                 </div>
 
-                {/* Actions */}
-                <div className="pt-3 flex justify-end gap-3 border-t border-slate-200/80">
-                  <button
-                    type="button"
-                    onClick={() => setShowRequestModal(false)}
-                    className="px-5 py-2.5 rounded-full border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmittingReq}
-                    className="px-6 py-2.5 bg-[#0d0e12] hover:bg-black text-white text-xs font-bold rounded-full shadow-pill disabled:opacity-50 flex items-center gap-2 transition-transform active:scale-95"
-                  >
-                    {isSubmittingReq ? 'Submitting...' : 'Submit Request'}
-                  </button>
-                </div>
+                <button type="submit" disabled={isSubmittingReq} className="ui-btn ui-btn-primary !mt-5 h-12 w-full text-[13px]">
+                  {isSubmittingReq ? (
+                    'Sending request…'
+                  ) : (
+                    <>
+                      Send request
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </>
+                  )}
+                </button>
               </form>
-            )}
-          </div>
-        </div>
+            </>
+          )}
+        </>
       )}
 
-      {/* Forgot Password Modal */}
-      {showForgotModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
-          <div className="glass-modal max-w-md w-full p-6 sm:p-8 shadow-modal-glass border border-white relative space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80">
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900">
-                  Reset Password
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Receive a temporary link to set a new password
-                </p>
-              </div>
-              <button
-                onClick={() => setShowForgotModal(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-200/60 text-slate-500 flex items-center justify-center"
-              >
-                <X className="w-4 h-4" />
+      {view === 'forgot' && (
+        <>
+          {backLink}
+          <h1 className={headingClass}>Reset password</h1>
+          <p className={subheadingClass}>We'll email you a link to set a new password.</p>
+
+          {forgotSuccess ? (
+            <div className="mt-6 space-y-4">
+              <Notice tone="success">{forgotSuccess}</Notice>
+              {forgotResetLink && (
+                <div className="space-y-2 rounded-2xl border border-ui-line bg-ui-card p-4 text-[12px] text-ui-text">
+                  <div className="flex items-center gap-1.5 font-bold text-ui-ink">
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                    <span>Development link</span>
+                  </div>
+                  <p className="leading-relaxed text-ui-muted">Email is in console mode locally, so you can open the link directly:</p>
+                  <Link to={forgotResetLink.replace(/^https?:\/\/[^/]+/, '')} className="ui-btn ui-btn-primary h-10">
+                    Set new password
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Link>
+                </div>
+              )}
+              <button type="button" onClick={backToSignIn} className="ui-btn ui-btn-secondary h-11 w-full">
+                Back to sign in
               </button>
             </div>
-
-            {forgotSuccess ? (
-              <div className="space-y-4 py-2">
-                <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <p className="leading-relaxed">{forgotSuccess}</p>
-                </div>
-
-                {forgotResetLink && (
-                  <div className="p-4 rounded-2xl bg-ui-card border border-ui-line text-ui-ink text-xs space-y-2">
-                    <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                      <Sparkles className="w-4 h-4 text-ui-ink" />
-                      <span>Development / Demo Direct Link:</span>
-                    </div>
-                    <p className="text-[11px] text-slate-600 leading-relaxed">
-                      In local development, email delivery is in console mode. You can open the set password link directly below:
-                    </p>
-                    <Link
-                      to={forgotResetLink.replace(/^https?:\/\/[^/]+/, '')}
-                      onClick={() => setShowForgotModal(false)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-ui-ink hover:bg-black text-white text-xs font-bold rounded-full shadow-sm transition-transform hover:scale-[1.02]"
-                    >
-                      <span>Set New Password Now</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                )}
-
-                <div className="pt-2 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotModal(false)}
-                    className="px-5 py-2.5 bg-[#0d0e12] hover:bg-black text-white text-xs font-bold rounded-full shadow-pill"
-                  >
-                    Back to Sign In
-                  </button>
-                </div>
+          ) : (
+            <form onSubmit={handleForgotPassword} className="mt-6 space-y-4">
+              {forgotError && <Notice tone="error">{forgotError}</Notice>}
+              <div>
+                <FieldLabel htmlFor="forgot-email">Account email</FieldLabel>
+                <input
+                  id="forgot-email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="name@company.com"
+                  className="ui-input w-full"
+                />
               </div>
-            ) : (
-              <form onSubmit={handleForgotPassword} className="space-y-4">
-                {forgotError && (
-                  <div className="p-3.5 rounded-xl bg-rose-50/80 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-                    <span>{forgotError}</span>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Account Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
-                      required
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="name@company.com"
-                      className="w-full pl-11 pr-4 py-3 bg-white/80 border border-slate-200 rounded-full text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-ui-ink shadow-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-3 flex justify-end gap-3 border-t border-slate-200/80">
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotModal(false)}
-                    className="px-5 py-2.5 rounded-full border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmittingForgot || !forgotEmail.trim()}
-                    className="px-6 py-2.5 bg-[#0d0e12] hover:bg-black text-white text-xs font-bold rounded-full shadow-pill disabled:opacity-50"
-                  >
-                    {isSubmittingForgot ? 'Sending Link...' : 'Send Reset Link'}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
+              <button type="submit" disabled={isSubmittingForgot || !forgotEmail.trim()} className="ui-btn ui-btn-primary h-12 w-full text-[13px]">
+                {isSubmittingForgot ? 'Sending link…' : 'Send reset link'}
+              </button>
+            </form>
+          )}
+        </>
       )}
-    </div>
+      </div>
+    </AuthShell>
   );
 };

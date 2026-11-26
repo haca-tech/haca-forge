@@ -237,6 +237,17 @@
    "viewer"
   ]
  },
+ "GET /api/calendar/owner-choices": {
+  "guards": [
+   [
+    "calendar.plan"
+   ]
+  ],
+  "roles": [
+   "admin",
+   "sm_manager"
+  ]
+ },
  "GET /api/calendar/template": {
   "guards": [
    [
@@ -1676,6 +1687,16 @@
    "creative_lead",
    "growth_lead",
    "sm_manager"
+  ]
+ },
+ "POST /api/team/:id/regenerate-password": {
+  "guards": [
+   [
+    "user.manage"
+   ]
+  ],
+  "roles": [
+   "admin"
   ]
  },
  "POST /api/team/:id/reset-password": {

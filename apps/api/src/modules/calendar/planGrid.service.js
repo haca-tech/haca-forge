@@ -97,7 +97,7 @@ function assertCalendarAndMonth(calendar, month) {
 }
 
 /** Monthly plans of one calendar whose period starts in the given month. Legacy plans without a calendar count as SM. */
-async function findMonthPlans(calendar, month) {
+async function findMonthPlans(calendar, month, kind = 'monthly') {
   const { periodStart, periodEnd } = monthPeriod(month);
   const calendarQuery =
     calendar === 'sm'
@@ -105,7 +105,7 @@ async function findMonthPlans(calendar, month) {
       : { calendar };
   // A day of slack each side covers plans saved at local midnight.
   const plans = await CalendarPlan.find({
-    kind: 'monthly',
+    kind,
     ...calendarQuery,
     periodStart: { $gte: new Date(periodStart.getTime() - 86400000), $lte: periodEnd },
   })
@@ -307,6 +307,33 @@ async function activeOwnerCandidates() {
 }
 
 /**
+ * Who can own each step on this calendar. `workPreferences` here is the list of steps the person is
+ * eligible for (job role, narrowed by preferences); Post only for this calendar's posters. Used by
+ * the grid and by the Add row / individual work form, so both offer the same people.
+ */
+export async function ownerChoices(calendar = 'sm') {
+  const posterIds = new Set((await access.postersFor({ calendar })).people.map((p) => String(p._id)));
+  return (await activeOwnerCandidates()).map((p) => ({
+    _id: String(p._id),
+    name: p.name,
+    role: p.role,
+    workPreferences: (p.workPreferences || []).filter((st) => st !== 'Post' || posterIds.has(String(p._id))),
+  }));
+}
+
+/** Rows of this calendar and month's individual work (kind 'individual'), oldest posting date first. */
+async function individualRows(calendar, month) {
+  const plans = await findMonthPlans(calendar, month, 'individual');
+  const rows = [];
+  for (const p of plans) {
+    for (const r of await loadGridRows(p._id)) {
+      rows.push({ ...r, planId: String(p._id), planKind: 'individual', planCode: p.code, editable: false });
+    }
+  }
+  return rows.sort((a, b) => String(a.postingDate).localeCompare(String(b.postingDate)));
+}
+
+/**
  * GET grid: plans for calendar+month (selector), the chosen plan's rows, and
  * what the viewer may do. Never creates a plan.
  */
@@ -328,16 +355,7 @@ export async function loadGrid({ calendar = 'sm', month, planId } = {}, user) {
   }
 
   const { periodStart, periodEnd } = monthPeriod(monthKey);
-  // Owner dropdowns offer only eligible people: Post only for this calendar's posters.
-  const posterIds = perms.canEdit ? new Set((await access.postersFor({ calendar })).people.map((p) => String(p._id))) : new Set();
-  const people = perms.canEdit
-    ? (await activeOwnerCandidates()).map((p) => ({
-        _id: String(p._id),
-        name: p.name,
-        role: p.role,
-        workPreferences: (p.workPreferences || []).filter((st) => st !== 'Post' || posterIds.has(String(p._id))),
-      }))
-    : [];
+  const people = perms.canEdit ? await ownerChoices(calendar) : [];
 
   return {
     calendar,
@@ -350,9 +368,12 @@ export async function loadGrid({ calendar = 'sm', month, planId } = {}, user) {
     selectionRequired: !selected && plans.length > 1,
     plan: selected,
     // ownRow: the viewer added or submitted it, so the viewer may not approve or send it back (M4).
-    rows: selected
-      ? (await loadGridRows(selected._id)).map((r) => ({ ...r, ownRow: [r.createdById, r.submittedById].includes(String(user._id || user.userId)) }))
-      : [],
+    // Each row names its plan: the month's individual work is listed after the monthly plan's rows
+    // (it is its own small plan, so review/submit/delete go to that plan; its fields are edited in its own form).
+    rows: [
+      ...(selected ? (await loadGridRows(selected._id)).map((r) => ({ ...r, planId: selected._id, planKind: 'monthly', planCode: selected.code })) : []),
+      ...(await individualRows(calendar, monthKey)),
+    ].map((r) => ({ ...r, ownRow: [r.createdById, r.submittedById].includes(String(user._id || user.userId)) })),
     // Nobody reviews their own plan (fixed rule).
     permissions: { canEdit: perms.canEdit, canReview: perms.canReview && !(selected && selected.createdById === String(user._id || user.userId)), readOnly: perms.readOnly },
     // Who approves this calendar's plans now (its configured plan approvers, or the fallback).

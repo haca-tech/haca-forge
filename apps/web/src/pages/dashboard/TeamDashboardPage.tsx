@@ -41,6 +41,8 @@ interface DashboardData {
     plannedPieces: number;
     donePieces: number;
     completionRatePct: number;
+    /** Share of the month elapsed (what "on pace" would be today); older APIs omit it. */
+    expectedPacePct?: number;
     velocity: string;
     plans: {
       _id: string;
@@ -156,7 +158,7 @@ interface DashboardData {
 }
 
 export const TeamDashboardPage: React.FC = () => {
-  const { user, hasPermission } = useAuth();
+  const { user } = useAuth();
   const access = useAccess();
   const navigate = useNavigate();
   const { queryParams, filters } = useGlobalFilter();
@@ -245,32 +247,60 @@ export const TeamDashboardPage: React.FC = () => {
       ].map((k) => ({ ...k, to: trackerLink(k.key as DashboardKpiKey) }))
     : [];
 
+  const canCreateDeliverable = access.can('calendar.plan');
+
+  // "2026-11" → "November 2026"
+  const monthLabel = (ym?: string) => {
+    const [y, m] = String(ym || '').split('-').map(Number);
+    if (!y || !m) return ym || '';
+    return new Date(Date.UTC(y, m - 1, 1)).toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  };
+
+  // On pace when the share published is at least the share of the month gone by.
+  const pace = (() => {
+    if (!data) return null;
+    const m = data.monthPlanStatus;
+    const expected = m.expectedPacePct ?? 0;
+    if (m.plannedPieces === 0) return { label: 'No plan yet', tone: 'not-started' as StatusTone, expected };
+    if (m.completionRatePct >= expected) return { label: 'On pace', tone: 'approved' as StatusTone, expected };
+    return { label: `Behind by ${expected - m.completionRatePct} pts`, tone: 'changes' as StatusTone, expected };
+  })();
+
   return (
     <div className="space-y-8 pb-16">
       {/* Page title on the canvas */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="min-w-0">
-          <span className={`role-badge ${roleClass(user?.role)} px-2.5 py-0.5 text-xs font-semibold mb-2`}>
-            {getRoleDisplayName(user?.role)}
-          </span>
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className={`role-badge ${roleClass(user?.role)} px-2.5 py-0.5 text-xs font-semibold`}>
+              {getRoleDisplayName(user?.role)}
+            </span>
+            <span className="text-[13px] text-ui-muted">
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
+          </div>
           <h1 className="text-[28px] sm:text-[32px] leading-tight font-extrabold tracking-[-0.02em] text-ui-ink">
             Welcome back, {user?.name || 'Marketer'}
           </h1>
           <p className="mt-1.5 text-[15px] leading-relaxed text-ui-muted max-w-[70ch]">
-            Live operational pulse: calendar plans, production velocity, workload capacity, blockers, and sign-offs.
+            Your live view of calendar plans, production pace, workload, blockers and sign-offs.
           </p>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-          {hasPermission('work.create') && (
-            <button onClick={() => navigate('/work')} className="ui-btn ui-btn-primary h-11 flex-1 sm:flex-none px-3 sm:px-5">
-              <Plus className="w-4 h-4" />
+          {canCreateDeliverable && (
+            // Opens the "Add individual work" form on Calendar → Plans, where a single deliverable is created.
+            <button
+              onClick={() => navigate('/calendar?tab=plans&new=individual')}
+              className="ui-btn ui-btn-primary h-11 flex-1 sm:flex-none px-3 sm:px-5"
+            >
+              <Plus className="w-4 h-4" aria-hidden="true" />
               <span>New Deliverable</span>
             </button>
           )}
 
           <button onClick={() => navigate('/calendar')} className="ui-btn ui-btn-secondary bg-transparent h-11 flex-1 sm:flex-none px-3 sm:px-5">
-            <Calendar className="w-4 h-4" />
+            <Calendar className="w-4 h-4" aria-hidden="true" />
             <span>Calendar &amp; Plans</span>
           </button>
         </div>
@@ -282,26 +312,25 @@ export const TeamDashboardPage: React.FC = () => {
 
         {isLoading ? (
           <div className="glass-card">
-            <DataLoader label="Loading operational dashboard overview..." />
+            <DataLoader label="Loading dashboard overview…" />
           </div>
         ) : !data ? (
-          <div className="glass-card p-12 text-center text-[13px] text-ui-muted">Failed to load dashboard metrics.</div>
+          <div className="glass-card p-12 text-center text-[13px] text-ui-muted">
+            The dashboard couldn&apos;t load. Refresh the page to try again.
+          </div>
         ) : (
           <>
             {/* Month plan status */}
             <div className="glass-card p-5 sm:p-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-ui-line">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 shrink-0 rounded-full border border-ui-line flex items-center justify-center text-ui-ink">
-                    <Calendar className="w-5 h-5" />
+                  <div className="w-11 h-11 shrink-0 rounded-full bg-ui-ink text-white flex items-center justify-center">
+                    <Calendar className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-baseline gap-x-2">
-                      <span className={fieldLabel}>Month plan status</span>
-                      <span className={fieldLabel}>({data.monthPlanStatus.selectedMonth})</span>
-                    </div>
+                    <span className={fieldLabel}>Month plan status · {monthLabel(data.monthPlanStatus.selectedMonth)}</span>
                     <h2 className="text-lg font-bold text-ui-ink flex flex-wrap items-center gap-2">
-                      Active Monthly Plan:{' '}
+                      Active monthly plan
                       <span
                         className={`status-chip ${statusClass(planTone(data.monthPlanStatus.activePlanStatus))} text-xs px-2.5 py-0.5 font-semibold`}
                       >
@@ -312,64 +341,86 @@ export const TeamDashboardPage: React.FC = () => {
                 </div>
 
                 <button onClick={() => navigate('/calendar?tab=plans')} className={`${textLink} self-start md:self-auto`}>
-                  <span>View All Plans ({data.monthPlanStatus.totalPlans})</span>
-                  <ChevronRight className="w-4 h-4" />
+                  <span>View all plans ({data.monthPlanStatus.totalPlans})</span>
+                  <ChevronRight className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-5">
-                {/* Planned vs Done */}
-                <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-0 md:divide-x md:divide-ui-line pt-5">
+                {/* Planned vs published */}
+                <div className="space-y-2 md:pr-6">
                   <div className="flex items-center justify-between gap-2">
-                    <span className={fieldLabel}>Planned vs Published</span>
-                    <span className="text-[13px] font-semibold text-ui-ink">
-                      {data.monthPlanStatus.donePieces} / {data.monthPlanStatus.plannedPieces} Pieces
+                    <span className={fieldLabel}>Planned vs published</span>
+                    <span className="text-[13px] font-semibold text-ui-ink tabular-nums">
+                      {data.monthPlanStatus.donePieces} / {data.monthPlanStatus.plannedPieces} pieces
                     </span>
                   </div>
-                  <div className="w-full bg-ui-line rounded-full h-2 overflow-hidden">
+                  <div
+                    className="w-full bg-ui-line rounded-full h-2 overflow-hidden"
+                    role="progressbar"
+                    aria-label="Share of planned pieces published"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.min(100, data.monthPlanStatus.completionRatePct)}
+                  >
                     <div
                       className="h-full bg-ui-blue rounded-full transition-[width]"
-                      style={{
-                        width: `${Math.min(100, data.monthPlanStatus.completionRatePct)}%`,
-                      }}
+                      style={{ width: `${Math.min(100, data.monthPlanStatus.completionRatePct)}%` }}
                     />
                   </div>
-                  <div className="flex items-center justify-between text-xs text-ui-muted">
-                    <span>{data.monthPlanStatus.completionRatePct}% Completed</span>
-                    <span>{data.monthPlanStatus.plannedPieces - data.monthPlanStatus.donePieces} Remaining</span>
+                  <div className="flex items-center justify-between text-xs text-ui-muted tabular-nums">
+                    <span>{data.monthPlanStatus.completionRatePct}% completed</span>
+                    <span>{Math.max(0, data.monthPlanStatus.plannedPieces - data.monthPlanStatus.donePieces)} remaining</span>
                   </div>
                 </div>
 
-                {/* Velocity */}
-                <div className="space-y-1">
-                  <span className={`${fieldLabel} block`}>Publishing velocity</span>
-                  <div className="text-base font-semibold text-ui-ink">{data.monthPlanStatus.velocity}</div>
+                {/* Publishing pace */}
+                <div className="space-y-1.5 md:px-6">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={fieldLabel}>Publishing pace</span>
+                    {pace && (
+                      <span className={`status-chip ${statusClass(pace.tone)} text-[11px] px-2 py-0.5 font-semibold`}>{pace.label}</span>
+                    )}
+                  </div>
+                  <div className="text-base font-semibold text-ui-ink tabular-nums">
+                    {data.monthPlanStatus.donePieces} done of {data.monthPlanStatus.plannedPieces} planned
+                  </div>
                   <p className="text-xs text-ui-muted">
-                    Calculated against days elapsed in {data.monthPlanStatus.selectedMonth}.
+                    {data.monthPlanStatus.completionRatePct}% done vs {pace?.expected ?? 0}% of the month passed.
                   </p>
                 </div>
 
-                {/* Plans breakdown */}
-                <div className="space-y-1.5">
+                {/* Plans in this period */}
+                <div className="space-y-1.5 md:pl-6">
                   <span className={`${fieldLabel} block`}>Active plans in period</span>
-                  <div className="space-y-1.5 max-h-28 overflow-y-auto">
-                    {data.monthPlanStatus.plans.length === 0 ? (
-                      <span className="text-[13px] text-ui-muted">No calendar plans uploaded for this month.</span>
-                    ) : (
-                      data.monthPlanStatus.plans.map((p) => (
-                        <div
-                          key={p._id}
-                          onClick={() => navigate(`/calendar?tab=plans`)}
-                          className={`flex items-center justify-between text-[13px] px-3 py-2 cursor-pointer ${row}`}
-                        >
-                          <span className="font-semibold text-ui-text truncate mr-2">{p.title}</span>
-                          <span className={`status-chip ${statusClass(planTone(p.status))} text-[11px] px-2 py-0.5 font-semibold shrink-0`}>
-                            {p.status}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                  {data.monthPlanStatus.plans.length === 0 ? (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                      <span className="text-[13px] text-ui-muted">No calendar plans for this month yet.</span>
+                      {canCreateDeliverable && (
+                        <button onClick={() => navigate('/calendar?tab=plans')} className={textLink}>
+                          <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                          <span>Create a plan</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <ul className="space-y-1.5 max-h-28 overflow-y-auto">
+                      {data.monthPlanStatus.plans.map((p) => (
+                        <li key={p._id}>
+                          <button
+                            type="button"
+                            onClick={() => navigate('/calendar?tab=plans')}
+                            className={`w-full flex items-center justify-between text-left text-[13px] px-3 py-2 ${row}`}
+                          >
+                            <span className="font-semibold text-ui-text truncate mr-2">{p.title}</span>
+                            <span className={`status-chip ${statusClass(planTone(p.status))} text-[11px] px-2 py-0.5 font-semibold shrink-0`}>
+                              {p.status}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             </div>
@@ -388,12 +439,14 @@ export const TeamDashboardPage: React.FC = () => {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className={fieldLabel}>{label}</span>
-                      <Icon className={`w-4 h-4 shrink-0 ${tone}`} />
+                      <span className={`flex h-7 w-7 items-center justify-center rounded-full bg-white/80 transition-colors group-hover:bg-white ${tone}`}>
+                        <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+                      </span>
                     </div>
                     <div className="mt-1 text-[28px] leading-9 font-semibold text-ui-ink tabular-nums">{value}</div>
-                    <span className="mt-1 inline-flex items-center gap-0.5 text-xs font-medium text-ui-text group-hover:underline underline-offset-4">
+                    <span className="mt-1 inline-flex items-center gap-0.5 text-xs font-medium text-ui-muted group-hover:text-ui-ink group-hover:underline underline-offset-4">
                       <span>{link}</span>
-                      <ArrowUpRight className="w-3 h-3" />
+                      <ArrowUpRight className="w-3 h-3 transition-transform group-hover:-translate-y-px group-hover:translate-x-px" aria-hidden="true" />
                     </span>
                   </button>
                 ))}

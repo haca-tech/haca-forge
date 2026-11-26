@@ -110,6 +110,7 @@ export async function getDashboardOverview(filters = {}, user) {
     plannedPieces: totalPlannedRows,
     donePieces: totalDoneRows,
     completionRatePct: planCompletionPct,
+    expectedPacePct,
     velocity: velocityText,
     plans: planSummaries,
   };

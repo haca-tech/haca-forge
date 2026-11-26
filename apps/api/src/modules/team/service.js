@@ -4,6 +4,7 @@ import { calendarQueryFor } from '../workItems/deciders.js';
 import mongoose from 'mongoose';
 import { countAwaitingReview, markAwaitingReview } from '../workItems/reviewState.js';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { Person } from '../people/model.js';
 import { Department } from '../departments/model.js';
 import { WorkItem } from '../workItems/model.js';
@@ -1118,6 +1119,89 @@ export async function triggerPasswordReset(personId, actor) {
   return {
     success: true,
     message: `Password reset triggered for ${person.name}`,
+  };
+}
+
+/**
+ * A random 12-character temporary password that meets the account rules (at least one
+ * uppercase letter, one lowercase letter, one number and one symbol). Look-alike characters
+ * (0/O, 1/l/I) are left out so it can be read out or typed from a message without mistakes.
+ */
+export function generateTemporaryPassword(length = 12) {
+  const sets = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnopqrstuvwxyz', '23456789', '!@#$%&*?'];
+  const all = sets.join('');
+  const pick = (chars) => chars[crypto.randomInt(chars.length)];
+  const chars = sets.map(pick);
+  while (chars.length < length) chars.push(pick(all));
+  // Fisher-Yates shuffle with a cryptographic source, so the required characters are not always first.
+  for (let i = chars.length - 1; i > 0; i -= 1) {
+    const j = crypto.randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
+}
+
+/**
+ * Regenerate Password (admin): replaces the person's password with a new temporary one and
+ * returns it once, so the admin can pass it on when the person cannot sign in (forgotten
+ * password, reset email not arriving). The person must change it right after signing in.
+ * Every existing session is ended. The password itself is never stored or logged.
+ */
+export async function regeneratePassword(personId, actor) {
+  if (!hasPermission(actor, 'user.manage')) {
+    const error = new Error('Forbidden: Only Administrator can regenerate passwords');
+    error.code = 'FORBIDDEN';
+    error.statusCode = 403;
+    throw error;
+  }
+  if (!mongoose.Types.ObjectId.isValid(personId)) {
+    const error = new Error('Person not found');
+    error.code = 'NOT_FOUND';
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const actorId = (actor?._id || actor?.id || actor?.userId)?.toString();
+  if (actorId && actorId === String(personId)) {
+    const error = new Error('Change your own password from Settings, not here.');
+    error.code = 'SELF_ACTION_NOT_ALLOWED';
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const person = await Person.findById(personId);
+  if (!person) {
+    const error = new Error('Person not found');
+    error.code = 'NOT_FOUND';
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const temporaryPassword = generateTemporaryPassword();
+  person.passwordHash = await bcrypt.hash(temporaryPassword, 10);
+  person.mustSetPassword = false;
+  person.mustChangePassword = true;
+  person.resetPasswordTokenHash = undefined;
+  person.resetPasswordExpiresAt = undefined;
+  person.refreshTokenHash = undefined;
+  await person.save();
+
+  await Session.deleteMany({ userId: person._id });
+  disconnectUserSockets(person._id);
+
+  await logActivity({
+    entityType: 'person',
+    entityId: person._id,
+    actor,
+    action: 'person.password_regenerated',
+    metadata: { sessionsEnded: true },
+  });
+
+  return {
+    name: person.name,
+    email: person.email,
+    status: person.status,
+    temporaryPassword,
   };
 }
 

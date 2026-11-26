@@ -88,12 +88,37 @@ const renderGrid = async (over: Partial<GridData> = {}) => {
 };
 
 beforeEach(() => {
+  // These tests cover the detailed (one column per step) view; the simple view has its own test.
+  const store: Record<string, string> = { 'planGrid.view': 'detailed', 'planGrid.reviewLayout': 'grid' };
+  vi.stubGlobal('localStorage', { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = v; }, removeItem: (k: string) => { delete store[k]; } });
   calls.length = 0;
   saveHandler = () => okResponse([]);
   autofillHandler = () => ({ stages: [] });
 });
 
 describe('1. Default planning view and hidden Progress view', () => {
+  it('simple view (the default): plan fields plus one Team & deadlines cell that opens the row details; Detailed view brings the step columns back', async () => {
+    localStorage.setItem('planGrid.view', 'simple');
+    await renderGrid();
+    const headers = screen.getAllByRole('columnheader').map((h) => (h.textContent || '').split(':')[0]);
+    expect(headers).toEqual(['#', 'Posting Date', 'Topic', 'Type', 'Workflow', 'Brief', 'Team & deadlines', 'Status', 'Actions']);
+    expect(screen.getByRole('button', { name: 'Row details: Founder reel' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: /Row 1: Founder reel, Draft/ })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Edit Owner, row 1, Founder reel')).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Script / Content' })).not.toBeInTheDocument();
+
+    const team = screen.getByRole('button', { name: /^Team and deadlines, row 1, Founder reel: / });
+    expect(team).toHaveAccessibleName(/Edit: /);
+    fireEvent.click(team);
+    expect(await screen.findByRole('dialog', { name: 'Founder reel' })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Founder reel' })).getAllByRole('button', { name: /close|cancel/i })[0]);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Founder reel' })).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Detailed view' }));
+    expect(screen.getByLabelText('Edit Owner, row 1, Founder reel')).toBeInTheDocument();
+    expect(localStorage.getItem('planGrid.view')).toBe('detailed');
+  });
+
   it('shows the planning columns in order: Workflow next to Type, one Script / Content group, no status columns', async () => {
     await renderGrid();
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent || '');

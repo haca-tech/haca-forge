@@ -126,6 +126,22 @@ export const CalendarPage: React.FC = () => {
   const currentCalendar = searchParams.get('calendar') || 'all';
   const [isIndividualCreateRequested, setIsIndividualCreateRequested] = useState(false);
 
+  // Deep link from the dashboard's "New Deliverable": /calendar?tab=plans&new=individual opens the
+  // "Add individual work" form once, then drops the flag so a refresh does not reopen it.
+  useEffect(() => {
+    if (searchParams.get('new') !== 'individual') return;
+    if (access.can('calendar.plan')) setIsIndividualCreateRequested(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('new');
+        next.set('tab', 'plans');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [searchParams]);
+
   const handleCalendarSelect = (calKey: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);

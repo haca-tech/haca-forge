@@ -80,4 +80,18 @@ describe('Grid autofill and import suggestions follow the owner rule', () => {
     expect(String(ownerOf(await fill('sales'), 'Post'))).toBe(String(P.smSales._id));
     expect(String(ownerOf(await fill('sm'), 'Post'))).not.toBe(String(P.smSales._id)); // limited to Sales
   });
+
+  it('owner choices for the Add row / individual work form: an SM Manager with no preferences is offered for Post on their calendar only; workers cannot read the list', async () => {
+    const designer = await person('designer', 'executive', { jobRole: 'Graphic Designer', workPreferences: ['Design'] });
+    const res = await request(app).get('/api/calendar-plans/owner-choices?calendar=sm').set(as('sm'));
+    expect(res.status).toBe(200);
+    const byId = Object.fromEntries(res.body.data.map((p) => [p._id, p.workPreferences]));
+    expect(byId[String(P.sm._id)]).toContain('Post'); // was: "lacks Post in work preferences"
+    expect(byId[String(P.smSales._id)] || []).not.toContain('Post'); // sales-only SM Manager
+    expect(byId[String(designer._id)]).toContain('Design');
+    expect(byId[String(designer._id)]).not.toContain('Post');
+
+    expect((await request(app).get('/api/calendar-plans/owner-choices?calendar=nope').set(as('sm'))).status).toBe(400);
+    expect((await request(app).get('/api/calendar-plans/owner-choices?calendar=sm').set(as('designer'))).status).toBe(403);
+  });
 });

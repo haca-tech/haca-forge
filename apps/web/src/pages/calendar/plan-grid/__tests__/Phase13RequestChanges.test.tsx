@@ -78,6 +78,9 @@ const show = async (over: Partial<GridData> = {}) => {
 const reviewCalls = () => calls.filter((c) => c.url === '/api/calendar-plans/plan1/review');
 
 beforeEach(() => {
+  // These tests cover the detailed (one column per step) view; the simple view has its own test.
+  const store: Record<string, string> = { 'planGrid.view': 'detailed', 'planGrid.reviewLayout': 'grid' };
+  vi.stubGlobal('localStorage', { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = v; }, removeItem: (k: string) => { delete store[k]; } });
   calls.length = 0;
   role = 'creative_lead';
   historyResponse = [];

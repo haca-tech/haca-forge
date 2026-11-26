@@ -49,6 +49,7 @@ router.patch('/:id', requireAnyPermission('user.manage', 'people.manage_operatio
 router.post('/:id/reassign', requirePermission('assignment.override'), teamController.reassign);
 router.post('/:id/status', requirePermission('user.manage'), teamController.toggleStatusHandler);
 router.post('/:id/reset-password', requirePermission('user.manage'), teamController.resetPasswordHandler);
+router.post('/:id/regenerate-password', requirePermission('user.manage'), teamController.regeneratePasswordHandler);
 router.post('/:id/force-logout', requirePermission('user.manage'), teamController.forceLogoutHandler);
 
 export default router;

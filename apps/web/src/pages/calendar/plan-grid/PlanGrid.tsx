@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, CheckCircle2, ClipboardPaste, Download, HelpCircle, ListChecks, MessageSquare, PanelRightOpen, Plus, Send, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ClipboardPaste, Download, HelpCircle, List, ListChecks, MessageSquare, PanelRightOpen, Plus, Send, Table, Trash2, Upload } from 'lucide-react';
 import {
   CALENDAR_LIST,
   formatGridDate,
@@ -26,9 +26,10 @@ import { PlanGridRowPanel } from './PlanGridRowPanel';
 import { PlanGridConfirmDialog } from './PlanGridConfirmDialog';
 import { PlanChangesDialog } from './PlanRowChangeRequest';
 import { PlanGridPasteDialog } from './PlanGridPasteDialog';
+import { PlanGridReview } from './PlanGridReview';
 import { useMediaQuery } from './useMediaQuery';
 import { BAND_DOT, ownerOptionLabel, useTeamWorkload } from '../../../lib/workload';
-import { OWNER_FIELD_BY_STAGE, PLANNING_COLUMNS, PROGRESS_COLUMNS, STAGE_LABEL, stageForColumn, type PlanCol, type PlanColGroup } from './columns';
+import { OWNER_FIELD_BY_STAGE, PLANNING_COLUMNS, PROGRESS_COLUMNS, SIMPLE_COLUMNS, STAGE_LABEL, stageForColumn, type PlanCol, type PlanColGroup } from './columns';
 import { STATUS_STAGE, rowCanBeDeleted, type GridCellInput, type GridData, type GridLine, type GridRow, type GridRowResult, type GridSaveResponse } from './types';
 
 const ROW_STATUS: Record<string, { tone: string; label: string }> = {
@@ -36,6 +37,23 @@ const ROW_STATUS: Record<string, { tone: string; label: string }> = {
   submitted: { tone: 'status-waiting', label: 'Submitted' },
   changes_requested: { tone: 'status-changes', label: 'Changes' },
   approved: { tone: 'status-approved', label: 'Approved' },
+};
+
+/** "2026-12" → "December 2026" */
+const monthTitle = (ym: string) => {
+  const [y, m] = ym.split('-').map(Number);
+  if (!y || !m) return ym;
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+};
+
+type GridView = 'simple' | 'detailed';
+const VIEW_KEY = 'planGrid.view';
+const readView = (): GridView => {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'detailed' ? 'detailed' : 'simple';
+  } catch {
+    return 'simple';
+  }
 };
 
 let lineSeq = 0;
@@ -91,8 +109,9 @@ function textOf(line: GridLine, key: string): string {
 }
 
 /** Frozen-column widths; narrower below 1024px so other columns can scroll into view on tablets. */
-function gridLayout(compact: boolean, withSelect: boolean, withDelete = false) {
-  const lead = (compact ? 136 : 190) + (withSelect ? 44 : 0) + (withDelete ? 44 : 0);
+function gridLayout(compact: boolean, withSelect: boolean, withDelete = false, simple = false) {
+  // Simple view: the lead column is just the row number (status and actions have their own columns).
+  const lead = simple ? 52 + (withSelect ? 40 : 0) : (compact ? 136 : 190) + (withSelect ? 44 : 0) + (withDelete ? 44 : 0);
   const frozen = compact ? { postingDate: 146, topic: 170, type: 140 } : { postingDate: 150, topic: 240, type: 160 };
   const widthOf = (c: PlanCol) => (frozen as Record<string, number>)[c.key] ?? c.width;
   const left: Record<string, number> = { postingDate: lead, topic: lead + frozen.postingDate, type: lead + frozen.postingDate + frozen.topic };
@@ -224,9 +243,36 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
   const people = data?.people || [];
   const isPhone = useMediaQuery('(max-width: 639px)');
   const isCompact = useMediaQuery('(max-width: 1023px)');
-  const layout = useMemo(() => gridLayout(isCompact, canReview, canEdit), [isCompact, canReview, canEdit]);
+  // Simple view (default) or the full Excel-style columns; remembered on this device.
+  const [view, setView] = useState<GridView>(readView);
+  // Reviewers get the review list by default; the grid stays one click away. Remembered on this device.
+  const [reviewLayout, setReviewLayout] = useState<'list' | 'grid'>(() => {
+    try {
+      return localStorage.getItem('planGrid.reviewLayout') === 'grid' ? 'grid' : 'list';
+    } catch {
+      return 'list';
+    }
+  });
+  const chooseReviewLayout = (v: 'list' | 'grid') => {
+    setReviewLayout(v);
+    try {
+      localStorage.setItem('planGrid.reviewLayout', v);
+    } catch {
+      /* private mode */
+    }
+  };
+  const chooseView = (v: GridView) => {
+    setView(v);
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* private mode: the choice lasts until reload */
+    }
+  };
+  const layout = useMemo(() => gridLayout(isCompact, canReview, canEdit, view === 'simple'), [isCompact, canReview, canEdit, view]);
   const [onlyWaiting, setOnlyWaiting] = useState<boolean | null>(null);
   const showOnlyWaiting = onlyWaiting ?? canReview;
+  const reviewMode = canReview && reviewLayout === 'list';
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirm, setConfirm] = useState<null | { kind: 'approveAll' } | { kind: 'planChanges' } | { kind: 'deleteRow'; key: string }>(null);
   // Bumped after a suggestion is applied, so the open row panel re-reads the saved row.
@@ -235,7 +281,12 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
 
   // Progress columns are only useful once rows are approved (their steps exist).
   const hasProgress = lines.some((l) => l.saved?.rowStatus === 'approved');
-  const columns: PlanCol[] = useMemo(() => [...PLANNING_COLUMNS, ...(showProgress && hasProgress ? PROGRESS_COLUMNS : [])], [showProgress, hasProgress]);
+  const columns: PlanCol[] = useMemo(
+    () => (view === 'simple' ? SIMPLE_COLUMNS : [...PLANNING_COLUMNS, ...(showProgress && hasProgress ? PROGRESS_COLUMNS : [])]),
+    [view, showProgress, hasProgress]
+  );
+  // Group headings (Plan / Script / Shoot ...) only help when the step columns are shown.
+  const showGroups = view === 'detailed';
   const groups = useMemo(() => {
     const out: { group: PlanColGroup; span: number }[] = [];
     for (const c of columns) {
@@ -487,7 +538,11 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
 
   // ── Submit, review & delete ──────────────────────────────────────────────
   const plan = data?.plan || null;
-  const toSubmit = lines.filter((l) => l.saved && (l.saved.rowStatus === 'draft' || l.saved.rowStatus === 'changes_requested')).length;
+  /** Individual work rows are their own small plans, shown here alongside the month's plan. */
+  const isIndividual = (l: GridLine) => l.saved?.planKind === 'individual';
+  /** The plan a row's actions go to: its own plan (individual work) or the month's plan. */
+  const planOf = (l: GridLine | null | undefined) => l?.saved?.planId || plan?._id;
+  const toSubmit = lines.filter((l) => l.saved && !isIndividual(l) && (l.saved.rowStatus === 'draft' || l.saved.rowStatus === 'changes_requested')).length;
   const unsavedWithContent = lines.filter((l) => !isBlank(l) && (!l.saved || Object.keys(l.errors).length > 0)).length;
   const keepUnsaved = () => linesRef.current.filter((l) => !l.saved && !isBlank(l));
   const submitPlan = async () => {
@@ -505,14 +560,14 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
     }
   };
 
-  const review = async (body: Record<string, unknown>, okText: string) => {
-    if (!plan) return false;
+  const review = async (body: Record<string, unknown>, okText: string, targetPlanId: string | undefined = plan?._id) => {
+    if (!targetPlanId) return false;
     setReviewBusy(true);
     try {
       // What this screen showed as waiting, for whole-plan decisions (they act on what is waiting now).
-      const shownWaiting = body.action === 'approve_all' || body.action === 'request_changes_all' ? submittedLines.length : 0;
+      const shownWaiting = body.action === 'approve_all' || body.action === 'request_changes_all' ? submittedMonthly.length : 0;
       const res = await apiFetch<{ data?: { decision?: { summary?: string; approved?: string[]; changesRequested?: string[]; alreadyDecided?: Array<{ topic: string }> } } }>(
-        `/api/calendar-plans/${plan._id}/review`,
+        `/api/calendar-plans/${targetPlanId}/review`,
         { method: 'POST', body: JSON.stringify(body) }
       );
       // Rows another lead decided first are reported, not lost: "2 approved, 1 already decided".
@@ -539,16 +594,66 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
     }
   };
   const submittedLines = lines.filter((l) => l.saved?.rowStatus === 'submitted');
+  // Whole-plan decisions act on the month's plan only; individual work is decided row by row.
+  const submittedMonthly = submittedLines.filter((l) => !isIndividual(l));
+  /** Group row ids by the plan they belong to (the month's plan or individual work). */
+  const byPlanOf = <T extends { rowId: string }>(items: T[]) => {
+    const out = new Map<string, T[]>();
+    for (const it of items) {
+      const pid = planOf(lines.find((l) => l.saved?.rowId === it.rowId));
+      if (pid) out.set(pid, [...(out.get(pid) || []), it]);
+    }
+    return out;
+  };
+  /** Review list: approve rows (one request per plan). */
+  const approveRows = async (rowIds: string[]) => {
+    const n = rowIds.length;
+    const one = n === 1 ? lines.find((l) => l.saved?.rowId === rowIds[0])?.saved?.topic : null;
+    for (const [pid, items] of byPlanOf(rowIds.map((rowId) => ({ rowId })))) {
+      const ok = await review(
+        { action: 'approve_selected', approvedRowIds: items.map((i) => i.rowId) },
+        one ? `Approved "${one}". Its steps are now created.` : `Approved ${n} rows. Their steps are now created.`,
+        pid
+      );
+      if (!ok) return false;
+    }
+    return true;
+  };
+  /** Review list: send rows back, each with its message (one request per plan). */
+  const requestChangesRows = async (items: { rowId: string; comment: string }[]) => {
+    const n = items.length;
+    const one = n === 1 ? lines.find((l) => l.saved?.rowId === items[0].rowId)?.saved?.topic : null;
+    for (const [pid, group] of byPlanOf(items)) {
+      const ok = await review({ action: 'request_changes', changes: group }, one ? `Sent "${one}" back with your note.` : `Sent ${n} rows back with your note.`, pid);
+      if (!ok) return false;
+    }
+    return true;
+  };
+  /** Approve the ticked rows, one request per plan they belong to. */
+  const approveSelected = async () => {
+    const byPlan = new Map<string, string[]>();
+    for (const l of lines) {
+      if (!l.saved || !selectedIds.has(l.saved.rowId)) continue;
+      const pid = planOf(l);
+      if (!pid) continue;
+      byPlan.set(pid, [...(byPlan.get(pid) || []), l.saved.rowId]);
+    }
+    const n = selectedIds.size;
+    for (const [pid, ids] of byPlan) {
+      const ok = await review({ action: 'approve_selected', approvedRowIds: ids }, `Approved ${n} ${n === 1 ? 'row' : 'rows'}.`, pid);
+      if (!ok) return;
+    }
+  };
   // Whole-plan approval uses the existing approve_all rule (approves every row); offered only when
   // every row not yet approved has been submitted, so no draft is approved by accident.
   // Rows the viewer added or submitted are decided by another approver (the API refuses them),
   // so whole-plan decisions are off while any of them is waiting.
-  const ownWaiting = submittedLines.filter((l) => l.saved?.ownRow).length;
+  const ownWaiting = submittedMonthly.filter((l) => l.saved?.ownRow).length;
   const ownWaitingNote = ownWaiting
     ? `You added or submitted ${ownWaiting === 1 ? 'a waiting row' : `${ownWaiting} waiting rows`}: another approver decides ${ownWaiting === 1 ? 'it' : 'them'}. Approve the other rows one by one.`
     : undefined;
   const canApproveWhole =
-    canReview && !ownWaiting && submittedLines.length > 0 && lines.every((l) => !l.saved || l.saved.rowStatus === 'submitted' || l.saved.rowStatus === 'approved');
+    canReview && !ownWaiting && submittedMonthly.length > 0 && lines.every((l) => !l.saved || isIndividual(l) || l.saved.rowStatus === 'submitted' || l.saved.rowStatus === 'approved');
 
   const panelLine = lines.find((l) => l.key === panelKey) || null;
   const savePanel = async (cells: GridCellInput) => {
@@ -563,10 +668,11 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
     if (ok) setPanelKey(null);
   };
   const submitPanelRow = async () => {
-    if (!panelLine?.rowId || !plan) return;
+    const pid = planOf(panelLine);
+    if (!panelLine?.rowId || !pid) return;
     setPanelSaving(true);
     try {
-      await apiFetch(`/api/calendar-plans/${plan._id}/rows/${panelLine.rowId}/submit`, { method: 'POST' });
+      await apiFetch(`/api/calendar-plans/${pid}/rows/${panelLine.rowId}/submit`, { method: 'POST' });
       setNotice({ tone: 'ok', text: `Sent "${panelLine.saved?.topic}" for review.` });
       setPanelKey(null);
       await load(keepUnsaved());
@@ -582,20 +688,22 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
     setPanelSaving(true);
     const ok =
       action === 'approve'
-        ? await review({ action: 'approve_selected', approvedRowIds: [panelLine.rowId] }, `Approved "${panelLine.saved?.topic}". Its steps are now created.`)
+        ? await review({ action: 'approve_selected', approvedRowIds: [panelLine.rowId] }, `Approved "${panelLine.saved?.topic}". Its steps are now created.`, planOf(panelLine))
         : await review(
             { action: 'request_changes', changes: [{ rowId: panelLine.rowId, comment, ...(suggestions ? { suggestions } : {}) }] },
-            `Sent "${panelLine.saved?.topic}" back with your note${suggestions ? ' and suggested values' : ''}.`
+            `Sent "${panelLine.saved?.topic}" back with your note${suggestions ? ' and suggested values' : ''}.`,
+            planOf(panelLine)
           );
     setPanelSaving(false);
     if (ok) setPanelKey(null);
   };
   /** SM Manager: apply the lead's suggested values; the panel stays open to resubmit. */
   const applyPanelSuggestion = async () => {
-    if (!panelLine?.rowId || !plan) return;
+    const pid = planOf(panelLine);
+    if (!panelLine?.rowId || !pid) return;
     setPanelSaving(true);
     try {
-      await apiFetch(`/api/calendar-plans/${plan._id}/rows/${panelLine.rowId}/apply-suggestion`, { method: 'POST' });
+      await apiFetch(`/api/calendar-plans/${pid}/rows/${panelLine.rowId}/apply-suggestion`, { method: 'POST' });
       setNotice({ tone: 'ok', text: `Suggestion applied to "${panelLine.saved?.topic}". Resubmit the row when it is ready.` });
       await load(keepUnsaved());
       setPanelVersion((v) => v + 1);
@@ -608,11 +716,12 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
   };
   const deleteRowConfirmed = async (key: string) => {
     const target = lines.find((l) => l.key === key);
-    if (!target?.rowId || !plan) return;
+    const pid = planOf(target);
+    if (!target?.rowId || !pid) return;
     setConfirm(null);
     setPanelSaving(true);
     try {
-      await apiFetch(`/api/calendar-plans/${plan._id}/rows/${target.rowId}`, { method: 'DELETE' });
+      await apiFetch(`/api/calendar-plans/${pid}/rows/${target.rowId}`, { method: 'DELETE' });
       if (panelKey === key) setPanelKey(null);
       await load(keepUnsaved());
       onChanged?.();
@@ -871,6 +980,67 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
     );
   };
 
+  /**
+   * Simple view: one line per row. Overlapping initials for the step owners, the span of step
+   * deadlines, and a "N missing" badge when a step has no owner or deadline. The full list is in the
+   * accessible name and tooltip; the cell opens the row panel to change it.
+   */
+  const renderTeam = (line: GridLine, idx: number) => {
+    const row = line.saved;
+    if (!row) {
+      return <span className="block px-2 text-[13px] text-ui-muted">Set automatically when saved</span>;
+    }
+    const shortDate = (iso: string) =>
+      new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+    const steps = row.stages.map((s) => {
+      const ownerId = row.ownerIds[s];
+      const name = ownerId ? people.find((p) => p._id === ownerId)?.name || String((row as unknown as Record<string, unknown>)[OWNER_FIELD_BY_STAGE[s]] || '') : '';
+      return { s, name, due: row.stepDeadlines[s] || '' };
+    });
+    const dues = steps.map((t) => t.due).filter(Boolean).sort();
+    const range = dues.length ? (dues[0] === dues[dues.length - 1] ? shortDate(dues[0]) : `${shortDate(dues[0])} – ${shortDate(dues[dues.length - 1])}`) : 'No deadlines';
+    const missing = steps.filter((t) => !t.name || !t.due).length;
+    const summary = steps.map((t) => `${STAGE_LABEL[t.s]}: ${t.name || 'no owner'}${t.due ? `, due ${formatGridDate(t.due)}` : ', no deadline'}`).join('; ');
+    const initials = (n: string) =>
+      n
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w) => w[0]!.toUpperCase())
+        .join('');
+    return (
+      <button
+        type="button"
+        data-cell
+        data-line={idx}
+        data-col="team"
+        onClick={() => setPanelKey(line.key)}
+        title={summary.split('; ').join('\n')}
+        aria-label={`Team and deadlines, row ${idx + 1}, ${row.topic}: ${summary}. ${canEdit && row.editable ? 'Edit' : 'View'} in row details.`}
+        className="flex h-[38px] w-full items-center gap-2.5 rounded-[10px] border border-transparent px-2 text-left transition-colors hover:border-ui-line hover:bg-white focus:outline-none focus-visible:border-ui-ink focus-visible:bg-white"
+      >
+        <span className="flex shrink-0 -space-x-1.5" aria-hidden="true">
+          {steps.map(({ s, name }) => (
+            <span
+              key={s}
+              className={`flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-bold ring-2 ring-white ${
+                name ? 'bg-ui-ink text-white' : 'border border-dashed border-ui-coral bg-white text-ui-coral'
+              }`}
+            >
+              {name ? initials(name) : '?'}
+            </span>
+          ))}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[13px] text-ui-text tabular-nums" aria-hidden="true">{range}</span>
+        {missing > 0 && (
+          <span className="status-chip status-changes shrink-0 px-2 py-0.5 text-[11px] font-semibold" aria-hidden="true">
+            {missing} missing
+          </span>
+        )}
+      </button>
+    );
+  };
+
   const renderProgress = (line: GridLine, col: PlanCol) => {
     const row = line.saved;
     if (!row) return <span className="text-ui-muted" aria-hidden="true">–</span>;
@@ -912,111 +1082,121 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
   const calendarName = CALENDAR_LIST.find((c) => c.id === calendar)?.name || calendar;
 
   return (
-    <section aria-labelledby="plan-grid-title" className="space-y-3 w-full min-w-0">
-      {/* Toolbar */}
-      <div className="glass-panel rounded-ui-panel p-3 sm:p-4 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={onClose} className="ui-btn ui-btn-secondary h-11">
+    <section aria-labelledby="plan-grid-title" className="plan-grid space-y-3 w-full min-w-0">
+      {/* Header: title and plan facts on the left, the main actions on the right */}
+      <div className="glass-panel rounded-ui-panel px-4 py-4 sm:px-5 space-y-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={onClose} className="ui-btn ui-btn-secondary h-10 px-3.5" aria-label="Back to plans" title="Back to plans">
             <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-            Back to plans
+            <span className="hidden sm:inline">Plans</span>
           </button>
           <div className="min-w-0 mr-auto">
-            <h1 id="plan-grid-title" className="text-lg font-bold text-ui-ink leading-tight">Plan grid</h1>
-            <p className="text-sm text-ui-muted">
-              {canReview
-                ? 'Review submitted rows: approve them, or send them back with a note.'
-                : readOnly
-                  ? 'Read-only view of the month plan.'
-                  : isPhone
-                    ? 'Add or edit one row at a time.'
-                    : 'Type in the grid, pick dates from the calendar, or paste rows from Excel.'}
+            <h1 id="plan-grid-title" className="text-lg font-bold text-ui-ink leading-tight">
+              Plan grid
+            </h1>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[13px] text-ui-muted">
+              <span className="font-medium text-ui-text">{calendarName}</span>
+              <span aria-hidden="true">·</span>
+              <span>{monthTitle(month)}</span>
+              <span aria-hidden="true">·</span>
+              <span aria-live="polite">
+                {loading
+                  ? 'Loading…'
+                  : plan
+                    ? `${plan.code} · ${plan.status} · ${lines.filter((l) => l.saved).length} rows`
+                    : data?.selectionRequired
+                      ? 'Choose a plan'
+                      : 'No plan yet. The draft is created when the first row is saved.'}
+              </span>
             </p>
           </div>
-          {canEdit && (
-            <>
-              <button type="button" className="ui-btn ui-btn-primary h-11" onClick={addRow}>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {data?.permissions.canEdit && !isPhone && (
+              <div role="group" aria-label="Import from Excel" className="flex items-center rounded-full border border-ui-line bg-white/60 p-0.5">
+                {canEdit && (
+                  <button type="button" className="ui-btn h-9 min-h-0 px-3 text-ui-text hover:bg-white" onClick={() => setPasteOpen(true)}>
+                    <ClipboardPaste className="w-4 h-4" aria-hidden="true" />
+                    Paste from Excel
+                  </button>
+                )}
+                <input ref={fileRef} type="file" accept=".xlsx,.csv" className="sr-only" id="plan-grid-upload" aria-label="Upload an Excel or CSV plan file" onChange={(e) => onFileChosen(e.target.files?.[0])} disabled={!canEdit} />
+                <button type="button" className="ui-btn h-9 min-h-0 px-3 text-ui-text hover:bg-white" onClick={() => fileRef.current?.click()} disabled={!canEdit}>
+                  <Upload className="w-4 h-4" aria-hidden="true" />
+                  Upload
+                </button>
+                <a href="/api/calendar-plans/template" download="haca-calendar-plan-template.xlsx" className="ui-btn h-9 min-h-0 px-3 text-ui-text hover:bg-white" title="Download the Excel template">
+                  <Download className="w-4 h-4" aria-hidden="true" />
+                  <span className="sr-only">Download Template</span>
+                  <span aria-hidden="true">Template</span>
+                </a>
+              </div>
+            )}
+            {data?.permissions.canEdit && isPhone && (
+              <input ref={fileRef} type="file" accept=".xlsx,.csv" className="sr-only" id="plan-grid-upload" aria-label="Upload an Excel or CSV plan file" onChange={(e) => onFileChosen(e.target.files?.[0])} disabled={!canEdit} />
+            )}
+            {canEdit && (
+              <button type="button" className="ui-btn ui-btn-secondary h-10" onClick={addRow}>
                 <Plus className="w-4 h-4" aria-hidden="true" />
                 Add row
               </button>
-              {!isPhone && (
-                <button type="button" className="ui-btn ui-btn-secondary h-11" onClick={() => setPasteOpen(true)}>
-                  <ClipboardPaste className="w-4 h-4" aria-hidden="true" />
-                  Paste from Excel
-                </button>
-              )}
-            </>
-          )}
-          {data?.permissions.canEdit && (
-            <>
-              <input ref={fileRef} type="file" accept=".xlsx,.csv" className="sr-only" id="plan-grid-upload" aria-label="Upload an Excel or CSV plan file" onChange={(e) => onFileChosen(e.target.files?.[0])} disabled={!canEdit} />
-              <button type="button" className="ui-btn ui-btn-secondary h-11" onClick={() => fileRef.current?.click()} disabled={!canEdit}>
-                <Upload className="w-4 h-4" aria-hidden="true" />
-                Upload
-              </button>
-              <a href="/api/calendar-plans/template" download="haca-calendar-plan-template.xlsx" className="ui-btn ui-btn-secondary h-11">
-                <Download className="w-4 h-4" aria-hidden="true" />
-                Download Template
-              </a>
+            )}
+            {data?.permissions.canEdit && (
               <button
                 type="button"
-                className="ui-btn ui-btn-primary h-11"
+                className="ui-btn ui-btn-primary h-10"
                 onClick={submitPlan}
                 disabled={!plan || toSubmit === 0 || submitting || unsavedWithContent > 0}
-                title={unsavedWithContent > 0 ? 'Fix or clear the unsaved rows first.' : undefined}
+                title={unsavedWithContent > 0 ? 'Fix or clear the unsaved rows first.' : toSubmit === 0 ? 'No draft rows to send.' : undefined}
               >
                 <Send className="w-4 h-4" aria-hidden="true" />
                 {submitting ? 'Submitting…' : `Submit for review${toSubmit ? ` (${toSubmit})` : ''}`}
               </button>
-            </>
-          )}
-          {canReview && (
-            <>
-              <button
-                type="button"
-                className="ui-btn ui-btn-secondary h-11"
-                disabled={selectedIds.size === 0 || reviewBusy}
-                onClick={() => review({ action: 'approve_selected', approvedRowIds: [...selectedIds] }, `Approved ${selectedIds.size} ${selectedIds.size === 1 ? 'row' : 'rows'}.`)}
-              >
-                <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
-                Approve selected ({selectedIds.size})
-              </button>
-              <button
-                type="button"
-                className="ui-btn ui-btn-primary h-11"
-                disabled={!canApproveWhole || reviewBusy}
-                title={ownWaitingNote || (!canApproveWhole && submittedLines.length > 0 ? 'Some rows are still drafts or sent back, so approve rows one by one.' : undefined)}
-                onClick={() => setConfirm({ kind: 'approveAll' })}
-              >
-                <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
-                Approve whole plan
-              </button>
-              <button
-                type="button"
-                className="ui-btn ui-btn-secondary h-11"
-                disabled={submittedLines.length === 0 || ownWaiting > 0 || reviewBusy}
-                title={ownWaitingNote}
-                onClick={() => setConfirm({ kind: 'planChanges' })}
-              >
-                <MessageSquare className="w-4 h-4" aria-hidden="true" />
-                Request changes on plan
-              </button>
-              {ownWaitingNote && <p className="w-full text-xs text-ui-muted" data-testid="own-rows-note">{ownWaitingNote}</p>}
-            </>
-          )}
-          {hasProgress && !isPhone && (
-            <button type="button" className="ui-btn ui-btn-secondary h-11" aria-pressed={showProgress} onClick={() => setShowProgress((v) => !v)}>
-              <ListChecks className="w-4 h-4" aria-hidden="true" />
-              {showProgress ? 'Hide progress' : 'Show progress'}
-            </button>
-          )}
+            )}
+            {canReview && !reviewMode && (
+              <>
+                <button
+                  type="button"
+                  className="ui-btn ui-btn-secondary h-10"
+                  disabled={selectedIds.size === 0 || reviewBusy}
+                  onClick={approveSelected}
+                >
+                  <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                  Approve selected ({selectedIds.size})
+                </button>
+                <button
+                  type="button"
+                  className="ui-btn ui-btn-secondary h-10"
+                  disabled={submittedMonthly.length === 0 || ownWaiting > 0 || reviewBusy}
+                  title={ownWaitingNote}
+                  onClick={() => setConfirm({ kind: 'planChanges' })}
+                >
+                  <MessageSquare className="w-4 h-4" aria-hidden="true" />
+                  Request changes on plan
+                </button>
+                <button
+                  type="button"
+                  className="ui-btn ui-btn-primary h-10"
+                  disabled={!canApproveWhole || reviewBusy}
+                  title={ownWaitingNote || (!canApproveWhole && submittedMonthly.length > 0 ? 'Some rows are still drafts or sent back, so approve rows one by one.' : undefined)}
+                  onClick={() => setConfirm({ kind: 'approveAll' })}
+                >
+                  <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                  Approve whole plan
+                </button>
+                {ownWaitingNote && <p className="w-full text-xs text-ui-muted" data-testid="own-rows-note">{ownWaitingNote}</p>}
+              </>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="plan-grid-calendar" className="text-xs font-semibold text-ui-muted">Calendar</label>
+        {/* Where you are (calendar, month, plan) and how the grid is shown */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <div className="flex items-center gap-2">
+            <label htmlFor="plan-grid-calendar" className="text-[13px] font-medium text-ui-muted">Calendar</label>
             <select
               id="plan-grid-calendar"
-              className="ui-select h-11"
+              className="ui-select h-10 min-h-0 min-w-[10rem]"
               value={calendar}
               onChange={(e) => {
                 setPlanId(undefined);
@@ -1028,12 +1208,12 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
               ))}
             </select>
           </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="plan-grid-month" className="text-xs font-semibold text-ui-muted">Month</label>
+          <div className="flex items-center gap-2">
+            <label htmlFor="plan-grid-month" className="text-[13px] font-medium text-ui-muted">Month</label>
             <input
               id="plan-grid-month"
               type="month"
-              className="ui-input h-11"
+              className="ui-input h-10 min-h-0"
               value={month}
               onChange={(e) => {
                 if (!e.target.value) return;
@@ -1043,9 +1223,9 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
             />
           </div>
           {data && data.plans.length > 1 && (
-            <div className="flex flex-col gap-1">
-              <label htmlFor="plan-grid-plan" className="text-xs font-semibold text-ui-muted">Plan for this month</label>
-              <select id="plan-grid-plan" className="ui-select h-11" value={planId || ''} onChange={(e) => setPlanId(e.target.value || undefined)}>
+            <div className="flex items-center gap-2">
+              <label htmlFor="plan-grid-plan" className="text-[13px] font-medium text-ui-muted">Plan for this month</label>
+              <select id="plan-grid-plan" className="ui-select h-10 min-h-0" value={planId || ''} onChange={(e) => setPlanId(e.target.value || undefined)}>
                 <option value="">Choose a plan</option>
                 {data.plans.map((p) => (
                   <option key={p._id} value={p._id}>
@@ -1055,22 +1235,80 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
               </select>
             </div>
           )}
-          {canReview && (
-            <label className="inline-flex items-center gap-3 min-h-[44px] text-sm text-ui-text">
+          {canReview && !reviewMode && (
+            <label className="inline-flex items-center gap-2.5 min-h-[40px] text-sm text-ui-text">
               <input type="checkbox" className="w-5 h-5 accent-ui-ink" checked={showOnlyWaiting} onChange={(e) => setOnlyWaiting(e.target.checked)} />
               Only rows waiting for review ({submittedLines.length})
             </label>
           )}
-          <p className="text-sm text-ui-muted sm:ml-auto" aria-live="polite">
-            {loading
-              ? 'Loading…'
-              : plan
-                ? `${plan.code} · ${plan.status} · ${lines.filter((l) => l.saved).length} rows`
-                : data?.selectionRequired
-                  ? ''
-                  : 'No plan yet. The draft is created when the first row is saved.'}
-          </p>
+
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+            {view === 'detailed' && hasProgress && !isPhone && (
+              <button type="button" className="ui-btn ui-btn-secondary h-10" aria-pressed={showProgress} onClick={() => setShowProgress((v) => !v)}>
+                <ListChecks className="w-4 h-4" aria-hidden="true" />
+                {showProgress ? 'Hide progress' : 'Show progress'}
+              </button>
+            )}
+            {canReview && (
+              <div role="group" aria-label="Review layout" className="flex items-center rounded-full border border-ui-line bg-white/60 p-0.5">
+                {(
+                  [
+                    ['list', 'Review list', ListChecks],
+                    ['grid', 'Grid', Table],
+                  ] as const
+                ).map(([key, text, Icon]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={reviewLayout === key}
+                    onClick={() => chooseReviewLayout(key)}
+                    className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors ${
+                      reviewLayout === key ? 'bg-ui-ink text-white' : 'text-ui-muted hover:text-ui-ink'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" aria-hidden="true" />
+                    {text}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!isPhone && !reviewMode && (
+              <div role="group" aria-label="Grid view" className="flex items-center rounded-full border border-ui-line bg-white/60 p-0.5">
+                {(
+                  [
+                    ['simple', 'Simple view', List],
+                    ['detailed', 'Detailed view', Table],
+                  ] as const
+                ).map(([key, text, Icon]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={view === key}
+                    onClick={() => chooseView(key)}
+                    className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors ${
+                      view === key ? 'bg-ui-ink text-white' : 'text-ui-muted hover:text-ui-ink'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" aria-hidden="true" />
+                    {text}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
+
+        {(canReview || readOnly || isPhone) && (
+          <p className="text-[13px] text-ui-muted">
+            {canReview
+              ? reviewMode
+                ? 'Approve rows or send them back with a reason. Tick several to decide them together.'
+                : 'Review submitted rows: approve them, or send them back with a note.'
+              : readOnly
+                ? 'Read-only view of the month plan.'
+                : 'Paste from Excel works on a tablet or computer. Here, add or edit one row at a time.'}
+          </p>
+        )}
 
         {readOnly && data && (
           <p className="text-sm text-ui-muted">
@@ -1079,7 +1317,6 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
               : "Read-only view: this calendar's plan approvers review its plans."}
           </p>
         )}
-        {isPhone && canEdit && <p className="text-sm text-ui-muted">Paste from Excel works on a tablet or computer. Here, add or edit one row at a time.</p>}
         {data?.selectionRequired && (
           <p className="status-tint status-waiting rounded-ui-control px-3 py-2 text-sm">
             This month has {data.plans.length} plans for this calendar. Choose one to view or edit it; they are not merged.
@@ -1117,6 +1354,20 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
 
       {loadError ? (
         <p role="alert" className="status-tint status-changes rounded-ui-control px-3 py-2 text-sm">{loadError}</p>
+      ) : reviewMode ? (
+        <PlanGridReview
+          lines={lines}
+          people={people}
+          loading={loading}
+          busy={reviewBusy}
+          monthLabel={`${calendarName} · ${monthTitle(month)}`}
+          onApprove={approveRows}
+          onRequestChanges={requestChangesRows}
+          onOpenDetails={(key) => setPanelKey(key)}
+          canApproveWhole={canApproveWhole}
+          onApproveWhole={() => setConfirm({ kind: 'approveAll' })}
+          ownWaitingNote={ownWaitingNote}
+        />
       ) : isPhone ? (
         <ul className="space-y-3" aria-label={`Rows for ${calendarName}, ${month}`}>
           {lines.map((line, idx) => {
@@ -1139,6 +1390,7 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
                   <div className="min-w-0">
                     <p className="text-xs text-ui-muted">
                       Row {idx + 1} · {row ? formatGridDate(row.postingDate) : String(line.draft.postingDate || 'No date')} · {row?.type || String(line.draft.type || 'No type')}
+                      {row?.planKind === 'individual' ? ' · Individual work' : ''}
                     </p>
                     <h3 className="text-sm font-semibold text-ui-ink break-words">{row?.topic || String(line.draft.topic || 'Untitled')}</h3>
                   </div>
@@ -1197,6 +1449,7 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
           <div className="overflow-auto max-h-[calc(100vh-260px)] min-h-[320px]">
             <table ref={tableRef} onPaste={onPaste} className="border-separate border-spacing-0 text-sm" aria-label={`Plan grid for ${calendarName}, ${month}`} aria-busy={loading}>
               <thead>
+                {showGroups && (
                 <tr>
                   <th scope="col" rowSpan={2} className="sticky top-0 left-0 z-30 bg-ui-card border-b border-r border-ui-line px-2 text-left text-xs font-semibold text-ui-muted" style={cellStyle(null)}>
                     Row
@@ -1216,12 +1469,18 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
                     );
                   })}
                 </tr>
+                )}
                 <tr>
+                  {!showGroups && (
+                    <th scope="col" className="sticky top-0 left-0 z-30 bg-ui-card border-b border-r border-ui-line px-3 h-11 text-right text-xs font-semibold text-ui-muted" style={cellStyle(null)}>
+                      #
+                    </th>
+                  )}
                   {columns.map((c) => (
                     <th
                       key={c.key}
                       scope="col"
-                      className={`sticky top-10 bg-ui-card border-b border-r border-ui-line px-2 py-2 text-left text-xs font-semibold ${c.kind === 'progress' ? 'text-ui-muted' : 'text-ui-ink'} ${isFrozen(c) ? 'z-30' : 'z-20'}`}
+                      className={`sticky ${showGroups ? 'top-10' : 'top-0 h-11'} bg-ui-card border-b border-r border-ui-line px-2 py-2 text-left text-xs font-semibold ${c.kind === 'progress' ? 'text-ui-muted' : 'text-ui-ink'} ${isFrozen(c) ? 'z-30' : 'z-20'}`}
                       style={cellStyle(c)}
                     >
                       <span className="inline-flex items-center gap-1">
@@ -1235,6 +1494,16 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
                       </span>
                     </th>
                   ))}
+                  {view === 'simple' && (
+                    <>
+                      <th scope="col" className="sticky top-0 h-11 z-20 bg-ui-card border-b border-r border-ui-line px-3 text-left text-xs font-semibold text-ui-ink" style={{ minWidth: 150, width: 150 }}>
+                        Status
+                      </th>
+                      <th scope="col" className="sticky top-0 h-11 z-20 bg-ui-card border-b border-ui-line px-3" style={{ minWidth: 96, width: 96 }}>
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -1248,6 +1517,35 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
                   return (
                     <tr key={line.key} className={saving ? 'opacity-70' : undefined}>
                       <th scope="row" className="sticky left-0 z-10 bg-ui-card border-b border-r border-ui-line px-2 text-left font-normal" style={cellStyle(null)}>
+                        {view === 'simple' ? (
+                          <div className="flex items-center justify-end gap-1">
+                            {canReview && line.saved?.rowStatus === 'submitted' && !line.saved.ownRow && (
+                              <label className="inline-flex items-center justify-center w-9 h-9 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="w-4 h-4 accent-ui-ink"
+                                  aria-label={`Select ${line.saved.topic} for approval`}
+                                  checked={selectedIds.has(line.saved.rowId)}
+                                  onChange={(e) =>
+                                    setSelectedIds((cur) => {
+                                      const n = new Set(cur);
+                                      if (e.target.checked) n.add(line.saved!.rowId);
+                                      else n.delete(line.saved!.rowId);
+                                      return n;
+                                    })
+                                  }
+                                />
+                              </label>
+                            )}
+                            <span className="text-xs text-ui-muted tabular-nums pr-1" aria-hidden="true">{blank ? '+' : idx + 1}</span>
+                            <span className="sr-only">
+                              {blank ? 'New row' : `Row ${idx + 1}: ${line.saved?.topic || String(line.draft.topic || 'unsaved row')}`}
+                              {status ? `, ${status.label}` : !blank ? ', Unsaved' : ''}
+                              {line.saved?.planKind === 'individual' ? ', Individual work' : ''}
+                              {attention.length > 0 ? `, Needs attention: ${attention.join(', ')}` : ''}
+                            </span>
+                          </div>
+                        ) : (
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-ui-muted w-6 text-right" aria-hidden="true">{blank ? '+' : idx + 1}</span>
                           <span className="sr-only">{blank ? 'New row' : `Row ${idx + 1}: ${line.saved?.topic || String(line.draft.topic || 'unsaved row')}`}</span>
@@ -1266,6 +1564,18 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
                               {isCompact && <span className="sr-only">Unsaved</span>}
                             </span>
                           ) : null}
+                          {line.saved?.planKind === 'individual' && (
+                            <span className="status-chip status-not-started text-[11px]" title={`Individual work${line.saved.planCode ? ` · ${line.saved.planCode}` : ''}`}>
+                              {isCompact ? (
+                                <>
+                                  <span aria-hidden="true">I</span>
+                                  <span className="sr-only">Individual work</span>
+                                </>
+                              ) : (
+                                'Individual'
+                              )}
+                            </span>
+                          )}
                           {attention.length > 0 && (
                             <span className="status-chip status-changes text-[11px]" title={`Needs attention: ${attention.join(', ')}`}>
                               <span aria-hidden="true">⚠</span>
@@ -1318,12 +1628,65 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
                             </button>
                           )}
                         </div>
+                        )}
                       </th>
                       {columns.map((c) => (
                         <td key={c.key} className={`border-b border-r border-ui-line px-1 py-0.5 align-middle ${isFrozen(c) ? 'sticky z-10 bg-ui-card' : 'bg-white/40'}`} style={cellStyle(c)}>
-                          {c.kind === 'progress' ? renderProgress(line, c) : renderPlanning(line, idx, c)}
+                          {c.kind === 'progress' ? renderProgress(line, c) : c.kind === 'team' ? renderTeam(line, idx) : renderPlanning(line, idx, c)}
                         </td>
                       ))}
+                      {view === 'simple' && (
+                        <>
+                          <td className="border-b border-r border-ui-line px-3 align-middle bg-white/40" style={{ minWidth: 150, width: 150 }}>
+                            <div className="flex flex-wrap items-center gap-1" aria-hidden="true">
+                              {status ? (
+                                <span className={`status-chip ${status.tone} text-[11px]`}>{status.label}</span>
+                              ) : !blank ? (
+                                <span className="status-chip status-changes text-[11px]">Unsaved</span>
+                              ) : (
+                                <span className="text-[13px] text-ui-muted">New</span>
+                              )}
+{line.saved?.planKind === 'individual' && (
+                                <span className="status-chip status-not-started text-[11px]" title={`Individual work${line.saved.planCode ? ` · ${line.saved.planCode}` : ''}: edited in its own form; review it here.`}>
+                                  Individual
+                                </span>
+                              )}
+                              {canReview && line.saved?.rowStatus === 'submitted' && line.saved.ownRow && (
+                                <span className="status-chip status-not-started text-[11px]" title="You added or submitted this row: another approver decides it.">
+                                  Yours
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="border-b border-ui-line px-2 align-middle bg-white/40" style={{ minWidth: 96, width: 96 }}>
+                            {!blank && (
+                              <div className="flex items-center justify-end gap-0.5">
+                                <button
+                                  type="button"
+                                  className="ui-icon-btn shrink-0"
+                                  aria-label={`${canReview && line.saved?.rowStatus === 'submitted' && !line.saved?.ownRow ? 'Review row' : 'Row details'}: ${line.saved?.topic || String(line.draft.topic || `row ${idx + 1}`)}`}
+                                  title="Row details"
+                                  onClick={() => setPanelKey(line.key)}
+                                >
+                                  <PanelRightOpen className="w-4 h-4" aria-hidden="true" />
+                                </button>
+                                {rowCanBeDeleted(line.saved, canEdit) && (
+                                  <button
+                                    type="button"
+                                    className="ui-icon-btn shrink-0 hover:!text-ui-coral"
+                                    aria-label={`Delete row: ${line.saved!.topic}`}
+                                    title="Delete row"
+                                    disabled={saving || panelSaving}
+                                    onClick={() => setConfirm({ kind: 'deleteRow', key: line.key })}
+                                  >
+                                    <Trash2 className="w-4 h-4" aria-hidden="true" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </>
+                      )}
                     </tr>
                   );
                 })}
@@ -1371,7 +1734,7 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
       {confirm?.kind === 'approveAll' && (
         <PlanGridConfirmDialog
           title="Approve the whole plan?"
-          message={`All ${submittedLines.length} submitted ${submittedLines.length === 1 ? 'row' : 'rows'} will be approved and their steps created. Approved rows can no longer be edited.`}
+          message={`All ${submittedMonthly.length} submitted ${submittedMonthly.length === 1 ? 'row' : 'rows'} of ${plan?.code || 'this plan'} will be approved and their steps created. Approved rows can no longer be edited.${submittedLines.length > submittedMonthly.length ? ' Individual work is decided row by row.' : ''}`}
           confirmLabel="Approve whole plan"
           isBusy={reviewBusy}
           onCancel={() => setConfirm(null)}
@@ -1383,11 +1746,11 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
       )}
       {confirm?.kind === 'planChanges' && (
         <PlanChangesDialog
-          submittedCount={submittedLines.length}
+          submittedCount={submittedMonthly.length}
           isBusy={reviewBusy}
           onCancel={() => setConfirm(null)}
           onSend={async (message) => {
-            const n = submittedLines.length;
+            const n = submittedMonthly.length;
             const ok = await review({ action: 'request_changes_all', message }, `Sent ${n} ${n === 1 ? 'row' : 'rows'} back with your message. Approved rows stay approved.`);
             if (ok) setConfirm(null);
           }}

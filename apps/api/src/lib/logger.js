@@ -15,6 +15,8 @@ export const logger = pino({
       'refreshTokenHash',
       'inviteTokenHash',
       'resetPasswordTokenHash',
+      'temporaryPassword',
+      '*.temporaryPassword',
       'secret',
       '*.password',
       '*.passwordHash',

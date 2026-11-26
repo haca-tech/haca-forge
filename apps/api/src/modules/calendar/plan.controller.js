@@ -2,6 +2,21 @@ import mongoose from 'mongoose';
 import * as planService from './plan.service.js';
 import * as rowChanges from './rowChanges.js';
 import * as planGridService from './planGrid.service.js';
+import { CALENDAR_LIST } from '@mmp/shared';
+
+const CALENDAR_LIST_KEYS = CALENDAR_LIST.map((c) => c.id);
+
+export async function getOwnerChoices(req, res, next) {
+  try {
+    const calendar = String(req.query.calendar || 'sm');
+    if (!CALENDAR_LIST_KEYS.includes(calendar)) {
+      return res.status(400).json({ error: { code: 'INVALID_CALENDAR', message: 'Unknown calendar.' } });
+    }
+    res.json({ success: true, data: await planGridService.ownerChoices(calendar) });
+  } catch (err) {
+    next(err);
+  }
+}
 
 export async function getGrid(req, res, next) {
   try {

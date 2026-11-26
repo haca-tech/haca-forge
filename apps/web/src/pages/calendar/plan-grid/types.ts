@@ -10,6 +10,10 @@ export interface RowChangeRequest {
 /** One row as returned by GET /api/calendar-plans/grid (see planGrid.service.js toGridRow). */
 export interface GridRow {
   rowId: string;
+  /** The plan the row belongs to: the month's plan, or an individual-work plan listed alongside it. */
+  planId?: string;
+  planKind?: 'monthly' | 'individual';
+  planCode?: string;
   rowStatus: 'draft' | 'submitted' | 'changes_requested' | 'approved';
   editable: boolean;
   /** The viewer added or submitted this row: another approver decides it (the API refuses). */

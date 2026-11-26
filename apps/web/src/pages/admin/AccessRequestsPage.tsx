@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useDialogFocus } from '../../lib/useDialogFocus';
 import { apiFetch } from '../../lib/api';
 import {
-  DEPARTMENTS,
+  SELECTABLE_DEPARTMENTS,
   JOB_ROLES,
   ROLE_KEYS,
   ROLE_LABELS,
@@ -155,7 +155,11 @@ export const AccessRequestsPage: React.FC = () => {
     setActionType('approve');
     setAssignedRole(req.requestedRole || WORKER_ROLE);
     setAssignedJobRole(req.jobRole || JOB_ROLES[0]);
-    setAssignedDept(req.department || DEPARTMENTS[0].name);
+    // A department that is no longer offered (e.g. WhatsApp) falls back to the first option, so the
+    // select and the value sent on approval always agree.
+    setAssignedDept(
+      SELECTABLE_DEPARTMENTS.some((d) => d.name === req.department) ? req.department! : SELECTABLE_DEPARTMENTS[0].name
+    );
     setAssignedReportsTo([]);
     setAssignedCapacity(40);
     setActionReason('');
@@ -608,7 +612,7 @@ export const AccessRequestsPage: React.FC = () => {
                           onChange={(e) => setAssignedDept(e.target.value)}
                           className="ui-select w-full cursor-pointer"
                         >
-                          {DEPARTMENTS.map((dept) => (
+                          {SELECTABLE_DEPARTMENTS.map((dept) => (
                             <option key={dept.code} value={dept.name}>
                               {dept.name}
                             </option>

@@ -662,22 +662,24 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
                 title="Team Chat"
                 data-testid="top-bar-chat-btn"
                 aria-label={chatUnreadCount > 0 ? `Team Chat, ${chatUnreadCount} unread` : 'Team Chat'}
-                className={`shrink-0 flex items-center gap-3 h-10 pl-3 pr-1.5 rounded-full transition-colors ${
+                className={`shrink-0 flex items-center gap-2 h-11 pl-1.5 pr-2.5 rounded-full border bg-white shadow-sm transition-[border-color,box-shadow] hover:shadow-md ${
                   location.pathname.startsWith('/chat')
-                    ? 'bg-ui-ink text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70'
+                    ? 'border-ui-ink ring-1 ring-ui-ink'
+                    : 'border-slate-200/80 hover:border-slate-300'
                 }`}
               >
-                <MessageSquare className="w-4 h-4 shrink-0" />
-                <span className="text-sm font-semibold whitespace-nowrap">Team Chat</span>
-                {chatUnreadCount > 0 && (
-                  <span
-                    data-testid="chat-unread-badge"
-                    className="px-1.5 min-w-[20px] h-5 rounded-full text-[10px] font-bold bg-rose-500 text-white flex items-center justify-center"
-                  >
-                    {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
-                  </span>
-                )}
+                {/* Dark rounded-square chat icon, with the unread count on its corner */}
+                <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-ui-ink text-white">
+                  <MessageSquare className="w-4 h-4" aria-hidden="true" />
+                  {chatUnreadCount > 0 && (
+                    <span
+                      data-testid="chat-unread-badge"
+                      className="absolute -top-1.5 -right-1.5 px-1 min-w-[18px] h-[18px] rounded-full text-[9px] font-bold bg-rose-500 text-white flex items-center justify-center ring-2 ring-white"
+                    >
+                      {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                    </span>
+                  )}
+                </span>
                 <HeaderChatAvatars people={chatPeople} moreCount={chatTeamMore} active={location.pathname.startsWith('/chat')} />
               </Link>
               )}

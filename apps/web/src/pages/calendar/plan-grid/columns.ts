@@ -16,7 +16,9 @@ export type PlanColKey =
   | 'postingOwner'
   | 'postingDeadline'
   | 'contentLink'
-  | 'remarks';
+  | 'remarks'
+  /** Simple view: every step's owner and deadline in one cell (edited in the row panel). */
+  | 'team';
 
 export type PlanColGroup = 'Plan' | 'Script / Content' | 'Shoot' | 'Edit' | 'Posting' | 'Details' | 'Progress';
 
@@ -24,7 +26,7 @@ export interface PlanCol {
   key: PlanColKey | PlanGridColumnKey;
   header: string;
   group: PlanColGroup;
-  kind: 'date' | 'text' | 'type' | 'workflow' | 'owner' | 'deadline' | 'progress';
+  kind: 'date' | 'text' | 'type' | 'workflow' | 'owner' | 'deadline' | 'progress' | 'team';
   /** Step this owner/deadline column belongs to. */
   stage?: StageKey;
   /** Step shown instead on rows without `stage` (Script / Content: design rows show Content). */
@@ -52,6 +54,16 @@ export const PLANNING_COLUMNS: PlanCol[] = [
   { key: 'postingDeadline', header: 'Posting Deadline', group: 'Posting', kind: 'deadline', stage: 'Post', width: 160 },
   { key: 'contentLink', header: 'Content Link', group: 'Details', kind: 'text', width: 200 },
   { key: 'remarks', header: 'Remarks', group: 'Details', kind: 'text', excelKey: 'remarks', width: 220 },
+];
+
+/**
+ * Simple view (the default): the plan fields people type, plus one "Team & deadlines" cell that
+ * lists each step's owner and due date and opens the row panel to change them. Detailed view keeps
+ * PLANNING_COLUMNS, one column per step owner and deadline, for Excel-style work.
+ */
+export const SIMPLE_COLUMNS: PlanCol[] = [
+  ...PLANNING_COLUMNS.filter((c) => c.group === 'Plan'),
+  { key: 'team', header: 'Team & deadlines', group: 'Plan', kind: 'team', width: 260 },
 ];
 
 /** The Excel workflow columns (status, done date, approval, published, turnaround), shown with "Show progress". */
