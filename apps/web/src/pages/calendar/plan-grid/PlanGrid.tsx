@@ -19,7 +19,7 @@ import {
   type StageKey,
   type PlanRowSuggestions,
 } from '@mmp/shared';
-import { apiFetch, ApiError } from '../../../lib/api';
+import { apiDownload, apiFetch, ApiError } from '../../../lib/api';
 import { statusClass, statusTone } from '../../../lib/statusTone';
 import { PlanGridPreviewDialog } from './PlanGridPreviewDialog';
 import { PlanGridRowPanel } from './PlanGridRowPanel';
@@ -472,6 +472,20 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
       await checkRows(rows);
     } catch (err) {
       reportError(err);
+    }
+  };
+
+  // ── Template download (through the API helper, so an expired login is renewed and an error
+  // is shown instead of being saved as a broken .xlsx) ──
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+  const downloadTemplate = async () => {
+    setDownloadingTemplate(true);
+    try {
+      await apiDownload('/api/calendar-plans/template', 'haca-calendar-plan-template.xlsx');
+    } catch (err) {
+      reportError(err);
+    } finally {
+      setDownloadingTemplate(false);
     }
   };
 
@@ -1125,11 +1139,17 @@ export const PlanGrid: React.FC<Props> = ({ initialCalendar, initialMonth, initi
                   <Upload className="w-4 h-4" aria-hidden="true" />
                   Upload
                 </button>
-                <a href="/api/calendar-plans/template" download="haca-calendar-plan-template.xlsx" className="ui-btn h-9 min-h-0 px-3 text-ui-text hover:bg-white" title="Download the Excel template">
+                <button
+                  type="button"
+                  className="ui-btn h-9 min-h-0 px-3 text-ui-text hover:bg-white"
+                  title="Download the Excel template"
+                  disabled={downloadingTemplate}
+                  onClick={downloadTemplate}
+                >
                   <Download className="w-4 h-4" aria-hidden="true" />
                   <span className="sr-only">Download Template</span>
-                  <span aria-hidden="true">Template</span>
-                </a>
+                  <span aria-hidden="true">{downloadingTemplate ? 'Downloading…' : 'Template'}</span>
+                </button>
               </div>
             )}
             {data?.permissions.canEdit && isPhone && (

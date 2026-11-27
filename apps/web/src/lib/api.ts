@@ -187,3 +187,50 @@ export async function apiFetch<T = any>(
 
   return data as T;
 }
+
+/**
+ * Downloads a file from the API and saves it under `filename`.
+ *
+ * A plain <a href download> link cannot renew an expired login, and when the request fails the
+ * browser still saves the error text under the file's name (Excel then reports "the file format
+ * or file extension is not valid"). This goes through the same cookie and renewal as apiFetch,
+ * and only saves the response when it really is a file; otherwise it throws an ApiError with the
+ * server's message.
+ */
+export async function apiDownload(endpoint: string, filename: string, _isRetry = false): Promise<void> {
+  const url = buildApiUrl(endpoint);
+  let response: Response;
+  try {
+    response = await fetch(url, { credentials: "include" });
+  } catch {
+    throw new ApiError("Could not reach the server. Check your connection and try again.", "NETWORK_ERROR", 0);
+  }
+
+  if (response.status === 401 && !_isRetry && (await refreshSession())) {
+    return apiDownload(endpoint, filename, true);
+  }
+
+  const type = response.headers.get("content-type") || "";
+  if (!response.ok || type.includes("application/json") || type.includes("text/html")) {
+    let message = response.status === 401 ? "Your session has ended. Sign in again, then download the file." : "The file could not be downloaded. Try again.";
+    if (type.includes("application/json")) {
+      try {
+        const body = await response.json();
+        if (body?.error?.message && response.status !== 401) message = body.error.message;
+      } catch {
+        /* keep the generic message */
+      }
+    }
+    throw new ApiError(message, `HTTP_${response.status}`, response.status);
+  }
+
+  const blob = await response.blob();
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
+}
