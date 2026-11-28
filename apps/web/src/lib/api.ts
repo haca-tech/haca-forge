@@ -24,11 +24,53 @@ let refreshPromise: Promise<boolean> | null = null;
  * or falling back to relative /api paths. Avoids duplicate /api prefixes.
  */
 export function buildApiUrl(endpoint: string): string {
+  // Production: the web host forwards /api to the API (vercel.json), so requests and the login
+  // cookie stay on the web app's own domain. Browsers that block third-party cookies (Safari,
+  // Brave, incognito) otherwise drop the session right after login.
+  return joinApiUrl(sameOriginApi() ? "" : configuredApiBase(), endpoint);
+}
+
+/** The API host itself (VITE_API_BASE_URL), for the requests the web host cannot forward well:
+ *  the live socket and large uploads. They authenticate with a short-lived token (/auth/direct-token). */
+export function buildDirectApiUrl(endpoint: string): string {
+  return joinApiUrl(configuredApiBase(), endpoint);
+}
+
+/** Origin of the API host ("" when it is this site). */
+export function directApiOrigin(): string {
+  const base = configuredApiBase();
+  try {
+    return base ? new URL(base).origin : "";
+  } catch {
+    return "";
+  }
+}
+
+function configuredApiBase(): string {
+  return (import.meta.env?.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+}
+
+/** Same-origin /api in production builds, unless VITE_API_SAME_ORIGIN=false. */
+function sameOriginApi(): boolean {
+  return Boolean(import.meta.env?.PROD) && String(import.meta.env?.VITE_API_SAME_ORIGIN || "").toLowerCase() !== "false";
+}
+
+/** A short-lived token for a request sent straight to the API host ("socket" or "upload"). */
+export async function getDirectToken(purpose: "socket" | "upload"): Promise<string | null> {
+  try {
+    const res = await apiFetch<{ data?: { token?: string } }>(`/auth/direct-token?purpose=${purpose}`);
+    return res?.data?.token || null;
+  } catch {
+    return null;
+  }
+}
+
+function joinApiUrl(rawBaseIn: string, endpoint: string): string {
   if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
     return endpoint;
   }
 
-  const rawBase = (import.meta.env?.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+  const rawBase = rawBaseIn;
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
 
   if (!rawBase) {

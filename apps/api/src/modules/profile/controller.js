@@ -117,7 +117,7 @@ export async function revokeSessionHandler(req, res, next) {
     const result = await profileService.revokeSession(req.user._id, req.params.id, token);
 
     if (result.isCurrent) {
-      const clearOptions = getClearCookieOptions();
+      const clearOptions = getClearCookieOptions(req);
       res.clearCookie('accessToken', clearOptions);
       res.clearCookie('refreshToken', clearOptions);
     }

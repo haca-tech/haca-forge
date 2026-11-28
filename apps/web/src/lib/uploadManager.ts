@@ -1,4 +1,4 @@
-import { apiFetch, buildApiUrl, refreshSession } from './api';
+import { apiFetch, refreshSession, buildDirectApiUrl, getDirectToken } from './api';
 
 export type UploadKind = 'video' | 'image' | 'pdf';
 
@@ -199,10 +199,14 @@ export class ResumableUploadTask {
 
       // Sent with the httpOnly login cookie. If it has expired, renew it once and resend.
       let retriedAfterRefresh = false;
-      const send = () => {
+      const send = async () => {
+        // Straight to the API host (large files are not sent through the web host's proxy),
+        // with a 2-minute upload token since the login cookie lives on the web app's domain.
+        const uploadToken = await getDirectToken('upload');
         this.xhr = new XMLHttpRequest();
-        this.xhr.open('POST', buildApiUrl('/uploads/file'));
+        this.xhr.open('POST', buildDirectApiUrl('/uploads/file'));
         this.xhr.withCredentials = true;
+        if (uploadToken) this.xhr.setRequestHeader('X-Upload-Token', uploadToken);
 
         this.xhr.upload.onprogress = (e) => {
           if (e.lengthComputable && !this.isPaused) {
@@ -216,7 +220,7 @@ export class ResumableUploadTask {
           if (this.xhr && this.xhr.status === 401 && !retriedAfterRefresh) {
             retriedAfterRefresh = true;
             if (await refreshSession()) {
-              send();
+              void send();
               return;
             }
           }
@@ -252,7 +256,7 @@ export class ResumableUploadTask {
 
         this.xhr.send(formData);
       };
-      send();
+      void send();
     });
   }
 

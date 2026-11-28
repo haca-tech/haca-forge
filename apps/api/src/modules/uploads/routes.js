@@ -1,3 +1,6 @@
+import jwt from 'jsonwebtoken';
+import { env } from '../../config/env.js';
+import { verifyDirectToken } from '../../lib/directTokens.js';
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
@@ -35,6 +38,22 @@ const upload = multer({
 
 const router = Router();
 
+// Uploads go straight to the API host (not through the web host's /api proxy), where the login
+// cookie is not sent. The browser fetches a 2-minute upload token through the proxy first and sends
+// it as X-Upload-Token; it is turned into a normal access token for this request only, so every
+// check in authenticate (suspended, read-only, password change...) still applies.
+router.use((req, _res, next) => {
+  const uploadToken = req.get('x-upload-token');
+  if (uploadToken && !req.cookies?.accessToken && !req.headers.authorization) {
+    try {
+      const userId = verifyDirectToken(uploadToken, 'upload');
+      req.headers.authorization = `Bearer ${jwt.sign({ userId }, env.JWT_SECRET, { expiresIn: 120 })}`;
+    } catch {
+      /* invalid or expired: authenticate answers 401 */
+    }
+  }
+  next();
+});
 router.use(authenticate);
 
 // Multipart direct local file upload endpoint

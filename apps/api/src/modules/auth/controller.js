@@ -6,6 +6,17 @@ import { disconnectUserSockets } from "../../lib/socketHub.js";
 import { buildAccessInfo } from "../../lib/accessInfo.js";
 import { Person } from "../people/model.js";
 import { getCookieOptions, getClearCookieOptions } from "../../lib/authCookies.js";
+import { issueDirectToken } from "../../lib/directTokens.js";
+
+/** GET /auth/direct-token?purpose=socket|upload: a short-lived token for a request sent straight to the API host. */
+export async function directToken(req, res, next) {
+  try {
+    res.set("Cache-Control", "no-store");
+    res.json({ success: true, data: issueDirectToken(req.user._id, String(req.query.purpose || "")) });
+  } catch (err) {
+    next(err);
+  }
+}
 
 /** The access block for a just-signed-in user (reads their calendar limit). */
 async function accessFor(publicUser) {
@@ -25,12 +36,12 @@ export async function login(req, res, next) {
     res.cookie(
       "accessToken",
       result.accessToken,
-      getCookieOptions(15 * 60 * 1000),
+      getCookieOptions(15 * 60 * 1000, req),
     ); // 15 mins
     res.cookie(
       "refreshToken",
       result.refreshToken,
-      getCookieOptions(7 * 24 * 60 * 60 * 1000),
+      getCookieOptions(7 * 24 * 60 * 60 * 1000, req),
     ); // 7 days
 
     // Tokens travel only in the httpOnly cookies, never in the body, so page script can't read them.
@@ -52,12 +63,12 @@ export async function refresh(req, res, next) {
     res.cookie(
       "accessToken",
       result.accessToken,
-      getCookieOptions(15 * 60 * 1000),
+      getCookieOptions(15 * 60 * 1000, req),
     );
     res.cookie(
       "refreshToken",
       result.refreshToken,
-      getCookieOptions(7 * 24 * 60 * 60 * 1000),
+      getCookieOptions(7 * 24 * 60 * 60 * 1000, req),
     );
 
     // Tokens travel only in the httpOnly cookies, never in the body, so page script can't read them.
@@ -80,7 +91,7 @@ export async function logout(req, res, next) {
       disconnectUserSockets(req.user._id);
     }
 
-    const clearOptions = getClearCookieOptions();
+    const clearOptions = getClearCookieOptions(req);
 
     res.clearCookie("accessToken", clearOptions);
     res.clearCookie("refreshToken", clearOptions);

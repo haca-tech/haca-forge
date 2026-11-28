@@ -27,6 +27,9 @@ services:
         sync: false
       - key: COOKIE_DOMAIN
         sync: false
+      # Vercel's /api rewrite + Render's load balancer: two proxies, so req.ip is the visitor.
+      - key: TRUST_PROXY_HOPS
+        value: 2
       # Email (docs/EMAIL.md): EMAIL_DRIVER=resend (recommended) or smtp. Values are set in the Render dashboard.
       - key: EMAIL_DRIVER
         sync: false

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
-import { refreshSession } from '../lib/api';
+import { directApiOrigin, getDirectToken, refreshSession } from '../lib/api';
 import { wireAccessEvents } from '../lib/accessEvents';
 
 let socketInstance: Socket | null = null;
@@ -57,11 +57,17 @@ export function useSocket() {
       const socketUrl =
         (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SOCKET_URL
           ? String(import.meta.env.VITE_SOCKET_URL).trim().replace(/\/+$/, '')
-          : '') || (typeof window !== 'undefined' ? window.location.origin : '');
+          : '') ||
+        directApiOrigin() ||
+        (typeof window !== 'undefined' ? window.location.origin : '');
 
-      // The handshake carries the httpOnly login cookie; no token is passed by script.
+      // The API host is not the web app's domain, so the login cookie is not sent with the
+      // handshake: each (re)connect fetches a 60-second socket token through the same-site /api.
       const socket = io(socketUrl, {
         withCredentials: true,
+        auth: (cb: (data: Record<string, unknown>) => void) => {
+          getDirectToken('socket').then((socketToken) => cb(socketToken ? { socketToken } : {}));
+        },
         transports: ['websocket', 'polling'],
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,

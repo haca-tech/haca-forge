@@ -38,6 +38,7 @@ import notificationRoutes from "./modules/notifications/routes.js";
 import planRoutes from "./modules/calendar/plan.routes.js";
 import contentPieceRoutes from "./modules/calendar/contentPiece.routes.js";
 import uploadRoutes from "./modules/uploads/routes.js";
+import { verifyDirectToken } from "./lib/directTokens.js";
 import fileRoutes from "./modules/uploads/files.routes.js";
 import { signFileUrls } from "./lib/storage/signFileRefs.js";
 import { setUploadHeaders } from "./modules/uploads/fileTypes.js";
@@ -74,7 +75,7 @@ const server = http.createServer(app);
 app.use(requestIdMiddleware);
 
 // 2. Trust proxy for Render / Vercel proxy headers
-app.set("trust proxy", 1);
+app.set("trust proxy", env.TRUST_PROXY_HOPS ?? (env.NODE_ENV === "production" ? 2 : 1));
 
 // 2. Security headers
 app.use(
@@ -94,6 +95,8 @@ app.use(
   cors({
     origin: env.FRONTEND_URL,
     credentials: true,
+    // X-Upload-Token: direct uploads to the API host (lib/directTokens.js).
+    allowedHeaders: ["Content-Type", "Authorization", "X-Upload-Token", "X-Requested-With"],
   }),
 );
 
@@ -148,10 +151,17 @@ function handshakeToken(handshake) {
 // suspended, and their role comes from the database, not from the token.
 io.use(async (socket, next) => {
   try {
-    const token = handshakeToken(socket.handshake);
-    if (!token) return next(new Error("Authentication failed: Valid accessToken required"));
-    const decoded = jwt.verify(token, env.JWT_SECRET);
-    const user = await User.findById(decoded.userId).select("role status name preferredName mustChangePassword").lean();
+    // A socket token (lib/directTokens.js) when the login cookie is not sent to this host
+    // (web app on another domain); otherwise the access token from the cookie or header.
+    let userId;
+    if (typeof socket.handshake.auth?.socketToken === "string" && socket.handshake.auth.socketToken) {
+      userId = verifyDirectToken(socket.handshake.auth.socketToken, "socket");
+    } else {
+      const token = handshakeToken(socket.handshake);
+      if (!token) return next(new Error("Authentication failed: Valid accessToken required"));
+      userId = jwt.verify(token, env.JWT_SECRET).userId;
+    }
+    const user = await User.findById(userId).select("role status name preferredName mustChangePassword").lean();
     if (!user) return next(new Error("Authentication failed: User not found"));
     if (user.status === "suspended") return next(new Error("Authentication failed: Account is suspended"));
     if (user.mustChangePassword) return next(new Error("Authentication failed: Password change required"));

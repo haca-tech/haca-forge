@@ -62,6 +62,8 @@ router.post("/login", authLimiter, validate(loginSchema), authController.login);
 router.post("/refresh", authController.refresh);
 router.post("/logout", authenticate, authController.logout);
 router.get("/me", authenticate, authController.me);
+// Short-lived tokens for the socket and direct uploads (lib/directTokens.js).
+router.get("/direct-token", authenticate, authController.directToken);
 router.post(
   "/request-access",
   requestAccessLimiter,
