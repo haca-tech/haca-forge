@@ -1,4 +1,5 @@
 import { eligiblePreferencesForUpdate } from './eligibility.js';
+import { cleanPassword } from '../../lib/passwords.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { Person } from './model.js';
@@ -179,7 +180,7 @@ export async function createPerson(data, actor) {
     }
 
     const salt = await bcrypt.genSalt(10);
-    passwordHash = await bcrypt.hash(rawPassword, salt);
+    passwordHash = await bcrypt.hash(cleanPassword(rawPassword), salt);
     mustSetPassword = false;
     mustChangePassword = true;
   }
@@ -284,7 +285,7 @@ export async function updatePerson(id, updates, actor) {
 
     if (updates.password) {
       const salt = await bcrypt.genSalt(10);
-      target.passwordHash = await bcrypt.hash(updates.password, salt);
+      target.passwordHash = await bcrypt.hash(cleanPassword(updates.password), salt);
       target.mustSetPassword = false;
     }
   } else {

@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { cleanPassword, passwordMatches } from '../../lib/passwords.js';
 import { countAwaitingReview } from '../workItems/reviewState.js';
 import crypto from 'crypto';
 import path from 'path';
@@ -711,7 +712,7 @@ export async function changePassword(userId, { currentPassword, newPassword, con
     throw error;
   }
 
-  const isMatch = await bcrypt.compare(currentPassword, user.passwordHash || '');
+  const isMatch = await passwordMatches(currentPassword, user.passwordHash || '');
   if (!isMatch) {
     recordAttempt();
     const error = new Error('Current password is incorrect');
@@ -723,7 +724,7 @@ export async function changePassword(userId, { currentPassword, newPassword, con
   passwordAttempts.delete(userIdStr);
 
   const salt = await bcrypt.genSalt(10);
-  user.passwordHash = await bcrypt.hash(newPassword, salt);
+  user.passwordHash = await bcrypt.hash(cleanPassword(newPassword), salt);
   user.mustChangePassword = false;
   await user.save();
 

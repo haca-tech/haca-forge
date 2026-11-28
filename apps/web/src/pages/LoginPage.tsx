@@ -134,7 +134,8 @@ export const LoginPage: React.FC = () => {
     const cleanEmail = signInEmail.trim().toLowerCase();
 
     try {
-      const loggedUser = await login({ email: cleanEmail, password: signInPassword });
+      // Spaces at either end are never part of a password (often pasted with a temporary one).
+      const loggedUser = await login({ email: cleanEmail, password: signInPassword.trim() });
       if (loggedUser.mustChangePassword) {
         navigate('/settings?tab=security', { replace: true });
         return;
@@ -306,11 +307,25 @@ export const LoginPage: React.FC = () => {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  // Pasted passwords (e.g. a temporary one from WhatsApp) often carry a space at either end.
+                  onPaste={(e) => {
+                    const pasted = e.clipboardData.getData('text');
+                    if (pasted !== pasted.trim()) {
+                      e.preventDefault();
+                      const el = e.currentTarget;
+                      const start = el.selectionStart ?? password.length;
+                      const end = el.selectionEnd ?? password.length;
+                      setPassword((password.slice(0, start) + pasted.trim() + password.slice(end)).trim());
+                    }
+                  }}
+                  onBlur={() => {
+                    setPassword((p) => p.trim());
+                    setCapsLock(false);
+                  }}
                   placeholder="••••••••"
                   aria-describedby={capsLock ? 'login-caps' : undefined}
                   onKeyUp={(e) => setCapsLock(e.getModifierState('CapsLock'))}
                   onKeyDown={(e) => setCapsLock(e.getModifierState('CapsLock'))}
-                  onBlur={() => setCapsLock(false)}
                   className="ui-input w-full pr-12"
                 />
                 <button

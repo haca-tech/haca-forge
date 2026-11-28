@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { cleanPassword, passwordMatches } from '../../lib/passwords.js';
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env.js";
@@ -131,7 +132,7 @@ export async function loginUser({ email, password, userAgent = '', ip = '' }) {
     throw error;
   }
 
-  const isMatch = await bcrypt.compare(password, user.passwordHash || "");
+  const isMatch = await passwordMatches(password, user.passwordHash || "");
   if (!isMatch) {
     const error = new Error("Invalid email or password");
     error.code = "INVALID_CREDENTIALS";
@@ -366,7 +367,7 @@ export async function setPasswordWithToken({ token, password }) {
 
   if (user) {
     const salt = await bcrypt.genSalt(10);
-    user.passwordHash = await bcrypt.hash(password, salt);
+    user.passwordHash = await bcrypt.hash(cleanPassword(password), salt);
     user.mustSetPassword = false;
     user.refreshTokenHash = undefined;
     user.resetPasswordTokenHash = undefined;
@@ -400,7 +401,7 @@ export async function setPasswordWithToken({ token, password }) {
   }
 
   const salt = await bcrypt.genSalt(10);
-  user.passwordHash = await bcrypt.hash(password, salt);
+  user.passwordHash = await bcrypt.hash(cleanPassword(password), salt);
   user.mustSetPassword = false;
   user.refreshTokenHash = undefined;
   await user.save();
@@ -472,10 +473,7 @@ export async function changeUserPassword(
     throw error;
   }
 
-  const isMatch = await bcrypt.compare(
-    currentPassword,
-    user.passwordHash || "",
-  );
+  const isMatch = await passwordMatches(currentPassword, user.passwordHash || "");
   if (!isMatch) {
     const error = new Error("Current password is incorrect");
     error.code = "INVALID_CURRENT_PASSWORD";
@@ -484,7 +482,7 @@ export async function changeUserPassword(
   }
 
   const salt = await bcrypt.genSalt(10);
-  user.passwordHash = await bcrypt.hash(newPassword, salt);
+  user.passwordHash = await bcrypt.hash(cleanPassword(newPassword), salt);
   user.mustChangePassword = false;
   await user.save();
 
