@@ -1,5 +1,26 @@
+import { activityFeed } from '../activity/feed.js';
+import { presenceList } from '../../lib/presence.js';
 import * as teamService from './service.js';
 import { getProfileKpis, getProfileReport } from './profileKpis.js';
+
+export async function getPresence(req, res, next) {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, data: await presenceList() });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getActivityFeed(req, res, next) {
+  try {
+    res.set('Cache-Control', 'no-store');
+    const { limit, before, category, actorId } = req.query;
+    res.json({ success: true, data: await activityFeed({ limit, before, category, actorId }) });
+  } catch (err) {
+    next(err);
+  }
+}
 
 export async function getDirectory(req, res, next) {
   try {

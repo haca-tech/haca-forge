@@ -1,6 +1,7 @@
 import { ActivityEvent } from './model.js';
 import { logger } from '../../lib/logger.js';
 import { isSuperuser } from '../../lib/roleAccess.js';
+import { getSocketServer } from '../../lib/socketHub.js';
 
 export async function logActivity({
   entityType,
@@ -26,6 +27,9 @@ export async function logActivity({
       metadata,
       timestamp: new Date(),
     });
+
+    // Admins on the Live Status page re-read the activity feed (presence:watchers room).
+    getSocketServer()?.to('presence:watchers').emit('activity:new', { action });
 
     return event;
   } catch (err) {

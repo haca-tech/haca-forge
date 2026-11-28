@@ -92,6 +92,11 @@ const personSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // When the person's last open portal tab closed (lib/presence.js).
+    lastSeenAt: {
+      type: Date,
+      default: null,
+    },
     avatarUrl: {
       type: String,
       default: null,

@@ -1,3 +1,4 @@
+import { logActivity } from "../activity/service.js";
 import { env } from "../../config/env.js";
 import * as authService from "./service.js";
 import { User } from "../people/model.js";
@@ -89,6 +90,7 @@ export async function logout(req, res, next) {
         $unset: { refreshTokenHash: 1 },
       });
       disconnectUserSockets(req.user._id);
+      void logActivity({ entityType: "session", entityId: req.user._id, actor: req.user, action: "auth.signed_out" });
     }
 
     const clearOptions = getClearCookieOptions(req);

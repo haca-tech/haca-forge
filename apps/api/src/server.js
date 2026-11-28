@@ -62,6 +62,8 @@ import { ensureAutomationRules } from "./modules/automation/runner.js";
 import { ensureBaselineUsers } from "./modules/people/baselineUsers.js";
 import { authenticate } from "./middleware/auth.js";
 import { setSocketServer } from "./lib/socketHub.js";
+import { setPresenceServer, presenceConnected, presenceUpdated, presenceDisconnected, PRESENCE_ROOM } from "./lib/presence.js";
+import { hasPermission } from "./lib/roleAccess.js";
 import { User } from "./modules/people/model.js";
 import { startScheduler, stopScheduler } from "./lib/scheduler.js";
 import { verifyEmailOnStartup } from "./lib/email/index.js";
@@ -135,6 +137,7 @@ export const io = new SocketIOServer(server, {
   },
 });
 setSocketServer(io);
+setPresenceServer(io);
 
 /** The access token from the handshake: the httpOnly cookie, or an auth field / header. Never the URL. */
 function handshakeToken(handshake) {
@@ -184,6 +187,12 @@ io.on("connection", (socket) => {
     // No role rooms: events go to the user rooms the access resolver picks (recipientsFor).
 
     setupChatSocket(io, socket);
+
+    // Live presence (admin Live Status page): admins watch it, every tab reports its state.
+    if (hasPermission(socket.user, "user.manage")) socket.join(PRESENCE_ROOM);
+    presenceConnected(socket);
+    socket.on("presence:state", (data) => presenceUpdated(socket, data));
+    socket.on("disconnect", () => presenceDisconnected(socket));
   }
 });
 registerChatSocketIO(io);

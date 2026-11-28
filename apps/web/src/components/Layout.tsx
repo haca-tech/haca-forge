@@ -21,6 +21,7 @@ import {
   Bell,
   MessageSquare,
   Megaphone,
+  Activity,
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { NotificationCenter } from './NotificationCenter';
@@ -28,6 +29,7 @@ import { NotificationToastContainer } from './NotificationToast';
 import { UserMenuDropdown } from './UserMenuDropdown';
 import { Avatar } from './Avatar';
 import { useAccess } from '../lib/access';
+import { reportPresence } from '../lib/presenceReporter';
 import { ROLE_LABELS } from '@mmp/shared';
 
 interface LayoutProps {
@@ -175,6 +177,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
   const isCreativeHead = access.can('review.decide') && !access.isSuperuser;
   const isAdmin = access.can('user.approve');
   const managesAccess = access.can('settings.access.manage');
+  const watchesPresence = access.can('user.manage');
+
+  // Live Status (admin): tell the server which section this tab is on.
+  useEffect(() => {
+    reportPresence();
+  }, [location.pathname]);
   // Review Hub, Team Workload, Issues, Team Directory and chat follow permissions (the Viewer has none of them).
   const seesReviewHub = isTeamMember || access.can('feedback.view_all') || access.can('review.read_all');
   const seesPeople = access.can('people.view');
@@ -455,6 +463,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
                 },
               ]
             : []),
+          ...(watchesPresence
+            ? [
+                {
+                  id: 'live-status',
+                  label: 'Live Status',
+                  path: '/admin/live',
+                  description: 'Who is on the portal right now',
+                  icon: Activity,
+                  show: true,
+                  activeMatcher: (p: string) => p.startsWith('/admin/live'),
+                },
+              ]
+            : []),
           ...(managesAccess
             ? [
                 {
@@ -472,7 +493,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
       },
     ];
     return cats;
-  }, [user?.role, isAdmin, managesAccess, isSmManager, isCreativeHead, isTeamMember, seesReviewHub, seesPeople, pendingAccessCount]);
+  }, [user?.role, isAdmin, managesAccess, watchesPresence, isSmManager, isCreativeHead, isTeamMember, seesReviewHub, seesPeople, pendingAccessCount]);
 
   // Flatten accessible items for quick search jump
   const allSearchableItems = [
@@ -562,6 +583,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
         badge: pendingAccessCount > 0 ? pendingAccessCount : undefined,
       });
     }
+    if (watchesPresence) {
+      items.push({
+        id: 'live-status',
+        icon: Activity,
+        label: 'Live Status',
+        path: '/admin/live',
+        active: location.pathname.startsWith('/admin/live'),
+      });
+    }
     if (managesAccess) {
       items.push({
         id: 'access-approvals',
@@ -573,10 +603,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, focusMode = false }) =
     }
 
     return items;
-  }, [user?.role, location.pathname, isLandingActive, isTeamMember, isSmManager, isAdmin, managesAccess, pendingAccessCount]);
+  }, [user?.role, location.pathname, isLandingActive, isTeamMember, isSmManager, isAdmin, managesAccess, watchesPresence, pendingAccessCount]);
 
   // Current page name for the header (sidebar is the single source of navigation)
   const PAGE_TITLE_FALLBACKS: Array<[string, string]> = [
+    ['/admin/live', 'Live Status'],
     ['/profile', 'Profile'],
     ['/settings', 'Settings'],
     ['/chat', 'Team Chat'],

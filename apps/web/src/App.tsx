@@ -31,6 +31,9 @@ const queryClient = new QueryClient({
 const TeamDashboardPage = React.lazy(() =>
   import('./pages/dashboard/TeamDashboardPage').then((m) => ({ default: m.TeamDashboardPage }))
 );
+const LiveStatusPage = React.lazy(() =>
+  import('./pages/admin/LiveStatusPage').then((m) => ({ default: m.LiveStatusPage }))
+);
 const AccessRequestsPage = React.lazy(() =>
   import('./pages/admin/AccessRequestsPage').then((m) => ({ default: m.AccessRequestsPage }))
 );
@@ -505,6 +508,18 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Navigate to="/team" replace />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Live Status (admin): who is on the portal right now */}
+                <Route
+                  path="/admin/live"
+                  element={
+                    <ProtectedRoute requiredPermission="user.manage">
+                      <Layout>
+                        <LiveStatusPage />
+                      </Layout>
                     </ProtectedRoute>
                   }
                 />

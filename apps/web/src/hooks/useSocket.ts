@@ -3,8 +3,10 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 import { directApiOrigin, getDirectToken, refreshSession } from '../lib/api';
 import { wireAccessEvents } from '../lib/accessEvents';
+import { reportPresence, setPresenceSocket } from '../lib/presenceReporter';
 
 let socketInstance: Socket | null = null;
+
 
 /**
  * The server closes a user's sockets when their session or access changes (logout elsewhere,
@@ -42,6 +44,7 @@ export function useSocket() {
       if (socketInstance) {
         socketInstance.disconnect();
         socketInstance = null;
+        setPresenceSocket(null);
         setIsConnected(false);
       }
       return;
@@ -73,6 +76,7 @@ export function useSocket() {
         reconnectionDelay: 1000,
       });
       socketInstance = socket;
+      setPresenceSocket(socket);
       // access:changed and reconnects reload /auth/me (AuthContext listens).
       wireAccessEvents(socket);
       let renewedSinceLastConnect = false;
@@ -80,6 +84,7 @@ export function useSocket() {
       socket.on('connect', () => {
         renewedSinceLastConnect = false;
         setIsConnected(true);
+        reportPresence();
       });
 
       // The server closes a user's sockets when their session or access changes (logout

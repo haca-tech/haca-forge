@@ -36,6 +36,7 @@ export const ALLOW_UNGUARDED = {
   'POST /api/auth/forgot-password': { check: 'public', reason: PUBLIC },
   'POST /api/auth/logout': { check: 'middleware/auth.js#authenticate', reason: SESSION },
   'GET /api/auth/me': { check: 'middleware/auth.js#authenticate', reason: SESSION },
+  'GET /api/auth/direct-token': { check: 'middleware/auth.js#authenticate', reason: 'Short-lived socket/upload token for the signed-in user (lib/directTokens.js); any signed-in user may have one for their own session.' },
   'POST /api/auth/change-password': { check: 'middleware/auth.js#authenticate', reason: SESSION },
   'GET /api/me/profile': { check: 'middleware/auth.js#authenticate', reason: OWN_ACCOUNT },
   'PATCH /api/me/profile': { check: 'middleware/auth.js#authenticate', reason: OWN_ACCOUNT },

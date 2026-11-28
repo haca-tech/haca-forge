@@ -27,6 +27,10 @@ function notFoundForWorkers(req, res, next) {
 router.use(authenticate);
 
 // Directory list - requires team.profile.view (executive (worker): 404)
+// Live Status (admin): who has the portal open now. Before /:id.
+router.get('/presence', requirePermission('user.manage'), teamController.getPresence);
+router.get('/activity-feed', requirePermission('user.manage'), teamController.getActivityFeed);
+
 router.get('/', notFoundForWorkers, requirePermission('team.profile.view'), teamController.getDirectory);
 
 // Individual Profile Endpoints

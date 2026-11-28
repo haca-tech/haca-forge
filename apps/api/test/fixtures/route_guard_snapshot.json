@@ -736,6 +736,26 @@
    "sm_manager"
   ]
  },
+ "GET /api/team/activity-feed": {
+  "guards": [
+   [
+    "user.manage"
+   ]
+  ],
+  "roles": [
+   "admin"
+  ]
+ },
+ "GET /api/team/presence": {
+  "guards": [
+   [
+    "user.manage"
+   ]
+  ],
+  "roles": [
+   "admin"
+  ]
+ },
  "GET /api/work": {
   "guards": [
    [

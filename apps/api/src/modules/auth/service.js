@@ -6,6 +6,7 @@ import { env } from "../../config/env.js";
 import { User } from "../people/model.js";
 import { AccessRequest } from "../access/model.js";
 import { Session } from "./session.model.js";
+import { logActivity } from "../activity/service.js";
 import { ROLE_PERMISSIONS, isKnownRole, normalizeRole, WORKER_ROLE } from "@mmp/shared";
 import {
   sendEmailOrFail,
@@ -134,6 +135,7 @@ export async function loginUser({ email, password, userAgent = '', ip = '' }) {
 
   const isMatch = await passwordMatches(password, user.passwordHash || "");
   if (!isMatch) {
+    void logActivity({ entityType: "session", entityId: user._id, actor: user, action: "auth.sign_in_failed", metadata: { device: parseDeviceLabel(userAgent) } });
     const error = new Error("Invalid email or password");
     error.code = "INVALID_CREDENTIALS";
     error.statusCode = 401;
@@ -173,6 +175,7 @@ export async function loginUser({ email, password, userAgent = '', ip = '' }) {
   user.lastLogin = new Date();
   user.lastLoginAt = new Date();
   await user.save();
+  void logActivity({ entityType: "session", entityId: user._id, actor: user, action: "auth.signed_in", metadata: { device: deviceLabel } });
 
   return {
     user: {
