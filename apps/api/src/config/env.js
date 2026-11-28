@@ -23,7 +23,7 @@ const envSchema = z.object({
   COOKIE_DOMAIN: z.string().optional(),
   // Proxies in front of the API that add X-Forwarded-For (Render = 1; Vercel's /api rewrite + Render = 2).
   // Sets Express 'trust proxy', so req.ip (rate limits, session IP) is the visitor, not the proxy.
-  // Unset: 1 (Render). Set 2 only when a web-host proxy forwards /api to the API.
+  // Unset: 2 in production (the Cloudflare Pages Function that forwards /api + Render), 1 elsewhere.
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).optional(),
   // Email (docs/EMAIL.md). "console" logs each email and sends nothing (dev and tests);
   // "smtp" sends through Nodemailer; "resend" sends through the Resend API.

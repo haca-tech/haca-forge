@@ -56,7 +56,37 @@ function configuredApiBase(): string {
  * web host answers 405 and nobody can sign in, so the default is the API host (VITE_API_BASE_URL).
  */
 function sameOriginApi(): boolean {
-  return String(import.meta.env?.VITE_API_SAME_ORIGIN || "").toLowerCase() === "true";
+  return String(import.meta.env?.VITE_API_SAME_ORIGIN || "").toLowerCase() === "true" && !proxyUnavailable();
+}
+
+/**
+ * Safety net: if /api on the web host does not reach the API (a 404/405 page instead of the API's
+ * JSON, e.g. the Pages Function is not deployed), use the API host directly for the rest of this
+ * browser session, so nobody is locked out. A new session tries the proxy again.
+ */
+const PROXY_OFF_KEY = "haca.apiProxyOff";
+let proxyOff = false;
+function proxyUnavailable(): boolean {
+  if (proxyOff) return true;
+  try {
+    proxyOff = typeof window !== "undefined" && window.sessionStorage?.getItem(PROXY_OFF_KEY) === "1";
+  } catch {
+    /* storage unavailable */
+  }
+  return proxyOff;
+}
+function markProxyUnavailable(): void {
+  proxyOff = true;
+  try {
+    window.sessionStorage?.setItem(PROXY_OFF_KEY, "1");
+  } catch {
+    /* storage unavailable */
+  }
+}
+/** A response from the web host itself rather than the API behind /api. */
+function isMissingProxy(response: Response): boolean {
+  const type = response.headers.get("content-type") || "";
+  return (response.status === 404 || response.status === 405) && !type.includes("application/json");
 }
 
 /** A short-lived token for a request sent straight to the API host ("socket" or "upload"). */
@@ -123,10 +153,12 @@ export function clearLegacyTokens(): void {
 async function executeTokenRefresh(): Promise<boolean> {
   try {
     // The refresh cookie is sent automatically; the API answers with new cookies.
-    const res = await fetch(buildApiUrl("/auth/refresh"), {
-      method: "POST",
-      credentials: "include",
-    });
+    const send = () => fetch(buildApiUrl("/auth/refresh"), { method: "POST", credentials: "include" });
+    let res = await send();
+    if (sameOriginApi() && isMissingProxy(res)) {
+      markProxyUnavailable();
+      res = await send();
+    }
     return res.ok;
   } catch {
     return false;
@@ -181,6 +213,12 @@ export async function apiFetch<T = any>(
     if (code !== "SERVER_RESTARTING") break;
     await new Promise((r) => setTimeout(r, 1000));
     response = await doFetch();
+  }
+
+  // /api on the web host did not reach the API: switch to the API host and send this request again.
+  if (sameOriginApi() && !/^https?:/.test(url) && isMissingProxy(response) && canRetryBody) {
+    markProxyUnavailable();
+    return apiFetch<T>(endpoint, options);
   }
 
   // Handle silent token refresh on 401 Unauthorized
