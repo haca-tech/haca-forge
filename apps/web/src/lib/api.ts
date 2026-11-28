@@ -24,9 +24,9 @@ let refreshPromise: Promise<boolean> | null = null;
  * or falling back to relative /api paths. Avoids duplicate /api prefixes.
  */
 export function buildApiUrl(endpoint: string): string {
-  // Production: the web host forwards /api to the API (vercel.json), so requests and the login
-  // cookie stay on the web app's own domain. Browsers that block third-party cookies (Safari,
-  // Brave, incognito) otherwise drop the session right after login.
+  // With VITE_API_SAME_ORIGIN=true the web host forwards /api to the API, so requests and the login
+  // cookie stay on the web app's own domain (browsers that block third-party cookies, such as
+  // Safari, keep the session). Otherwise requests go to VITE_API_BASE_URL.
   return joinApiUrl(sameOriginApi() ? "" : configuredApiBase(), endpoint);
 }
 
@@ -50,9 +50,13 @@ function configuredApiBase(): string {
   return (import.meta.env?.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
 }
 
-/** Same-origin /api in production builds, unless VITE_API_SAME_ORIGIN=false. */
+/**
+ * Same-origin /api only when VITE_API_SAME_ORIGIN=true, i.e. the web host really forwards /api to
+ * the API (a Cloudflare Pages Function or a Vercel rewrite). Without that forwarding, /api on the
+ * web host answers 405 and nobody can sign in, so the default is the API host (VITE_API_BASE_URL).
+ */
 function sameOriginApi(): boolean {
-  return Boolean(import.meta.env?.PROD) && String(import.meta.env?.VITE_API_SAME_ORIGIN || "").toLowerCase() !== "false";
+  return String(import.meta.env?.VITE_API_SAME_ORIGIN || "").toLowerCase() === "true";
 }
 
 /** A short-lived token for a request sent straight to the API host ("socket" or "upload"). */

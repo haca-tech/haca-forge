@@ -75,7 +75,7 @@ const server = http.createServer(app);
 app.use(requestIdMiddleware);
 
 // 2. Trust proxy for Render / Vercel proxy headers
-app.set("trust proxy", env.TRUST_PROXY_HOPS ?? (env.NODE_ENV === "production" ? 2 : 1));
+app.set("trust proxy", env.TRUST_PROXY_HOPS ?? 1);
 
 // 2. Security headers
 app.use(
